@@ -125,6 +125,7 @@ export default function DashboardClient({ username, email, role }: { username: s
   // Form state
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [description, setDescription] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [value, setValue] = useState("");
@@ -154,7 +155,7 @@ export default function DashboardClient({ username, email, role }: { username: s
 
   function closeModal() {
     setShowModal(false);
-    setName(""); setAddress(""); setDescription("");
+    setName(""); setAddress(""); setZipCode(""); setDescription("");
     setMembers([]); setValue(""); setStatus("active"); setFormError("");
   }
 
@@ -171,7 +172,7 @@ export default function DashboardClient({ username, email, role }: { username: s
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, address, description, value, status, memberIds: members.map((m) => m.id) }),
+      body: JSON.stringify({ name, address, zip_code: zipCode, description, value, status, memberIds: members.map((m) => m.id) }),
     });
 
     const data = await res.json();
@@ -330,7 +331,17 @@ export default function DashboardClient({ username, email, role }: { username: s
                 <input
                   type="text" value={address} onChange={(e) => setAddress(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  placeholder="e.g. 123 Main St, New York, NY 10001"
+                  placeholder="e.g. 123 Main St, New York, NY"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">ZIP Code <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input
+                  type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  placeholder="e.g. 10001"
+                  maxLength={5}
                 />
               </div>
 

@@ -51,14 +51,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, description, address, value, status, memberIds } = await req.json();
+  const { name, description, address, zip_code, value, status, memberIds } = await req.json();
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
   const supabase = getSupabase();
 
   const { data: project, error } = await supabase
     .from("projects")
-    .insert({ name, description, address, value: parseFloat(value) || 0, status: status || "active" })
+    .insert({ name, description, address, zip_code, value: parseFloat(value) || 0, status: status || "active" })
     .select()
     .single();
 
