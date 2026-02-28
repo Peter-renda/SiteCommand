@@ -103,6 +103,88 @@ function WeatherWidget({ zipCode }: { zipCode: string }) {
   );
 }
 
+function MemberPicker({
+  users,
+  selected,
+  onAdd,
+  onRemove,
+}: {
+  users: Member[];
+  selected: Member[];
+  onAdd: (u: Member) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const filtered = users.filter(
+    (u) =>
+      !selected.find((s) => s.id === u.id) &&
+      (u.username.toLowerCase().includes(search.toLowerCase()) ||
+        u.email.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {selected.map((u) => (
+            <span key={u.id} className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 bg-gray-100 text-xs text-gray-700 rounded-full">
+              {u.username}
+              <button type="button" onClick={() => onRemove(u.id)} className="text-gray-400 hover:text-gray-700 ml-0.5">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Search by name or email..."
+        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg max-h-40 overflow-y-auto z-20">
+          {filtered.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onAdd(u); setSearch(""); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2.5"
+            >
+              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600 shrink-0">
+                {u.username[0].toUpperCase()}
+              </div>
+              <span className="font-medium text-gray-900">{u.username}</span>
+              <span className="text-gray-400 text-xs">{u.email}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && search && filtered.length === 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg px-3 py-2 z-20">
+          <p className="text-xs text-gray-400">No matching team members</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProjectClient({
   projectId,
   role,
@@ -117,6 +199,20 @@ export default function ProjectClient({
   const [notFound, setNotFound] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editPhotoRef = useRef<HTMLInputElement>(null);
+
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false);
+  const [allUsers, setAllUsers] = useState<Member[]>([]);
+  const [editName, setEditName] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editZipCode, setEditZipCode] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editValue, setEditValue] = useState("");
+  const [editStatus, setEditStatus] = useState("active");
+  const [editMembers, setEditMembers] = useState<Member[]>([]);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}`)
@@ -149,6 +245,53 @@ export default function ProjectClient({
     if (res.ok) {
       setProject((prev) => prev ? { ...prev, photo_url: data.photo_url + `?t=${Date.now()}` } : prev);
     }
+  }
+
+  function openEdit() {
+    if (!project) return;
+    setEditName(project.name);
+    setEditAddress(project.address || "");
+    setEditZipCode(project.zip_code || "");
+    setEditDescription(project.description || "");
+    setEditValue(project.value?.toString() || "");
+    setEditStatus(project.status || "active");
+    setEditMembers(project.members || []);
+    setEditError("");
+    fetch("/api/users").then((r) => r.json()).then((d) => setAllUsers(Array.isArray(d) ? d : []));
+    setShowEdit(true);
+  }
+
+  async function handleEditSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!project) return;
+    setEditSaving(true);
+    setEditError("");
+
+    const res = await fetch(`/api/projects/${project.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        address: editAddress,
+        zip_code: editZipCode,
+        description: editDescription,
+        value: editValue,
+        status: editStatus,
+        memberIds: editMembers.map((m) => m.id),
+      }),
+    });
+
+    const data = await res.json();
+    setEditSaving(false);
+
+    if (!res.ok) { setEditError(data.error); return; }
+
+    setProject((prev) => prev ? {
+      ...prev,
+      ...data,
+      members: editMembers,
+    } : prev);
+    setShowEdit(false);
   }
 
   return (
@@ -220,7 +363,7 @@ export default function ProjectClient({
                 </div>
               </div>
 
-              {/* Right: Photo, Info, Weather */}
+              {/* Right: Photo, Info, Weather, Edit */}
               <div className="space-y-5">
 
                 {/* Photo */}
@@ -272,11 +415,145 @@ export default function ProjectClient({
                   <WeatherWidget zipCode={project.zip_code} />
                 </div>
 
+                {/* Edit button */}
+                {role === "admin" && (
+                  <button
+                    onClick={openEdit}
+                    className="w-full py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    Edit Project
+                  </button>
+                )}
+
               </div>
             </div>
           </>
         ) : null}
       </main>
+
+      {/* Edit Modal */}
+      {showEdit && project && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8">
+          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl flex flex-col max-h-full">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <h2 className="text-sm font-semibold text-gray-900">Edit Project</h2>
+              <button onClick={() => setShowEdit(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSave} className="px-6 py-5 space-y-4 overflow-y-auto">
+
+              {/* Photo */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Project Photo</label>
+                <div className="rounded-lg overflow-hidden border border-gray-200">
+                  {project.photo_url ? (
+                    <img src={project.photo_url} alt="Project" className="w-full h-36 object-cover" />
+                  ) : (
+                    <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a.75.75 0 00.75-.75V6.75A.75.75 0 0019.5 6h-15a.75.75 0 00-.75.75v12c0 .414.336.75.75.75z" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="px-3 py-2 border-t border-gray-100">
+                    <input ref={editPhotoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                    <button
+                      type="button"
+                      onClick={() => editPhotoRef.current?.click()}
+                      disabled={uploading}
+                      className="w-full py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      {uploading ? "Uploading..." : project.photo_url ? "Change Photo" : "Add Photo"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Project Name</label>
+                <input
+                  type="text" required value={editName} onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Address <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input
+                  type="text" value={editAddress} onChange={(e) => setEditAddress(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  placeholder="e.g. 123 Main St, New York, NY"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">ZIP Code <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input
+                  type="text" value={editZipCode} onChange={(e) => setEditZipCode(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  placeholder="e.g. 10001"
+                  maxLength={5}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
+                <textarea
+                  rows={2} value={editDescription} onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                  placeholder="Brief description..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Project Members <span className="text-gray-400 font-normal">(optional)</span></label>
+                <MemberPicker
+                  users={allUsers}
+                  selected={editMembers}
+                  onAdd={(u) => setEditMembers((prev) => [...prev, u])}
+                  onRemove={(id) => setEditMembers((prev) => prev.filter((m) => m.id !== id))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Value ($)</label>
+                  <input
+                    type="number" min="0" step="0.01" value={editValue} onChange={(e) => setEditValue(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={editStatus} onChange={(e) => setEditStatus(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  >
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              {editError && <p className="text-sm text-red-600">{editError}</p>}
+
+              <div className="flex gap-3 pt-1 pb-1">
+                <button type="button" onClick={() => setShowEdit(false)} className="flex-1 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={editSaving} className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
+                  {editSaving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
