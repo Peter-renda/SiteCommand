@@ -57,7 +57,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (contentType.includes("multipart/form-data")) {
     const formData = await req.formData();
     const file = formData.get("file") as File;
-    const parentId = formData.get("parent_id") as string | null;
+    const rawParentId = formData.get("parent_id") as string | null;
+    const parentId = rawParentId && rawParentId !== "null" ? rawParentId : null;
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
     const docId = crypto.randomUUID();
