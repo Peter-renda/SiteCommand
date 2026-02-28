@@ -62,7 +62,10 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: "Failed to create project", detail: error.message }, { status: 500 });
+  if (error) {
+    console.error("Supabase insert error:", JSON.stringify(error));
+    return NextResponse.json({ error: "Failed to create project", detail: error.message, code: error.code, hint: error.hint }, { status: 500 });
+  }
 
   if (memberIds && memberIds.length > 0) {
     await supabase.from("project_members").insert(
