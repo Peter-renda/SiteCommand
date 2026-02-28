@@ -692,7 +692,6 @@ export default function TasksClient({
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -876,7 +875,7 @@ export default function TasksClient({
                 {tasks.map((task) => (
                   <tr
                     key={task.id}
-                    onClick={() => setSelectedTask(task)}
+                    onClick={() => window.location.href = `/projects/${projectId}/tasks/${task.id}`}
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 cursor-pointer"
                   >
                     <td className="px-4 py-3 text-sm text-gray-400 font-mono">{task.task_number}</td>
@@ -922,18 +921,6 @@ export default function TasksClient({
           directory={directory}
           onConfirm={handleCreate}
           onCancel={() => setShowNew(false)}
-        />
-      )}
-      {selectedTask && (
-        <TaskDetailModal
-          task={selectedTask}
-          directory={directory}
-          projectId={projectId}
-          onUpdate={(updated) => {
-            setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-            setSelectedTask(null);
-          }}
-          onClose={() => setSelectedTask(null)}
         />
       )}
     </div>
