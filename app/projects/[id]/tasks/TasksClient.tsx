@@ -13,6 +13,7 @@ type Task = {
   description: string | null;
   photo_url: string | null;
   distribution_list: DistributionContact[];
+  due_date: string | null;
   created_at: string;
 };
 
@@ -245,6 +246,7 @@ function NewTaskModal({
     category: string;
     description: string;
     distribution_list: DistributionContact[];
+    due_date: string;
     photoFile: File | null;
   }) => void;
   onCancel: () => void;
@@ -254,6 +256,7 @@ function NewTaskModal({
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [distribution, setDistribution] = useState<DistributionContact[]>([]);
+  const [dueDate, setDueDate] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -270,7 +273,7 @@ function NewTaskModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onConfirm({ title, status, category, description, distribution_list: distribution, photoFile });
+    onConfirm({ title, status, category, description, distribution_list: distribution, due_date: dueDate, photoFile });
   }
 
   return (
@@ -340,6 +343,17 @@ function NewTaskModal({
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Due date */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Due Date</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+            />
           </div>
 
           {/* Distribution list */}
@@ -441,6 +455,7 @@ function TaskDetailModal({
   const [category, setCategory] = useState(task.category ?? "");
   const [description, setDescription] = useState(task.description ?? "");
   const [distribution, setDistribution] = useState<DistributionContact[]>(task.distribution_list ?? []);
+  const [dueDate, setDueDate] = useState(task.due_date ?? "");
   const [photoUrl, setPhotoUrl] = useState(task.photo_url);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -465,7 +480,7 @@ function TaskDetailModal({
     const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, category, description, distribution_list: distribution, photo_url: photoUrl }),
+      body: JSON.stringify({ status, category, description, distribution_list: distribution, due_date: dueDate || null, photo_url: photoUrl }),
     });
     if (res.ok) {
       const updated = await res.json();
@@ -517,6 +532,16 @@ function TaskDetailModal({
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Due Date</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+            />
           </div>
 
           <div>
@@ -586,12 +611,13 @@ function TaskDetailModal({
 // ── Export helpers ────────────────────────────────────────────────────────────
 
 function exportCSV(tasks: Task[], projectId: string) {
-  const headers = ["Task #", "Title", "Status", "Category", "Distribution", "Description", "Created"];
+  const headers = ["Task #", "Title", "Status", "Category", "Due Date", "Distribution", "Description", "Created"];
   const rows = tasks.map((t) => [
     t.task_number,
     t.title,
     t.status,
     t.category ?? "",
+    t.due_date ? new Date(t.due_date + "T12:00:00").toLocaleDateString() : "",
     (t.distribution_list ?? []).map((d) => d.name).join("; "),
     (t.description ?? "").replace(/\n/g, " "),
     new Date(t.created_at).toLocaleDateString(),
@@ -621,6 +647,7 @@ function exportPDF(tasks: Task[]) {
         <td>${t.title}</td>
         <td>${t.status}</td>
         <td>${t.category ?? "—"}</td>
+        <td>${t.due_date ? new Date(t.due_date + "T12:00:00").toLocaleDateString() : "—"}</td>
         <td>${(t.distribution_list ?? []).map((d) => d.name).join(", ") || "—"}</td>
         <td>${t.description ?? "—"}</td>
         <td>${new Date(t.created_at).toLocaleDateString()}</td>
@@ -639,7 +666,7 @@ function exportPDF(tasks: Task[]) {
     </style></head><body>
     <h1>Tasks</h1>
     <table>
-      <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Category</th><th>Distribution</th><th>Description</th><th>Created</th></tr></thead>
+      <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Category</th><th>Due Date</th><th>Distribution</th><th>Description</th><th>Created</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <script>window.onload = () => { window.print(); }<\/script>
@@ -697,6 +724,7 @@ export default function TasksClient({
     category: string;
     description: string;
     distribution_list: DistributionContact[];
+    due_date: string;
     photoFile: File | null;
   }) {
     setShowNew(false);
@@ -711,6 +739,7 @@ export default function TasksClient({
         category: data.category || null,
         description: data.description || null,
         distribution_list: data.distribution_list,
+        due_date: data.due_date || null,
       }),
     });
 
@@ -839,6 +868,7 @@ export default function TasksClient({
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Distribution</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Due Date</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
                 </tr>
               </thead>
@@ -867,6 +897,11 @@ export default function TasksClient({
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {(task.distribution_list ?? []).length > 0
                         ? task.distribution_list.map((d) => d.name).join(", ")
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      {task.due_date
+                        ? new Date(task.due_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                         : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">

@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const nextNumber = (maxRow?.task_number ?? 0) + 1;
 
-  const { title, status, category, description, distribution_list } = await req.json();
+  const { title, status, category, description, distribution_list, due_date } = await req.json();
   if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
 
   const { data, error } = await supabase
@@ -50,6 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       category: category || null,
       description: description || null,
       distribution_list: distribution_list || [],
+      due_date: due_date || null,
       created_by: session.id,
     })
     .select()
