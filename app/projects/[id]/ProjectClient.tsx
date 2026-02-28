@@ -4,6 +4,14 @@ import { useState, useEffect, useRef } from "react";
 
 type Member = { id: string; username: string; email: string };
 
+type ActivityItem = {
+  id: string;
+  type: string;
+  description: string;
+  created_at: string;
+  users: { username: string } | null;
+};
+
 type Project = {
   id: string;
   name: string;
@@ -23,6 +31,18 @@ type WeatherDay = {
   max: number;
   min: number;
 };
+
+function timeAgo(timestamp: string): string {
+  const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 function weatherInfo(code: number): { label: string; icon: string } {
   if (code === 0) return { label: "Clear", icon: "☀️" };
@@ -197,6 +217,7 @@ export default function ProjectClient({
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editPhotoRef = useRef<HTMLInputElement>(null);
@@ -214,6 +235,12 @@ export default function ProjectClient({
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
+  function fetchActivity() {
+    fetch(`/api/projects/${projectId}/activity`)
+      .then((r) => r.json())
+      .then((d) => setActivity(Array.isArray(d) ? d : []));
+  }
+
   useEffect(() => {
     fetch(`/api/projects/${projectId}`)
       .then((res) => {
@@ -223,6 +250,7 @@ export default function ProjectClient({
       .then((data) => {
         if (data) { setProject(data); setLoading(false); }
       });
+    fetchActivity();
   }, [projectId]);
 
   async function handleLogout() {
@@ -291,6 +319,7 @@ export default function ProjectClient({
       ...data,
       members: editMembers,
     } : prev);
+    fetchActivity();
     setShowEdit(false);
   }
 
@@ -339,7 +368,7 @@ export default function ProjectClient({
             {/* Two-column layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-              {/* Left: Team */}
+              {/* Left: Team + Activity */}
               <div className="lg:col-span-2 space-y-6">
                 <div className="bg-white border border-gray-100 rounded-xl p-6">
                   <h2 className="text-sm font-semibold text-gray-900 mb-4">Project Team</h2>
@@ -355,6 +384,29 @@ export default function ProjectClient({
                           <div>
                             <p className="text-sm font-medium text-gray-900">{m.username}</p>
                             <p className="text-xs text-gray-400">{m.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Activity */}
+                <div className="bg-white border border-gray-100 rounded-xl p-6">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-4">Recent Activity</h2>
+                  {activity.length === 0 ? (
+                    <p className="text-sm text-gray-400">No activity yet.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {activity.map((item) => (
+                        <div key={item.id} className="flex items-start gap-3">
+                          <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 shrink-0" />
+                          <div>
+                            <p className="text-sm text-gray-700">{item.description}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {item.users?.username && `${item.users.username} · `}
+                              {timeAgo(item.created_at)}
+                            </p>
                           </div>
                         </div>
                       ))}

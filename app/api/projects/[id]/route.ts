@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -29,6 +30,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       memberIds.map((userId: string) => ({ project_id: id, user_id: userId }))
     );
   }
+
+  await logActivity(supabase, {
+    projectId: id,
+    userId: session.id,
+    type: "project_updated",
+    description: "Project details updated",
+  });
 
   return NextResponse.json(project);
 }
