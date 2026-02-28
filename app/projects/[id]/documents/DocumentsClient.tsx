@@ -430,6 +430,7 @@ export default function DocumentsClient({
   const [currentParentId, setCurrentParentId] = useState<string | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [renameTarget, setRenameTarget] = useState<DocItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DocItem | null>(null);
@@ -463,6 +464,7 @@ export default function DocumentsClient({
   useEffect(() => {
     function handleClick() {
       setOpenMenuId(null);
+      setMenuPos(null);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -904,55 +906,27 @@ export default function DocumentsClient({
                         </button>
 
                         {/* Three-dot menu */}
-                        <div className="relative">
-                          <button
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId((prev) => (prev === item.id ? null : item.id));
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <circle cx="5" cy="12" r="1.5" />
-                              <circle cx="12" cy="12" r="1.5" />
-                              <circle cx="19" cy="12" r="1.5" />
-                            </svg>
-                          </button>
-
-                          {openMenuId === item.id && (
-                            <div
-                              onMouseDown={(e) => e.stopPropagation()}
-                              className="absolute right-0 mt-1 w-44 bg-white border border-gray-100 rounded-lg shadow-lg z-10 py-1"
-                            >
-                              <button
-                                onClick={() => { setRenameTarget(item); setOpenMenuId(null); }}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                              >
-                                Rename
-                              </button>
-                              <button
-                                onClick={() => openMoveModal(item)}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                              >
-                                Move
-                              </button>
-                              <button
-                                onClick={() => handleCopy(item)}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                              >
-                                Copy
-                              </button>
-                              <div className="border-t border-gray-100 my-1" />
-                              <button
-                                onClick={() => { setDeleteTarget(item); setOpenMenuId(null); }}
-                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (openMenuId === item.id) {
+                              setOpenMenuId(null);
+                              setMenuPos(null);
+                            } else {
+                              const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                              setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                              setOpenMenuId(item.id);
+                            }
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="5" cy="12" r="1.5" />
+                            <circle cx="12" cy="12" r="1.5" />
+                            <circle cx="19" cy="12" r="1.5" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -998,6 +972,45 @@ export default function DocumentsClient({
           onCancel={() => setMoveTarget(null)}
         />
       )}
+
+      {/* Fixed-position three-dot dropdown (renders outside overflow-hidden table) */}
+      {openMenuId && menuPos && (() => {
+        const item = items.find((i) => i.id === openMenuId);
+        if (!item) return null;
+        return (
+          <div
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 9999 }}
+            className="w-44 bg-white border border-gray-100 rounded-lg shadow-lg py-1"
+          >
+            <button
+              onClick={() => { setRenameTarget(item); setOpenMenuId(null); setMenuPos(null); }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Rename
+            </button>
+            <button
+              onClick={() => openMoveModal(item)}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Move
+            </button>
+            <button
+              onClick={() => handleCopy(item)}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Copy
+            </button>
+            <div className="border-t border-gray-100 my-1" />
+            <button
+              onClick={() => { setDeleteTarget(item); setOpenMenuId(null); setMenuPos(null); }}
+              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }
