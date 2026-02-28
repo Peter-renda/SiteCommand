@@ -147,10 +147,12 @@ type UserFormData = {
 
 function UserModal({
   initial,
+  companies,
   onConfirm,
   onCancel,
 }: {
   initial?: Partial<UserFormData>;
+  companies: string[];
   onConfirm: (data: UserFormData) => void;
   onCancel: () => void;
 }) {
@@ -240,13 +242,26 @@ function UserModal({
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Company</label>
-            <input
-              type="text"
-              value={form.company}
-              onChange={(e) => set("company", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              placeholder="Company name"
-            />
+            {companies.length > 0 ? (
+              <select
+                value={form.company}
+                onChange={(e) => set("company", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+              >
+                <option value="">Select company...</option>
+                {companies.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={form.company}
+                onChange={(e) => set("company", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                placeholder="Company name"
+              />
+            )}
           </div>
 
           <div>
@@ -970,7 +985,11 @@ export default function DirectoryClient({
 
       {/* Modals */}
       {showUserModal && (
-        <UserModal onConfirm={handleAddUser} onCancel={() => setShowUserModal(false)} />
+        <UserModal
+          companies={companies.map((c) => c.company ?? "").filter(Boolean)}
+          onConfirm={handleAddUser}
+          onCancel={() => setShowUserModal(false)}
+        />
       )}
       {showCompanyModal && (
         <CompanyModal onConfirm={handleAddCompany} onCancel={() => setShowCompanyModal(false)} />
@@ -990,6 +1009,7 @@ export default function DirectoryClient({
             company: editTarget.company ?? "",
             permission: editTarget.permission ?? "",
           }}
+          companies={companies.map((c) => c.company ?? "").filter(Boolean)}
           onConfirm={handleEdit}
           onCancel={() => setEditTarget(null)}
         />
