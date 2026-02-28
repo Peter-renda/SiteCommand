@@ -447,15 +447,9 @@ export default function ProjectClient({
           <p className="text-sm text-gray-500">Project not found.</p>
         ) : project ? (
           <>
-            {/* Centered project name + status */}
+            {/* Centered project name */}
             <div className="text-center mb-10">
-              <h1 className="text-3xl font-semibold text-gray-900">{project.name}</h1>
-              <div className="flex items-center justify-center gap-3 mt-3">
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${project.status === "active" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                  {project.status}
-                </span>
-                <span className="text-sm font-semibold text-gray-900">${(project.value || 0).toLocaleString()}</span>
-              </div>
+              <h1 className="text-5xl font-bold text-gray-900">{project.name}</h1>
             </div>
 
             {/* Two-column layout */}
@@ -536,8 +530,8 @@ export default function ProjectClient({
                   )}
                 </div>
 
-                {/* Address & Description */}
-                {(project.address || project.description) && (
+                {/* Address, Status, Value & Description */}
+                {(project.address || project.description || project.status || project.value) && (
                   <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
                     {project.address && (
                       <div className="flex items-start gap-2">
@@ -548,8 +542,17 @@ export default function ProjectClient({
                         <p className="text-sm text-gray-600">{project.address}{project.zip_code ? ` ${project.zip_code}` : ""}</p>
                       </div>
                     )}
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${project.status === "active" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                        {project.status}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">${(project.value || 0).toLocaleString()}</span>
+                    </div>
                     {project.description && (
-                      <p className="text-sm text-gray-500 leading-relaxed">{project.description}</p>
+                      <p className="text-sm text-gray-500 leading-relaxed">
+                        <span className="font-medium text-gray-700">Description: </span>
+                        {project.description}
+                      </p>
                     )}
                   </div>
                 )}
