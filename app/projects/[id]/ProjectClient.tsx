@@ -72,26 +72,53 @@ const TOOL_SECTIONS = [
 ];
 
 function ProjectToolsNav({ projectId }: { projectId: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   return (
-    <nav className="bg-white border-b border-gray-100 w-full overflow-x-auto">
-      <div className="flex items-stretch h-11 px-6 gap-0">
-        {TOOL_SECTIONS.map((section, si) => (
-          <div key={section.label} className="flex items-center">
-            {si > 0 && <div className="w-px h-5 bg-gray-200 mx-3" />}
-            <div className="flex items-center gap-0.5">
-              <span className="text-xs font-semibold text-gray-300 uppercase tracking-widest mr-2 whitespace-nowrap">{section.label}</span>
-              {section.items.map((item) => (
-                <a
-                  key={item.slug}
-                  href={`/projects/${projectId}${item.slug ? `/${item.slug}` : ""}`}
-                  className="px-2.5 py-1 text-sm text-gray-600 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors whitespace-nowrap"
-                >
-                  {item.name}
-                </a>
+    <nav className="bg-white border-b border-gray-100 w-full px-6">
+      <div ref={ref} className="relative inline-block">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-1.5 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+        >
+          Tools
+          <svg className={`w-4 h-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {open && (
+          <div className="absolute left-0 top-full mt-1 w-[580px] bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-5">
+            <div className="grid grid-cols-3 gap-6">
+              {TOOL_SECTIONS.map((section) => (
+                <div key={section.label}>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">{section.label}</p>
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => (
+                      <a
+                        key={item.slug}
+                        href={`/projects/${projectId}${item.slug ? `/${item.slug}` : ""}`}
+                        onClick={() => setOpen(false)}
+                        className="block px-2 py-1.5 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                      >
+                        {item.name}
+                      </a>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-        ))}
+        )}
       </div>
     </nav>
   );
