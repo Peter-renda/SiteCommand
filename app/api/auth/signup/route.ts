@@ -6,9 +6,9 @@ const ADMIN_EMAIL = "ptrenda1@gmail.com";
 
 export async function POST(req: NextRequest) {
   const supabase = getSupabase();
-  const { username, email, password } = await req.json();
+  const { username, email, password, company } = await req.json();
 
-  if (!username || !email || !password) {
+  if (!username || !email || !password || !company) {
     return NextResponse.json(
       { error: "All fields are required" },
       { status: 400 }
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
     username,
     email,
     password_hash,
+    company,
     approved: isAdmin,
     role: isAdmin ? "admin" : "user",
   });
