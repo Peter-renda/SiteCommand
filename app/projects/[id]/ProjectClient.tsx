@@ -84,7 +84,14 @@ function ProjectToolsNav({ projectId }: { projectId: string }) {
   }, []);
 
   return (
-    <nav className="bg-white border-b border-gray-100 w-full px-6">
+    <nav className="bg-white border-b border-gray-100 w-full px-6 flex items-center gap-4">
+      <a href="/dashboard" className="flex items-center gap-1.5 py-2.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        All Projects
+      </a>
+      <div className="w-px h-4 bg-gray-200" />
       <div ref={ref} className="relative inline-block">
         <button
           onClick={() => setOpen((o) => !o)}
@@ -440,14 +447,6 @@ export default function ProjectClient({
           <p className="text-sm text-gray-500">Project not found.</p>
         ) : project ? (
           <>
-            {/* Back link */}
-            <a href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors mb-8">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              All Projects
-            </a>
-
             {/* Centered project name + status */}
             <div className="text-center mb-10">
               <h1 className="text-3xl font-semibold text-gray-900">{project.name}</h1>
