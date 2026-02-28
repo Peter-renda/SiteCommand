@@ -177,11 +177,7 @@ export default function DashboardClient({ username, email, role }: { username: s
     const data = await res.json();
     setSaving(false);
 
-    if (!res.ok) {
-      const parts = [data.error, data.detail, data.hint, data.code].filter(Boolean);
-      setFormError(parts.join(" | "));
-      return;
-    }
+    if (!res.ok) { setFormError(data.error); return; }
 
     setProjects((prev) => [{ ...data, members }, ...prev]);
     closeModal();
