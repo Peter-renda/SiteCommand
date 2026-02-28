@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(cp:*)",
+      "Bash(robocopy C:\\\\Users\\\\p1sto\\\\AppData\\\\Local\\\\Temp\\\\command-site:*)",
+      "Bash(powershell:*)",
+      "Bash(git:*)"
+    ]
+  }
+}
