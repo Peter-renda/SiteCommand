@@ -93,7 +93,7 @@ function ProjectNav({ projectId }: { projectId: string }) {
         href={`/projects/${projectId}`}
         className="flex items-center gap-1.5 py-2.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0"
       >
-        Project Home
+        ← Back to Project
       </a>
       <div className="w-px h-4 bg-gray-200" />
       <div ref={ref} className="relative inline-block">
