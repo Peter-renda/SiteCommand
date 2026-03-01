@@ -887,10 +887,11 @@ const emptyManpower = (): Omit<ManpowerEntry, "id"> => ({
   company: "", workers: "", hours: "", location: "", cost_code: "", comments: "",
 });
 
-function ManpowerSection({ entries, onAdd, onDelete }: {
+function ManpowerSection({ entries, onAdd, onDelete, companySuggestions }: {
   entries: ManpowerEntry[];
   onAdd: (e: ManpowerEntry) => void;
   onDelete: (id: string) => void;
+  companySuggestions: string[];
 }) {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyManpower());
@@ -922,7 +923,18 @@ function ManpowerSection({ entries, onAdd, onDelete }: {
         <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Company">
-              <input value={draft.company} onChange={(e) => set("company", e.target.value)} placeholder="Trade / company name" className={inputCls} />
+              <input
+                list="manpower-companies"
+                value={draft.company}
+                onChange={(e) => set("company", e.target.value)}
+                placeholder="Trade / company name"
+                className={inputCls}
+              />
+              <datalist id="manpower-companies">
+                {companySuggestions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </Field>
             <Field label="Workers" required>
               <input type="number" min="0" value={draft.workers} onChange={(e) => set("workers", e.target.value)} placeholder="0" className={inputCls} />
@@ -1183,10 +1195,27 @@ export default function DailyLogClient({
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [savedOnce, setSavedOnce] = useState(false);
+  const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     loadLog(date);
   }, [date]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/directory`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((contacts: { type: string; company: string | null }[]) => {
+        const names = Array.from(
+          new Set(
+            contacts
+              .map((c) => c.company)
+              .filter((name): name is string => !!name),
+          ),
+        ).sort((a, b) => a.localeCompare(b));
+        setCompanySuggestions(names);
+      })
+      .catch(() => {});
+  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadLog(d: string) {
     setLoading(true);
@@ -1378,6 +1407,7 @@ export default function DailyLogClient({
               entries={form.manpower}
               onAdd={(e) => addToList("manpower", e)}
               onDelete={(id) => removeFromList("manpower", id)}
+              companySuggestions={companySuggestions}
             />
 
             <InspectionsSection
