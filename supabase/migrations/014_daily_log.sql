@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS daily_logs (
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id         UUID        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  log_date           DATE        NOT NULL,
+  weather_conditions TEXT,
+  weather_temp       TEXT,
+  weather_wind       TEXT,
+  weather_humidity   TEXT,
+  inspections        JSONB       NOT NULL DEFAULT '[]',
+  deliveries         JSONB       NOT NULL DEFAULT '[]',
+  visitors           JSONB       NOT NULL DEFAULT '[]',
+  safety_violations  JSONB       NOT NULL DEFAULT '[]',
+  accidents          JSONB       NOT NULL DEFAULT '[]',
+  delays             JSONB       NOT NULL DEFAULT '[]',
+  manpower           JSONB       NOT NULL DEFAULT '[]',
+  notes              TEXT,
+  photos             JSONB       NOT NULL DEFAULT '[]',
+  created_by         UUID        REFERENCES users(id) ON DELETE SET NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(project_id, log_date)
+);
