@@ -269,10 +269,11 @@ async function extractMetaFromPage(storagePath: string, pageNumber: number): Pro
   return result;
 }
 
-async function renderThumbnail(url: string, pageNumber: number): Promise<string> {
-  await ensurePdfJs();
-  const { getDocument } = await import("pdfjs-dist");
-  const pdf = await getDocument(url).promise;
+async function renderPageFromDoc(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pdf: any,
+  pageNumber: number
+): Promise<string> {
   const page = await pdf.getPage(pageNumber);
   const vp = page.getViewport({ scale: 0.4 });
   const canvas = document.createElement("canvas");
@@ -366,21 +367,37 @@ export default function DrawingsClient({
   useEffect(() => {
     if (drawings.length === 0) return;
 
-    // Get public URL for a storage path
     async function renderAll() {
+      await ensurePdfJs();
+      const { getDocument } = await import("pdfjs-dist");
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!supabaseUrl) return;
+
+      // Group pages by storage_path so we load each PDF document only once
+      const byPath = new Map<string, DrawingPage[]>();
       for (const d of drawings) {
         if (thumbnails.current.has(d.id)) continue;
+        const group = byPath.get(d.storage_path) ?? [];
+        group.push(d);
+        byPath.set(d.storage_path, group);
+      }
+
+      for (const [storagePath, pages] of byPath) {
+        const url = `${supabaseUrl}/storage/v1/object/public/project-drawings/${storagePath}`;
         try {
-          // Derive public URL from storage path
-          // We need the Supabase project URL — use the env variable pattern used elsewhere
-          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-          if (!supabaseUrl) continue;
-          const publicUrl = `${supabaseUrl}/storage/v1/object/public/project-drawings/${d.storage_path}`;
-          const dataUrl = await renderThumbnail(publicUrl, d.page_number);
-          thumbnails.current.set(d.id, dataUrl);
-          setThumbVersion((v) => v + 1);
-        } catch {
-          // Silently skip failed thumbnails
+          const pdf = await getDocument(url).promise;
+          for (const d of pages) {
+            try {
+              const dataUrl = await renderPageFromDoc(pdf, d.page_number);
+              thumbnails.current.set(d.id, dataUrl);
+              setThumbVersion((v) => v + 1);
+            } catch (pageErr) {
+              console.warn(`Failed to render page ${d.page_number}:`, pageErr);
+            }
+          }
+        } catch (docErr) {
+          console.error(`Failed to load PDF for rendering (${storagePath}):`, docErr);
         }
       }
     }
