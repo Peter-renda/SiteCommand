@@ -5,7 +5,19 @@
       "Bash(cp:*)",
       "Bash(robocopy C:\\\\Users\\\\p1sto\\\\AppData\\\\Local\\\\Temp\\\\command-site:*)",
       "Bash(powershell:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(vercel link:*)",
+      "Bash(vercel whoami:*)",
+      "Bash(vercel:*)",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Bash(npx supabase:*)",
+      "Bash(ls:*)",
+      "Bash(echo:*)",
+      "Bash(gh auth:*)",
+      "Bash(node:*)",
+      "Bash(npx tsc:*)",
+      "Bash(\"C:\\\\Users\\\\p1sto\\\\OneDrive\\\\Documents\\\\GitHub\\\\SiteCommand\\\\supabase\\\\migrations\\\\006_documents.sql\":*)"
     ]
   }
 }
