@@ -160,8 +160,7 @@ let pdfJsLoaded = false;
 async function ensurePdfJs() {
   if (pdfJsLoaded) return;
   const { GlobalWorkerOptions } = await import("pdfjs-dist");
-  GlobalWorkerOptions.workerSrc =
-    "//cdn.jsdelivr.net/npm/pdfjs-dist@5.5.207/build/pdf.worker.min.mjs";
+  GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   pdfJsLoaded = true;
 }
 
