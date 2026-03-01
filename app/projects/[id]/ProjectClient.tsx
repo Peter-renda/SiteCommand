@@ -15,13 +15,24 @@ type ActivityItem = {
 type Project = {
   id: string;
   name: string;
-  description: string;
-  address: string;
-  zip_code: string;
+  description: string | null;
+  project_number: string | null;
+  sector: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  county: string | null;
   value: number;
   status: string;
   created_at: string;
   photo_url: string | null;
+  start_date: string | null;
+  actual_start_date: string | null;
+  completion_date: string | null;
+  projected_finish_date: string | null;
+  warranty_start_date: string | null;
+  warranty_end_date: string | null;
   members: Member[];
 };
 
@@ -530,32 +541,95 @@ export default function ProjectClient({
                   )}
                 </div>
 
-                {/* Address, Status, Value & Description */}
-                {(project.address || project.description || project.status || project.value) && (
-                  <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
-                    {project.address && (
-                      <div className="flex items-start gap-2">
-                        <svg className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <p className="text-sm text-gray-600">{project.address}{project.zip_code ? ` ${project.zip_code}` : ""}</p>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${project.status === "course of construction" ? "bg-green-50 text-green-700" : project.status === "bidding" ? "bg-blue-50 text-blue-700" : project.status === "pre-construction" ? "bg-yellow-50 text-yellow-700" : project.status === "warranty" ? "bg-purple-50 text-purple-700" : "bg-gray-100 text-gray-500"}`}>
-                        {project.status}
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">${(project.value || 0).toLocaleString()}</span>
-                    </div>
-                    {project.description && (
-                      <p className="text-sm text-gray-500 leading-relaxed">
-                        <span className="font-medium text-gray-700">Description: </span>
-                        {project.description}
-                      </p>
-                    )}
+                {/* Project Info Card */}
+                <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
+                  {/* Status + Value */}
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${project.status === "course of construction" ? "bg-green-50 text-green-700" : project.status === "bidding" ? "bg-blue-50 text-blue-700" : project.status === "pre-construction" ? "bg-yellow-50 text-yellow-700" : project.status === "warranty" ? "bg-purple-50 text-purple-700" : "bg-gray-100 text-gray-500"}`}>
+                      {project.status}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">${(project.value || 0).toLocaleString()}</span>
                   </div>
-                )}
+
+                  {/* Project Number + Sector */}
+                  {(project.project_number || project.sector) && (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {project.project_number && (
+                        <p className="text-xs text-gray-500"><span className="font-medium text-gray-700">No.</span> {project.project_number}</p>
+                      )}
+                      {project.sector && (
+                        <p className="text-xs text-gray-500"><span className="font-medium text-gray-700">Sector:</span> {project.sector}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Address */}
+                  {(project.address || project.city || project.state) && (
+                    <div className="flex items-start gap-2">
+                      <svg className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <p className="text-sm text-gray-600">
+                        {[
+                          project.address,
+                          [project.city, project.state].filter(Boolean).join(", "),
+                          project.zip_code,
+                          project.county ? `${project.county} County` : null,
+                        ].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Dates */}
+                  {(project.start_date || project.completion_date || project.projected_finish_date || project.warranty_start_date) && (
+                    <div className="space-y-1 pt-1 border-t border-gray-50">
+                      {project.start_date && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Start</span>
+                          <span className="text-gray-700 font-medium">{new Date(project.start_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </div>
+                      )}
+                      {project.actual_start_date && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Actual Start</span>
+                          <span className="text-gray-700 font-medium">{new Date(project.actual_start_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </div>
+                      )}
+                      {project.projected_finish_date && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Projected Finish</span>
+                          <span className="text-gray-700 font-medium">{new Date(project.projected_finish_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </div>
+                      )}
+                      {project.completion_date && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Completion</span>
+                          <span className="text-gray-700 font-medium">{new Date(project.completion_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </div>
+                      )}
+                      {project.warranty_start_date && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Warranty Start</span>
+                          <span className="text-gray-700 font-medium">{new Date(project.warranty_start_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </div>
+                      )}
+                      {project.warranty_end_date && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Warranty End</span>
+                          <span className="text-gray-700 font-medium">{new Date(project.warranty_end_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  {project.description && (
+                    <p className="text-sm text-gray-500 leading-relaxed pt-1 border-t border-gray-50">
+                      {project.description}
+                    </p>
+                  )}
+                </div>
 
                 {/* Weather */}
                 <div className="bg-white border border-gray-100 rounded-xl p-5">
