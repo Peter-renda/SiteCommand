@@ -329,7 +329,7 @@ export default function ProjectClient({
   const [editZipCode, setEditZipCode] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editValue, setEditValue] = useState("");
-  const [editStatus, setEditStatus] = useState("active");
+  const [editStatus, setEditStatus] = useState("bidding");
   const [editMembers, setEditMembers] = useState<Member[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
@@ -381,7 +381,7 @@ export default function ProjectClient({
     setEditZipCode(project.zip_code || "");
     setEditDescription(project.description || "");
     setEditValue(project.value?.toString() || "");
-    setEditStatus(project.status || "active");
+    setEditStatus(project.status || "bidding");
     setEditMembers(project.members || []);
     setEditError("");
     fetch("/api/users").then((r) => r.json()).then((d) => setAllUsers(Array.isArray(d) ? d : []));
@@ -543,7 +543,7 @@ export default function ProjectClient({
                       </div>
                     )}
                     <div className="flex items-center gap-3">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${project.status === "active" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${project.status === "course of construction" ? "bg-green-50 text-green-700" : project.status === "bidding" ? "bg-blue-50 text-blue-700" : project.status === "pre-construction" ? "bg-yellow-50 text-yellow-700" : project.status === "warranty" ? "bg-purple-50 text-purple-700" : "bg-gray-100 text-gray-500"}`}>
                         {project.status}
                       </span>
                       <span className="text-sm font-semibold text-gray-900">${(project.value || 0).toLocaleString()}</span>
@@ -682,8 +682,11 @@ export default function ProjectClient({
                     value={editStatus} onChange={(e) => setEditStatus(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                   >
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
+                    <option value="bidding">Bidding</option>
+                    <option value="pre-construction">Pre-Construction</option>
+                    <option value="course of construction">Course of Construction</option>
+                    <option value="post-construction">Post-Construction</option>
+                    <option value="warranty">Warranty</option>
                   </select>
                 </div>
               </div>

@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   const { data: project, error } = await supabase
     .from("projects")
-    .insert({ name, description, address, zip_code, value: parseFloat(value) || 0, status: status || "active" })
+    .insert({ name, description, address, zip_code, value: parseFloat(value) || 0, status: status || "bidding" })
     .select()
     .single();
 

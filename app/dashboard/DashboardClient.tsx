@@ -129,7 +129,7 @@ export default function DashboardClient({ username, email, role }: { username: s
   const [description, setDescription] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [value, setValue] = useState("");
-  const [status, setStatus] = useState("active");
+  const [status, setStatus] = useState("bidding");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -156,7 +156,7 @@ export default function DashboardClient({ username, email, role }: { username: s
   function closeModal() {
     setShowModal(false);
     setName(""); setAddress(""); setZipCode(""); setDescription("");
-    setMembers([]); setValue(""); setStatus("active"); setFormError("");
+    setMembers([]); setValue(""); setStatus("bidding"); setFormError("");
   }
 
   async function handleLogout() {
@@ -185,8 +185,8 @@ export default function DashboardClient({ username, email, role }: { username: s
   }
 
   const totalValue = projects.reduce((sum, p) => sum + (p.value || 0), 0);
-  const activeCount = projects.filter((p) => p.status === "active").length;
-  const completedCount = projects.filter((p) => p.status === "completed").length;
+  const activeCount = projects.filter((p) => p.status === "course of construction").length;
+  const completedCount = projects.filter((p) => p.status === "post-construction" || p.status === "warranty").length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -208,10 +208,7 @@ export default function DashboardClient({ username, email, role }: { username: s
 
       <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Welcome back, {username}</h1>
-            <p className="text-sm text-gray-400 mt-1">Here&apos;s an overview of your portfolio.</p>
-          </div>
+          <div></div>
           {role === "admin" && (
             <button
               onClick={openModal}
@@ -257,7 +254,7 @@ export default function DashboardClient({ username, email, role }: { username: s
               <a key={project.id} href={`/projects/${project.id}`} className="block bg-white border border-gray-100 rounded-xl px-5 py-4 hover:border-gray-300 transition-colors">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-sm font-semibold text-gray-900 leading-snug">{project.name}</h3>
-                  <span className={`ml-3 shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${project.status === "active" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  <span className={`ml-3 shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${project.status === "course of construction" ? "bg-green-50 text-green-700" : project.status === "bidding" ? "bg-blue-50 text-blue-700" : project.status === "pre-construction" ? "bg-yellow-50 text-yellow-700" : project.status === "warranty" ? "bg-purple-50 text-purple-700" : "bg-gray-100 text-gray-500"}`}>
                     {project.status}
                   </span>
                 </div>
@@ -379,8 +376,11 @@ export default function DashboardClient({ username, email, role }: { username: s
                     value={status} onChange={(e) => setStatus(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                   >
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
+                    <option value="bidding">Bidding</option>
+                    <option value="pre-construction">Pre-Construction</option>
+                    <option value="course of construction">Course of Construction</option>
+                    <option value="post-construction">Post-Construction</option>
+                    <option value="warranty">Warranty</option>
                   </select>
                 </div>
               </div>
