@@ -574,10 +574,12 @@ type SourceProject = { id: string; name: string };
 
 function ImportModal({
   projectId,
+  existingContacts,
   onClose,
   onImported,
 }: {
   projectId: string;
+  existingContacts: Contact[];
   onClose: () => void;
   onImported: (contacts: Contact[]) => void;
 }) {
@@ -587,6 +589,28 @@ function ImportModal({
   const [sourceContacts, setSourceContacts] = useState<Contact[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+
+  const existingCompanyNames = new Set(
+    existingContacts.filter((c) => c.type === "company").map((c) => (c.company ?? "").toLowerCase())
+  );
+  const existingUserNames = new Set(
+    existingContacts
+      .filter((c) => c.type === "user")
+      .map((c) => [c.first_name, c.last_name].filter(Boolean).join(" ").toLowerCase())
+  );
+  const existingGroupNames = new Set(
+    existingContacts.filter((c) => c.type === "distribution_group").map((c) => (c.group_name ?? "").toLowerCase())
+  );
+
+  function isDuplicate(c: Contact): boolean {
+    if (c.type === "company") return existingCompanyNames.has((c.company ?? "").toLowerCase());
+    if (c.type === "user") {
+      const name = [c.first_name, c.last_name].filter(Boolean).join(" ").toLowerCase();
+      return existingUserNames.has(name);
+    }
+    if (c.type === "distribution_group") return existingGroupNames.has((c.group_name ?? "").toLowerCase());
+    return false;
+  }
 
   useEffect(() => {
     fetch("/api/projects")
@@ -625,13 +649,14 @@ function ImportModal({
   );
 
   function toggleCompany(company: Contact) {
+    if (isDuplicate(company)) return;
     const emps = employeesByCompany[company.company ?? ""] ?? [];
-    const allIds = [company.id, ...emps.map((e) => e.id)];
-    const allSelected = allIds.every((id) => selectedIds.has(id));
+    const togglableIds = [company.id, ...emps.filter((e) => !isDuplicate(e)).map((e) => e.id)];
+    const allSelected = togglableIds.every((id) => selectedIds.has(id));
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (allSelected) { allIds.forEach((id) => next.delete(id)); }
-      else { allIds.forEach((id) => next.add(id)); }
+      if (allSelected) { togglableIds.forEach((id) => next.delete(id)); }
+      else { togglableIds.forEach((id) => next.add(id)); }
       return next;
     });
   }
@@ -645,7 +670,7 @@ function ImportModal({
   }
 
   async function handleImport() {
-    const toImport = sourceContacts.filter((c) => selectedIds.has(c.id));
+    const toImport = sourceContacts.filter((c) => selectedIds.has(c.id) && !isDuplicate(c));
     if (toImport.length === 0) return;
     setImporting(true);
     const created: Contact[] = [];
@@ -701,13 +726,14 @@ function ImportModal({
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Companies</p>
                   <div className="space-y-2">
                     {companyContacts.map((company) => {
+                      const companyDup = isDuplicate(company);
                       const emps = employeesByCompany[company.company ?? ""] ?? [];
-                      const allIds = [company.id, ...emps.map((e) => e.id)];
-                      const allSelected = allIds.every((id) => selectedIds.has(id));
-                      const someSelected = allIds.some((id) => selectedIds.has(id));
+                      const togglableIds = [company.id, ...emps.filter((e) => !isDuplicate(e)).map((e) => e.id)];
+                      const allSelected = !companyDup && togglableIds.every((id) => selectedIds.has(id));
+                      const someSelected = !companyDup && togglableIds.some((id) => selectedIds.has(id));
                       return (
                         <div key={company.id} className="border border-gray-100 rounded-lg overflow-hidden">
-                          <label className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
+                          <label className={`flex items-center gap-3 px-3 py-2.5 bg-gray-50 ${companyDup ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-gray-100"} transition-colors`}>
                             <IndeterminateCheckbox
                               checked={allSelected}
                               indeterminate={!allSelected && someSelected}
@@ -717,28 +743,36 @@ function ImportModal({
                               <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                             <span className="text-sm font-medium text-gray-900">{company.company}</span>
-                            {emps.length > 0 && (
+                            {companyDup ? (
+                              <span className="text-xs text-gray-400 ml-auto">Already added</span>
+                            ) : emps.length > 0 ? (
                               <span className="text-xs text-gray-400 ml-auto">{emps.length} employee{emps.length !== 1 ? "s" : ""}</span>
-                            )}
+                            ) : null}
                           </label>
                           {emps.length > 0 && (
                             <div className="divide-y divide-gray-50">
-                              {emps.map((emp) => (
-                                <label key={emp.id} className="flex items-center gap-3 px-3 py-2 pl-10 cursor-pointer hover:bg-gray-50 transition-colors">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedIds.has(emp.id)}
-                                    onChange={() => toggleItem(emp.id)}
-                                    className="rounded border-gray-300 cursor-pointer"
-                                  />
-                                  <span className="text-sm text-gray-700">
-                                    {[emp.first_name, emp.last_name].filter(Boolean).join(" ") || "Unnamed"}
-                                  </span>
-                                  {emp.email && (
-                                    <span className="text-xs text-gray-400 ml-auto truncate max-w-[160px]">{emp.email}</span>
-                                  )}
-                                </label>
-                              ))}
+                              {emps.map((emp) => {
+                                const empDup = isDuplicate(emp);
+                                return (
+                                  <label key={emp.id} className={`flex items-center gap-3 px-3 py-2 pl-10 ${empDup ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-gray-50"} transition-colors`}>
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedIds.has(emp.id)}
+                                      onChange={() => !empDup && toggleItem(emp.id)}
+                                      disabled={empDup}
+                                      className="rounded border-gray-300 cursor-pointer disabled:cursor-not-allowed"
+                                    />
+                                    <span className="text-sm text-gray-700">
+                                      {[emp.first_name, emp.last_name].filter(Boolean).join(" ") || "Unnamed"}
+                                    </span>
+                                    {empDup ? (
+                                      <span className="text-xs text-gray-400 ml-auto">Already added</span>
+                                    ) : emp.email ? (
+                                      <span className="text-xs text-gray-400 ml-auto truncate max-w-[160px]">{emp.email}</span>
+                                    ) : null}
+                                  </label>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -752,23 +786,33 @@ function ImportModal({
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Individual Users</p>
                   <div className="border border-gray-100 rounded-lg divide-y divide-gray-50 overflow-hidden">
-                    {standaloneUsers.map((u) => (
-                      <label key={u.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(u.id)}
-                          onChange={() => toggleItem(u.id)}
-                          className="rounded border-gray-300 cursor-pointer"
-                        />
-                        <span className="text-sm text-gray-700">
-                          {[u.first_name, u.last_name].filter(Boolean).join(" ") || "Unnamed"}
-                        </span>
-                        {u.email && (
-                          <span className="text-xs text-gray-400 ml-2 truncate max-w-[160px]">{u.email}</span>
-                        )}
-                        {u.permission && <span className="ml-auto shrink-0"><PermissionBadge value={u.permission} /></span>}
-                      </label>
-                    ))}
+                    {standaloneUsers.map((u) => {
+                      const dup = isDuplicate(u);
+                      return (
+                        <label key={u.id} className={`flex items-center gap-3 px-3 py-2.5 ${dup ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-gray-50"} transition-colors`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(u.id)}
+                            onChange={() => !dup && toggleItem(u.id)}
+                            disabled={dup}
+                            className="rounded border-gray-300 cursor-pointer disabled:cursor-not-allowed"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {[u.first_name, u.last_name].filter(Boolean).join(" ") || "Unnamed"}
+                          </span>
+                          {dup ? (
+                            <span className="text-xs text-gray-400 ml-auto">Already added</span>
+                          ) : (
+                            <>
+                              {u.email && (
+                                <span className="text-xs text-gray-400 ml-2 truncate max-w-[160px]">{u.email}</span>
+                              )}
+                              {u.permission && <span className="ml-auto shrink-0"><PermissionBadge value={u.permission} /></span>}
+                            </>
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1347,6 +1391,7 @@ export default function DirectoryClient({
       {showImportModal && (
         <ImportModal
           projectId={projectId}
+          existingContacts={contacts}
           onClose={() => setShowImportModal(false)}
           onImported={handleImported}
         />
