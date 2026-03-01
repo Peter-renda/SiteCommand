@@ -1310,14 +1310,14 @@ export default function DirectoryClient({
           className="w-36 bg-white border border-gray-100 rounded-lg shadow-lg py-1"
         >
           <button
-            onClick={() => { setEditTarget(menuContact); setOpenMenuId(null); setMenuPos(null); }}
+            onMouseDown={(e) => { e.stopPropagation(); setEditTarget(menuContact); setOpenMenuId(null); setMenuPos(null); }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
           >
             Edit
           </button>
           <div className="border-t border-gray-100 my-1" />
           <button
-            onClick={() => { setDeleteTarget(menuContact); setOpenMenuId(null); setMenuPos(null); }}
+            onMouseDown={(e) => { e.stopPropagation(); setDeleteTarget(menuContact); setOpenMenuId(null); setMenuPos(null); }}
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
           >
             Remove
