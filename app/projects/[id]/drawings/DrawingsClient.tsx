@@ -173,6 +173,102 @@ async function countPages(file: File): Promise<number> {
   return pdf.numPages;
 }
 
+// ── Title-block text extraction ───────────────────────────────────────────────
+
+type ExtractedMeta = {
+  drawing_no?: string;
+  title?: string;
+  revision?: string;
+  drawing_date?: string;
+};
+
+type TItem = { str: string; x: number; y: number; w: number };
+
+const LABEL_PATTERNS: Record<keyof ExtractedMeta, RegExp> = {
+  drawing_no:   /^(dwg\.?\s*no\.?|drawing\s*no\.?|drawing\s*number|sheet\s*no\.?|drg\.?\s*no\.?|sheet\s*number)$/i,
+  title:        /^(title|drawing\s*title|sheet\s*title|project\s*title|description)$/i,
+  revision:     /^(rev\.?|revision|rev\.?\s*no\.?|rev\s*#)$/i,
+  drawing_date: /^(date|dwg\.?\s*date|drawing\s*date|issue\s*date|dated?)$/i,
+};
+
+function parseIsoDate(str: string): string {
+  // MM/DD/YYYY or MM-DD-YYYY
+  const mdy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (mdy) return `${mdy[3]}-${mdy[1].padStart(2, "0")}-${mdy[2].padStart(2, "0")}`;
+  // YYYY-MM-DD already
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  // Try JS Date (handles "Jan 15 2024" etc.)
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+  return "";
+}
+
+async function extractMetaFromPage(storagePath: string, pageNumber: number): Promise<ExtractedMeta> {
+  await ensurePdfJs();
+  const { getDocument } = await import("pdfjs-dist");
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return {};
+
+  const url = `${supabaseUrl}/storage/v1/object/public/project-drawings/${storagePath}`;
+  const pdf = await getDocument(url).promise;
+  const page = await pdf.getPage(pageNumber);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const textContent = await (page as any).getTextContent();
+
+  const items: TItem[] = (textContent.items as Array<{ str: string; transform: number[]; width: number }>)
+    .filter((i) => i.str?.trim())
+    .map((i) => ({
+      str: i.str.trim(),
+      x: i.transform[4],
+      y: i.transform[5],
+      w: i.width ?? 0,
+    }));
+
+  const result: ExtractedMeta = {};
+
+  for (const item of items) {
+    for (const field of Object.keys(LABEL_PATTERNS) as Array<keyof ExtractedMeta>) {
+      if (result[field]) continue;
+      if (!LABEL_PATTERNS[field].test(item.str)) continue;
+
+      // 1. Same row, immediately to the right
+      const sameRow = items
+        .filter((i) => Math.abs(i.y - item.y) < 4 && i.x > item.x + item.w - 1 && i.str.length > 0)
+        .sort((a, b) => a.x - b.x);
+
+      const rowCandidate = sameRow.find(
+        (i) => !Object.values(LABEL_PATTERNS).some((p) => p.test(i.str))
+      );
+      if (rowCandidate) {
+        result[field] = field === "drawing_date" ? (parseIsoDate(rowCandidate.str) || rowCandidate.str) : rowCandidate.str;
+        continue;
+      }
+
+      // 2. Directly below the label (PDF y goes up, so below = smaller y)
+      const below = items
+        .filter(
+          (i) =>
+            i.y < item.y &&
+            i.y > item.y - 30 &&
+            i.x >= item.x - 10 &&
+            i.x <= item.x + Math.max(item.w, 60) + 10 &&
+            i.str.length > 0
+        )
+        .sort((a, b) => b.y - a.y);
+
+      const belowCandidate = below.find(
+        (i) => !Object.values(LABEL_PATTERNS).some((p) => p.test(i.str))
+      );
+      if (belowCandidate) {
+        result[field] = field === "drawing_date" ? (parseIsoDate(belowCandidate.str) || belowCandidate.str) : belowCandidate.str;
+      }
+    }
+  }
+
+  return result;
+}
+
 async function renderThumbnail(url: string, pageNumber: number): Promise<string> {
   await ensurePdfJs();
   const { getDocument } = await import("pdfjs-dist");
@@ -218,6 +314,7 @@ export default function DrawingsClient({
   const [editReceivedDate, setEditReceivedDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [extracting, setExtracting] = useState(false);
 
   // Thumbnail cache: drawingId → dataUrl
   const thumbnails = useRef<Map<string, string>>(new Map());
@@ -387,6 +484,23 @@ export default function DrawingsClient({
       setSelected(merged);
     }
     setSaving(false);
+  }
+
+  // ── Auto-fill from PDF text layer ────────────────────────────────────────────
+
+  async function autoFill() {
+    if (!selected) return;
+    setExtracting(true);
+    try {
+      const meta = await extractMetaFromPage(selected.storage_path, selected.page_number);
+      if (meta.drawing_no) setEditNo(meta.drawing_no);
+      if (meta.title) setEditTitle(meta.title);
+      if (meta.revision) setEditRevision(meta.revision);
+      if (meta.drawing_date) setEditDrawingDate(meta.drawing_date);
+    } catch {
+      // silently fail — user can fill manually
+    }
+    setExtracting(false);
   }
 
   // ── Delete drawing ───────────────────────────────────────────────────────────
@@ -780,7 +894,33 @@ export default function DrawingsClient({
                 <p>Uploaded by {selected.uploaded_by_name} · {formatDate(selected.uploaded_at)}</p>
               </div>
 
-              <div className="border-t border-gray-100 pt-3 space-y-3">
+              <div className="border-t border-gray-100 pt-3">
+                <button
+                  onClick={autoFill}
+                  disabled={extracting}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 border border-gray-200 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 mb-3"
+                  title="Read text from the PDF title block and fill fields automatically"
+                >
+                  {extracting ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      Reading title block…
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      Auto-fill from PDF
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="space-y-3">
                 {/* Drawing No. */}
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Drawing No.</label>
