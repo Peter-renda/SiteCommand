@@ -124,12 +124,23 @@ export default function DashboardClient({ username, email, role }: { username: s
 
   // Form state
   const [name, setName] = useState("");
+  const [projectNumber, setProjectNumber] = useState("");
+  const [sector, setSector] = useState("");
   const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [stateVal, setStateVal] = useState("");
   const [zipCode, setZipCode] = useState("");
+  const [county, setCounty] = useState("");
   const [description, setDescription] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [value, setValue] = useState("");
   const [status, setStatus] = useState("bidding");
+  const [startDate, setStartDate] = useState("");
+  const [actualStartDate, setActualStartDate] = useState("");
+  const [completionDate, setCompletionDate] = useState("");
+  const [projectedFinishDate, setProjectedFinishDate] = useState("");
+  const [warrantyStartDate, setWarrantyStartDate] = useState("");
+  const [warrantyEndDate, setWarrantyEndDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -155,8 +166,12 @@ export default function DashboardClient({ username, email, role }: { username: s
 
   function closeModal() {
     setShowModal(false);
-    setName(""); setAddress(""); setZipCode(""); setDescription("");
-    setMembers([]); setValue(""); setStatus("bidding"); setFormError("");
+    setName(""); setProjectNumber(""); setSector("");
+    setAddress(""); setCity(""); setStateVal(""); setZipCode(""); setCounty("");
+    setDescription(""); setMembers([]); setValue(""); setStatus("bidding");
+    setStartDate(""); setActualStartDate(""); setCompletionDate("");
+    setProjectedFinishDate(""); setWarrantyStartDate(""); setWarrantyEndDate("");
+    setFormError("");
   }
 
   async function handleLogout() {
@@ -172,7 +187,18 @@ export default function DashboardClient({ username, email, role }: { username: s
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, address, zip_code: zipCode, description, value, status, memberIds: members.map((m) => m.id) }),
+      body: JSON.stringify({
+        name, project_number: projectNumber, sector,
+        address, city, state: stateVal, zip_code: zipCode, county,
+        description, value, status,
+        start_date: startDate || null,
+        actual_start_date: actualStartDate || null,
+        completion_date: completionDate || null,
+        projected_finish_date: projectedFinishDate || null,
+        warranty_start_date: warrantyStartDate || null,
+        warranty_end_date: warrantyEndDate || null,
+        memberIds: members.map((m) => m.id),
+      }),
     });
 
     const data = await res.json();
@@ -313,75 +339,194 @@ export default function DashboardClient({ username, email, role }: { username: s
               </button>
             </div>
 
-            <form onSubmit={handleCreateProject} className="px-6 py-5 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Project Name</label>
-                <input
-                  type="text" required value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  placeholder="e.g. 123 Main St Renovation"
-                />
-              </div>
+            <form onSubmit={handleCreateProject} className="px-6 py-5 space-y-6 overflow-y-auto">
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Address <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input
-                  type="text" value={address} onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  placeholder="e.g. 123 Main St, New York, NY"
-                />
-              </div>
+              {/* General Information */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">General Information</p>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">ZIP Code <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input
-                  type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  placeholder="e.g. 10001"
-                  maxLength={5}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
-                <textarea
-                  rows={2} value={description} onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
-                  placeholder="Brief description..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Project Members <span className="text-gray-400 font-normal">(optional)</span></label>
-                <MemberPicker
-                  users={companyUsers}
-                  selected={members}
-                  onAdd={(u) => setMembers((prev) => [...prev, u])}
-                  onRemove={(id) => setMembers((prev) => prev.filter((m) => m.id !== id))}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Value ($)</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Project Name</label>
                   <input
-                    type="number" min="0" step="0.01" value={value} onChange={(e) => setValue(e.target.value)}
+                    type="text" required value={name} onChange={(e) => setName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                    placeholder="0"
+                    placeholder="e.g. 123 Main St Renovation"
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Project Number <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="text" value={projectNumber} onChange={(e) => setProjectNumber(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="e.g. 2024-001"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                    <select
+                      value={status} onChange={(e) => setStatus(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                    >
+                      <option value="bidding">Bidding</option>
+                      <option value="pre-construction">Pre-Construction</option>
+                      <option value="course of construction">Course of Construction</option>
+                      <option value="post-construction">Post-Construction</option>
+                      <option value="warranty">Warranty</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Sector <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="text" value={sector} onChange={(e) => setSector(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="e.g. Commercial"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Value ($)</label>
+                    <input
+                      type="number" min="0" step="0.01" value={value} onChange={(e) => setValue(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={status} onChange={(e) => setStatus(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                  >
-                    <option value="bidding">Bidding</option>
-                    <option value="pre-construction">Pre-Construction</option>
-                    <option value="course of construction">Course of Construction</option>
-                    <option value="post-construction">Post-Construction</option>
-                    <option value="warranty">Warranty</option>
-                  </select>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <textarea
+                    rows={2} value={description} onChange={(e) => setDescription(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                    placeholder="Brief description..."
+                  />
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Location</p>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Address <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text" value={address} onChange={(e) => setAddress(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="Street address"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">City <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="text" value={city} onChange={(e) => setCity(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="City"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">State <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="text" value={stateVal} onChange={(e) => setStateVal(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="State"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">ZIP Code <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="e.g. 10001"
+                      maxLength={5}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">County <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="text" value={county} onChange={(e) => setCounty(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="County"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Dates</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Date <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Actual Start Date <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="date" value={actualStartDate} onChange={(e) => setActualStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Completion Date <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="date" value={completionDate} onChange={(e) => setCompletionDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Projected Finish <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="date" value={projectedFinishDate} onChange={(e) => setProjectedFinishDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Warranty Start <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="date" value={warrantyStartDate} onChange={(e) => setWarrantyStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Warranty End <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="date" value={warrantyEndDate} onChange={(e) => setWarrantyEndDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Team */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Team</p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Project Members <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <MemberPicker
+                    users={companyUsers}
+                    selected={members}
+                    onAdd={(u) => setMembers((prev) => [...prev, u])}
+                    onRemove={(id) => setMembers((prev) => prev.filter((m) => m.id !== id))}
+                  />
                 </div>
               </div>
 

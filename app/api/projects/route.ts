@@ -51,14 +51,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, description, address, zip_code, value, status, memberIds } = await req.json();
+  const {
+    name, description, address, zip_code, city, state, county,
+    project_number, sector, value, status, memberIds,
+    start_date, actual_start_date, completion_date,
+    projected_finish_date, warranty_start_date, warranty_end_date,
+  } = await req.json();
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
   const supabase = getSupabase();
 
   const { data: project, error } = await supabase
     .from("projects")
-    .insert({ name, description, address, zip_code, value: parseFloat(value) || 0, status: status || "bidding" })
+    .insert({
+      name, description, address, zip_code, city, state, county,
+      project_number, sector,
+      value: parseFloat(value) || 0,
+      status: status || "bidding",
+      start_date: start_date || null,
+      actual_start_date: actual_start_date || null,
+      completion_date: completion_date || null,
+      projected_finish_date: projected_finish_date || null,
+      warranty_start_date: warranty_start_date || null,
+      warranty_end_date: warranty_end_date || null,
+    })
     .select()
     .single();
 
