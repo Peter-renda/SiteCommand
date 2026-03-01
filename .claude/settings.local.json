@@ -17,7 +17,12 @@
       "Bash(gh auth:*)",
       "Bash(node:*)",
       "Bash(npx tsc:*)",
-      "Bash(\"C:\\\\Users\\\\p1sto\\\\OneDrive\\\\Documents\\\\GitHub\\\\SiteCommand\\\\supabase\\\\migrations\\\\006_documents.sql\":*)"
+      "Bash(\"C:\\\\Users\\\\p1sto\\\\OneDrive\\\\Documents\\\\GitHub\\\\SiteCommand\\\\supabase\\\\migrations\\\\006_documents.sql\":*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(gh run:*)",
+      "Bash(wc:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

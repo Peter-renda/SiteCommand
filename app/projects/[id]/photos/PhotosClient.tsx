@@ -90,6 +90,13 @@ function ProjectNav({ projectId }: { projectId: string }) {
         All Projects
       </a>
       <div className="w-px h-4 bg-gray-200" />
+      <a
+        href={`/projects/${projectId}`}
+        className="flex items-center gap-1.5 py-2.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0"
+      >
+        Project Home
+      </a>
+      <div className="w-px h-4 bg-gray-200" />
       <div ref={ref} className="relative inline-block">
         <button
           onClick={() => setOpen((o) => !o)}
