@@ -550,6 +550,257 @@ function ConfirmModal({
   );
 }
 
+// ── Indeterminate checkbox ────────────────────────────────────────────────────
+
+function IndeterminateCheckbox({ checked, indeterminate, onChange }: { checked: boolean; indeterminate: boolean; onChange: () => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="rounded border-gray-300 cursor-pointer"
+    />
+  );
+}
+
+// ── Import modal ──────────────────────────────────────────────────────────────
+
+type SourceProject = { id: string; name: string };
+
+function ImportModal({
+  projectId,
+  onClose,
+  onImported,
+}: {
+  projectId: string;
+  onClose: () => void;
+  onImported: (contacts: Contact[]) => void;
+}) {
+  const [projects, setProjects] = useState<SourceProject[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [sourceContacts, setSourceContacts] = useState<Contact[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/projects")
+      .then((r) => r.json())
+      .then((data) => {
+        setProjects(
+          Array.isArray(data)
+            ? data.filter((p: SourceProject) => p.id !== projectId).map((p: SourceProject) => ({ id: p.id, name: p.name }))
+            : []
+        );
+      });
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!selectedProjectId) { setSourceContacts([]); setSelectedIds(new Set()); return; }
+    setLoadingContacts(true);
+    fetch(`/api/projects/${selectedProjectId}/directory`)
+      .then((r) => r.json())
+      .then((data) => { setSourceContacts(Array.isArray(data) ? data : []); setSelectedIds(new Set()); })
+      .finally(() => setLoadingContacts(false));
+  }, [selectedProjectId]);
+
+  const companyContacts = sourceContacts.filter((c) => c.type === "company");
+  const companyNames = new Set(companyContacts.map((c) => c.company).filter(Boolean));
+
+  const employeesByCompany: Record<string, Contact[]> = {};
+  for (const c of sourceContacts) {
+    if (c.type === "user" && c.company && companyNames.has(c.company)) {
+      if (!employeesByCompany[c.company]) employeesByCompany[c.company] = [];
+      employeesByCompany[c.company].push(c);
+    }
+  }
+
+  const standaloneUsers = sourceContacts.filter(
+    (c) => c.type === "user" && (!c.company || !companyNames.has(c.company))
+  );
+
+  function toggleCompany(company: Contact) {
+    const emps = employeesByCompany[company.company ?? ""] ?? [];
+    const allIds = [company.id, ...emps.map((e) => e.id)];
+    const allSelected = allIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) { allIds.forEach((id) => next.delete(id)); }
+      else { allIds.forEach((id) => next.add(id)); }
+      return next;
+    });
+  }
+
+  function toggleItem(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleImport() {
+    const toImport = sourceContacts.filter((c) => selectedIds.has(c.id));
+    if (toImport.length === 0) return;
+    setImporting(true);
+    const created: Contact[] = [];
+    for (const c of toImport) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, created_at, ...rest } = c as Contact & { id: string; created_at: string };
+      const res = await fetch(`/api/projects/${projectId}/directory`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rest),
+      });
+      if (res.ok) created.push(await res.json());
+    }
+    setImporting(false);
+    onImported(created);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl w-full max-w-lg shadow-xl max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          <h2 className="text-sm font-semibold text-gray-900">Import from a Project</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 pt-5 pb-3 shrink-0">
+          <label className="block text-xs font-medium text-gray-500 mb-1">Select Project</label>
+          <select
+            value={selectedProjectId}
+            onChange={(e) => setSelectedProjectId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+          >
+            <option value="">Choose a project…</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
+          {loadingContacts ? (
+            <p className="text-sm text-gray-400 py-4">Loading contacts…</p>
+          ) : selectedProjectId && sourceContacts.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4">No contacts in this project.</p>
+          ) : selectedProjectId ? (
+            <div className="space-y-5">
+              {companyContacts.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Companies</p>
+                  <div className="space-y-2">
+                    {companyContacts.map((company) => {
+                      const emps = employeesByCompany[company.company ?? ""] ?? [];
+                      const allIds = [company.id, ...emps.map((e) => e.id)];
+                      const allSelected = allIds.every((id) => selectedIds.has(id));
+                      const someSelected = allIds.some((id) => selectedIds.has(id));
+                      return (
+                        <div key={company.id} className="border border-gray-100 rounded-lg overflow-hidden">
+                          <label className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
+                            <IndeterminateCheckbox
+                              checked={allSelected}
+                              indeterminate={!allSelected && someSelected}
+                              onChange={() => toggleCompany(company)}
+                            />
+                            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            <span className="text-sm font-medium text-gray-900">{company.company}</span>
+                            {emps.length > 0 && (
+                              <span className="text-xs text-gray-400 ml-auto">{emps.length} employee{emps.length !== 1 ? "s" : ""}</span>
+                            )}
+                          </label>
+                          {emps.length > 0 && (
+                            <div className="divide-y divide-gray-50">
+                              {emps.map((emp) => (
+                                <label key={emp.id} className="flex items-center gap-3 px-3 py-2 pl-10 cursor-pointer hover:bg-gray-50 transition-colors">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedIds.has(emp.id)}
+                                    onChange={() => toggleItem(emp.id)}
+                                    className="rounded border-gray-300 cursor-pointer"
+                                  />
+                                  <span className="text-sm text-gray-700">
+                                    {[emp.first_name, emp.last_name].filter(Boolean).join(" ") || "Unnamed"}
+                                  </span>
+                                  {emp.email && (
+                                    <span className="text-xs text-gray-400 ml-auto truncate max-w-[160px]">{emp.email}</span>
+                                  )}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {standaloneUsers.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Individual Users</p>
+                  <div className="border border-gray-100 rounded-lg divide-y divide-gray-50 overflow-hidden">
+                    {standaloneUsers.map((u) => (
+                      <label key={u.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(u.id)}
+                          onChange={() => toggleItem(u.id)}
+                          className="rounded border-gray-300 cursor-pointer"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {[u.first_name, u.last_name].filter(Boolean).join(" ") || "Unnamed"}
+                        </span>
+                        {u.email && (
+                          <span className="text-xs text-gray-400 ml-2 truncate max-w-[160px]">{u.email}</span>
+                        )}
+                        {u.permission && <span className="ml-auto shrink-0"><PermissionBadge value={u.permission} /></span>}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        {selectedProjectId && sourceContacts.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between shrink-0">
+            <span className="text-xs text-gray-400">{selectedIds.size} selected</span>
+            <div className="flex gap-2">
+              <button
+                onClick={onClose}
+                className="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={selectedIds.size === 0 || importing}
+                onClick={handleImport}
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {importing ? "Importing…" : `Import${selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}`}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Permission badge ──────────────────────────────────────────────────────────
 
 const PERMISSION_COLORS: Record<string, string> = {
@@ -602,6 +853,11 @@ export default function DirectoryClient({
   const [editTarget, setEditTarget] = useState<Contact | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
 
+  // Import
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const importMenuRef = useRef<HTMLDivElement>(null);
+
   // Three-dot menu
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -615,6 +871,17 @@ export default function DirectoryClient({
     function handleClick() {
       setOpenMenuId(null);
       setMenuPos(null);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Click-outside for import dropdown
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (importMenuRef.current && !importMenuRef.current.contains(e.target as Node)) {
+        setShowImportMenu(false);
+      }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -692,6 +959,11 @@ export default function DirectoryClient({
     setContacts((prev) => prev.filter((c) => c.id !== id));
   }
 
+  function handleImported(newContacts: Contact[]) {
+    setShowImportModal(false);
+    setContacts((prev) => [...prev, ...newContacts]);
+  }
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
@@ -765,6 +1037,32 @@ export default function DirectoryClient({
               </svg>
               Add Distribution Group
             </button>
+
+            {/* Import dropdown */}
+            <div ref={importMenuRef} className="relative">
+              <button
+                onClick={() => setShowImportMenu((o) => !o)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Import
+                <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showImportMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showImportMenu && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-20">
+                  <button
+                    onClick={() => { setShowImportMenu(false); setShowImportModal(true); }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Import from a Project
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1043,6 +1341,14 @@ export default function DirectoryClient({
           name={displayName(deleteTarget)}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportModal
+          projectId={projectId}
+          onClose={() => setShowImportModal(false)}
+          onImported={handleImported}
         />
       )}
     </div>
