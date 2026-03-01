@@ -29,6 +29,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await supabase.from("project_members").insert(
       memberIds.map((userId: string) => ({ project_id: id, user_id: userId }))
     );
+
+    // Sync new members into the project directory (skip any already present by email)
+    const { data: usersData } = await supabase
+      .from("users")
+      .select("id, username, email")
+      .in("id", memberIds);
+
+    if (usersData && usersData.length > 0) {
+      const emails = usersData.map((u: { email: string }) => u.email).filter(Boolean);
+      const { data: existing } = await supabase
+        .from("directory_contacts")
+        .select("email")
+        .eq("project_id", id)
+        .eq("type", "user")
+        .in("email", emails);
+
+      const existingEmails = new Set((existing ?? []).map((c: { email: string | null }) => c.email));
+
+      const toInsert = usersData
+        .filter((u: { email: string }) => !existingEmails.has(u.email))
+        .map((u: { username: string; email: string }) => ({
+          project_id: id,
+          type: "user",
+          first_name: u.username,
+          last_name: null,
+          email: u.email,
+        }));
+
+      if (toInsert.length > 0) {
+        await supabase.from("directory_contacts").insert(toInsert);
+      }
+    }
   }
 
   await logActivity(supabase, {
