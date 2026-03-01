@@ -159,17 +159,8 @@ let pdfJsLoaded = false;
 
 async function ensurePdfJs() {
   if (pdfJsLoaded) return;
-  // Polyfill for browsers that don't yet support Promise.withResolvers (required by pdfjs-dist v5)
-  if (typeof (Promise as { withResolvers?: unknown }).withResolvers === "undefined") {
-    (Promise as { withResolvers?: unknown }).withResolvers = function <T>() {
-      let resolve!: (value: T | PromiseLike<T>) => void;
-      let reject!: (reason?: unknown) => void;
-      const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
-      return { promise, resolve, reject };
-    };
-  }
   const { GlobalWorkerOptions } = await import("pdfjs-dist");
-  GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
   pdfJsLoaded = true;
 }
 
@@ -289,7 +280,7 @@ async function renderPageFromDoc(
   canvas.height = vp.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return "";
-  await page.render({ canvasContext: ctx, viewport: vp, canvas }).promise;
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
   return canvas.toDataURL();
 }
 

@@ -1,9 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  turbopack: {},
+  turbopack: {
+    resolveAlias: {
+      // pdfjs-dist optionally requires 'canvas' for server-side rendering; stub it out
+      canvas: "./lib/empty-module.js",
+    },
+  },
   webpack: (config) => {
-    // Required for pdfjs-dist to work in webpack builds
     config.resolve.alias.canvas = false;
     return config;
   },
