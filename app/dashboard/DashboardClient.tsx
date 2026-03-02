@@ -144,6 +144,17 @@ export default function DashboardClient({ username, email, role }: { username: s
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Settings modal state
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"password" | "phone">("password");
+  const [phone, setPhone] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsSuccess, setSettingsSuccess] = useState("");
+
   async function loadProjects() {
     const res = await fetch("/api/projects");
     const data = await res.json();
@@ -177,6 +188,48 @@ export default function DashboardClient({ username, email, role }: { username: s
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
+  }
+
+  async function openSettings() {
+    setSettingsError(""); setSettingsSuccess("");
+    setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+    const res = await fetch("/api/user/profile");
+    if (res.ok) {
+      const data = await res.json();
+      setPhone(data.phone ?? "");
+    }
+    setShowSettings(true);
+  }
+
+  async function handleSavePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) { setSettingsError("New passwords do not match"); return; }
+    if (newPassword.length < 6) { setSettingsError("Password must be at least 6 characters"); return; }
+    setSettingsSaving(true); setSettingsError(""); setSettingsSuccess("");
+    const res = await fetch("/api/user/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json();
+    setSettingsSaving(false);
+    if (!res.ok) { setSettingsError(data.error); return; }
+    setSettingsSuccess("Password updated successfully");
+    setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+  }
+
+  async function handleSavePhone(e: React.FormEvent) {
+    e.preventDefault();
+    setSettingsSaving(true); setSettingsError(""); setSettingsSuccess("");
+    const res = await fetch("/api/user/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    const data = await res.json();
+    setSettingsSaving(false);
+    if (!res.ok) { setSettingsError(data.error); return; }
+    setSettingsSuccess("Phone number updated successfully");
   }
 
   async function handleCreateProject(e: React.FormEvent) {
@@ -226,6 +279,16 @@ export default function DashboardClient({ username, email, role }: { username: s
             </a>
           )}
           <span className="text-sm text-gray-400">{username}</span>
+          <button
+            onClick={openSettings}
+            className="text-gray-400 hover:text-gray-700 transition-colors"
+            title="Account Settings"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">
             Logout
           </button>
@@ -541,6 +604,98 @@ export default function DashboardClient({ username, email, role }: { username: s
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-xl flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <h2 className="text-sm font-semibold text-gray-900">Account Settings</h2>
+              <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Info row */}
+            <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
+              <p className="text-xs text-gray-500"><span className="font-medium text-gray-700">Username:</span> {username}</p>
+              <p className="text-xs text-gray-500 mt-0.5"><span className="font-medium text-gray-700">Email:</span> {email}</p>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-100 px-6">
+              <button
+                onClick={() => { setSettingsTab("password"); setSettingsError(""); setSettingsSuccess(""); }}
+                className={`py-3 text-xs font-medium mr-5 border-b-2 transition-colors ${settingsTab === "password" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700"}`}
+              >
+                Change Password
+              </button>
+              <button
+                onClick={() => { setSettingsTab("phone"); setSettingsError(""); setSettingsSuccess(""); }}
+                className={`py-3 text-xs font-medium border-b-2 transition-colors ${settingsTab === "phone" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700"}`}
+              >
+                Phone Number
+              </button>
+            </div>
+
+            <div className="px-6 py-5">
+              {settingsTab === "password" && (
+                <form onSubmit={handleSavePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Current Password</label>
+                    <input
+                      type="password" required value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="Enter current password"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">New Password</label>
+                    <input
+                      type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="At least 6 characters"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Confirm New Password</label>
+                    <input
+                      type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="Repeat new password"
+                    />
+                  </div>
+                  {settingsError && <p className="text-xs text-red-600">{settingsError}</p>}
+                  {settingsSuccess && <p className="text-xs text-green-600">{settingsSuccess}</p>}
+                  <button type="submit" disabled={settingsSaving} className="w-full py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
+                    {settingsSaving ? "Saving..." : "Update Password"}
+                  </button>
+                </form>
+              )}
+
+              {settingsTab === "phone" && (
+                <form onSubmit={handleSavePhone} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Phone Number</label>
+                    <input
+                      type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="e.g. (555) 123-4567"
+                    />
+                  </div>
+                  {settingsError && <p className="text-xs text-red-600">{settingsError}</p>}
+                  {settingsSuccess && <p className="text-xs text-green-600">{settingsSuccess}</p>}
+                  <button type="submit" disabled={settingsSaving} className="w-full py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
+                    {settingsSaving ? "Saving..." : "Save Phone Number"}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}
