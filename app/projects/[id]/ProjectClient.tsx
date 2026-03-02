@@ -513,7 +513,7 @@ export default function ProjectClient({
                   twoWeeksOut.setDate(today.getDate() + 14);
                   const twoWeeksStr = twoWeeksOut.toISOString().slice(0, 10);
 
-                  const workTasks = scheduleTasks.filter((t) => !t.isSummary && !t.isMilestone && t.start && t.finish);
+                  const workTasks = scheduleTasks.filter((t) => !t.isMilestone && t.start && t.finish);
 
                   const ongoing = workTasks.filter((t) => t.start <= todayStr && t.finish >= todayStr);
                   const upcoming = workTasks.filter((t) => t.start > todayStr && t.start <= twoWeeksStr);
@@ -546,7 +546,7 @@ export default function ProjectClient({
                           {workTab === "ongoing" ? "No tasks in progress today." : "No tasks starting in the next two weeks."}
                         </p>
                       ) : (
-                        <div className="space-y-2">
+                        <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                           {list.map((t) => (
                             <div key={t.uid} className="flex items-start justify-between gap-4 py-2.5 px-3 bg-gray-50 rounded-lg">
                               <div className="min-w-0">
