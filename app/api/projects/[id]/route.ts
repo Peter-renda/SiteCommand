@@ -10,13 +10,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const { id } = await params;
-  const { name, description, address, zip_code, value, status, memberIds } = await req.json();
+  const { name, description, address, city, state, zip_code, value, status, memberIds } = await req.json();
 
   const supabase = getSupabase();
 
   const { data: project, error } = await supabase
     .from("projects")
-    .update({ name, description, address, zip_code, value: parseFloat(value) || 0, status })
+    .update({ name, description, address, city, state, zip_code, value: parseFloat(value) || 0, status })
     .eq("id", id)
     .select()
     .single();

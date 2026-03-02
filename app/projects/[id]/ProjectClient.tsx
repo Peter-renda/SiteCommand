@@ -350,6 +350,8 @@ export default function ProjectClient({
   const [allUsers, setAllUsers] = useState<Member[]>([]);
   const [editName, setEditName] = useState("");
   const [editAddress, setEditAddress] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editStateVal, setEditStateVal] = useState("");
   const [editZipCode, setEditZipCode] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editValue, setEditValue] = useState("");
@@ -357,6 +359,10 @@ export default function ProjectClient({
   const [editMembers, setEditMembers] = useState<Member[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState<{ display: string; street: string; city: string; state: string; zip: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addressBoxRef = useRef<HTMLDivElement>(null);
 
   function fetchActivity() {
     fetch(`/api/projects/${projectId}/activity`)
@@ -405,14 +411,54 @@ export default function ProjectClient({
     if (!project) return;
     setEditName(project.name);
     setEditAddress(project.address || "");
+    setEditCity(project.city || "");
+    setEditStateVal(project.state || "");
     setEditZipCode(project.zip_code || "");
     setEditDescription(project.description || "");
     setEditValue(project.value?.toString() || "");
     setEditStatus(project.status || "bidding");
     setEditMembers(project.members || []);
     setEditError("");
+    setAddressSuggestions([]);
     fetch("/api/users").then((r) => r.json()).then((d) => setAllUsers(Array.isArray(d) ? d : []));
     setShowEdit(true);
+  }
+
+  function handleAddressInput(val: string) {
+    setEditAddress(val);
+    setShowSuggestions(true);
+    if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current);
+    if (val.length < 3) { setAddressSuggestions([]); return; }
+    addressDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&format=json&addressdetails=1&limit=5&countrycodes=us`,
+          { headers: { "Accept-Language": "en" } }
+        );
+        const data = await res.json();
+        const suggestions = (data as Record<string, unknown>[]).map((item) => {
+          const addr = item.address as Record<string, string>;
+          const street = [addr.house_number, addr.road].filter(Boolean).join(" ");
+          return {
+            display: item.display_name as string,
+            street,
+            city: addr.city || addr.town || addr.village || addr.suburb || addr.county || "",
+            state: addr.state || "",
+            zip: addr.postcode || "",
+          };
+        });
+        setAddressSuggestions(suggestions);
+      } catch { setAddressSuggestions([]); }
+    }, 400);
+  }
+
+  function selectAddressSuggestion(s: { street: string; city: string; state: string; zip: string }) {
+    setEditAddress(s.street);
+    setEditCity(s.city);
+    setEditStateVal(s.state);
+    setEditZipCode(s.zip.slice(0, 5));
+    setAddressSuggestions([]);
+    setShowSuggestions(false);
   }
 
   async function handleEditSave(e: React.FormEvent) {
@@ -427,6 +473,8 @@ export default function ProjectClient({
       body: JSON.stringify({
         name: editName,
         address: editAddress,
+        city: editCity,
+        state: editStateVal,
         zip_code: editZipCode,
         description: editDescription,
         value: editValue,
@@ -803,13 +851,52 @@ export default function ProjectClient({
                 />
               </div>
 
-              <div>
+              <div ref={addressBoxRef} className="relative">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Address <span className="text-gray-400 font-normal">(optional)</span></label>
                 <input
-                  type="text" value={editAddress} onChange={(e) => setEditAddress(e.target.value)}
+                  type="text"
+                  value={editAddress}
+                  onChange={(e) => handleAddressInput(e.target.value)}
+                  onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  placeholder="e.g. 123 Main St, New York, NY"
+                  placeholder="Start typing an address..."
+                  autoComplete="off"
                 />
+                {showSuggestions && addressSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-52 overflow-y-auto">
+                    {addressSuggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectAddressSuggestion(s)}
+                        className="w-full text-left px-3 py-2.5 text-xs text-gray-700 hover:bg-gray-50 border-b border-gray-100 last:border-0 truncate"
+                      >
+                        {s.display}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">City <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="City"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">State <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text" value={editStateVal} onChange={(e) => setEditStateVal(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="State"
+                  />
+                </div>
               </div>
 
               <div>
