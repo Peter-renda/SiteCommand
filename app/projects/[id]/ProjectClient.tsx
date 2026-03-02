@@ -634,7 +634,7 @@ export default function ProjectClient({
                 {/* Weather */}
                 <div className="bg-white border border-gray-100 rounded-xl p-5">
                   <h2 className="text-sm font-semibold text-gray-900 mb-4">7-Day Forecast</h2>
-                  <WeatherWidget zipCode={project.zip_code} />
+                  <WeatherWidget zipCode={project.zip_code ?? ""} />
                 </div>
 
                 {/* Edit button */}
