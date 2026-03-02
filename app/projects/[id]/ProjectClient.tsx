@@ -638,10 +638,16 @@ export default function ProjectClient({
                 <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
                   {/* Status + Value */}
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${project.status === "course of construction" ? "bg-green-50 text-green-700" : project.status === "bidding" ? "bg-blue-50 text-blue-700" : project.status === "pre-construction" ? "bg-yellow-50 text-yellow-700" : project.status === "warranty" ? "bg-purple-50 text-purple-700" : "bg-gray-100 text-gray-500"}`}>
-                      {project.status}
-                    </span>
-                    <span className="text-sm font-semibold text-gray-900">${(project.value || 0).toLocaleString()}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-gray-500 font-medium">Stage:</span>
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${project.status === "course of construction" ? "bg-green-50 text-green-700" : project.status === "bidding" ? "bg-blue-50 text-blue-700" : project.status === "pre-construction" ? "bg-yellow-50 text-yellow-700" : project.status === "warranty" ? "bg-purple-50 text-purple-700" : "bg-gray-100 text-gray-500"}`}>
+                        {project.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-gray-500 font-medium">Value:</span>
+                      <span className="text-sm font-semibold text-gray-900">${(project.value || 0).toLocaleString()}</span>
+                    </div>
                   </div>
 
                   {/* Project Number + Sector */}
