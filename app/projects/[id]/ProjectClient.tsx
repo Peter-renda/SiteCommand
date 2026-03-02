@@ -725,6 +725,7 @@ export default function ProjectClient({
                   {/* Description */}
                   {project.description && (
                     <p className="text-sm text-gray-500 leading-relaxed pt-1 border-t border-gray-50">
+                      <span className="font-medium text-gray-700">Description: </span>
                       {project.description}
                     </p>
                   )}
