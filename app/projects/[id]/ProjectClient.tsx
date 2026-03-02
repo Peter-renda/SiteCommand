@@ -340,6 +340,7 @@ export default function ProjectClient({
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [scheduleTasks, setScheduleTasks] = useState<ScheduleTask[]>([]);
   const [workTab, setWorkTab] = useState<"ongoing" | "upcoming">("ongoing");
+  const [workExpanded, setWorkExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editPhotoRef = useRef<HTMLInputElement>(null);
@@ -525,13 +526,13 @@ export default function ProjectClient({
                         <h2 className="text-sm font-semibold text-gray-900">Work Summary</h2>
                         <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs font-medium">
                           <button
-                            onClick={() => setWorkTab("ongoing")}
+                            onClick={() => { setWorkTab("ongoing"); setWorkExpanded(false); }}
                             className={`px-3 py-1.5 transition-colors ${workTab === "ongoing" ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"}`}
                           >
                             Ongoing
                           </button>
                           <button
-                            onClick={() => setWorkTab("upcoming")}
+                            onClick={() => { setWorkTab("upcoming"); setWorkExpanded(false); }}
                             className={`px-3 py-1.5 border-l border-gray-200 transition-colors ${workTab === "upcoming" ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"}`}
                           >
                             Upcoming
@@ -546,26 +547,36 @@ export default function ProjectClient({
                           {workTab === "ongoing" ? "No tasks in progress today." : "No tasks starting in the next two weeks."}
                         </p>
                       ) : (
-                        <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                          {list.map((t) => (
-                            <div key={t.uid} className="flex items-start justify-between gap-4 py-2.5 px-3 bg-gray-50 rounded-lg">
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">{t.name}</p>
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                  {new Date(t.start + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                  {" — "}
-                                  {new Date(t.finish + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                </p>
-                              </div>
-                              <div className="shrink-0 text-right">
-                                <span className="text-xs font-semibold text-gray-700">{t.percentComplete}%</span>
-                                <div className="w-16 h-1.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
-                                  <div className="h-full bg-gray-700 rounded-full" style={{ width: `${t.percentComplete}%` }} />
+                        <>
+                          <div className="space-y-2">
+                            {(workExpanded ? list : list.slice(0, 3)).map((t) => (
+                              <div key={t.uid} className="flex items-start justify-between gap-4 py-2.5 px-3 bg-gray-50 rounded-lg">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">{t.name}</p>
+                                  <p className="text-xs text-gray-400 mt-0.5">
+                                    {new Date(t.start + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                    {" — "}
+                                    {new Date(t.finish + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                  </p>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <span className="text-xs font-semibold text-gray-700">{t.percentComplete}%</span>
+                                  <div className="w-16 h-1.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                                    <div className="h-full bg-gray-700 rounded-full" style={{ width: `${t.percentComplete}%` }} />
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                          {list.length > 3 && (
+                            <button
+                              onClick={() => setWorkExpanded((x) => !x)}
+                              className="mt-3 w-full py-1.5 text-xs font-medium text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              {workExpanded ? "Show less" : `Show ${list.length - 3} more`}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   );
