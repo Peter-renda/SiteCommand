@@ -7,7 +7,7 @@ type ProjectAdmin = {
   name: string;
   description: string | null;
   project_number: string | null;
-  stage: string | null;
+  status: string | null;
   sector: string | null;
   address: string | null;
   city: string | null;
@@ -256,7 +256,7 @@ export default function AdminClient({
       .then((r) => r.json())
       .then((d: ProjectAdmin) => {
         setData(d);
-        setStage(d.stage ?? "");
+        setStage(d.status ?? "");
         setName(d.name ?? "");
         setProjectNumber(d.project_number ?? "");
         setDescription(d.description ?? "");
@@ -282,7 +282,7 @@ export default function AdminClient({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name, description, project_number: projectNumber, stage, sector,
+        name, description, project_number: projectNumber, status: stage, sector,
         address, city, state: stateVal, zip_code: zipCode, county,
         start_date: startDate || null,
         actual_start_date: actualStartDate || null,
@@ -295,6 +295,22 @@ export default function AdminClient({
     if (res.ok) {
       const updated = await res.json();
       setData(updated);
+      setStage(updated.status ?? "");
+      setName(updated.name ?? "");
+      setProjectNumber(updated.project_number ?? "");
+      setDescription(updated.description ?? "");
+      setSector(updated.sector ?? "");
+      setAddress(updated.address ?? "");
+      setCity(updated.city ?? "");
+      setStateVal(updated.state ?? "");
+      setZipCode(updated.zip_code ?? "");
+      setCounty(updated.county ?? "");
+      setStartDate(updated.start_date ?? "");
+      setActualStartDate(updated.actual_start_date ?? "");
+      setCompletionDate(updated.completion_date ?? "");
+      setProjectedFinishDate(updated.projected_finish_date ?? "");
+      setWarrantyStartDate(updated.warranty_start_date ?? "");
+      setWarrantyEndDate(updated.warranty_end_date ?? "");
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     }
@@ -373,7 +389,7 @@ export default function AdminClient({
                         ))}
                       </select>
                     ) : (
-                      <ReadonlyValue value={data?.stage} />
+                      <ReadonlyValue value={data?.status} />
                     )}
                   </Field>
 

@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data, error } = await supabase
     .from("projects")
-    .select("id, name, description, address, zip_code, stage, project_number, sector, city, state, county, start_date, actual_start_date, completion_date, projected_finish_date, warranty_start_date, warranty_end_date")
+    .select("id, name, description, address, zip_code, status, project_number, sector, city, state, county, start_date, actual_start_date, completion_date, projected_finish_date, warranty_start_date, warranty_end_date")
     .eq("id", id)
     .single();
 
@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json();
 
   const allowed = [
-    "name", "description", "project_number", "stage", "sector",
+    "name", "description", "project_number", "status", "sector",
     "address", "city", "state", "zip_code", "county",
     "start_date", "actual_start_date", "completion_date",
     "projected_finish_date", "warranty_start_date", "warranty_end_date",
