@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: "Failed to update project" }, { status: 500 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Replace members
   await supabase.from("project_members").delete().eq("project_id", id);
