@@ -271,7 +271,7 @@ export default function ProjectNav({
       {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-xl">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-xl flex flex-col max-h-[85vh]">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-900">Account Settings</h2>
@@ -303,7 +303,7 @@ export default function ProjectNav({
             </div>
 
             {/* Content */}
-            <div className="px-6 py-5">
+            <div className="px-6 py-5 overflow-y-auto">
               {settingsError && (
                 <p className="text-xs text-red-500 mb-3">{settingsError}</p>
               )}
