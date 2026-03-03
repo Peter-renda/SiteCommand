@@ -349,7 +349,7 @@ function InspectionsSection({ entries, onAdd, onDelete }: {
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
             <div className="overflow-x-auto">
-              <div className="flex gap-6 text-xs min-w-max">
+              <div className="inline-flex gap-6 text-xs">
                 {e.inspection_type && (
                   <div className="flex flex-col gap-0.5 min-w-[120px]">
                     <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Type</span>
@@ -457,7 +457,7 @@ function DeliveriesSection({ entries, onAdd, onDelete }: {
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
             <div className="overflow-x-auto">
-              <div className="flex gap-6 text-xs min-w-max">
+              <div className="inline-flex gap-6 text-xs">
                 {e.time && (
                   <div className="flex flex-col gap-0.5 min-w-[60px]">
                     <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
@@ -544,7 +544,7 @@ function VisitorsSection({ entries, onAdd, onDelete }: {
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
             <div className="overflow-x-auto">
-              <div className="flex gap-6 text-xs min-w-max">
+              <div className="inline-flex gap-6 text-xs">
                 {e.visitor && (
                   <div className="flex flex-col gap-0.5 min-w-[140px]">
                     <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Visitor</span>
@@ -631,7 +631,7 @@ function SafetyViolationsSection({ entries, onAdd, onDelete }: {
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
             <div className="overflow-x-auto">
-              <div className="flex gap-6 text-xs min-w-max">
+              <div className="inline-flex gap-6 text-xs">
                 {e.subject && (
                   <div className="flex flex-col gap-0.5 min-w-[140px]">
                     <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Subject</span>
@@ -724,7 +724,7 @@ function AccidentsSection({ entries, onAdd, onDelete }: {
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
             <div className="overflow-x-auto">
-              <div className="flex gap-6 text-xs min-w-max">
+              <div className="inline-flex gap-6 text-xs">
                 {e.time && (
                   <div className="flex flex-col gap-0.5 min-w-[60px]">
                     <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
@@ -831,7 +831,7 @@ function DelaysSection({ entries, onAdd, onDelete }: {
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
             <div className="overflow-x-auto">
-              <div className="flex gap-6 text-xs min-w-max">
+              <div className="inline-flex gap-6 text-xs">
                 {e.delay_type && (
                   <div className="flex flex-col gap-0.5 min-w-[110px]">
                     <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Type</span>
@@ -935,7 +935,7 @@ function NoteEntriesSection({ entries, onAdd, onDelete }: {
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
             <div className="overflow-x-auto">
-              <div className="flex gap-6 text-xs min-w-max">
+              <div className="inline-flex gap-6 text-xs">
                 <div className="flex flex-col gap-0.5 min-w-[50px]">
                   <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Flag</span>
                   {e.is_issue
@@ -1046,7 +1046,7 @@ function ManpowerSection({ entries, onAdd, onDelete, companySuggestions }: {
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
             <div className="overflow-x-auto">
-              <div className="flex gap-6 text-xs min-w-max">
+              <div className="inline-flex gap-6 text-xs">
                 {e.company && (
                   <div className="flex flex-col gap-0.5 min-w-[120px]">
                     <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Company</span>
