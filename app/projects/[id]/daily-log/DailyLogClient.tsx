@@ -183,12 +183,10 @@ const DELAY_TYPES = [
 // ── Shared UI primitives ─────────────────────────────────────────────────────
 
 function SectionCard({
-  title, badge, onAdd, addLabel = "Create", children,
+  title, badge, children,
 }: {
   title: string;
   badge?: string;
-  onAdd?: () => void;
-  addLabel?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -198,17 +196,6 @@ function SectionCard({
           <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
           {badge && <span className="text-xs text-gray-400">{badge}</span>}
         </div>
-        {onAdd && (
-          <button
-            onClick={onAdd}
-            className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            {addLabel}
-          </button>
-        )}
       </div>
       <div>{children}</div>
     </div>
@@ -235,30 +222,18 @@ const textareaCls =
 const selectCls =
   "w-full px-3 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white";
 
-function CreateForm({ onSubmit, onCancel, children }: {
-  onSubmit: () => void; onCancel: () => void; children: React.ReactNode;
+function CreateForm({ onSubmit, children }: {
+  onSubmit: () => void; children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-gray-100 p-4 bg-gray-50/60 space-y-3">
+    <div className="border-t border-gray-100 p-4 bg-gray-50/40 space-y-3">
       {children}
       <div className="flex items-center gap-2 pt-1">
         <button
           onClick={onSubmit}
           className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
         >
-          Create
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="ml-auto px-3 py-1.5 text-xs font-medium text-gray-400 border border-dashed border-gray-300 rounded-md hover:border-gray-500 hover:text-gray-600 transition-colors"
-        >
-          Attach File(s)
+          Add Entry
         </button>
       </div>
     </div>
@@ -285,10 +260,6 @@ function EntryRow({ children, onDelete }: {
   );
 }
 
-function EmptyState({ text }: { text: string }) {
-  return <p className="text-xs text-gray-300 text-center py-6">{text}</p>;
-}
-
 // ── Inspections ──────────────────────────────────────────────────────────────
 
 const emptyInspection = (): Omit<InspectionEntry, "id"> => ({
@@ -301,108 +272,100 @@ function InspectionsSection({ entries, onAdd, onDelete }: {
   onAdd: (e: InspectionEntry) => void;
   onDelete: (id: string) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyInspection());
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
     onAdd({ id: uid(), ...draft });
     setDraft(emptyInspection());
-    setCreating(false);
   }
 
   return (
-    <SectionCard title="Inspections" onAdd={() => setCreating((c) => !c)}>
-      {creating && (
-        <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Start" required>
-              <input type="time" value={draft.start_time} onChange={(e) => set("start_time", e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="End" required>
-              <input type="time" value={draft.end_time} onChange={(e) => set("end_time", e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="Inspection Type">
-              <input value={draft.inspection_type} onChange={(e) => set("inspection_type", e.target.value)} placeholder="e.g. Fire Safety" className={inputCls} />
-            </Field>
-            <Field label="Inspecting Entity">
-              <input value={draft.inspecting_entity} onChange={(e) => set("inspecting_entity", e.target.value)} placeholder="e.g. City Inspector" className={inputCls} />
-            </Field>
-            <Field label="Inspector Name">
-              <input value={draft.inspector_name} onChange={(e) => set("inspector_name", e.target.value)} placeholder="Full name" className={inputCls} />
-            </Field>
-            <Field label="Location">
-              <input value={draft.location} onChange={(e) => set("location", e.target.value)} placeholder="e.g. Level 3" className={inputCls} />
-            </Field>
-            <Field label="Inspection Area">
-              <input value={draft.inspection_area} onChange={(e) => set("inspection_area", e.target.value)} placeholder="e.g. Electrical" className={inputCls} />
-            </Field>
-          </div>
-          <Field label="Comments">
-            <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Additional details..." rows={3} className={textareaCls} />
-          </Field>
-        </CreateForm>
-      )}
-      {entries.length === 0 && !creating ? (
-        <EmptyState text="No inspections logged" />
-      ) : (
-        entries.map((e) => (
-          <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="overflow-x-auto">
-              <div className="inline-flex gap-6 text-xs">
-                {e.inspection_type && (
-                  <div className="flex flex-col gap-0.5 min-w-[120px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Type</span>
-                    <span className="text-gray-800 font-medium">{e.inspection_type}</span>
-                  </div>
-                )}
-                {e.start_time && (
-                  <div className="flex flex-col gap-0.5 min-w-[60px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Start</span>
-                    <span className="text-gray-700">{e.start_time}</span>
-                  </div>
-                )}
-                {e.end_time && (
-                  <div className="flex flex-col gap-0.5 min-w-[60px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">End</span>
-                    <span className="text-gray-700">{e.end_time}</span>
-                  </div>
-                )}
-                {e.inspecting_entity && (
-                  <div className="flex flex-col gap-0.5 min-w-[110px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Entity</span>
-                    <span className="text-gray-700">{e.inspecting_entity}</span>
-                  </div>
-                )}
-                {e.inspector_name && (
-                  <div className="flex flex-col gap-0.5 min-w-[110px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Inspector</span>
-                    <span className="text-gray-700">{e.inspector_name}</span>
-                  </div>
-                )}
-                {e.location && (
-                  <div className="flex flex-col gap-0.5 min-w-[100px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
-                    <span className="text-gray-700">{e.location}</span>
-                  </div>
-                )}
-                {e.inspection_area && (
-                  <div className="flex flex-col gap-0.5 min-w-[100px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Area</span>
-                    <span className="text-gray-700">{e.inspection_area}</span>
-                  </div>
-                )}
-                {e.comments && (
-                  <div className="flex flex-col gap-0.5 min-w-[140px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
-                    <span className="text-gray-500">{e.comments}</span>
-                  </div>
-                )}
-              </div>
+    <SectionCard title="Inspections">
+      {entries.map((e) => (
+        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-6 text-xs">
+              {e.inspection_type && (
+                <div className="flex flex-col gap-0.5 min-w-[120px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Type</span>
+                  <span className="text-gray-800 font-medium">{e.inspection_type}</span>
+                </div>
+              )}
+              {e.start_time && (
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Start</span>
+                  <span className="text-gray-700">{e.start_time}</span>
+                </div>
+              )}
+              {e.end_time && (
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">End</span>
+                  <span className="text-gray-700">{e.end_time}</span>
+                </div>
+              )}
+              {e.inspecting_entity && (
+                <div className="flex flex-col gap-0.5 min-w-[110px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Entity</span>
+                  <span className="text-gray-700">{e.inspecting_entity}</span>
+                </div>
+              )}
+              {e.inspector_name && (
+                <div className="flex flex-col gap-0.5 min-w-[110px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Inspector</span>
+                  <span className="text-gray-700">{e.inspector_name}</span>
+                </div>
+              )}
+              {e.location && (
+                <div className="flex flex-col gap-0.5 min-w-[100px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
+                  <span className="text-gray-700">{e.location}</span>
+                </div>
+              )}
+              {e.inspection_area && (
+                <div className="flex flex-col gap-0.5 min-w-[100px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Area</span>
+                  <span className="text-gray-700">{e.inspection_area}</span>
+                </div>
+              )}
+              {e.comments && (
+                <div className="flex flex-col gap-0.5 min-w-[140px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                  <span className="text-gray-500">{e.comments}</span>
+                </div>
+              )}
             </div>
-          </EntryRow>
-        ))
-      )}
+          </div>
+        </EntryRow>
+      ))}
+      <CreateForm onSubmit={handleCreate}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Start" required>
+            <input type="time" value={draft.start_time} onChange={(e) => set("start_time", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="End" required>
+            <input type="time" value={draft.end_time} onChange={(e) => set("end_time", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="Inspection Type">
+            <input value={draft.inspection_type} onChange={(e) => set("inspection_type", e.target.value)} placeholder="e.g. Fire Safety" className={inputCls} />
+          </Field>
+          <Field label="Inspecting Entity">
+            <input value={draft.inspecting_entity} onChange={(e) => set("inspecting_entity", e.target.value)} placeholder="e.g. City Inspector" className={inputCls} />
+          </Field>
+          <Field label="Inspector Name">
+            <input value={draft.inspector_name} onChange={(e) => set("inspector_name", e.target.value)} placeholder="Full name" className={inputCls} />
+          </Field>
+          <Field label="Location">
+            <input value={draft.location} onChange={(e) => set("location", e.target.value)} placeholder="e.g. Level 3" className={inputCls} />
+          </Field>
+          <Field label="Inspection Area">
+            <input value={draft.inspection_area} onChange={(e) => set("inspection_area", e.target.value)} placeholder="e.g. Electrical" className={inputCls} />
+          </Field>
+        </div>
+        <Field label="Comments">
+          <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Additional details..." rows={3} className={textareaCls} />
+        </Field>
+      </CreateForm>
     </SectionCard>
   );
 }
@@ -418,81 +381,73 @@ function DeliveriesSection({ entries, onAdd, onDelete }: {
   onAdd: (e: DeliveryEntry) => void;
   onDelete: (id: string) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyDelivery());
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
     onAdd({ id: uid(), ...draft });
     setDraft(emptyDelivery());
-    setCreating(false);
   }
 
   return (
-    <SectionCard title="Deliveries" onAdd={() => setCreating((c) => !c)}>
-      {creating && (
-        <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Time" required>
-              <input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="Delivery From">
-              <input value={draft.delivery_from} onChange={(e) => set("delivery_from", e.target.value)} placeholder="Supplier / vendor" className={inputCls} />
-            </Field>
-            <Field label="Tracking Number">
-              <input value={draft.tracking_number} onChange={(e) => set("tracking_number", e.target.value)} placeholder="Optional" className={inputCls} />
-            </Field>
-            <Field label="Contents">
-              <input value={draft.contents} onChange={(e) => set("contents", e.target.value)} placeholder="Material description" className={inputCls} />
-            </Field>
-          </div>
-          <Field label="Comments">
-            <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Additional details..." rows={3} className={textareaCls} />
-          </Field>
-        </CreateForm>
-      )}
-      {entries.length === 0 && !creating ? (
-        <EmptyState text="No deliveries logged" />
-      ) : (
-        entries.map((e) => (
-          <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="overflow-x-auto">
-              <div className="inline-flex gap-6 text-xs">
-                {e.time && (
-                  <div className="flex flex-col gap-0.5 min-w-[60px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
-                    <span className="text-gray-700">{e.time}</span>
-                  </div>
-                )}
-                {e.delivery_from && (
-                  <div className="flex flex-col gap-0.5 min-w-[110px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">From</span>
-                    <span className="text-gray-800 font-medium">{e.delivery_from}</span>
-                  </div>
-                )}
-                {e.contents && (
-                  <div className="flex flex-col gap-0.5 min-w-[120px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Contents</span>
-                    <span className="text-gray-700">{e.contents}</span>
-                  </div>
-                )}
-                {e.tracking_number && (
-                  <div className="flex flex-col gap-0.5 min-w-[100px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Tracking #</span>
-                    <span className="text-gray-700">{e.tracking_number}</span>
-                  </div>
-                )}
-                {e.comments && (
-                  <div className="flex flex-col gap-0.5 min-w-[140px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
-                    <span className="text-gray-500">{e.comments}</span>
-                  </div>
-                )}
-              </div>
+    <SectionCard title="Deliveries">
+      {entries.map((e) => (
+        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-6 text-xs">
+              {e.time && (
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
+                  <span className="text-gray-700">{e.time}</span>
+                </div>
+              )}
+              {e.delivery_from && (
+                <div className="flex flex-col gap-0.5 min-w-[110px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">From</span>
+                  <span className="text-gray-800 font-medium">{e.delivery_from}</span>
+                </div>
+              )}
+              {e.contents && (
+                <div className="flex flex-col gap-0.5 min-w-[120px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Contents</span>
+                  <span className="text-gray-700">{e.contents}</span>
+                </div>
+              )}
+              {e.tracking_number && (
+                <div className="flex flex-col gap-0.5 min-w-[100px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Tracking #</span>
+                  <span className="text-gray-700">{e.tracking_number}</span>
+                </div>
+              )}
+              {e.comments && (
+                <div className="flex flex-col gap-0.5 min-w-[140px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                  <span className="text-gray-500">{e.comments}</span>
+                </div>
+              )}
             </div>
-          </EntryRow>
-        ))
-      )}
+          </div>
+        </EntryRow>
+      ))}
+      <CreateForm onSubmit={handleCreate}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Time" required>
+            <input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="Delivery From">
+            <input value={draft.delivery_from} onChange={(e) => set("delivery_from", e.target.value)} placeholder="Supplier / vendor" className={inputCls} />
+          </Field>
+          <Field label="Tracking Number">
+            <input value={draft.tracking_number} onChange={(e) => set("tracking_number", e.target.value)} placeholder="Optional" className={inputCls} />
+          </Field>
+          <Field label="Contents">
+            <input value={draft.contents} onChange={(e) => set("contents", e.target.value)} placeholder="Material description" className={inputCls} />
+          </Field>
+        </div>
+        <Field label="Comments">
+          <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Additional details..." rows={3} className={textareaCls} />
+        </Field>
+      </CreateForm>
     </SectionCard>
   );
 }
@@ -508,72 +463,64 @@ function VisitorsSection({ entries, onAdd, onDelete }: {
   onAdd: (e: VisitorEntry) => void;
   onDelete: (id: string) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyVisitor());
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
     onAdd({ id: uid(), ...draft });
     setDraft(emptyVisitor());
-    setCreating(false);
   }
 
   return (
-    <SectionCard title="Visitors" onAdd={() => setCreating((c) => !c)}>
-      {creating && (
-        <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-          <Field label="Visitor">
-            <input value={draft.visitor} onChange={(e) => set("visitor", e.target.value)} placeholder="Name and company" className={inputCls} />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Start" required>
-              <input type="time" value={draft.start_time} onChange={(e) => set("start_time", e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="End" required>
-              <input type="time" value={draft.end_time} onChange={(e) => set("end_time", e.target.value)} className={inputCls} />
-            </Field>
-          </div>
-          <Field label="Comments">
-            <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Purpose of visit, observations..." rows={3} className={textareaCls} />
-          </Field>
-        </CreateForm>
-      )}
-      {entries.length === 0 && !creating ? (
-        <EmptyState text="No visitors logged" />
-      ) : (
-        entries.map((e) => (
-          <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="overflow-x-auto">
-              <div className="inline-flex gap-6 text-xs">
-                {e.visitor && (
-                  <div className="flex flex-col gap-0.5 min-w-[140px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Visitor</span>
-                    <span className="text-gray-800 font-medium">{e.visitor}</span>
-                  </div>
-                )}
-                {e.start_time && (
-                  <div className="flex flex-col gap-0.5 min-w-[60px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Start</span>
-                    <span className="text-gray-700">{e.start_time}</span>
-                  </div>
-                )}
-                {e.end_time && (
-                  <div className="flex flex-col gap-0.5 min-w-[60px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">End</span>
-                    <span className="text-gray-700">{e.end_time}</span>
-                  </div>
-                )}
-                {e.comments && (
-                  <div className="flex flex-col gap-0.5 min-w-[140px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
-                    <span className="text-gray-500">{e.comments}</span>
-                  </div>
-                )}
-              </div>
+    <SectionCard title="Visitors">
+      {entries.map((e) => (
+        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-6 text-xs">
+              {e.visitor && (
+                <div className="flex flex-col gap-0.5 min-w-[140px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Visitor</span>
+                  <span className="text-gray-800 font-medium">{e.visitor}</span>
+                </div>
+              )}
+              {e.start_time && (
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Start</span>
+                  <span className="text-gray-700">{e.start_time}</span>
+                </div>
+              )}
+              {e.end_time && (
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">End</span>
+                  <span className="text-gray-700">{e.end_time}</span>
+                </div>
+              )}
+              {e.comments && (
+                <div className="flex flex-col gap-0.5 min-w-[140px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                  <span className="text-gray-500">{e.comments}</span>
+                </div>
+              )}
             </div>
-          </EntryRow>
-        ))
-      )}
+          </div>
+        </EntryRow>
+      ))}
+      <CreateForm onSubmit={handleCreate}>
+        <Field label="Visitor">
+          <input value={draft.visitor} onChange={(e) => set("visitor", e.target.value)} placeholder="Name and company" className={inputCls} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Start" required>
+            <input type="time" value={draft.start_time} onChange={(e) => set("start_time", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="End" required>
+            <input type="time" value={draft.end_time} onChange={(e) => set("end_time", e.target.value)} className={inputCls} />
+          </Field>
+        </div>
+        <Field label="Comments">
+          <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Purpose of visit, observations..." rows={3} className={textareaCls} />
+        </Field>
+      </CreateForm>
     </SectionCard>
   );
 }
@@ -589,90 +536,82 @@ function SafetyViolationsSection({ entries, onAdd, onDelete }: {
   onAdd: (e: SafetyViolationEntry) => void;
   onDelete: (id: string) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptySafetyViolation());
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
     onAdd({ id: uid(), ...draft });
     setDraft(emptySafetyViolation());
-    setCreating(false);
   }
 
   return (
-    <SectionCard title="Safety Violations" onAdd={() => setCreating((c) => !c)}>
-      {creating && (
-        <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Time" required>
-              <input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="Issued To">
-              <input value={draft.issued_to} onChange={(e) => set("issued_to", e.target.value)} placeholder="Person / company" className={inputCls} />
-            </Field>
-            <Field label="Subject">
-              <input value={draft.subject} onChange={(e) => set("subject", e.target.value)} placeholder="Brief description" className={inputCls} />
-            </Field>
-            <Field label="Safety Notice">
-              <input value={draft.safety_notice} onChange={(e) => set("safety_notice", e.target.value)} placeholder="Notice # or type" className={inputCls} />
-            </Field>
-            <Field label="Compliance Due">
-              <input type="date" value={draft.compliance_due} onChange={(e) => set("compliance_due", e.target.value)} className={inputCls} />
-            </Field>
-          </div>
-          <Field label="Comments">
-            <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Details..." rows={3} className={textareaCls} />
-          </Field>
-        </CreateForm>
-      )}
-      {entries.length === 0 && !creating ? (
-        <EmptyState text="No safety violations logged" />
-      ) : (
-        entries.map((e) => (
-          <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="overflow-x-auto">
-              <div className="inline-flex gap-6 text-xs">
-                {e.subject && (
-                  <div className="flex flex-col gap-0.5 min-w-[140px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Subject</span>
-                    <span className="text-gray-800 font-medium">{e.subject}</span>
-                  </div>
-                )}
-                {e.time && (
-                  <div className="flex flex-col gap-0.5 min-w-[60px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
-                    <span className="text-gray-700">{e.time}</span>
-                  </div>
-                )}
-                {e.issued_to && (
-                  <div className="flex flex-col gap-0.5 min-w-[110px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Issued To</span>
-                    <span className="text-gray-700">{e.issued_to}</span>
-                  </div>
-                )}
-                {e.safety_notice && (
-                  <div className="flex flex-col gap-0.5 min-w-[90px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Notice</span>
-                    <span className="text-gray-700">{e.safety_notice}</span>
-                  </div>
-                )}
-                {e.compliance_due && (
-                  <div className="flex flex-col gap-0.5 min-w-[90px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Due</span>
-                    <span className="text-gray-700">{e.compliance_due}</span>
-                  </div>
-                )}
-                {e.comments && (
-                  <div className="flex flex-col gap-0.5 min-w-[140px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
-                    <span className="text-gray-500">{e.comments}</span>
-                  </div>
-                )}
-              </div>
+    <SectionCard title="Safety Violations">
+      {entries.map((e) => (
+        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-6 text-xs">
+              {e.subject && (
+                <div className="flex flex-col gap-0.5 min-w-[140px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Subject</span>
+                  <span className="text-gray-800 font-medium">{e.subject}</span>
+                </div>
+              )}
+              {e.time && (
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
+                  <span className="text-gray-700">{e.time}</span>
+                </div>
+              )}
+              {e.issued_to && (
+                <div className="flex flex-col gap-0.5 min-w-[110px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Issued To</span>
+                  <span className="text-gray-700">{e.issued_to}</span>
+                </div>
+              )}
+              {e.safety_notice && (
+                <div className="flex flex-col gap-0.5 min-w-[90px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Notice</span>
+                  <span className="text-gray-700">{e.safety_notice}</span>
+                </div>
+              )}
+              {e.compliance_due && (
+                <div className="flex flex-col gap-0.5 min-w-[90px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Due</span>
+                  <span className="text-gray-700">{e.compliance_due}</span>
+                </div>
+              )}
+              {e.comments && (
+                <div className="flex flex-col gap-0.5 min-w-[140px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                  <span className="text-gray-500">{e.comments}</span>
+                </div>
+              )}
             </div>
-          </EntryRow>
-        ))
-      )}
+          </div>
+        </EntryRow>
+      ))}
+      <CreateForm onSubmit={handleCreate}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Time" required>
+            <input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="Issued To">
+            <input value={draft.issued_to} onChange={(e) => set("issued_to", e.target.value)} placeholder="Person / company" className={inputCls} />
+          </Field>
+          <Field label="Subject">
+            <input value={draft.subject} onChange={(e) => set("subject", e.target.value)} placeholder="Brief description" className={inputCls} />
+          </Field>
+          <Field label="Safety Notice">
+            <input value={draft.safety_notice} onChange={(e) => set("safety_notice", e.target.value)} placeholder="Notice # or type" className={inputCls} />
+          </Field>
+          <Field label="Compliance Due">
+            <input type="date" value={draft.compliance_due} onChange={(e) => set("compliance_due", e.target.value)} className={inputCls} />
+          </Field>
+        </div>
+        <Field label="Comments">
+          <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Details..." rows={3} className={textareaCls} />
+        </Field>
+      </CreateForm>
     </SectionCard>
   );
 }
@@ -688,72 +627,64 @@ function AccidentsSection({ entries, onAdd, onDelete }: {
   onAdd: (e: AccidentEntry) => void;
   onDelete: (id: string) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyAccident());
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
     onAdd({ id: uid(), ...draft });
     setDraft(emptyAccident());
-    setCreating(false);
   }
 
   return (
-    <SectionCard title="Accidents" onAdd={() => setCreating((c) => !c)}>
-      {creating && (
-        <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Time" required>
-              <input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="Party Involved">
-              <input value={draft.party_involved} onChange={(e) => set("party_involved", e.target.value)} placeholder="Person's name" className={inputCls} />
-            </Field>
-            <Field label="Company Involved">
-              <input value={draft.company_involved} onChange={(e) => set("company_involved", e.target.value)} placeholder="Company name" className={inputCls} />
-            </Field>
-          </div>
-          <Field label="Comments">
-            <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Describe the accident or near-miss..." rows={3} className={textareaCls} />
-          </Field>
-        </CreateForm>
-      )}
-      {entries.length === 0 && !creating ? (
-        <EmptyState text="No accidents logged" />
-      ) : (
-        entries.map((e) => (
-          <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="overflow-x-auto">
-              <div className="inline-flex gap-6 text-xs">
-                {e.time && (
-                  <div className="flex flex-col gap-0.5 min-w-[60px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
-                    <span className="text-gray-700">{e.time}</span>
-                  </div>
-                )}
-                {e.party_involved && (
-                  <div className="flex flex-col gap-0.5 min-w-[110px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Party Involved</span>
-                    <span className="text-gray-800 font-medium">{e.party_involved}</span>
-                  </div>
-                )}
-                {e.company_involved && (
-                  <div className="flex flex-col gap-0.5 min-w-[110px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Company</span>
-                    <span className="text-gray-700">{e.company_involved}</span>
-                  </div>
-                )}
-                {e.comments && (
-                  <div className="flex flex-col gap-0.5 min-w-[140px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
-                    <span className="text-gray-500">{e.comments}</span>
-                  </div>
-                )}
-              </div>
+    <SectionCard title="Accidents">
+      {entries.map((e) => (
+        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-6 text-xs">
+              {e.time && (
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
+                  <span className="text-gray-700">{e.time}</span>
+                </div>
+              )}
+              {e.party_involved && (
+                <div className="flex flex-col gap-0.5 min-w-[110px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Party Involved</span>
+                  <span className="text-gray-800 font-medium">{e.party_involved}</span>
+                </div>
+              )}
+              {e.company_involved && (
+                <div className="flex flex-col gap-0.5 min-w-[110px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Company</span>
+                  <span className="text-gray-700">{e.company_involved}</span>
+                </div>
+              )}
+              {e.comments && (
+                <div className="flex flex-col gap-0.5 min-w-[140px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                  <span className="text-gray-500">{e.comments}</span>
+                </div>
+              )}
             </div>
-          </EntryRow>
-        ))
-      )}
+          </div>
+        </EntryRow>
+      ))}
+      <CreateForm onSubmit={handleCreate}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Time" required>
+            <input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="Party Involved">
+            <input value={draft.party_involved} onChange={(e) => set("party_involved", e.target.value)} placeholder="Person's name" className={inputCls} />
+          </Field>
+          <Field label="Company Involved">
+            <input value={draft.company_involved} onChange={(e) => set("company_involved", e.target.value)} placeholder="Company name" className={inputCls} />
+          </Field>
+        </div>
+        <Field label="Comments">
+          <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Describe the accident or near-miss..." rows={3} className={textareaCls} />
+        </Field>
+      </CreateForm>
     </SectionCard>
   );
 }
@@ -769,7 +700,6 @@ function DelaysSection({ entries, onAdd, onDelete }: {
   onAdd: (e: DelayEntry) => void;
   onDelete: (id: string) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyDelay());
 
   function setField(f: keyof typeof draft, v: string) {
@@ -788,7 +718,6 @@ function DelaysSection({ entries, onAdd, onDelete }: {
   function handleCreate() {
     onAdd({ id: uid(), ...draft });
     setDraft(emptyDelay());
-    setCreating(false);
   }
 
   const totalHours = entries.reduce((sum, e) => sum + (parseFloat(e.duration_hours) || 0), 0);
@@ -797,82 +726,75 @@ function DelaysSection({ entries, onAdd, onDelete }: {
     <SectionCard
       title="Delays"
       badge={`${totalHours.toFixed(2)} Total Hours`}
-      onAdd={() => setCreating((c) => !c)}
     >
-      {creating && (
-        <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Delay Type">
-              <select value={draft.delay_type} onChange={(e) => setField("delay_type", e.target.value)} className={selectCls}>
-                {DELAY_TYPES.map((t) => <option key={t} value={t}>{t || "— Select —"}</option>)}
-              </select>
-            </Field>
-            <Field label="Location">
-              <input value={draft.location} onChange={(e) => setField("location", e.target.value)} placeholder="Area affected" className={inputCls} />
-            </Field>
-            <Field label="Start Time">
-              <input type="time" value={draft.start_time} onChange={(e) => setField("start_time", e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="End Time">
-              <input type="time" value={draft.end_time} onChange={(e) => setField("end_time", e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="Duration (Hours)">
-              <input value={draft.duration_hours} readOnly disabled placeholder="Auto-calculated" className={inputCls} />
-            </Field>
-          </div>
-          <Field label="Comments">
-            <textarea value={draft.comments} onChange={(e) => setField("comments", e.target.value)} placeholder="Cause and impact..." rows={3} className={textareaCls} />
-          </Field>
-        </CreateForm>
-      )}
-      {entries.length === 0 && !creating ? (
-        <EmptyState text="No delays logged" />
-      ) : (
-        entries.map((e) => (
-          <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="overflow-x-auto">
-              <div className="inline-flex gap-6 text-xs">
-                {e.delay_type && (
-                  <div className="flex flex-col gap-0.5 min-w-[110px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Type</span>
-                    <span className="text-gray-800 font-medium">{e.delay_type}</span>
-                  </div>
-                )}
-                {e.start_time && (
-                  <div className="flex flex-col gap-0.5 min-w-[60px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Start</span>
-                    <span className="text-gray-700">{e.start_time}</span>
-                  </div>
-                )}
-                {e.end_time && (
-                  <div className="flex flex-col gap-0.5 min-w-[60px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">End</span>
-                    <span className="text-gray-700">{e.end_time}</span>
-                  </div>
-                )}
-                {e.duration_hours && (
-                  <div className="flex flex-col gap-0.5 min-w-[70px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Duration</span>
-                    <span className="text-gray-700">{e.duration_hours}h</span>
-                  </div>
-                )}
-                {e.location && (
-                  <div className="flex flex-col gap-0.5 min-w-[100px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
-                    <span className="text-gray-700">{e.location}</span>
-                  </div>
-                )}
-                {e.comments && (
-                  <div className="flex flex-col gap-0.5 min-w-[140px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
-                    <span className="text-gray-500">{e.comments}</span>
-                  </div>
-                )}
-              </div>
+      {entries.map((e) => (
+        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-6 text-xs">
+              {e.delay_type && (
+                <div className="flex flex-col gap-0.5 min-w-[110px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Type</span>
+                  <span className="text-gray-800 font-medium">{e.delay_type}</span>
+                </div>
+              )}
+              {e.start_time && (
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Start</span>
+                  <span className="text-gray-700">{e.start_time}</span>
+                </div>
+              )}
+              {e.end_time && (
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">End</span>
+                  <span className="text-gray-700">{e.end_time}</span>
+                </div>
+              )}
+              {e.duration_hours && (
+                <div className="flex flex-col gap-0.5 min-w-[70px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Duration</span>
+                  <span className="text-gray-700">{e.duration_hours}h</span>
+                </div>
+              )}
+              {e.location && (
+                <div className="flex flex-col gap-0.5 min-w-[100px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
+                  <span className="text-gray-700">{e.location}</span>
+                </div>
+              )}
+              {e.comments && (
+                <div className="flex flex-col gap-0.5 min-w-[140px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                  <span className="text-gray-500">{e.comments}</span>
+                </div>
+              )}
             </div>
-          </EntryRow>
-        ))
-      )}
+          </div>
+        </EntryRow>
+      ))}
+      <CreateForm onSubmit={handleCreate}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Delay Type">
+            <select value={draft.delay_type} onChange={(e) => setField("delay_type", e.target.value)} className={selectCls}>
+              {DELAY_TYPES.map((t) => <option key={t} value={t}>{t || "— Select —"}</option>)}
+            </select>
+          </Field>
+          <Field label="Location">
+            <input value={draft.location} onChange={(e) => setField("location", e.target.value)} placeholder="Area affected" className={inputCls} />
+          </Field>
+          <Field label="Start Time">
+            <input type="time" value={draft.start_time} onChange={(e) => setField("start_time", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="End Time">
+            <input type="time" value={draft.end_time} onChange={(e) => setField("end_time", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="Duration (Hours)">
+            <input value={draft.duration_hours} readOnly disabled placeholder="Auto-calculated" className={inputCls} />
+          </Field>
+        </div>
+        <Field label="Comments">
+          <textarea value={draft.comments} onChange={(e) => setField("comments", e.target.value)} placeholder="Cause and impact..." rows={3} className={textareaCls} />
+        </Field>
+      </CreateForm>
     </SectionCard>
   );
 }
@@ -888,78 +810,70 @@ function NoteEntriesSection({ entries, onAdd, onDelete }: {
   onAdd: (e: NoteEntry) => void;
   onDelete: (id: string) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyNoteEntry());
 
   function handleCreate() {
     onAdd({ id: uid(), ...draft });
     setDraft(emptyNoteEntry());
-    setCreating(false);
   }
 
   return (
-    <SectionCard title="Notes" onAdd={() => setCreating((c) => !c)}>
-      {creating && (
-        <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-          <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-600">
-            <input
-              type="checkbox"
-              checked={draft.is_issue}
-              onChange={(e) => setDraft((d) => ({ ...d, is_issue: e.target.checked }))}
-              className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-            />
-            Mark as Issue
-          </label>
-          <Field label="Location">
-            <input
-              value={draft.location}
-              onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
-              placeholder="Area or location relevant to note"
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Comments">
-            <textarea
-              value={draft.comments}
-              onChange={(e) => setDraft((d) => ({ ...d, comments: e.target.value }))}
-              placeholder="Note details..."
-              rows={3}
-              className={textareaCls}
-            />
-          </Field>
-        </CreateForm>
-      )}
-      {entries.length === 0 && !creating ? (
-        <EmptyState text="No notes added" />
-      ) : (
-        entries.map((e) => (
-          <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="overflow-x-auto">
-              <div className="inline-flex gap-6 text-xs">
-                <div className="flex flex-col gap-0.5 min-w-[50px]">
-                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Flag</span>
-                  {e.is_issue
-                    ? <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700">Issue</span>
-                    : <span className="text-gray-400">—</span>
-                  }
-                </div>
-                {e.location && (
-                  <div className="flex flex-col gap-0.5 min-w-[110px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
-                    <span className="text-gray-700">{e.location}</span>
-                  </div>
-                )}
-                {e.comments && (
-                  <div className="flex flex-col gap-0.5 min-w-[200px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Note</span>
-                    <span className="text-gray-600">{e.comments}</span>
-                  </div>
-                )}
+    <SectionCard title="Notes">
+      {entries.map((e) => (
+        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-6 text-xs">
+              <div className="flex flex-col gap-0.5 min-w-[50px]">
+                <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Flag</span>
+                {e.is_issue
+                  ? <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700">Issue</span>
+                  : <span className="text-gray-400">—</span>
+                }
               </div>
+              {e.location && (
+                <div className="flex flex-col gap-0.5 min-w-[110px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
+                  <span className="text-gray-700">{e.location}</span>
+                </div>
+              )}
+              {e.comments && (
+                <div className="flex flex-col gap-0.5 min-w-[200px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Note</span>
+                  <span className="text-gray-600">{e.comments}</span>
+                </div>
+              )}
             </div>
-          </EntryRow>
-        ))
-      )}
+          </div>
+        </EntryRow>
+      ))}
+      <CreateForm onSubmit={handleCreate}>
+        <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-600">
+          <input
+            type="checkbox"
+            checked={draft.is_issue}
+            onChange={(e) => setDraft((d) => ({ ...d, is_issue: e.target.checked }))}
+            className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+          />
+          Mark as Issue
+        </label>
+        <Field label="Location">
+          <input
+            value={draft.location}
+            onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
+            placeholder="Area or location relevant to note"
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Comments">
+          <textarea
+            value={draft.comments}
+            onChange={(e) => setDraft((d) => ({ ...d, comments: e.target.value }))}
+            placeholder="Note details..."
+            rows={3}
+            className={textareaCls}
+          />
+        </Field>
+      </CreateForm>
     </SectionCard>
   );
 }
@@ -976,14 +890,12 @@ function ManpowerSection({ entries, onAdd, onDelete, companySuggestions }: {
   onDelete: (id: string) => void;
   companySuggestions: string[];
 }) {
-  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyManpower());
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
     onAdd({ id: uid(), ...draft });
     setDraft(emptyManpower());
-    setCreating(false);
   }
 
   const totalWorkers = entries.reduce((sum, e) => sum + (parseInt(e.workers) || 0), 0);
@@ -1000,94 +912,87 @@ function ManpowerSection({ entries, onAdd, onDelete, companySuggestions }: {
     <SectionCard
       title="Manpower"
       badge={`${totalWorkers} Workers | ${totalHours.toFixed(1)} Total Hours`}
-      onAdd={() => setCreating((c) => !c)}
     >
-      {creating && (
-        <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Company">
-              <input
-                list="manpower-companies"
-                value={draft.company}
-                onChange={(e) => set("company", e.target.value)}
-                placeholder="Trade / company name"
-                className={inputCls}
-              />
-              <datalist id="manpower-companies">
-                {companySuggestions.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-            </Field>
-            <Field label="Workers" required>
-              <input type="number" min="0" value={draft.workers} onChange={(e) => set("workers", e.target.value)} placeholder="0" className={inputCls} />
-            </Field>
-            <Field label="Hours" required>
-              <input type="number" min="0" step="0.5" value={draft.hours} onChange={(e) => set("hours", e.target.value)} placeholder="0" className={inputCls} />
-            </Field>
-            <Field label="Location">
-              <input value={draft.location} onChange={(e) => set("location", e.target.value)} placeholder="Work area" className={inputCls} />
-            </Field>
-            <Field label="Cost Code">
-              <input value={draft.cost_code} onChange={(e) => set("cost_code", e.target.value)} placeholder="Optional" className={inputCls} />
-            </Field>
-            <Field label="Total Hours">
-              <input value={draftTotalHours} readOnly disabled placeholder="Auto-calculated" className={inputCls} />
-            </Field>
-          </div>
-          <Field label="Comments">
-            <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Optional notes..." rows={2} className={textareaCls} />
-          </Field>
-        </CreateForm>
-      )}
-      {entries.length === 0 && !creating ? (
-        <EmptyState text="No manpower entries logged" />
-      ) : (
-        entries.map((e) => (
-          <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="overflow-x-auto">
-              <div className="inline-flex gap-6 text-xs">
-                {e.company && (
-                  <div className="flex flex-col gap-0.5 min-w-[120px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Company</span>
-                    <span className="text-gray-800 font-medium">{e.company}</span>
-                  </div>
-                )}
-                <div className="flex flex-col gap-0.5 min-w-[60px]">
-                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Workers</span>
-                  <span className="text-gray-700">{e.workers || "—"}</span>
+      {entries.map((e) => (
+        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-6 text-xs">
+              {e.company && (
+                <div className="flex flex-col gap-0.5 min-w-[120px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Company</span>
+                  <span className="text-gray-800 font-medium">{e.company}</span>
                 </div>
-                <div className="flex flex-col gap-0.5 min-w-[70px]">
-                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Hrs/Worker</span>
-                  <span className="text-gray-700">{e.hours || "—"}</span>
-                </div>
-                <div className="flex flex-col gap-0.5 min-w-[70px]">
-                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Total Hrs</span>
-                  <span className="text-gray-700">{((parseInt(e.workers) || 0) * (parseFloat(e.hours) || 0)).toFixed(1)}h</span>
-                </div>
-                {e.location && (
-                  <div className="flex flex-col gap-0.5 min-w-[100px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
-                    <span className="text-gray-700">{e.location}</span>
-                  </div>
-                )}
-                {e.cost_code && (
-                  <div className="flex flex-col gap-0.5 min-w-[80px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Cost Code</span>
-                    <span className="text-gray-700">{e.cost_code}</span>
-                  </div>
-                )}
-                {e.comments && (
-                  <div className="flex flex-col gap-0.5 min-w-[140px]">
-                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
-                    <span className="text-gray-500">{e.comments}</span>
-                  </div>
-                )}
+              )}
+              <div className="flex flex-col gap-0.5 min-w-[60px]">
+                <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Workers</span>
+                <span className="text-gray-700">{e.workers || "—"}</span>
               </div>
+              <div className="flex flex-col gap-0.5 min-w-[70px]">
+                <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Hrs/Worker</span>
+                <span className="text-gray-700">{e.hours || "—"}</span>
+              </div>
+              <div className="flex flex-col gap-0.5 min-w-[70px]">
+                <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Total Hrs</span>
+                <span className="text-gray-700">{((parseInt(e.workers) || 0) * (parseFloat(e.hours) || 0)).toFixed(1)}h</span>
+              </div>
+              {e.location && (
+                <div className="flex flex-col gap-0.5 min-w-[100px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
+                  <span className="text-gray-700">{e.location}</span>
+                </div>
+              )}
+              {e.cost_code && (
+                <div className="flex flex-col gap-0.5 min-w-[80px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Cost Code</span>
+                  <span className="text-gray-700">{e.cost_code}</span>
+                </div>
+              )}
+              {e.comments && (
+                <div className="flex flex-col gap-0.5 min-w-[140px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                  <span className="text-gray-500">{e.comments}</span>
+                </div>
+              )}
             </div>
-          </EntryRow>
-        ))
-      )}
+          </div>
+        </EntryRow>
+      ))}
+      <CreateForm onSubmit={handleCreate}>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Company">
+            <input
+              list="manpower-companies"
+              value={draft.company}
+              onChange={(e) => set("company", e.target.value)}
+              placeholder="Trade / company name"
+              className={inputCls}
+            />
+            <datalist id="manpower-companies">
+              {companySuggestions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="Workers" required>
+            <input type="number" min="0" value={draft.workers} onChange={(e) => set("workers", e.target.value)} placeholder="0" className={inputCls} />
+          </Field>
+          <Field label="Hours" required>
+            <input type="number" min="0" step="0.5" value={draft.hours} onChange={(e) => set("hours", e.target.value)} placeholder="0" className={inputCls} />
+          </Field>
+          <Field label="Location">
+            <input value={draft.location} onChange={(e) => set("location", e.target.value)} placeholder="Work area" className={inputCls} />
+          </Field>
+          <Field label="Cost Code">
+            <input value={draft.cost_code} onChange={(e) => set("cost_code", e.target.value)} placeholder="Optional" className={inputCls} />
+          </Field>
+          <Field label="Total Hours">
+            <input value={draftTotalHours} readOnly disabled placeholder="Auto-calculated" className={inputCls} />
+          </Field>
+        </div>
+        <Field label="Comments">
+          <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Optional notes..." rows={2} className={textareaCls} />
+        </Field>
+      </CreateForm>
     </SectionCard>
   );
 }
@@ -1108,14 +1013,12 @@ function WeatherSection({
   onAddObs: (o: WeatherObservation) => void;
   onDeleteObs: (id: string) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyWeatherObs());
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
     onAddObs({ id: uid(), ...draft });
     setDraft(emptyWeatherObs());
-    setCreating(false);
   }
 
   return (
@@ -1155,90 +1058,116 @@ function WeatherSection({
 
       {/* Time-based observations */}
       <div>
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+        <div className="flex items-center px-4 py-2.5 border-b border-gray-100">
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             Observed Weather Conditions
           </span>
-          <button
-            onClick={() => setCreating((c) => !c)}
-            className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Create
-          </button>
         </div>
 
-        {creating && (
-          <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Time Observed" required>
-                <input type="time" value={draft.time_observed} onChange={(e) => set("time_observed", e.target.value)} className={inputCls} />
-              </Field>
-              <Field label="Sky">
-                <select value={draft.sky} onChange={(e) => set("sky", e.target.value)} className={selectCls}>
-                  {SKY_OPTIONS.map((s) => <option key={s} value={s}>{s || "— Select —"}</option>)}
-                </select>
-              </Field>
-              <Field label="Temperature">
-                <input value={draft.temperature} onChange={(e) => set("temperature", e.target.value)} placeholder="e.g. 68°F" className={inputCls} />
-              </Field>
-              <Field label="Wind">
-                <input value={draft.wind} onChange={(e) => set("wind", e.target.value)} placeholder="e.g. 15 mph NE" className={inputCls} />
-              </Field>
-              <Field label="Avg Precipitation">
-                <input value={draft.avg_precipitation} onChange={(e) => set("avg_precipitation", e.target.value)} placeholder="e.g. Light rain" className={inputCls} />
-              </Field>
-              <Field label="Ground / Sea">
-                <input value={draft.ground_sea} onChange={(e) => set("ground_sea", e.target.value)} placeholder="e.g. Wet" className={inputCls} />
-              </Field>
-              <Field label="Calamity">
-                <input value={draft.calamity} onChange={(e) => set("calamity", e.target.value)} placeholder="e.g. Flooding risk" className={inputCls} />
-              </Field>
-              <div className="flex items-end pb-1">
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-600">
-                  <input
-                    type="checkbox"
-                    checked={draft.delay}
-                    onChange={(e) => setDraft((d) => ({ ...d, delay: e.target.checked }))}
-                    className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                  />
-                  Weather Delay
-                </label>
+        {observations.map((o) => (
+          <EntryRow key={o.id} onDelete={() => onDeleteObs(o.id)}>
+            <div className="overflow-x-auto">
+              <div className="inline-flex gap-6 text-xs">
+                {o.time_observed && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
+                    <span className="text-gray-800 font-medium">{o.time_observed}</span>
+                  </div>
+                )}
+                {o.sky && (
+                  <div className="flex flex-col gap-0.5 min-w-[80px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Sky</span>
+                    <span className="text-gray-700">{o.sky}</span>
+                  </div>
+                )}
+                {o.temperature && (
+                  <div className="flex flex-col gap-0.5 min-w-[70px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Temp</span>
+                    <span className="text-gray-700">{o.temperature}</span>
+                  </div>
+                )}
+                {o.wind && (
+                  <div className="flex flex-col gap-0.5 min-w-[80px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Wind</span>
+                    <span className="text-gray-700">{o.wind}</span>
+                  </div>
+                )}
+                {o.avg_precipitation && (
+                  <div className="flex flex-col gap-0.5 min-w-[80px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Precip</span>
+                    <span className="text-gray-700">{o.avg_precipitation}</span>
+                  </div>
+                )}
+                {o.ground_sea && (
+                  <div className="flex flex-col gap-0.5 min-w-[70px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Ground</span>
+                    <span className="text-gray-700">{o.ground_sea}</span>
+                  </div>
+                )}
+                {o.calamity && (
+                  <div className="flex flex-col gap-0.5 min-w-[90px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Calamity</span>
+                    <span className="text-gray-700">{o.calamity}</span>
+                  </div>
+                )}
+                {o.delay && (
+                  <div className="flex flex-col gap-0.5 min-w-[70px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Delay</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-50 text-yellow-700">Weather</span>
+                  </div>
+                )}
+                {o.comments && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                    <span className="text-gray-500">{o.comments}</span>
+                  </div>
+                )}
               </div>
             </div>
-            <Field label="Comments">
-              <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Additional observations..." rows={2} className={textareaCls} />
-            </Field>
-          </CreateForm>
-        )}
+          </EntryRow>
+        ))}
 
-        {observations.length === 0 && !creating ? (
-          <EmptyState text="No weather observations logged" />
-        ) : (
-          observations.map((o) => (
-            <EntryRow key={o.id} onDelete={() => onDeleteObs(o.id)}>
-              <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-xs">
-                {o.time_observed && <span className="text-gray-800 font-medium"><span className="font-medium">Time:</span> {o.time_observed}</span>}
-                {o.sky && <span className="text-gray-500"><span className="font-medium">Sky:</span> {o.sky}</span>}
-                {o.temperature && <span className="text-gray-500"><span className="font-medium">Temp:</span> {o.temperature}</span>}
-                {o.wind && <span className="text-gray-500"><span className="font-medium">Wind:</span> {o.wind}</span>}
-                {o.avg_precipitation && <span className="text-gray-500"><span className="font-medium">Precip:</span> {o.avg_precipitation}</span>}
-                {o.ground_sea && <span className="text-gray-500"><span className="font-medium">Ground:</span> {o.ground_sea}</span>}
-                {o.calamity && <span className="text-gray-500 col-span-3"><span className="font-medium">Calamity:</span> {o.calamity}</span>}
-                {o.delay && (
-                  <span className="col-span-3">
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-50 text-yellow-700">
-                      Weather Delay
-                    </span>
-                  </span>
-                )}
-                {o.comments && <span className="text-gray-500 col-span-3 mt-0.5">{o.comments}</span>}
-              </div>
-            </EntryRow>
-          ))
-        )}
+        <CreateForm onSubmit={handleCreate}>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Time Observed" required>
+              <input type="time" value={draft.time_observed} onChange={(e) => set("time_observed", e.target.value)} className={inputCls} />
+            </Field>
+            <Field label="Sky">
+              <select value={draft.sky} onChange={(e) => set("sky", e.target.value)} className={selectCls}>
+                {SKY_OPTIONS.map((s) => <option key={s} value={s}>{s || "— Select —"}</option>)}
+              </select>
+            </Field>
+            <Field label="Temperature">
+              <input value={draft.temperature} onChange={(e) => set("temperature", e.target.value)} placeholder="e.g. 68°F" className={inputCls} />
+            </Field>
+            <Field label="Wind">
+              <input value={draft.wind} onChange={(e) => set("wind", e.target.value)} placeholder="e.g. 15 mph NE" className={inputCls} />
+            </Field>
+            <Field label="Avg Precipitation">
+              <input value={draft.avg_precipitation} onChange={(e) => set("avg_precipitation", e.target.value)} placeholder="e.g. Light rain" className={inputCls} />
+            </Field>
+            <Field label="Ground / Sea">
+              <input value={draft.ground_sea} onChange={(e) => set("ground_sea", e.target.value)} placeholder="e.g. Wet" className={inputCls} />
+            </Field>
+            <Field label="Calamity">
+              <input value={draft.calamity} onChange={(e) => set("calamity", e.target.value)} placeholder="e.g. Flooding risk" className={inputCls} />
+            </Field>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={draft.delay}
+                  onChange={(e) => setDraft((d) => ({ ...d, delay: e.target.checked }))}
+                  className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                />
+                Weather Delay
+              </label>
+            </div>
+          </div>
+          <Field label="Comments">
+            <textarea value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Additional observations..." rows={2} className={textareaCls} />
+          </Field>
+        </CreateForm>
       </div>
     </SectionCard>
   );
@@ -1251,39 +1180,31 @@ function PhotosSection({ entries, onAdd, onDelete }: {
   onAdd: (e: PhotoEntry) => void;
   onDelete: (id: string) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [desc, setDesc] = useState("");
 
   function handleCreate() {
     if (!desc.trim()) return;
     onAdd({ id: uid(), description: desc.trim() });
     setDesc("");
-    setCreating(false);
   }
 
   return (
-    <SectionCard title="Photos" onAdd={() => setCreating((c) => !c)}>
-      {creating && (
-        <CreateForm onSubmit={handleCreate} onCancel={() => setCreating(false)}>
-          <Field label="Description / Reference">
-            <input
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              placeholder="Photo caption or file reference..."
-              className={inputCls}
-            />
-          </Field>
-        </CreateForm>
-      )}
-      {entries.length === 0 && !creating ? (
-        <EmptyState text="No photos logged" />
-      ) : (
-        entries.map((e) => (
-          <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <span className="text-xs text-gray-600">{e.description}</span>
-          </EntryRow>
-        ))
-      )}
+    <SectionCard title="Photos">
+      {entries.map((e) => (
+        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          <span className="text-xs text-gray-600">{e.description}</span>
+        </EntryRow>
+      ))}
+      <CreateForm onSubmit={handleCreate}>
+        <Field label="Description / Reference">
+          <input
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            placeholder="Photo caption or file reference..."
+            className={inputCls}
+          />
+        </Field>
+      </CreateForm>
     </SectionCard>
   );
 }
