@@ -13,7 +13,7 @@ export default function Home() {
         </p>
         <div className="mt-10 flex gap-4">
           <a
-            href="#"
+            href="/pricing"
             className="px-6 py-3 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
           >
             Get started

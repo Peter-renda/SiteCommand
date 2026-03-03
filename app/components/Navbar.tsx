@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 
-const navItems = [
+const navItems: { label: string; items: string[]; href?: string }[] = [
   {
     label: "Solutions",
     items: ["Analytics", "Automation", "Integrations", "Security"],
@@ -19,6 +19,7 @@ const navItems = [
   {
     label: "Pricing",
     items: [],
+    href: "/pricing",
   },
 ];
 
@@ -43,7 +44,7 @@ export default function Navbar() {
                 onMouseLeave={() => setOpen(null)}
                 onClick={() =>
                   item.items.length === 0
-                    ? null
+                    ? (window.location.href = item.href ?? "#")
                     : setOpen(open === item.label ? null : item.label)
                 }
               >
