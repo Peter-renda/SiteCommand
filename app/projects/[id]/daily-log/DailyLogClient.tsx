@@ -348,15 +348,57 @@ function InspectionsSection({ entries, onAdd, onDelete }: {
       ) : (
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-              {e.inspection_type && <span className="text-gray-800 font-medium col-span-2">{e.inspection_type}</span>}
-              {e.start_time && <span className="text-gray-500"><span className="font-medium">Start:</span> {e.start_time}</span>}
-              {e.end_time && <span className="text-gray-500"><span className="font-medium">End:</span> {e.end_time}</span>}
-              {e.inspecting_entity && <span className="text-gray-500"><span className="font-medium">Entity:</span> {e.inspecting_entity}</span>}
-              {e.inspector_name && <span className="text-gray-500"><span className="font-medium">Inspector:</span> {e.inspector_name}</span>}
-              {e.location && <span className="text-gray-500"><span className="font-medium">Location:</span> {e.location}</span>}
-              {e.inspection_area && <span className="text-gray-500"><span className="font-medium">Area:</span> {e.inspection_area}</span>}
-              {e.comments && <span className="text-gray-500 col-span-2 mt-0.5">{e.comments}</span>}
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 text-xs min-w-max">
+                {e.inspection_type && (
+                  <div className="flex flex-col gap-0.5 min-w-[120px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Type</span>
+                    <span className="text-gray-800 font-medium">{e.inspection_type}</span>
+                  </div>
+                )}
+                {e.start_time && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Start</span>
+                    <span className="text-gray-700">{e.start_time}</span>
+                  </div>
+                )}
+                {e.end_time && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">End</span>
+                    <span className="text-gray-700">{e.end_time}</span>
+                  </div>
+                )}
+                {e.inspecting_entity && (
+                  <div className="flex flex-col gap-0.5 min-w-[110px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Entity</span>
+                    <span className="text-gray-700">{e.inspecting_entity}</span>
+                  </div>
+                )}
+                {e.inspector_name && (
+                  <div className="flex flex-col gap-0.5 min-w-[110px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Inspector</span>
+                    <span className="text-gray-700">{e.inspector_name}</span>
+                  </div>
+                )}
+                {e.location && (
+                  <div className="flex flex-col gap-0.5 min-w-[100px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
+                    <span className="text-gray-700">{e.location}</span>
+                  </div>
+                )}
+                {e.inspection_area && (
+                  <div className="flex flex-col gap-0.5 min-w-[100px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Area</span>
+                    <span className="text-gray-700">{e.inspection_area}</span>
+                  </div>
+                )}
+                {e.comments && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                    <span className="text-gray-500">{e.comments}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </EntryRow>
         ))
@@ -414,12 +456,39 @@ function DeliveriesSection({ entries, onAdd, onDelete }: {
       ) : (
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-              {e.time && <span className="text-gray-500"><span className="font-medium">Time:</span> {e.time}</span>}
-              {e.delivery_from && <span className="text-gray-500"><span className="font-medium">From:</span> {e.delivery_from}</span>}
-              {e.tracking_number && <span className="text-gray-500"><span className="font-medium">Tracking:</span> {e.tracking_number}</span>}
-              {e.contents && <span className="text-gray-800 col-span-2 font-medium">{e.contents}</span>}
-              {e.comments && <span className="text-gray-500 col-span-2 mt-0.5">{e.comments}</span>}
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 text-xs min-w-max">
+                {e.time && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
+                    <span className="text-gray-700">{e.time}</span>
+                  </div>
+                )}
+                {e.delivery_from && (
+                  <div className="flex flex-col gap-0.5 min-w-[110px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">From</span>
+                    <span className="text-gray-800 font-medium">{e.delivery_from}</span>
+                  </div>
+                )}
+                {e.contents && (
+                  <div className="flex flex-col gap-0.5 min-w-[120px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Contents</span>
+                    <span className="text-gray-700">{e.contents}</span>
+                  </div>
+                )}
+                {e.tracking_number && (
+                  <div className="flex flex-col gap-0.5 min-w-[100px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Tracking #</span>
+                    <span className="text-gray-700">{e.tracking_number}</span>
+                  </div>
+                )}
+                {e.comments && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                    <span className="text-gray-500">{e.comments}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </EntryRow>
         ))
@@ -474,13 +543,33 @@ function VisitorsSection({ entries, onAdd, onDelete }: {
       ) : (
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="space-y-0.5 text-xs">
-              {e.visitor && <p className="text-gray-800 font-medium">{e.visitor}</p>}
-              <div className="flex gap-4">
-                {e.start_time && <span className="text-gray-500"><span className="font-medium">Start:</span> {e.start_time}</span>}
-                {e.end_time && <span className="text-gray-500"><span className="font-medium">End:</span> {e.end_time}</span>}
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 text-xs min-w-max">
+                {e.visitor && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Visitor</span>
+                    <span className="text-gray-800 font-medium">{e.visitor}</span>
+                  </div>
+                )}
+                {e.start_time && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Start</span>
+                    <span className="text-gray-700">{e.start_time}</span>
+                  </div>
+                )}
+                {e.end_time && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">End</span>
+                    <span className="text-gray-700">{e.end_time}</span>
+                  </div>
+                )}
+                {e.comments && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                    <span className="text-gray-500">{e.comments}</span>
+                  </div>
+                )}
               </div>
-              {e.comments && <p className="text-gray-500 mt-0.5">{e.comments}</p>}
             </div>
           </EntryRow>
         ))
@@ -541,13 +630,45 @@ function SafetyViolationsSection({ entries, onAdd, onDelete }: {
       ) : (
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-              {e.subject && <span className="text-gray-800 font-medium col-span-2">{e.subject}</span>}
-              {e.time && <span className="text-gray-500"><span className="font-medium">Time:</span> {e.time}</span>}
-              {e.compliance_due && <span className="text-gray-500"><span className="font-medium">Due:</span> {e.compliance_due}</span>}
-              {e.safety_notice && <span className="text-gray-500"><span className="font-medium">Notice:</span> {e.safety_notice}</span>}
-              {e.issued_to && <span className="text-gray-500"><span className="font-medium">Issued To:</span> {e.issued_to}</span>}
-              {e.comments && <span className="text-gray-500 col-span-2 mt-0.5">{e.comments}</span>}
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 text-xs min-w-max">
+                {e.subject && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Subject</span>
+                    <span className="text-gray-800 font-medium">{e.subject}</span>
+                  </div>
+                )}
+                {e.time && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
+                    <span className="text-gray-700">{e.time}</span>
+                  </div>
+                )}
+                {e.issued_to && (
+                  <div className="flex flex-col gap-0.5 min-w-[110px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Issued To</span>
+                    <span className="text-gray-700">{e.issued_to}</span>
+                  </div>
+                )}
+                {e.safety_notice && (
+                  <div className="flex flex-col gap-0.5 min-w-[90px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Notice</span>
+                    <span className="text-gray-700">{e.safety_notice}</span>
+                  </div>
+                )}
+                {e.compliance_due && (
+                  <div className="flex flex-col gap-0.5 min-w-[90px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Due</span>
+                    <span className="text-gray-700">{e.compliance_due}</span>
+                  </div>
+                )}
+                {e.comments && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                    <span className="text-gray-500">{e.comments}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </EntryRow>
         ))
@@ -602,11 +723,33 @@ function AccidentsSection({ entries, onAdd, onDelete }: {
       ) : (
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-              {e.time && <span className="text-gray-500"><span className="font-medium">Time:</span> {e.time}</span>}
-              {e.party_involved && <span className="text-gray-500"><span className="font-medium">Party:</span> {e.party_involved}</span>}
-              {e.company_involved && <span className="text-gray-500 col-span-2"><span className="font-medium">Company:</span> {e.company_involved}</span>}
-              {e.comments && <span className="text-gray-500 col-span-2 mt-0.5">{e.comments}</span>}
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 text-xs min-w-max">
+                {e.time && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Time</span>
+                    <span className="text-gray-700">{e.time}</span>
+                  </div>
+                )}
+                {e.party_involved && (
+                  <div className="flex flex-col gap-0.5 min-w-[110px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Party Involved</span>
+                    <span className="text-gray-800 font-medium">{e.party_involved}</span>
+                  </div>
+                )}
+                {e.company_involved && (
+                  <div className="flex flex-col gap-0.5 min-w-[110px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Company</span>
+                    <span className="text-gray-700">{e.company_involved}</span>
+                  </div>
+                )}
+                {e.comments && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                    <span className="text-gray-500">{e.comments}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </EntryRow>
         ))
@@ -687,13 +830,45 @@ function DelaysSection({ entries, onAdd, onDelete }: {
       ) : (
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-              {e.delay_type && <span className="text-gray-800 font-medium">{e.delay_type}</span>}
-              {e.duration_hours && <span className="text-gray-500"><span className="font-medium">Duration:</span> {e.duration_hours}h</span>}
-              {e.start_time && <span className="text-gray-500"><span className="font-medium">Start:</span> {e.start_time}</span>}
-              {e.end_time && <span className="text-gray-500"><span className="font-medium">End:</span> {e.end_time}</span>}
-              {e.location && <span className="text-gray-500 col-span-2"><span className="font-medium">Location:</span> {e.location}</span>}
-              {e.comments && <span className="text-gray-500 col-span-2 mt-0.5">{e.comments}</span>}
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 text-xs min-w-max">
+                {e.delay_type && (
+                  <div className="flex flex-col gap-0.5 min-w-[110px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Type</span>
+                    <span className="text-gray-800 font-medium">{e.delay_type}</span>
+                  </div>
+                )}
+                {e.start_time && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Start</span>
+                    <span className="text-gray-700">{e.start_time}</span>
+                  </div>
+                )}
+                {e.end_time && (
+                  <div className="flex flex-col gap-0.5 min-w-[60px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">End</span>
+                    <span className="text-gray-700">{e.end_time}</span>
+                  </div>
+                )}
+                {e.duration_hours && (
+                  <div className="flex flex-col gap-0.5 min-w-[70px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Duration</span>
+                    <span className="text-gray-700">{e.duration_hours}h</span>
+                  </div>
+                )}
+                {e.location && (
+                  <div className="flex flex-col gap-0.5 min-w-[100px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
+                    <span className="text-gray-700">{e.location}</span>
+                  </div>
+                )}
+                {e.comments && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                    <span className="text-gray-500">{e.comments}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </EntryRow>
         ))
@@ -759,16 +934,28 @@ function NoteEntriesSection({ entries, onAdd, onDelete }: {
       ) : (
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="space-y-0.5 text-xs">
-              <div className="flex items-center gap-2">
-                {e.is_issue && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700">
-                    Issue
-                  </span>
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 text-xs min-w-max">
+                <div className="flex flex-col gap-0.5 min-w-[50px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Flag</span>
+                  {e.is_issue
+                    ? <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700">Issue</span>
+                    : <span className="text-gray-400">—</span>
+                  }
+                </div>
+                {e.location && (
+                  <div className="flex flex-col gap-0.5 min-w-[110px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
+                    <span className="text-gray-700">{e.location}</span>
+                  </div>
                 )}
-                {e.location && <span className="text-gray-500"><span className="font-medium">Location:</span> {e.location}</span>}
+                {e.comments && (
+                  <div className="flex flex-col gap-0.5 min-w-[200px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Note</span>
+                    <span className="text-gray-600">{e.comments}</span>
+                  </div>
+                )}
               </div>
-              {e.comments && <p className="text-gray-600">{e.comments}</p>}
             </div>
           </EntryRow>
         ))
@@ -858,17 +1045,45 @@ function ManpowerSection({ entries, onAdd, onDelete, companySuggestions }: {
       ) : (
         entries.map((e) => (
           <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-            <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-xs">
-              {e.company && <span className="text-gray-800 font-medium col-span-3">{e.company}</span>}
-              {e.workers && <span className="text-gray-500"><span className="font-medium">Workers:</span> {e.workers}</span>}
-              {e.hours && <span className="text-gray-500"><span className="font-medium">Hours/worker:</span> {e.hours}</span>}
-              <span className="text-gray-500">
-                <span className="font-medium">Total:</span>{" "}
-                {((parseInt(e.workers) || 0) * (parseFloat(e.hours) || 0)).toFixed(1)}h
-              </span>
-              {e.location && <span className="text-gray-500 col-span-2"><span className="font-medium">Location:</span> {e.location}</span>}
-              {e.cost_code && <span className="text-gray-500"><span className="font-medium">Cost Code:</span> {e.cost_code}</span>}
-              {e.comments && <span className="text-gray-500 col-span-3 mt-0.5">{e.comments}</span>}
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 text-xs min-w-max">
+                {e.company && (
+                  <div className="flex flex-col gap-0.5 min-w-[120px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Company</span>
+                    <span className="text-gray-800 font-medium">{e.company}</span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-0.5 min-w-[60px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Workers</span>
+                  <span className="text-gray-700">{e.workers || "—"}</span>
+                </div>
+                <div className="flex flex-col gap-0.5 min-w-[70px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Hrs/Worker</span>
+                  <span className="text-gray-700">{e.hours || "—"}</span>
+                </div>
+                <div className="flex flex-col gap-0.5 min-w-[70px]">
+                  <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Total Hrs</span>
+                  <span className="text-gray-700">{((parseInt(e.workers) || 0) * (parseFloat(e.hours) || 0)).toFixed(1)}h</span>
+                </div>
+                {e.location && (
+                  <div className="flex flex-col gap-0.5 min-w-[100px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Location</span>
+                    <span className="text-gray-700">{e.location}</span>
+                  </div>
+                )}
+                {e.cost_code && (
+                  <div className="flex flex-col gap-0.5 min-w-[80px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Cost Code</span>
+                    <span className="text-gray-700">{e.cost_code}</span>
+                  </div>
+                )}
+                {e.comments && (
+                  <div className="flex flex-col gap-0.5 min-w-[140px]">
+                    <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">Comments</span>
+                    <span className="text-gray-500">{e.comments}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </EntryRow>
         ))
