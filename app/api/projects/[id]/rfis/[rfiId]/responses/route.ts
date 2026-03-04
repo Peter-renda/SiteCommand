@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(
   _req: NextRequest,
@@ -35,7 +36,7 @@ export async function POST(
   const { id: projectId, rfiId } = await params;
   const supabase = getSupabase();
 
-  const { data: rfi } = await supabase.from("rfis").select("id").eq("id", rfiId).eq("project_id", projectId).single();
+  const { data: rfi } = await supabase.from("rfis").select("id, rfi_number").eq("id", rfiId).eq("project_id", projectId).single();
   if (!rfi) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
 
   const { body } = await req.json();
@@ -48,5 +49,6 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logActivity(supabase, { projectId, userId: session.id, type: "rfi_response_added", description: `Added response to RFI #${rfi.rfi_number}` });
   return NextResponse.json(data);
 }

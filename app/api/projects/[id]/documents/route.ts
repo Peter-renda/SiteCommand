@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .select()
       .single();
 
+    await logActivity(supabase, { projectId, userId: session.id, type: "document_uploaded", description: `Uploaded file: ${file.name}` });
     return NextResponse.json({
       ...data,
       url: supabase.storage.from("project-documents").getPublicUrl(path).data.publicUrl,
@@ -106,6 +108,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .select()
       .single();
 
+    await logActivity(supabase, { projectId, userId: session.id, type: "folder_created", description: `Created folder: ${name}` });
     return NextResponse.json({ ...data, url: null });
   }
 }

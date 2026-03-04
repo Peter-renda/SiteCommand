@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(
   _req: NextRequest,
@@ -49,6 +50,7 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logActivity(supabase, { projectId, userId: session.id, type: "task_updated", description: `Updated task #${data.task_number}: ${data.title}` });
   return NextResponse.json(data);
 }
 
@@ -63,7 +65,7 @@ export async function DELETE(
   const supabase = getSupabase();
 
   // Remove photo from storage if exists
-  const { data: task } = await supabase.from("tasks").select("photo_url").eq("id", taskId).single();
+  const { data: task } = await supabase.from("tasks").select("photo_url, task_number, title").eq("id", taskId).single();
   if (task?.photo_url) {
     const path = task.photo_url.split("/task-photos/")[1]?.split("?")[0];
     if (path) await supabase.storage.from("task-photos").remove([decodeURIComponent(path)]);
@@ -71,5 +73,6 @@ export async function DELETE(
 
   const { error } = await supabase.from("tasks").delete().eq("id", taskId).eq("project_id", projectId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logActivity(supabase, { projectId, userId: session.id, type: "task_deleted", description: `Deleted task #${task?.task_number}: ${task?.title ?? ""}` });
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -48,5 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const contactName = data.company || [data.first_name, data.last_name].filter(Boolean).join(" ") || "contact";
+  await logActivity(supabase, { projectId, userId: session.id, type: "contact_added", description: `Added contact: ${contactName}` });
   return NextResponse.json(data);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(
   _req: NextRequest,
@@ -106,5 +107,6 @@ export async function POST(
 
   if (insertDrawingsError) return NextResponse.json({ error: insertDrawingsError.message }, { status: 500 });
 
+  await logActivity(supabase, { projectId, userId: session.id, type: "drawing_uploaded", description: `Uploaded drawings: ${file.name} (${pageCount} page${pageCount !== 1 ? "s" : ""})` });
   return NextResponse.json({ upload: uploadRow, drawings: drawings ?? [] });
 }

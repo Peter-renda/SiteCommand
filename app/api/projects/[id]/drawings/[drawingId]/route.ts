@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/activity";
 
 export async function PATCH(
   req: NextRequest,
@@ -9,7 +10,7 @@ export async function PATCH(
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { drawingId } = await params;
+  const { id: projectId, drawingId } = await params;
   const supabase = getSupabase();
 
   const body = await req.json();
@@ -30,6 +31,7 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logActivity(supabase, { projectId, userId: session.id, type: "drawing_updated", description: `Updated drawing: ${data.drawing_no || ""}${data.title ? ` - ${data.title}` : ""}`.trim() || "Updated drawing" });
   return NextResponse.json(data);
 }
 
@@ -40,13 +42,13 @@ export async function DELETE(
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { drawingId } = await params;
+  const { id: projectId, drawingId } = await params;
   const supabase = getSupabase();
 
   // Get the drawing to find its upload_id
   const { data: drawing, error: fetchError } = await supabase
     .from("project_drawings")
-    .select("upload_id")
+    .select("upload_id, drawing_no, title")
     .eq("id", drawingId)
     .single();
 
@@ -61,6 +63,8 @@ export async function DELETE(
     .eq("id", drawingId);
 
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
+
+  await logActivity(supabase, { projectId, userId: session.id, type: "drawing_deleted", description: `Deleted drawing: ${drawing.drawing_no || ""}${drawing.title ? ` - ${drawing.title}` : ""}`.trim() || "Deleted drawing" });
 
   // Check if this was the last page for the upload
   const { count } = await supabase

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { logActivity } from "@/lib/activity";
 
 async function collectFilePaths(supabase: SupabaseClient, docId: string): Promise<string[]> {
   const paths: string[] = [];
@@ -32,6 +33,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const action = body.name !== undefined ? `Renamed document to "${data.name}"` : `Moved document "${data.name}"`;
+  await logActivity(supabase, { projectId, userId: session.id, type: "document_updated", description: action });
   return NextResponse.json(data);
 }
 
@@ -41,10 +44,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id: projectId, docId } = await params;
   const supabase = getSupabase();
+  const { data: docRecord } = await supabase.from("documents").select("name, type").eq("id", docId).single();
 
   const paths = await collectFilePaths(supabase, docId);
   if (paths.length > 0) await supabase.storage.from("project-documents").remove(paths);
   await supabase.from("documents").delete().eq("id", docId).eq("project_id", projectId);
 
+  await logActivity(supabase, { projectId, userId: session.id, type: "document_deleted", description: `Deleted ${docRecord?.type ?? "document"}: ${docRecord?.name ?? docId}` });
   return NextResponse.json({ ok: true });
 }

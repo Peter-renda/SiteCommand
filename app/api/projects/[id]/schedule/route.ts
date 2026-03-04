@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { XMLParser } from "fast-xml-parser";
+import { logActivity } from "@/lib/activity";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -162,5 +163,6 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logActivity(supabase, { projectId, userId: session.id, type: "schedule_uploaded", description: `Uploaded schedule: ${file.name}` });
   return NextResponse.json(data);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(
   _req: NextRequest,
@@ -54,6 +55,7 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logActivity(supabase, { projectId, userId: session.id, type: "punch_item_updated", description: `Updated punch list item #${data.item_number}: ${data.title}` });
   return NextResponse.json(data);
 }
 
@@ -66,6 +68,7 @@ export async function DELETE(
 
   const { id: projectId, itemId } = await params;
   const supabase = getSupabase();
+  const { data: item } = await supabase.from("punch_list_items").select("item_number, title").eq("id", itemId).eq("project_id", projectId).single();
 
   const { error } = await supabase
     .from("punch_list_items")
@@ -74,5 +77,6 @@ export async function DELETE(
     .eq("project_id", projectId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logActivity(supabase, { projectId, userId: session.id, type: "punch_item_deleted", description: `Deleted punch list item #${item?.item_number}: ${item?.title ?? ""}` });
   return NextResponse.json({ ok: true });
 }

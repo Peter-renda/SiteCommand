@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(
   _req: NextRequest,
@@ -56,6 +57,7 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logActivity(supabase, { projectId, userId: session.id, type: "rfi_updated", description: `Updated RFI #${data.rfi_number}: ${data.subject || "Untitled"}` });
   return NextResponse.json(data);
 }
 
@@ -68,8 +70,10 @@ export async function DELETE(
 
   const { id: projectId, rfiId } = await params;
   const supabase = getSupabase();
+  const { data: rfi } = await supabase.from("rfis").select("rfi_number, subject").eq("id", rfiId).eq("project_id", projectId).single();
 
   const { error } = await supabase.from("rfis").delete().eq("id", rfiId).eq("project_id", projectId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logActivity(supabase, { projectId, userId: session.id, type: "rfi_deleted", description: `Deleted RFI #${rfi?.rfi_number}: ${rfi?.subject || "Untitled"}` });
   return NextResponse.json({ ok: true });
 }
