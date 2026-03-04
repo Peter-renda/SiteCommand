@@ -52,6 +52,8 @@ type WeatherDay = {
   code: number;
   max: number;
   min: number;
+  precipSum: number;
+  precipProb: number;
 };
 
 
@@ -99,15 +101,17 @@ function WeatherWidget({ zipCode }: { zipCode: string }) {
         setLocation(`${place["place name"]}, ${place["state abbreviation"]}`);
 
         const wxRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=7`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max&temperature_unit=fahrenheit&timezone=auto&forecast_days=7`
         );
         const wxData = await wxRes.json();
-        const { time, weathercode, temperature_2m_max, temperature_2m_min } = wxData.daily;
+        const { time, weathercode, temperature_2m_max, temperature_2m_min, precipitation_sum, precipitation_probability_max } = wxData.daily;
         setDays(time.map((date: string, i: number) => ({
           date,
           code: weathercode[i],
           max: Math.round(temperature_2m_max[i]),
           min: Math.round(temperature_2m_min[i]),
+          precipSum: Math.round((precipitation_sum[i] ?? 0) * 0.03937 * 100) / 100,
+          precipProb: precipitation_probability_max[i] ?? 0,
         })));
       } catch {
         setError("Failed to load weather");
@@ -134,6 +138,11 @@ function WeatherWidget({ zipCode }: { zipCode: string }) {
             <div key={day.date} className="flex items-center justify-between py-1.5 px-3 bg-gray-50 rounded-lg">
               <span className="text-xs font-medium text-gray-600 w-9">{dayName}</span>
               <span className="text-base">{icon}</span>
+              <div className="flex items-center gap-1.5 text-xs text-blue-500">
+                <span>💧</span>
+                <span>{day.precipProb}%</span>
+                {day.precipSum > 0 && <span className="text-gray-400">({day.precipSum}&quot;)</span>}
+              </div>
               <div className="flex items-center gap-2 text-xs">
                 <span className="font-medium text-gray-900">{day.max}°</span>
                 <span className="text-gray-400">{day.min}°</span>
