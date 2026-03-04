@@ -39,6 +39,9 @@ type RFIResponse = {
   body: string;
   created_by: string | null;
   created_at: string;
+  attachments: { name: string; url: string }[];
+  author_name: string | null;
+  author_company: string | null;
 };
 
 
@@ -64,6 +67,11 @@ function formatDate(d: string | null): string {
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatDateTime(d: string | null): string {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl p-6">
@@ -82,7 +90,9 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [responseBody, setResponseBody] = useState("");
+  const [responseFile, setResponseFile] = useState<File | null>(null);
   const [submittingResponse, setSubmittingResponse] = useState(false);
+  const responseFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -113,15 +123,19 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   async function handleSubmitResponse() {
     if (!responseBody.trim()) return;
     setSubmittingResponse(true);
+    const formData = new FormData();
+    formData.append("body", responseBody);
+    if (responseFile) formData.append("file", responseFile);
     const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: responseBody }),
+      body: formData,
     });
     if (res.ok) {
       const newResp = await res.json();
       setResponses((prev) => [...prev, newResp]);
       setResponseBody("");
+      setResponseFile(null);
+      if (responseFileRef.current) responseFileRef.current.value = "";
     }
     setSubmittingResponse(false);
   }
@@ -211,8 +225,24 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
             <div className="space-y-4">
               {responses.map((resp) => (
                 <div key={resp.id} className="pl-4 border-l-2 border-gray-200">
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-sm font-medium text-gray-900">{resp.author_name ?? "Unknown"}</span>
+                    {resp.author_company && <span className="text-xs text-gray-500">{resp.author_company}</span>}
+                    <span className="text-xs text-gray-400 ml-auto">{formatDateTime(resp.created_at)}</span>
+                  </div>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{resp.body}</p>
-                  <p className="text-xs text-gray-400 mt-2">{formatDate(resp.created_at)}</p>
+                  {(resp.attachments ?? []).length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {resp.attachments.map((att, i) => (
+                        <li key={i}>
+                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 underline">
+                            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            {att.name}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
             </div>
@@ -220,7 +250,17 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <label className="block text-xs font-medium text-gray-500 mb-1">Add response</label>
                 <textarea value={responseBody} onChange={(e) => setResponseBody(e.target.value)} rows={3} placeholder="Write your response..." className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
-                <button onClick={handleSubmitResponse} disabled={submittingResponse || !responseBody.trim()} className="mt-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <div className="mt-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Attach document (optional)</label>
+                  <input
+                    ref={responseFileRef}
+                    type="file"
+                    onChange={(e) => setResponseFile(e.target.files?.[0] ?? null)}
+                    className="block text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                  />
+                  {responseFile && <p className="mt-1 text-xs text-gray-400">{responseFile.name}</p>}
+                </div>
+                <button onClick={handleSubmitResponse} disabled={submittingResponse || !responseBody.trim()} className="mt-3 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {submittingResponse ? "Sending..." : "Send response"}
                 </button>
               </div>
