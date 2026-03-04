@@ -462,11 +462,16 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
       if (data.status === "open" && data.distribution_list.length > 0) {
         const emails = data.distribution_list.map((d) => d.email).filter(Boolean) as string[];
         if (emails.length) {
-          await fetch(`/api/projects/${projectId}/rfis/${newRfi.id}/notify`, {
+          const notifyRes = await fetch(`/api/projects/${projectId}/rfis/${newRfi.id}/notify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ distribution_emails: emails, rfi_summary: `RFI #${newRfi.rfi_number}: ${data.subject}` }),
           });
+          if (!notifyRes.ok) {
+            const notifyErr = await notifyRes.json().catch(() => ({}));
+            console.error("RFI notify failed:", notifyErr);
+            alert(`RFI created, but email notification failed: ${notifyErr.error ?? "Unknown error"}`);
+          }
         }
       }
     }
