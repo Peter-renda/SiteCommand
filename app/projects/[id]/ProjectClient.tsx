@@ -135,13 +135,15 @@ function WeatherWidget({ zipCode }: { zipCode: string }) {
           return (
             <div key={day.date} className="flex items-center justify-between py-1.5 px-3 bg-gray-50 rounded-lg">
               <span className="text-xs font-medium text-gray-600 w-9">{dayName}</span>
-              <span className="text-base">{icon}</span>
-              {day.precipSum >= 0.10 && (
-                <div className="flex items-center gap-1 text-xs text-blue-500">
-                  <span>💧</span>
-                  <span>{day.precipSum}&quot;</span>
-                </div>
-              )}
+              <span className="text-base w-6 text-center">{icon}</span>
+              <div className="w-16 flex items-center gap-1 text-xs text-blue-500">
+                {day.precipSum >= 0.10 && (
+                  <>
+                    <span>💧</span>
+                    <span>{day.precipSum}&quot;</span>
+                  </>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-xs">
                 <span className="font-medium text-gray-900">{day.max}°</span>
                 <span className="text-gray-400">{day.min}°</span>
