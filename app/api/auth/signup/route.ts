@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getSupabase } from "@/lib/supabase";
+import { createToken } from "@/lib/auth";
 
 const ADMIN_EMAIL = "ptrenda1@gmail.com";
 
@@ -31,26 +32,62 @@ export async function POST(req: NextRequest) {
   const password_hash = await bcrypt.hash(password, 10);
   const isAdmin = email === ADMIN_EMAIL;
 
-  const { error } = await supabase.from("users").insert({
-    username,
-    email,
-    password_hash,
-    company,
-    approved: isAdmin,
-    role: isAdmin ? "admin" : "user",
-  });
+  // Create company for non-system-admin signups
+  let companyId: string | null = null;
+  if (!isAdmin) {
+    const { data: newCompany, error: companyError } = await supabase
+      .from("companies")
+      .insert({ name: company })
+      .select("id")
+      .single();
 
-  if (error) {
+    if (companyError || !newCompany) {
+      return NextResponse.json(
+        { error: "Failed to create company" },
+        { status: 500 }
+      );
+    }
+    companyId = newCompany.id;
+  }
+
+  const { data: newUser, error } = await supabase
+    .from("users")
+    .insert({
+      username,
+      email,
+      password_hash,
+      company,
+      role: isAdmin ? "admin" : "user",
+      company_id: companyId,
+      company_role: isAdmin ? null : "admin",
+    })
+    .select("id")
+    .single();
+
+  if (error || !newUser) {
     return NextResponse.json(
       { error: "Failed to create account" },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({
-    message: isAdmin
-      ? "Account created successfully"
-      : "Account created. Awaiting admin approval.",
-    approved: isAdmin,
+  const token = await createToken({
+    id: newUser.id,
+    email,
+    username,
+    role: isAdmin ? "admin" : "user",
+    company_id: companyId,
+    company_role: isAdmin ? null : "admin",
   });
+
+  const res = NextResponse.json({ success: true });
+  res.cookies.set("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
+
+  return res;
 }

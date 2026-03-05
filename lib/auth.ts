@@ -8,6 +8,8 @@ export async function createToken(payload: {
   email: string;
   username: string;
   role: string;
+  company_id?: string | null;
+  company_role?: string | null;
 }) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
@@ -18,7 +20,14 @@ export async function createToken(payload: {
 export async function verifyToken(token: string) {
   try {
     const { payload } = await jwtVerify(token, secret);
-    return payload as { id: string; email: string; username: string; role: string };
+    return payload as {
+      id: string;
+      email: string;
+      username: string;
+      role: string;
+      company_id: string | null;
+      company_role: string | null;
+    };
   } catch {
     return null;
   }

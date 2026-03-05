@@ -4,7 +4,8 @@ import { getSession } from "@/lib/auth";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  const canEdit = session?.role === "admin" || session?.company_role === "admin";
+  if (!session || !canEdit) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

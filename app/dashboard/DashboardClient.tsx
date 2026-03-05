@@ -116,7 +116,7 @@ function MemberPicker({
   );
 }
 
-export default function DashboardClient({ username, email, role }: { username: string; email: string; role: string }) {
+export default function DashboardClient({ username, email, role, companyRole }: { username: string; email: string; role: string; companyRole: string | null }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -278,6 +278,11 @@ export default function DashboardClient({ username, email, role }: { username: s
               Admin
             </a>
           )}
+          {(role === "admin" || companyRole === "admin") && (
+            <a href="/company" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">
+              Team
+            </a>
+          )}
           <span className="text-sm text-gray-400">{username}</span>
           <button
             onClick={openSettings}
@@ -298,7 +303,7 @@ export default function DashboardClient({ username, email, role }: { username: s
       <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">
           <div></div>
-          {role === "admin" && (
+          {(role === "admin" || companyRole === "admin") && (
             <button
               onClick={openModal}
               className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
@@ -327,6 +332,13 @@ export default function DashboardClient({ username, email, role }: { username: s
           <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 flex flex-col items-center justify-center text-center">
             <p className="text-sm font-medium text-gray-500 mb-1">No projects yet</p>
             {role === "admin" ? (
+              <>
+                <p className="text-xs text-gray-400 mb-6">Create your first project to get started.</p>
+                <button onClick={openModal} className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors">
+                  New Project
+                </button>
+              </>
+            ) : companyRole === "admin" ? (
               <>
                 <p className="text-xs text-gray-400 mb-6">Create your first project to get started.</p>
                 <button onClick={openModal} className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors">

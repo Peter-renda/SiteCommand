@@ -6,8 +6,9 @@ type User = {
   id: string;
   username: string;
   email: string;
-  approved: boolean;
   role: string;
+  company_id: string | null;
+  company_role: string | null;
   created_at: string;
 };
 
@@ -31,15 +32,6 @@ export default function AdminPage() {
   }
 
   useEffect(() => { loadUsers(); }, []);
-
-  async function handleApproval(id: string, approved: boolean) {
-    await fetch("/api/admin/approve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, approved }),
-    });
-    loadUsers();
-  }
 
   async function handleRoleChange(id: string, role: string) {
     const res = await fetch("/api/admin/role", {
@@ -66,66 +58,27 @@ export default function AdminPage() {
     );
   }
 
-  const pending = users.filter((u) => !u.approved);
-  const approved = users.filter((u) => u.approved);
-
   return (
     <div className="min-h-screen bg-white px-6 py-16 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-10">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
-          <p className="text-sm text-gray-400 mt-1">Approve users and manage roles.</p>
+          <p className="text-sm text-gray-400 mt-1">Manage user roles and company affiliations.</p>
         </div>
         <a href="/dashboard" className="text-sm text-gray-400 hover:text-gray-900 transition-colors">
           ← Dashboard
         </a>
       </div>
 
-      {/* Pending Approval */}
-      <section className="mb-10">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
-          Pending Approval ({pending.length})
-        </h2>
-        {pending.length === 0 ? (
-          <p className="text-sm text-gray-400">No pending users.</p>
-        ) : (
-          <div className="border border-gray-100 rounded-lg overflow-hidden">
-            {pending.map((user) => (
-              <div key={user.id} className="flex items-center justify-between px-4 py-3 border-b border-gray-100 last:border-0">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{user.username}</p>
-                  <p className="text-xs text-gray-400">{user.email}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleApproval(user.id, true)}
-                    className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => handleApproval(user.id, false)}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-                  >
-                    Reject
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Active Users */}
       <section>
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
-          Active Users ({approved.length})
+          All Users ({users.length})
         </h2>
-        {approved.length === 0 ? (
-          <p className="text-sm text-gray-400">No approved users yet.</p>
+        {users.length === 0 ? (
+          <p className="text-sm text-gray-400">No users yet.</p>
         ) : (
           <div className="border border-gray-100 rounded-lg overflow-hidden">
-            {approved.map((user) => (
+            {users.map((user) => (
               <div key={user.id} className="flex items-center justify-between px-4 py-3 border-b border-gray-100 last:border-0">
                 <div>
                   <div className="flex items-center gap-2">
@@ -135,11 +88,18 @@ export default function AdminPage() {
                         Owner
                       </span>
                     )}
+                    {user.company_role && (
+                      <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                        {user.company_role}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400">{user.email}</p>
+                  {user.company_id && (
+                    <p className="text-xs text-gray-300 mt-0.5">Company: {user.company_id}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
-                  {/* Role toggle */}
                   {user.email !== SUPER_ADMIN_EMAIL && (
                     <div className="flex items-center gap-1 bg-gray-100 rounded-md p-0.5">
                       <button
@@ -163,15 +123,6 @@ export default function AdminPage() {
                         Admin
                       </button>
                     </div>
-                  )}
-                  {/* Revoke access */}
-                  {user.email !== SUPER_ADMIN_EMAIL && (
-                    <button
-                      onClick={() => handleApproval(user.id, false)}
-                      className="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-100 rounded-md hover:bg-red-50 transition-colors"
-                    >
-                      Revoke
-                    </button>
                   )}
                 </div>
               </div>

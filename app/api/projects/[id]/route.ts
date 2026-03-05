@@ -5,12 +5,13 @@ import { logActivity } from "@/lib/activity";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  const canEdit = session?.role === "admin" || session?.company_role === "admin";
+  if (!session || !canEdit) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
-  const { name, description, address, city, state, zip_code, value, status, memberIds } = await req.json();
+  const { name, description, address, city, state, zip_code, value, status } = await req.json();
 
   const supabase = getSupabase();
 
@@ -22,46 +23,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Replace members
-  await supabase.from("project_members").delete().eq("project_id", id);
-  if (memberIds && memberIds.length > 0) {
-    await supabase.from("project_members").insert(
-      memberIds.map((userId: string) => ({ project_id: id, user_id: userId }))
-    );
-
-    // Sync new members into the project directory (skip any already present by email)
-    const { data: usersData } = await supabase
-      .from("users")
-      .select("id, username, email")
-      .in("id", memberIds);
-
-    if (usersData && usersData.length > 0) {
-      const emails = usersData.map((u: { email: string }) => u.email).filter(Boolean);
-      const { data: existing } = await supabase
-        .from("directory_contacts")
-        .select("email")
-        .eq("project_id", id)
-        .eq("type", "user")
-        .in("email", emails);
-
-      const existingEmails = new Set((existing ?? []).map((c: { email: string | null }) => c.email));
-
-      const toInsert = usersData
-        .filter((u: { email: string }) => !existingEmails.has(u.email))
-        .map((u: { username: string; email: string }) => ({
-          project_id: id,
-          type: "user",
-          first_name: u.username,
-          last_name: null,
-          email: u.email,
-        }));
-
-      if (toInsert.length > 0) {
-        await supabase.from("directory_contacts").insert(toInsert);
-      }
-    }
-  }
 
   await logActivity(supabase, {
     projectId: id,
@@ -82,24 +43,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data, error } = await supabase
     .from("projects")
-    .select("*, project_members(users(id, username, email))")
+    .select("*")
     .eq("id", id)
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
-  // Non-admins can only view projects they're a member of
   if (session.role !== "admin") {
-    const members = (data.project_members as { users: { id: string } }[]) || [];
-    const isMember = members.some((pm) => pm.users?.id === session.id);
-    if (!isMember) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (data.company_id !== session.company_id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
-  const { project_members, ...rest } = data;
-  const project = {
-    ...rest,
-    members: ((project_members as { users: unknown }[]) || []).map((pm) => pm.users).filter(Boolean),
-  };
-
-  return NextResponse.json(project);
+  return NextResponse.json({ ...data, members: [] });
 }
