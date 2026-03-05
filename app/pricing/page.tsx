@@ -1,4 +1,5 @@
 import Navbar from "../components/Navbar";
+import PricingCheckoutButton from "./PricingCheckoutButton";
 
 const plans = [
   {
@@ -8,7 +9,8 @@ const plans = [
     period: "/ month",
     description: "Perfect for small crews and single-project teams.",
     cta: "Get started",
-    ctaHref: "/signup",
+    ctaPlan: "starter",
+    ctaHref: null,
     highlight: false,
     features: [
       "Up to 10 team members",
@@ -26,7 +28,8 @@ const plans = [
     period: "/ month",
     description: "Built for growing contractors managing multiple projects.",
     cta: "Get started",
-    ctaHref: "/signup",
+    ctaPlan: "pro",
+    ctaHref: null,
     highlight: true,
     features: [
       "Up to 99 team members",
@@ -44,6 +47,7 @@ const plans = [
     period: "",
     description: "Custom solutions for large organizations and enterprises.",
     cta: "Contact us",
+    ctaPlan: null,
     ctaHref: "mailto:sales@sitecommand.com",
     highlight: false,
     features: [
@@ -108,16 +112,24 @@ export default function PricingPage() {
                 </p>
               </div>
 
-              <a
-                href={plan.ctaHref}
-                className={`block text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 ${
-                  plan.highlight
-                    ? "bg-white text-gray-900 hover:bg-gray-100"
-                    : "bg-gray-900 text-white hover:bg-gray-700"
-                }`}
-              >
-                {plan.cta}
-              </a>
+              {plan.ctaPlan ? (
+                <PricingCheckoutButton
+                  plan={plan.ctaPlan}
+                  label={plan.cta}
+                  highlight={plan.highlight}
+                />
+              ) : (
+                <a
+                  href={plan.ctaHref!}
+                  className={`block text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 ${
+                    plan.highlight
+                      ? "bg-white text-gray-900 hover:bg-gray-100"
+                      : "bg-gray-900 text-white hover:bg-gray-700"
+                  }`}
+                >
+                  {plan.cta}
+                </a>
+              )}
 
               <ul className="space-y-3 mt-auto">
                 {plan.features.map((f) => (
