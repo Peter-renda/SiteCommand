@@ -1,5 +1,6 @@
 import Navbar from "../components/Navbar";
 import PricingCheckoutButton from "./PricingCheckoutButton";
+import { getSession } from "@/lib/auth";
 
 const plans = [
   {
@@ -61,7 +62,10 @@ const plans = [
   },
 ];
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const session = await getSession();
+  const isAuthenticated = !!session;
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -117,6 +121,7 @@ export default function PricingPage() {
                   plan={plan.ctaPlan}
                   label={plan.cta}
                   highlight={plan.highlight}
+                  isAuthenticated={isAuthenticated}
                 />
               ) : (
                 <a

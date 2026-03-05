@@ -7,17 +7,24 @@ interface PricingCheckoutButtonProps {
   plan: string;
   label: string;
   highlight: boolean;
+  isAuthenticated: boolean;
 }
 
 export default function PricingCheckoutButton({
   plan,
   label,
   highlight,
+  isAuthenticated,
 }: PricingCheckoutButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleCheckout() {
+    if (!isAuthenticated) {
+      router.push(`/signup?plan=${plan}`);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -26,15 +33,12 @@ export default function PricingCheckoutButton({
         body: JSON.stringify({ plan }),
       });
 
-      if (res.status === 401) {
-        router.push(`/signup?plan=${plan}`);
-        return;
-      }
-
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
       }
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
