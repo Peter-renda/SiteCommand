@@ -1,6 +1,13 @@
 import Link from "next/link";
 
-export default function CheckoutSuccessPage() {
+export default async function CheckoutSuccessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ new?: string }>;
+}) {
+  const params = await searchParams;
+  const isNew = params.new === "1";
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-6">
       <div className="w-full max-w-sm text-center">
@@ -19,18 +26,37 @@ export default function CheckoutSuccessPage() {
             />
           </svg>
         </div>
-        <h1 className="text-xl font-semibold text-gray-900 mb-2">
-          You&apos;re all set!
-        </h1>
-        <p className="text-sm text-gray-500 mb-6">
-          Your company subscription is active. Head to your dashboard to get started.
-        </p>
-        <Link
-          href="/dashboard"
-          className="inline-block py-2 px-6 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
-        >
-          Go to Dashboard
-        </Link>
+        {isNew ? (
+          <>
+            <h1 className="text-xl font-semibold text-gray-900 mb-2">
+              Your account has been created!
+            </h1>
+            <p className="text-sm text-gray-500 mb-6">
+              Your subscription is active. Sign in to access your dashboard.
+            </p>
+            <Link
+              href="/login"
+              className="inline-block py-2 px-6 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Go to Login
+            </Link>
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl font-semibold text-gray-900 mb-2">
+              You&apos;re all set!
+            </h1>
+            <p className="text-sm text-gray-500 mb-6">
+              Your company subscription is active. Head to your dashboard to get started.
+            </p>
+            <Link
+              href="/dashboard"
+              className="inline-block py-2 px-6 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Go to Dashboard
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );

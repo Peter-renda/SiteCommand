@@ -27,7 +27,7 @@ export default function PricingCheckoutButton({
       });
 
       if (res.status === 401) {
-        router.push("/signup");
+        router.push(`/signup?plan=${plan}`);
         return;
       }
 

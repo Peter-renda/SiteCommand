@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { plan } = await req.json();
+  const { plan, newSignup } = await req.json();
   if (!plan || !PRICE_IDS[plan]) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     line_items: [{ price: PRICE_IDS[plan], quantity: 1 }],
     client_reference_id: session.company_id ?? session.id,
     customer_email: session.email,
-    success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}${newSignup ? "&new=1" : ""}`,
     cancel_url: `${baseUrl}/pricing`,
   });
 
