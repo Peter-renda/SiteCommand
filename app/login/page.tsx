@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const justSignedUp = searchParams.get("registered") === "1";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -30,7 +33,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(data.redirect ?? "/dashboard");
     router.refresh();
   }
 
@@ -40,19 +43,21 @@ export default function LoginPage() {
         <h1 className="text-2xl font-semibold text-gray-900 mb-2">Sign in</h1>
         <p className="text-sm text-gray-500 mb-8">
           Don&apos;t have an account?{" "}
-          <Link
-            href="/signup"
-            className="text-gray-900 font-medium hover:underline"
-          >
+          <Link href="/signup" className="text-gray-900 font-medium hover:underline">
             Sign up
           </Link>
         </p>
 
+        {justSignedUp && (
+          <div className="mb-6 px-4 py-3 bg-green-50 border border-green-100 rounded-md">
+            <p className="text-sm text-green-700 font-medium">Account created!</p>
+            <p className="text-xs text-green-600 mt-0.5">Sign in to choose your subscription plan.</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
               required
@@ -64,9 +69,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input
               type="password"
               required
@@ -89,5 +92,13 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

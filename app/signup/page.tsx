@@ -44,7 +44,7 @@ export default function SignupPage() {
       return;
     }
 
-    router.push("/pricing");
+    router.push("/login?registered=1");
   }
 
   return (
