@@ -7,9 +7,9 @@ const ADMIN_EMAIL = "ptrenda1@gmail.com";
 
 export async function POST(req: NextRequest) {
   const supabase = getSupabase();
-  const { username, email, password, company } = await req.json();
+  const { firstName, lastName, email, password, company } = await req.json();
 
-  if (!username || !email || !password || !company) {
+  if (!firstName || !lastName || !email || !password || !company) {
     return NextResponse.json(
       { error: "All fields are required" },
       { status: 400 }
@@ -19,18 +19,19 @@ export async function POST(req: NextRequest) {
   const { data: existing } = await supabase
     .from("users")
     .select("id")
-    .or(`email.eq.${email},username.eq.${username}`)
+    .eq("email", email)
     .maybeSingle();
 
   if (existing) {
     return NextResponse.json(
-      { error: "Email or username already taken" },
+      { error: "An account with this email already exists" },
       { status: 409 }
     );
   }
 
   const password_hash = await bcrypt.hash(password, 10);
   const isAdmin = email === ADMIN_EMAIL;
+  const displayName = `${firstName} ${lastName}`;
 
   // Create company for non-system-admin signups
   let companyId: string | null = null;
@@ -53,7 +54,9 @@ export async function POST(req: NextRequest) {
   const { data: newUser, error } = await supabase
     .from("users")
     .insert({
-      username,
+      username: displayName,
+      first_name: firstName,
+      last_name: lastName,
       email,
       password_hash,
       company,
@@ -74,7 +77,7 @@ export async function POST(req: NextRequest) {
   const token = await createToken({
     id: newUser.id,
     email,
-    username,
+    username: displayName,
     role: isAdmin ? "admin" : "user",
     company_id: companyId,
     company_role: isAdmin ? null : "admin",
