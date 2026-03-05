@@ -278,7 +278,7 @@ export default function DashboardClient({ username, email, role, companyRole }: 
               Admin
             </a>
           )}
-          {(role === "admin" || companyRole === "admin") && (
+          {companyRole === "admin" && (
             <a href="/company" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">
               Team
             </a>

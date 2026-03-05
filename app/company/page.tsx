@@ -7,14 +7,13 @@ export default async function CompanyPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  // Only company admins (and system admin) can access this page
-  if (session.role !== "admin" && session.company_role !== "admin") {
-    redirect("/dashboard");
-  }
+  // System admin has no company — send them to /admin
+  if (session.role === "admin") redirect("/admin");
 
-  if (!session.company_id && session.role !== "admin") {
-    redirect("/dashboard");
-  }
+  // Only company admins can access this page
+  if (session.company_role !== "admin") redirect("/dashboard");
+
+  if (!session.company_id) redirect("/dashboard");
 
   const supabase = getSupabase();
 
