@@ -18,6 +18,7 @@ export default function PricingCheckoutButton({
 }: PricingCheckoutButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleCheckout() {
     if (!isAuthenticated) {
@@ -26,6 +27,7 @@ export default function PricingCheckoutButton({
     }
 
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -36,25 +38,32 @@ export default function PricingCheckoutButton({
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        setError(data.error ?? "Something went wrong. Please try again.");
       }
     } catch {
-      // ignore
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <button
-      onClick={handleCheckout}
-      disabled={loading}
-      className={`block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 disabled:opacity-50 ${
-        highlight
-          ? "bg-white text-gray-900 hover:bg-gray-100"
-          : "bg-gray-900 text-white hover:bg-gray-700"
-      }`}
-    >
-      {loading ? "Loading..." : label}
-    </button>
+    <div className="mb-8">
+      <button
+        onClick={handleCheckout}
+        disabled={loading}
+        className={`block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+          highlight
+            ? "bg-white text-gray-900 hover:bg-gray-100"
+            : "bg-gray-900 text-white hover:bg-gray-700"
+        }`}
+      >
+        {loading ? "Loading..." : label}
+      </button>
+      {error && (
+        <p className="mt-2 text-xs text-red-500 text-center">{error}</p>
+      )}
+    </div>
   );
 }
