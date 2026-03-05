@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: "Invitation has expired" }, { status: 410 });
   }
 
-  const company = invite.companies as { name: string } | null;
+  const company = invite.companies as unknown as { name: string } | null;
 
   return NextResponse.json({
     email: invite.email,

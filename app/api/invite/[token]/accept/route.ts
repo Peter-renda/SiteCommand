@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: "Invitation has expired" }, { status: 410 });
   }
 
-  const company = invite.companies as { name: string; seat_limit: number; subscription_status: string } | null;
+  const company = invite.companies as unknown as { name: string; seat_limit: number; subscription_status: string } | null;
   if (!company || company.subscription_status !== "active") {
     return NextResponse.json({ error: "Company subscription is not active" }, { status: 403 });
   }
