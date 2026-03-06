@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 interface PricingCheckoutButtonProps {
   plan: string;
@@ -14,9 +13,8 @@ export default function PricingCheckoutButton({
   plan,
   label,
   highlight,
-  isAuthenticated,
+  isAuthenticated: _isAuthenticated,
 }: PricingCheckoutButtonProps) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,10 +22,7 @@ export default function PricingCheckoutButton({
     setLoading(true);
     setError(null);
     try {
-      const endpoint = isAuthenticated
-        ? "/api/stripe/checkout"
-        : "/api/stripe/checkout/new";
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/stripe/checkout/new", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
