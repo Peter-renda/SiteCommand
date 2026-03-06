@@ -21,15 +21,13 @@ export default function PricingCheckoutButton({
   const [error, setError] = useState<string | null>(null);
 
   async function handleCheckout() {
-    if (!isAuthenticated) {
-      router.push(`/signup?plan=${plan}`);
-      return;
-    }
-
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/stripe/checkout", {
+      const endpoint = isAuthenticated
+        ? "/api/stripe/checkout"
+        : "/api/stripe/checkout/new";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
