@@ -92,11 +92,11 @@ export default function AdminPage() {
       body: JSON.stringify({ email: inviteEmail, company_name: inviteCompanyName }),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     setInviting(false);
 
     if (!res.ok) {
-      setInviteError(data.error || "Failed to send invitation");
+      setInviteError(data.error || `Server error (${res.status})`);
       return;
     }
 
