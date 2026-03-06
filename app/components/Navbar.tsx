@@ -30,9 +30,9 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
         {/* Logo */}
-        <span className="text-lg font-semibold tracking-tight text-gray-900">
+        <a href="https://site-command-orpin.vercel.app/" className="text-lg font-semibold tracking-tight text-gray-900 hover:opacity-80 transition-opacity">
           SiteCommand
-        </span>
+        </a>
 
         {/* Nav items */}
         <div className="flex items-center gap-1">
