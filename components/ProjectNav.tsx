@@ -17,6 +17,7 @@ const TOOL_SECTIONS = [
   {
     label: "Project Tools",
     items: [
+      { name: "Insights", slug: "insights" },
       { name: "RFIs", slug: "rfis" },
       { name: "Submittals", slug: "submittals" },
       { name: "Transmittals", slug: "transmittals" },
