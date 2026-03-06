@@ -101,7 +101,6 @@ export default function AdminPage() {
 
     setInviteSuccess(`Invitation sent to ${inviteEmail}`);
     setInviteEmail("");
-    setInviteCompanyId("");
   }
 
   async function openUserProjects(user: User) {
