@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type User = {
   id: string;
@@ -24,6 +24,16 @@ type Project = {
   hasAccess: boolean;
 };
 
+type LessonUpload = {
+  id: string;
+  company_id: string;
+  filename: string;
+  uploaded_by_name: string;
+  uploaded_at: string;
+  row_count: number;
+  columns: string[];
+};
+
 const SUPER_ADMIN_EMAIL = "ptrenda1@gmail.com";
 
 export default function AdminPage() {
@@ -31,6 +41,18 @@ export default function AdminPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Company Lessons
+  const [lessonUploads, setLessonUploads] = useState<LessonUpload[]>([]);
+  const [showLessonsUpload, setShowLessonsUpload] = useState(false);
+  const [lessonCompanyId, setLessonCompanyId] = useState("");
+  const [lessonFile, setLessonFile] = useState<File | null>(null);
+  const [uploadingLesson, setUploadingLesson] = useState(false);
+  const [lessonUploadError, setLessonUploadError] = useState("");
+  const [lessonUploadSuccess, setLessonUploadSuccess] = useState("");
+  const [viewingLesson, setViewingLesson] = useState<{ id: string; filename: string; columns: string[]; rows: Record<string, unknown>[] } | null>(null);
+  const [loadingLessonRows, setLoadingLessonRows] = useState(false);
+  const lessonFileRef = useRef<HTMLInputElement>(null);
 
   // Add user modal
   const [showAddUser, setShowAddUser] = useState(false);
@@ -66,9 +88,18 @@ export default function AdminPage() {
     }
   }
 
+  async function loadLessonUploads() {
+    const res = await fetch("/api/admin/company-lessons");
+    if (res.ok) {
+      const data = await res.json();
+      setLessonUploads(data);
+    }
+  }
+
   useEffect(() => {
     loadUsers();
     loadCompanies();
+    loadLessonUploads();
   }, []);
 
   async function handleRoleChange(id: string, role: string) {
@@ -135,6 +166,44 @@ export default function AdminPage() {
     });
     setSavingProjects(false);
     setSelectedUser(null);
+  }
+
+  async function handleLessonUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!lessonFile || !lessonCompanyId) return;
+    setUploadingLesson(true);
+    setLessonUploadError("");
+    setLessonUploadSuccess("");
+    const fd = new FormData();
+    fd.append("file", lessonFile);
+    fd.append("company_id", lessonCompanyId);
+    const res = await fetch("/api/admin/company-lessons", { method: "POST", body: fd });
+    const data = await res.json().catch(() => ({}));
+    setUploadingLesson(false);
+    if (!res.ok) {
+      setLessonUploadError(data.error || `Upload failed (${res.status})`);
+      return;
+    }
+    setLessonUploadSuccess(`Uploaded ${data.row_count} lesson${data.row_count !== 1 ? "s" : ""} successfully.`);
+    setLessonFile(null);
+    if (lessonFileRef.current) lessonFileRef.current.value = "";
+    loadLessonUploads();
+  }
+
+  async function openLessonRows(upload: LessonUpload) {
+    setLoadingLessonRows(true);
+    setViewingLesson({ id: upload.id, filename: upload.filename, columns: upload.columns, rows: [] });
+    const res = await fetch(`/api/admin/company-lessons/${upload.id}`);
+    if (res.ok) {
+      const data = await res.json();
+      setViewingLesson({ id: upload.id, filename: upload.filename, columns: data.columns, rows: data.rows });
+    }
+    setLoadingLessonRows(false);
+  }
+
+  async function deleteLesson(id: string) {
+    await fetch(`/api/admin/company-lessons/${id}`, { method: "DELETE" });
+    loadLessonUploads();
   }
 
   if (loading) {
@@ -263,6 +332,105 @@ export default function AdminPage() {
         Note: users must log out and back in for role changes to take effect.
       </p>
 
+      {/* Company Lessons */}
+      <section className="mt-14">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+              Company Lessons
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">Upload Excel files of lessons learned per company.</p>
+          </div>
+          <button
+            onClick={() => {
+              setShowLessonsUpload((v) => !v);
+              setLessonUploadError("");
+              setLessonUploadSuccess("");
+              setLessonCompanyId(companies[0]?.id ?? "");
+            }}
+            className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-md hover:bg-gray-700 transition-colors"
+          >
+            + Upload Lessons
+          </button>
+        </div>
+
+        {showLessonsUpload && (
+          <form onSubmit={handleLessonUpload} className="mb-6 bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Company</label>
+              <select
+                required
+                value={lessonCompanyId}
+                onChange={(e) => setLessonCompanyId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+              >
+                <option value="">Select a company…</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Excel File (.xlsx, .xls, .csv)</label>
+              <input
+                ref={lessonFileRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                required
+                onChange={(e) => setLessonFile(e.target.files?.[0] ?? null)}
+                className="w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300"
+              />
+            </div>
+            {lessonUploadError && <p className="text-xs text-red-600">{lessonUploadError}</p>}
+            {lessonUploadSuccess && <p className="text-xs text-green-600">{lessonUploadSuccess}</p>}
+            <button
+              type="submit"
+              disabled={uploadingLesson || !lessonFile || !lessonCompanyId}
+              className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              {uploadingLesson ? "Uploading…" : "Upload"}
+            </button>
+          </form>
+        )}
+
+        {lessonUploads.length === 0 ? (
+          <p className="text-sm text-gray-400">No lesson files uploaded yet.</p>
+        ) : (
+          <div className="border border-gray-100 rounded-lg overflow-hidden">
+            {lessonUploads.map((upload) => {
+              const company = companies.find((c) => c.id === upload.company_id);
+              return (
+                <div
+                  key={upload.id}
+                  className="flex items-center justify-between px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{upload.filename}</p>
+                    <p className="text-xs text-gray-400">
+                      {company?.name ?? "Unknown company"} · {upload.row_count} row{upload.row_count !== 1 ? "s" : ""} · Uploaded by {upload.uploaded_by_name} · {new Date(upload.uploaded_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openLessonRows(upload)}
+                      className="text-xs text-gray-500 hover:text-gray-900 px-2.5 py-1 border border-gray-200 rounded-md transition-colors"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => deleteLesson(upload.id)}
+                      className="text-xs text-red-500 hover:text-red-700 px-2.5 py-1 border border-red-100 rounded-md transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {/* Add User Modal */}
       {showAddUser && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
@@ -314,6 +482,63 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lesson Rows Modal */}
+      {viewingLesson && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">{viewingLesson.filename}</h2>
+                <p className="text-xs text-gray-400">{viewingLesson.rows.length} row{viewingLesson.rows.length !== 1 ? "s" : ""}</p>
+              </div>
+              <button
+                onClick={() => setViewingLesson(null)}
+                className="text-gray-400 hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-auto flex-1">
+              {loadingLessonRows ? (
+                <div className="flex items-center justify-center h-40">
+                  <svg className="w-5 h-5 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                </div>
+              ) : (
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200 sticky top-0">
+                      {viewingLesson.columns.map((col) => (
+                        <th key={col} className="text-left px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap text-xs">
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewingLesson.rows.map((row, i) => (
+                      <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                        {viewingLesson.columns.map((col) => (
+                          <td key={col} className="px-4 py-2.5 text-gray-700 text-xs max-w-xs">
+                            <span className="line-clamp-2" title={String(row[col] ?? "")}>
+                              {String(row[col] ?? "")}
+                            </span>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
       )}
