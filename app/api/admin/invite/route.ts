@@ -96,7 +96,15 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const inviteUrl = `${appUrl}/invite/${invite.token}`;
 
-  await sendInviteEmail(email, inviteUrl, company.name);
+  try {
+    await sendInviteEmail(email, inviteUrl, company.name);
+  } catch (emailErr) {
+    const msg = emailErr instanceof Error ? emailErr.message : "Unknown email error";
+    return NextResponse.json(
+      { error: `Invitation created but email failed: ${msg}` },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ success: true });
 }
