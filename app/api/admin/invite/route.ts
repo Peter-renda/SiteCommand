@@ -24,26 +24,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { email, company_id: bodyCompanyId } = await req.json();
+  const { email, company_name: bodyCompanyName, company_id: bodyCompanyId } = await req.json();
   if (!email) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  }
+  if (!bodyCompanyName && !bodyCompanyId && !session.company_id) {
+    return NextResponse.json({ error: "Company name is required" }, { status: 400 });
   }
 
   const supabase = getSupabase();
 
-  // Prefer company_id from request body, then session, then first company
   let company_id: string = bodyCompanyId || session.company_id || "";
-  if (!company_id) {
-    const { data: first } = await supabase
+
+  if (!company_id && bodyCompanyName) {
+    // Look up existing company by name (case-insensitive), or create it
+    const { data: existing } = await supabase
       .from("companies")
       .select("id")
-      .order("created_at", { ascending: true })
+      .ilike("name", bodyCompanyName.trim())
       .limit(1)
       .single();
-    if (!first) {
-      return NextResponse.json({ error: "No company found. Please select a company." }, { status: 404 });
+
+    if (existing) {
+      company_id = existing.id;
+    } else {
+      const { data: created, error: createErr } = await supabase
+        .from("companies")
+        .insert({ name: bodyCompanyName.trim(), seat_limit: 0 })
+        .select("id")
+        .single();
+      if (createErr || !created) {
+        return NextResponse.json({ error: "Failed to create company" }, { status: 500 });
+      }
+      company_id = created.id;
     }
-    company_id = first.id;
   }
 
   const { data: company } = await supabase
