@@ -24,12 +24,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { email, company_id } = await req.json();
-  if (!email || !company_id) {
-    return NextResponse.json({ error: "Email and company are required" }, { status: 400 });
+  const { email } = await req.json();
+  if (!email) {
+    return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
   const supabase = getSupabase();
+
+  // Use the session's company if available, otherwise fall back to the first company
+  let company_id: string = session.company_id ?? "";
+  if (!company_id) {
+    const { data: first } = await supabase
+      .from("companies")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .single();
+    if (!first) {
+      return NextResponse.json({ error: "No company found" }, { status: 404 });
+    }
+    company_id = first.id;
+  }
 
   const { data: company } = await supabase
     .from("companies")
