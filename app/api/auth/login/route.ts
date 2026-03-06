@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
 
   let redirect: string | null = null;
   if (user.role !== "admin") {
-    if (!user.company_id) {
+    if (user.company_role === "admin") {
+      redirect = "/company";
+    } else if (!user.company_id) {
       redirect = "/pricing";
     } else {
       const { data: company } = await supabase
