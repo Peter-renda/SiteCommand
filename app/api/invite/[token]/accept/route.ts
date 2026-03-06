@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   const { data: invite } = await supabase
     .from("invitations")
-    .select("id, email, company_id, accepted_at, expires_at, companies(name, seat_limit, subscription_status)")
+    .select("id, email, company_id, accepted_at, expires_at, companies(name, seat_limit, subscription_status, stripe_subscription_id)")
     .eq("token", token)
     .single();
 
@@ -31,18 +31,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: "Invitation has expired" }, { status: 410 });
   }
 
-  const company = invite.companies as unknown as { name: string; seat_limit: number; subscription_status: string } | null;
-  if (!company || company.subscription_status !== "active") {
+  const company = invite.companies as unknown as { name: string; seat_limit: number; subscription_status: string; stripe_subscription_id: string | null } | null;
+  if (!company) {
+    return NextResponse.json({ error: "Company not found" }, { status: 403 });
+  }
+
+  // Only enforce subscription check when a Stripe subscription exists
+  if (company.stripe_subscription_id && company.subscription_status !== "active") {
     return NextResponse.json({ error: "Company subscription is not active" }, { status: 403 });
   }
 
-  // Check seat count
+  // Check seat count — seat_limit of 0 means no plan configured yet (treat as unlimited)
   const { count: memberCount } = await supabase
     .from("users")
     .select("id", { count: "exact", head: true })
     .eq("company_id", invite.company_id);
 
-  if ((memberCount ?? 0) >= company.seat_limit) {
+  if (company.seat_limit > 0 && (memberCount ?? 0) >= company.seat_limit) {
     return NextResponse.json({ error: "Seat limit reached" }, { status: 403 });
   }
 
