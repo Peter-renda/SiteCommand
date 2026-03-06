@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
     .select("id", { count: "exact", head: true })
     .eq("company_id", session.company_id);
 
-  if ((memberCount ?? 0) >= company.seat_limit) {
+  // seat_limit of 0 means no subscription plan is configured yet — treat as unlimited
+  if (company.seat_limit > 0 && (memberCount ?? 0) >= company.seat_limit) {
     return NextResponse.json({ error: "Seat limit reached" }, { status: 403 });
   }
 
