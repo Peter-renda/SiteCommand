@@ -51,7 +51,7 @@ function LoginForm() {
         {justSignedUp && (
           <div className="mb-6 px-4 py-3 bg-green-50 border border-green-100 rounded-md">
             <p className="text-sm text-green-700 font-medium">Account created!</p>
-            <p className="text-xs text-green-600 mt-0.5">Sign in to choose your subscription plan.</p>
+            <p className="text-xs text-green-600 mt-0.5">Sign in to finish setting up your account.</p>
           </div>
         )}
 
