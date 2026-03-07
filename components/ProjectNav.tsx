@@ -190,22 +190,6 @@ export default function ProjectNav({
           </>
         )}
 
-        {/* Favorite links */}
-        {favoritedItems.length > 0 && (
-          <>
-            <div className="w-px h-4 bg-gray-200" />
-            {favoritedItems.map((item) => (
-              <a
-                key={item.slug}
-                href={`/projects/${projectId}/${item.slug}`}
-                className="py-2.5 text-sm text-gray-500 hover:text-gray-900 transition-colors shrink-0"
-              >
-                {item.name}
-              </a>
-            ))}
-          </>
-        )}
-
         <div className="w-px h-4 bg-gray-200" />
 
         {/* Tools dropdown */}
@@ -251,6 +235,22 @@ export default function ProjectNav({
             </div>
           )}
         </div>
+
+        {/* Favorite links */}
+        {favoritedItems.length > 0 && (
+          <>
+            <div className="w-px h-4 bg-gray-200" />
+            {favoritedItems.map((item) => (
+              <a
+                key={item.slug}
+                href={`/projects/${projectId}/${item.slug}`}
+                className="py-2.5 text-sm text-gray-500 hover:text-gray-900 transition-colors shrink-0"
+              >
+                {item.name}
+              </a>
+            ))}
+          </>
+        )}
 
         {/* Gear / Settings icon */}
         <button

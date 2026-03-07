@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Navbar from "../components/Navbar";
 
 const plans = [
@@ -8,7 +11,8 @@ const plans = [
     period: "/ month",
     description: "Perfect for small crews and single-project teams.",
     cta: "Get started",
-    ctaHref: "/signup",
+    plan: "starter" as const,
+    ctaHref: null,
     highlight: false,
     features: [
       "Up to 10 team members",
@@ -26,7 +30,8 @@ const plans = [
     period: "/ month",
     description: "Built for growing contractors managing multiple projects.",
     cta: "Get started",
-    ctaHref: "/signup",
+    plan: "pro" as const,
+    ctaHref: null,
     highlight: true,
     features: [
       "Up to 99 team members",
@@ -44,6 +49,7 @@ const plans = [
     period: "",
     description: "Custom solutions for large organizations and enterprises.",
     cta: "Contact us",
+    plan: null,
     ctaHref: "mailto:sales@sitecommand.com",
     highlight: false,
     features: [
@@ -58,6 +64,29 @@ const plans = [
 ];
 
 export default function PricingPage() {
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  async function handleSelectPlan(plan: string) {
+    setLoadingPlan(plan);
+    const res = await fetch("/api/stripe/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan }),
+    });
+
+    if (res.status === 401) {
+      window.location.href = "/signup";
+      return;
+    }
+
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      setLoadingPlan(null);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -108,16 +137,30 @@ export default function PricingPage() {
                 </p>
               </div>
 
-              <a
-                href={plan.ctaHref}
-                className={`block text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 ${
-                  plan.highlight
-                    ? "bg-white text-gray-900 hover:bg-gray-100"
-                    : "bg-gray-900 text-white hover:bg-gray-700"
-                }`}
-              >
-                {plan.cta}
-              </a>
+              {plan.ctaHref ? (
+                <a
+                  href={plan.ctaHref}
+                  className={`block text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 ${
+                    plan.highlight
+                      ? "bg-white text-gray-900 hover:bg-gray-100"
+                      : "bg-gray-900 text-white hover:bg-gray-700"
+                  }`}
+                >
+                  {plan.cta}
+                </a>
+              ) : (
+                <button
+                  onClick={() => handleSelectPlan(plan.plan!)}
+                  disabled={loadingPlan !== null}
+                  className={`block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 disabled:opacity-60 ${
+                    plan.highlight
+                      ? "bg-white text-gray-900 hover:bg-gray-100"
+                      : "bg-gray-900 text-white hover:bg-gray-700"
+                  }`}
+                >
+                  {loadingPlan === plan.plan ? "Redirecting..." : plan.cta}
+                </button>
+              )}
 
               <ul className="space-y-3 mt-auto">
                 {plan.features.map((f) => (
