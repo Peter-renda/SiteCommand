@@ -117,16 +117,9 @@ export default function InsightsClient({
         const disciplines = detectDisciplines(drawingUploads.map((u) => u.filename));
 
         const alerts: LessonAlert[] = [];
-        if (disciplines.length > 0) {
-          for (const row of lessonRows) {
-            const match = matchesAnyDiscipline(row, disciplines);
-            if (match) alerts.push({ discipline: match, row });
-          }
-        } else {
-          // No drawings or no discipline match — show all lessons generically
-          for (const row of lessonRows) {
-            alerts.push({ discipline: "General", row });
-          }
+        for (const row of lessonRows) {
+          const match = disciplines.length > 0 ? matchesAnyDiscipline(row, disciplines) : null;
+          alerts.push({ discipline: match ?? "General", row });
         }
         setLessonAlerts(alerts);
 
