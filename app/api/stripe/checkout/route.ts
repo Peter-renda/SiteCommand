@@ -9,18 +9,13 @@ const PRICE_IDS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
-  const canCheckout = session?.role === "admin" || session?.company_role === "admin";
-  if (!session || !canCheckout) {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { plan } = await req.json();
   if (!plan || !PRICE_IDS[plan]) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
-  }
-
-  if (!session.company_id && session.role !== "admin") {
-    return NextResponse.json({ error: "No company associated with account" }, { status: 400 });
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
