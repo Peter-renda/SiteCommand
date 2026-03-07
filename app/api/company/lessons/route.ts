@@ -13,21 +13,21 @@ export async function GET(req: NextRequest) {
   // Fall back to the project's company if user has no company (e.g. system admin)
   if (!companyId) {
     const projectId = req.nextUrl.searchParams.get("projectId");
-    if (!projectId) return NextResponse.json([]);
-    const { data: project } = await supabase
-      .from("projects")
-      .select("company_id")
-      .eq("id", projectId)
-      .single();
-    companyId = project?.company_id ?? null;
+    if (projectId) {
+      const { data: project } = await supabase
+        .from("projects")
+        .select("company_id")
+        .eq("id", projectId)
+        .single();
+      companyId = project?.company_id ?? null;
+    }
   }
 
-  if (!companyId) return NextResponse.json([]);
-
-  const { data, error } = await supabase
-    .from("company_lessons")
-    .select("id, filename, columns, rows")
-    .eq("company_id", companyId);
+  // For system admin with no resolvable company, return all lessons
+  const query = supabase.from("company_lessons").select("id, filename, columns, rows");
+  const { data, error } = companyId
+    ? await query.eq("company_id", companyId)
+    : await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
