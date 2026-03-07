@@ -1,6 +1,16 @@
-import Link from "next/link";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function CheckoutSuccessPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const timer = setTimeout(() => router.push("/dashboard"), 3000);
+    return () => clearTimeout(timer);
+  }, [router]);
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-6">
       <div className="w-full max-w-sm text-center">
@@ -22,15 +32,10 @@ export default function CheckoutSuccessPage() {
         <h1 className="text-xl font-semibold text-gray-900 mb-2">
           You&apos;re all set!
         </h1>
-        <p className="text-sm text-gray-500 mb-6">
-          Your company subscription is active. Head to your dashboard to get started.
+        <p className="text-sm text-gray-500 mb-2">
+          Your subscription is active. Taking you to your dashboard...
         </p>
-        <Link
-          href="/dashboard"
-          className="inline-block py-2 px-6 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
-        >
-          Go to Dashboard
-        </Link>
+        <p className="text-xs text-gray-300">Redirecting in 3 seconds</p>
       </div>
     </div>
   );

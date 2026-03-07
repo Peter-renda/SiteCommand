@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Navbar from "../components/Navbar";
 
 const plans = [
@@ -64,31 +63,8 @@ const plans = [
 ];
 
 export default function PricingPage() {
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  const [checkoutError, setCheckoutError] = useState("");
-
-  async function handleSelectPlan(plan: string) {
-    setLoadingPlan(plan);
-    setCheckoutError("");
-
-    const res = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan }),
-    });
-
-    if (res.status === 401) {
-      window.location.href = `/signup?plan=${plan}`;
-      return;
-    }
-
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      setCheckoutError(data.error || "Something went wrong. Please try again.");
-      setLoadingPlan(null);
-    }
+  function handleSelectPlan(plan: string) {
+    window.location.href = `/signup?plan=${plan}`;
   }
 
   return (
@@ -96,11 +72,6 @@ export default function PricingPage() {
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-6 pt-32 pb-20">
-        {checkoutError && (
-          <div className="mb-6 text-center text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg py-3 px-4">
-            {checkoutError}
-          </div>
-        )}
         <div className="text-center mb-14">
           <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
             Simple, transparent pricing
@@ -160,14 +131,13 @@ export default function PricingPage() {
               ) : (
                 <button
                   onClick={() => handleSelectPlan(plan.plan!)}
-                  disabled={loadingPlan !== null}
-                  className={`block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 disabled:opacity-60 ${
+                  className={`block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 ${
                     plan.highlight
                       ? "bg-white text-gray-900 hover:bg-gray-100"
                       : "bg-gray-900 text-white hover:bg-gray-700"
                   }`}
                 >
-                  {loadingPlan === plan.plan ? "Redirecting..." : plan.cta}
+                  {plan.cta}
                 </button>
               )}
 
