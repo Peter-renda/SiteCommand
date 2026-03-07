@@ -10,6 +10,48 @@ type StatCard = {
   href: string;
 };
 
+type LessonAlert = {
+  discipline: string;
+  row: Record<string, unknown>;
+};
+
+const DISCIPLINES = [
+  { label: "Architectural", prefixes: ["a"], keywords: ["arch", "floor plan", "ceiling", "elevation", "partition"] },
+  { label: "Structural", prefixes: ["s"], keywords: ["struct", "beam", "column", "foundation", "steel", "concrete"] },
+  { label: "Mechanical", prefixes: ["m"], keywords: ["mech", "hvac", "duct", "air handling"] },
+  { label: "Electrical", prefixes: ["e"], keywords: ["elec", "lighting", "power", "panel", "conduit"] },
+  { label: "Plumbing", prefixes: ["p"], keywords: ["plumb", "pipe", "drain", "sanitary"] },
+  { label: "Civil", prefixes: ["c"], keywords: ["civil", "site", "grade", "paving", "storm"] },
+  { label: "Fire Protection", prefixes: ["fp"], keywords: ["fire", "sprinkler"] },
+];
+
+function detectDisciplines(filenames: string[]): string[] {
+  const found = new Set<string>();
+  for (const filename of filenames) {
+    const lower = filename.toLowerCase();
+    for (const disc of DISCIPLINES) {
+      if (disc.prefixes.some((p) => new RegExp(`^${p}\\d`).test(lower.replace(/[^a-z0-9]/g, "")) || lower.startsWith(p + "-") || lower.startsWith(p + "_"))) {
+        found.add(disc.label);
+      }
+      if (disc.keywords.some((kw) => lower.includes(kw))) {
+        found.add(disc.label);
+      }
+    }
+  }
+  return [...found];
+}
+
+function matchesAnyDiscipline(row: Record<string, unknown>, disciplines: string[]): string | null {
+  const rowText = Object.values(row).join(" ").toLowerCase();
+  for (const disc of DISCIPLINES) {
+    if (!disciplines.includes(disc.label)) continue;
+    if (disc.keywords.some((kw) => rowText.includes(kw))) {
+      return disc.label;
+    }
+  }
+  return null;
+}
+
 function countByStatus<T>(items: T[], field: keyof T, statuses: string[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const s of statuses) counts[s] = 0;
@@ -32,18 +74,22 @@ export default function InsightsClient({
 }) {
   const [loading, setLoading] = useState(true);
   const [cards, setCards] = useState<StatCard[]>([]);
+  const [lessonAlerts, setLessonAlerts] = useState<LessonAlert[]>([]);
+  const [drawingCount, setDrawingCount] = useState(0);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const [tasks, rfis, submittals, punchList, photos, documents] = await Promise.all([
+        const [tasks, rfis, submittals, punchList, photos, documents, drawingsRes, lessonsRes] = await Promise.all([
           fetch(`/api/projects/${projectId}/tasks`).then((r) => r.json()),
           fetch(`/api/projects/${projectId}/rfis`).then((r) => r.json()),
           fetch(`/api/projects/${projectId}/submittals`).then((r) => r.json()),
           fetch(`/api/projects/${projectId}/punch-list`).then((r) => r.json()),
           fetch(`/api/projects/${projectId}/photos`).then((r) => r.json()),
           fetch(`/api/projects/${projectId}/documents`).then((r) => r.json()),
+          fetch(`/api/projects/${projectId}/drawings`).then((r) => r.json()),
+          fetch(`/api/company/lessons`).then((r) => r.json()),
         ]);
 
         const taskItems = Array.isArray(tasks) ? tasks : [];
@@ -62,6 +108,27 @@ export default function InsightsClient({
 
         const photoCount = Array.isArray(photos) ? photos.length : (photos?.photos?.length ?? 0);
         const docItems = Array.isArray(documents) ? documents : [];
+
+        // Lessons vs drawings matching
+        const drawingUploads: { filename: string }[] = drawingsRes?.uploads ?? [];
+        setDrawingCount(drawingUploads.length);
+
+        const lessonRows: Record<string, unknown>[] = Array.isArray(lessonsRes) ? lessonsRes : [];
+        const disciplines = detectDisciplines(drawingUploads.map((u) => u.filename));
+
+        const alerts: LessonAlert[] = [];
+        if (disciplines.length > 0) {
+          for (const row of lessonRows) {
+            const match = matchesAnyDiscipline(row, disciplines);
+            if (match) alerts.push({ discipline: match, row });
+          }
+        } else {
+          // No drawings or no discipline match — show all lessons generically
+          for (const row of lessonRows) {
+            alerts.push({ discipline: "General", row });
+          }
+        }
+        setLessonAlerts(alerts);
 
         setCards([
           {
@@ -172,6 +239,7 @@ export default function InsightsClient({
             </svg>
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map((card) => (
               <a
@@ -221,6 +289,45 @@ export default function InsightsClient({
               </a>
             ))}
           </div>
+
+          {/* Lessons Learned Alerts */}
+          {lessonAlerts.length > 0 && (
+            <div className="mt-10">
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">
+                Lessons Learned
+              </h2>
+              <p className="text-xs text-gray-400 mb-4">
+                {drawingCount > 0
+                  ? `Based on ${drawingCount} drawing set${drawingCount !== 1 ? "s" : ""} uploaded — ${lessonAlerts.length} relevant lesson${lessonAlerts.length !== 1 ? "s" : ""} found from past projects.`
+                  : `${lessonAlerts.length} lesson${lessonAlerts.length !== 1 ? "s" : ""} on file from past projects.`}
+              </p>
+              <div className="space-y-3">
+                {lessonAlerts.map((alert, i) => {
+                  const { _source, ...fields } = alert.row;
+                  const entries = Object.entries(fields).filter(([, v]) => String(v ?? "").trim() !== "");
+                  const [, firstVal] = entries[0] ?? ["Note", "—"];
+                  const rest = entries.slice(1, 4);
+                  return (
+                    <div key={i} className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <p className="text-sm font-medium text-gray-900">{String(firstVal)}</p>
+                        <span className="text-xs font-medium px-2 py-0.5 bg-amber-100 text-amber-700 rounded shrink-0">
+                          {alert.discipline}
+                        </span>
+                      </div>
+                      {rest.map(([k, v]) => (
+                        <p key={k} className="text-xs text-gray-500 mt-1">
+                          <span className="font-medium text-gray-600">{k}:</span> {String(v)}
+                        </p>
+                      ))}
+                      <p className="text-xs text-gray-300 mt-2">Source: {String(_source)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>
