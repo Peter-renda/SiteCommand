@@ -75,7 +75,7 @@ export default function PricingPage() {
     });
 
     if (res.status === 401) {
-      window.location.href = "/signup";
+      window.location.href = `/signup?plan=${plan}`;
       return;
     }
 
