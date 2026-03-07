@@ -65,9 +65,12 @@ const plans = [
 
 export default function PricingPage() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState("");
 
   async function handleSelectPlan(plan: string) {
     setLoadingPlan(plan);
+    setCheckoutError("");
+
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -83,6 +86,7 @@ export default function PricingPage() {
     if (data.url) {
       window.location.href = data.url;
     } else {
+      setCheckoutError(data.error || "Something went wrong. Please try again.");
       setLoadingPlan(null);
     }
   }
@@ -92,6 +96,11 @@ export default function PricingPage() {
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-6 pt-32 pb-20">
+        {checkoutError && (
+          <div className="mb-6 text-center text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg py-3 px-4">
+            {checkoutError}
+          </div>
+        )}
         <div className="text-center mb-14">
           <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
             Simple, transparent pricing

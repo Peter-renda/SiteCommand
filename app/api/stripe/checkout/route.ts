@@ -20,14 +20,20 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    line_items: [{ price: PRICE_IDS[plan], quantity: 1 }],
-    client_reference_id: session.company_id ?? session.id,
-    customer_email: session.email,
-    success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/pricing`,
-  });
+  let checkoutSession;
+  try {
+    checkoutSession = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: PRICE_IDS[plan], quantity: 1 }],
+      client_reference_id: session.company_id ?? session.id,
+      customer_email: session.email,
+      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing`,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Stripe error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 
   return NextResponse.json({ url: checkoutSession.url });
 }
