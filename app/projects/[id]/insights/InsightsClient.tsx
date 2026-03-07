@@ -89,7 +89,7 @@ export default function InsightsClient({
           fetch(`/api/projects/${projectId}/photos`).then((r) => r.json()),
           fetch(`/api/projects/${projectId}/documents`).then((r) => r.json()),
           fetch(`/api/projects/${projectId}/drawings`).then((r) => r.json()),
-          fetch(`/api/company/lessons`).then((r) => r.json()),
+          fetch(`/api/company/lessons?projectId=${projectId}`).then((r) => r.json()),
         ]);
 
         const taskItems = Array.isArray(tasks) ? tasks : [];
