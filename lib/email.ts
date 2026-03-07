@@ -6,7 +6,7 @@ export async function sendInviteEmail(to: string, inviteUrl: string, companyName
 
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
-    from: 'SiteCommand <invites@sitecommand.app>',
+    from: 'SiteCommand <invites@sitecommand.xyz>',
     to,
     subject: `You've been invited to join ${companyName} on SiteCommand`,
     html: `<p>You've been invited to join <strong>${companyName}</strong> on SiteCommand.</p><p><a href="${inviteUrl}">Accept invitation</a></p><p>This link expires in 7 days.</p>`,
