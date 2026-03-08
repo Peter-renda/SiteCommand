@@ -797,6 +797,9 @@ export default function DirectoryClient({
   // Re-invite feedback
   const [reinviteSent, setReinviteSent] = useState<string | null>(null);
 
+  // Search
+  const [search, setSearch] = useState("");
+
   useEffect(() => {
     loadContacts();
   }, [projectId]);
@@ -937,9 +940,19 @@ export default function DirectoryClient({
     return parts.length > 0 ? parts.join(" ") : "Unnamed";
   }
 
-  const users = contacts.filter((c) => c.type === "user");
-  const companies = contacts.filter((c) => c.type === "company");
-  const groups = contacts.filter((c) => c.type === "distribution_group");
+  const q = search.trim().toLowerCase();
+
+  function matchesSearch(c: Contact): boolean {
+    if (!q) return true;
+    return [
+      c.first_name, c.last_name, c.email, c.phone,
+      c.company, c.group_name, c.notes,
+    ].some((v) => v?.toLowerCase().includes(q));
+  }
+
+  const users = contacts.filter((c) => c.type === "user" && matchesSearch(c));
+  const companies = contacts.filter((c) => c.type === "company" && matchesSearch(c));
+  const groups = contacts.filter((c) => c.type === "distribution_group" && matchesSearch(c));
 
   // Find the contact for the open menu
   const menuContact = contacts.find((c) => c.id === openMenuId) ?? null;
@@ -1046,6 +1059,30 @@ export default function DirectoryClient({
           </div>
         </div>
 
+        {/* Search bar */}
+        <div className="relative mb-6">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, company, email, phone…"
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder-gray-400"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+
         {/* Re-invite success toast */}
         {reinviteSent && (
           <div className="mb-4 px-4 py-3 bg-green-50 border border-green-100 rounded-xl text-sm text-green-700">
@@ -1062,6 +1099,14 @@ export default function DirectoryClient({
             </svg>
             <p className="text-sm text-gray-400">No contacts yet</p>
             <p className="text-xs text-gray-300 mt-1">Use the buttons above to add users, companies, or groups</p>
+          </div>
+        ) : users.length === 0 && companies.length === 0 && groups.length === 0 ? (
+          <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
+            <svg className="w-10 h-10 text-gray-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <p className="text-sm text-gray-400">No results for &ldquo;{search}&rdquo;</p>
+            <button onClick={() => setSearch("")} className="text-xs text-gray-400 underline mt-1 hover:text-gray-700 transition-colors">Clear search</button>
           </div>
         ) : (
           <div className="space-y-8">
