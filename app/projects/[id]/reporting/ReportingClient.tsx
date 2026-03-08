@@ -237,15 +237,7 @@ function downloadCSV(filename: string, csv: string) {
 // Group report types for the selector
 const GROUPS = Array.from(new Set(REPORT_TYPES.map((r) => r.group)));
 
-export default function ReportingClient({
-  projectId,
-  username,
-  role,
-}: {
-  projectId: string;
-  username: string;
-  role: string;
-}) {
+export default function ReportingClient({ projectId }: { projectId: string }) {
   const [selectedType, setSelectedType] = useState<string>("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -287,7 +279,7 @@ export default function ReportingClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ProjectNav projectId={projectId} username={username} role={role} />
+      <ProjectNav projectId={projectId} />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-6">
