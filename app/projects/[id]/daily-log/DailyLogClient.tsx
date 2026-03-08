@@ -171,6 +171,20 @@ const WEATHER_CONDITIONS = [
   "Clear", "Partly Cloudy", "Cloudy", "Light Rain",
   "Heavy Rain", "Snow", "Fog", "Windy", "Other",
 ];
+
+function weatherCodeToCondition(code: number): string {
+  if (code <= 1) return "Clear";
+  if (code === 2) return "Partly Cloudy";
+  if (code === 3) return "Cloudy";
+  if (code === 45 || code === 48) return "Fog";
+  if (code >= 51 && code <= 67) return code >= 63 ? "Heavy Rain" : "Light Rain";
+  if (code >= 71 && code <= 77) return "Snow";
+  if (code === 80 || code === 81) return "Light Rain";
+  if (code === 82) return "Heavy Rain";
+  if (code === 85 || code === 86) return "Snow";
+  if (code >= 95) return "Heavy Rain";
+  return "Other";
+}
 const SKY_OPTIONS = ["", "Clear", "Partly Cloudy", "Cloudy", "Overcast", "Fog"];
 const DELAY_TYPES = [
   "", "Weather", "Labor", "Material", "Equipment",
@@ -828,6 +842,10 @@ export default function DailyLogClient({
   const [savedOnce, setSavedOnce] = useState(false);
   const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
 
+  const formRef = useRef<LogForm>(emptyForm(todayISO()));
+  const logIdRef = useRef<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     loadLog(date);
   }, [date]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -851,6 +869,7 @@ export default function DailyLogClient({
   async function loadLog(d: string) {
     setLoading(true);
     setLogId(null);
+    logIdRef.current = null;
     setDirty(false);
     setSavedOnce(false);
     try {
@@ -858,52 +877,99 @@ export default function DailyLogClient({
       if (res.ok) {
         const data = await res.json();
         if (data) {
-          setForm({
+          const loaded: LogForm = {
             ...emptyForm(d),
             ...data,
             note_entries: data.note_entries ?? [],
             weather_observations: data.weather_observations ?? [],
-          });
+          };
+          setForm(loaded);
+          formRef.current = loaded;
           setLogId(data.id);
+          logIdRef.current = data.id;
           setSavedOnce(true);
+          if (d === todayISO() && !loaded.weather_conditions && !loaded.weather_temp) {
+            fetchAndPrefillWeather(d, data.id, loaded);
+          }
         } else {
-          setForm(emptyForm(d));
+          const empty = emptyForm(d);
+          setForm(empty);
+          formRef.current = empty;
+          if (d === todayISO()) {
+            fetchAndPrefillWeather(d, null, empty);
+          }
         }
       } else {
-        setForm(emptyForm(d));
+        const empty = emptyForm(d);
+        setForm(empty);
+        formRef.current = empty;
       }
     } finally {
       setLoading(false);
     }
   }
 
+  async function fetchAndPrefillWeather(d: string, currentLogId: string | null, currentForm: LogForm) {
+    try {
+      const projRes = await fetch(`/api/projects/${projectId}`);
+      if (!projRes.ok) return;
+      const proj = await projRes.json();
+      const location = [proj.city, proj.state].filter(Boolean).join(", ");
+      if (!location) return;
+
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
+        { headers: { "User-Agent": "SiteCommand/1.0" } },
+      );
+      if (!geoRes.ok) return;
+      const geoData = await geoRes.json();
+      if (!geoData.length) return;
+      const { lat, lon } = geoData[0];
+
+      const wxRes = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,weather_code,relative_humidity_2m&temperature_unit=fahrenheit&wind_speed_unit=mph`,
+      );
+      if (!wxRes.ok) return;
+      const wxData = await wxRes.json();
+      const c = wxData.current;
+
+      const next: LogForm = {
+        ...currentForm,
+        weather_conditions: weatherCodeToCondition(c.weather_code),
+        weather_temp: `${Math.round(c.temperature_2m)}°F`,
+        weather_wind: `${Math.round(c.wind_speed_10m)} mph`,
+        weather_humidity: `${Math.round(c.relative_humidity_2m)}%`,
+      };
+      setForm(next);
+      formRef.current = next;
+      await saveFormData(next, currentLogId);
+    } catch {
+      // silently fail — weather prefill is best-effort
+    }
+  }
+
   function patch<K extends keyof LogForm>(key: K, value: LogForm[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      formRef.current = next;
+      return next;
+    });
     setDirty(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveFormData(formRef.current, logIdRef.current);
+    }, 800);
   }
 
-  function addToList(key: keyof LogForm, entry: unknown) {
-    setForm((prev) => ({ ...prev, [key]: [...(prev[key] as unknown[]), entry] }));
-    setDirty(true);
-  }
-
-  function removeFromList(key: keyof LogForm, id: string) {
-    setForm((prev) => ({
-      ...prev,
-      [key]: (prev[key] as { id: string }[]).filter((e) => e.id !== id),
-    }));
-    setDirty(true);
-  }
-
-  async function handleSave() {
+  async function saveFormData(formData: LogForm, currentLogId: string | null) {
     setSaving(true);
     try {
-      const payload = { ...form, log_date: date };
-      const res = logId
+      const payload = { ...formData, log_date: date };
+      const res = currentLogId
         ? await fetch(`/api/projects/${projectId}/daily-log`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: logId, ...payload }),
+            body: JSON.stringify({ id: currentLogId, ...payload }),
           })
         : await fetch(`/api/projects/${projectId}/daily-log`, {
             method: "POST",
@@ -913,12 +979,32 @@ export default function DailyLogClient({
       if (res.ok) {
         const data = await res.json();
         setLogId(data.id);
+        logIdRef.current = data.id;
         setDirty(false);
         setSavedOnce(true);
       }
     } finally {
       setSaving(false);
     }
+  }
+
+  function addToList(key: keyof LogForm, entry: unknown) {
+    const newForm = { ...form, [key]: [...(form[key] as unknown[]), entry] };
+    setForm(newForm);
+    saveFormData(newForm, logId);
+  }
+
+  function removeFromList(key: keyof LogForm, id: string) {
+    const newForm = {
+      ...form,
+      [key]: (form[key] as { id: string }[]).filter((e) => e.id !== id),
+    };
+    setForm(newForm);
+    saveFormData(newForm, logId);
+  }
+
+  async function handleSave() {
+    await saveFormData(form, logId);
   }
 
   async function handleLogout() {
