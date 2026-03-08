@@ -1065,125 +1065,177 @@ export default function DirectoryClient({
           </div>
         ) : (
           <div className="space-y-8">
-            {/* Users */}
-            {users.length > 0 && (
-              <section>
-                <SectionHeader
-                  label="Users"
-                  count={users.length}
-                  icon={
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  }
-                />
-                <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                        <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
-                        <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Phone</th>
-                        <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Company</th>
-                        <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Permission</th>
-                        <th className="px-4 py-3 w-10"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((c) => (
-                        <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{displayName(c)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">
-                            {c.email ? (
-                              <a href={`mailto:${c.email}`} className="hover:text-gray-900 transition-colors">{c.email}</a>
-                            ) : <span className="text-gray-300">—</span>}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{c.phone || <span className="text-gray-300">—</span>}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{c.company || <span className="text-gray-300">—</span>}</td>
-                          <td className="px-4 py-3"><PermissionBadge value={c.permission} /></td>
-                          <td className="px-4 py-3">
-                            <button
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (openMenuId === c.id) { setOpenMenuId(null); setMenuPos(null); return; }
-                                const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                                setOpenMenuId(c.id);
-                              }}
-                              className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                            >
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
-                              </svg>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
+            {/* Companies with employees grouped underneath */}
+            {(companies.length > 0 || users.length > 0) && (() => {
+              const companyNames = new Set(companies.map((c) => c.company?.toLowerCase()).filter(Boolean));
+              const standaloneUsers = users.filter((u) => !u.company || !companyNames.has(u.company.toLowerCase()));
 
-            {/* Companies */}
-            {companies.length > 0 && (
-              <section>
-                <SectionHeader
-                  label="Companies"
-                  count={companies.length}
-                  icon={
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  }
-                />
-                <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Company</th>
-                        <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
-                        <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Phone</th>
-                        <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Notes</th>
-                        <th className="px-4 py-3 w-10"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {companies.map((c) => (
-                        <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{c.company}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">
-                            {c.email ? (
-                              <a href={`mailto:${c.email}`} className="hover:text-gray-900 transition-colors">{c.email}</a>
-                            ) : <span className="text-gray-300">—</span>}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{c.phone || <span className="text-gray-300">—</span>}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">{c.notes || <span className="text-gray-300">—</span>}</td>
-                          <td className="px-4 py-3">
+              return (
+                <section>
+                  <SectionHeader
+                    label="Companies & Users"
+                    count={companies.length + users.length}
+                    icon={
+                      <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    }
+                  />
+                  <div className="space-y-3">
+                    {/* Each company as a card with employees underneath */}
+                    {companies.map((company) => {
+                      const employees = users.filter(
+                        (u) => u.company && u.company.toLowerCase() === (company.company ?? "").toLowerCase()
+                      );
+                      return (
+                        <div key={company.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                          {/* Company header row */}
+                          <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-100">
+                            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            <span className="text-sm font-semibold text-gray-900 flex-1">{company.company}</span>
+                            {company.email && (
+                              <a href={`mailto:${company.email}`} className="text-xs text-gray-400 hover:text-gray-700 transition-colors hidden sm:block">
+                                {company.email}
+                              </a>
+                            )}
+                            {company.phone && (
+                              <span className="text-xs text-gray-400 hidden md:block">{company.phone}</span>
+                            )}
+                            {employees.length > 0 && (
+                              <span className="text-xs text-gray-400">{employees.length} member{employees.length !== 1 ? "s" : ""}</span>
+                            )}
                             <button
                               onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (openMenuId === c.id) { setOpenMenuId(null); setMenuPos(null); return; }
+                                if (openMenuId === company.id) { setOpenMenuId(null); setMenuPos(null); return; }
                                 const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
                                 setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                                setOpenMenuId(c.id);
+                                setOpenMenuId(company.id);
                               }}
-                              className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                             >
                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                 <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
                               </svg>
                             </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
+                          </div>
+
+                          {/* Employees */}
+                          {employees.length > 0 ? (
+                            <table className="w-full">
+                              <tbody>
+                                {employees.map((emp, i) => (
+                                  <tr key={emp.id} className={`hover:bg-gray-50 transition-colors ${i < employees.length - 1 ? "border-b border-gray-50" : ""}`}>
+                                    <td className="pl-10 pr-4 py-2.5">
+                                      <div className="flex items-center gap-2">
+                                        <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        <span className="text-sm text-gray-900">{displayName(emp)}</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-2.5 text-sm text-gray-500">
+                                      {emp.email ? (
+                                        <a href={`mailto:${emp.email}`} className="hover:text-gray-900 transition-colors">{emp.email}</a>
+                                      ) : <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className="px-4 py-2.5 text-sm text-gray-500 hidden md:table-cell">
+                                      {emp.phone || <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className="px-4 py-2.5">
+                                      <PermissionBadge value={emp.permission} />
+                                    </td>
+                                    <td className="px-4 py-2.5 text-right">
+                                      <button
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (openMenuId === emp.id) { setOpenMenuId(null); setMenuPos(null); return; }
+                                          const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                          setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                          setOpenMenuId(emp.id);
+                                        }}
+                                        className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                                      >
+                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                          <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
+                                        </svg>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <p className="px-10 py-3 text-xs text-gray-400">No members listed</p>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Standalone users (no matching company) */}
+                    {standaloneUsers.length > 0 && (
+                      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-100">
+                          <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          <span className="text-sm font-semibold text-gray-900 flex-1">Individual Users</span>
+                          <span className="text-xs text-gray-400">{standaloneUsers.length} member{standaloneUsers.length !== 1 ? "s" : ""}</span>
+                        </div>
+                        <table className="w-full">
+                          <tbody>
+                            {standaloneUsers.map((u, i) => (
+                              <tr key={u.id} className={`hover:bg-gray-50 transition-colors ${i < standaloneUsers.length - 1 ? "border-b border-gray-50" : ""}`}>
+                                <td className="pl-10 pr-4 py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    <span className="text-sm text-gray-900">{displayName(u)}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5 text-sm text-gray-500">
+                                  {u.email ? (
+                                    <a href={`mailto:${u.email}`} className="hover:text-gray-900 transition-colors">{u.email}</a>
+                                  ) : <span className="text-gray-300">—</span>}
+                                </td>
+                                <td className="px-4 py-2.5 text-sm text-gray-500 hidden md:table-cell">
+                                  {u.phone || <span className="text-gray-300">—</span>}
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <PermissionBadge value={u.permission} />
+                                </td>
+                                <td className="px-4 py-2.5 text-right">
+                                  <button
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (openMenuId === u.id) { setOpenMenuId(null); setMenuPos(null); return; }
+                                      const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                      setOpenMenuId(u.id);
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                                  >
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                      <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
+                                    </svg>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })()}
 
             {/* Distribution Groups */}
             {groups.length > 0 && (
