@@ -11,6 +11,7 @@ type DocItem = {
   mime_type: string | null;
   url: string | null;
   created_at: string;
+  created_by_name: string | null;
   parent_id: string | null;
 };
 
@@ -27,13 +28,21 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-function formatDate(ts: string): string {
+function formatDate(ts: string, createdByName?: string | null): string {
   if (!ts) return "—";
-  return new Date(ts).toLocaleDateString("en-US", {
-    month: "short",
+  const date = new Date(ts);
+  const datePart = date.toLocaleDateString("en-US", {
+    month: "numeric",
     day: "numeric",
     year: "numeric",
   });
+  const timePart = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  const base = `${datePart} at ${timePart}`;
+  return createdByName ? `${base} by ${createdByName}` : base;
 }
 
 function getFileIcon(item: DocItem): React.ReactElement {
@@ -742,7 +751,7 @@ export default function DocumentsClient({
                     Size
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Date
+                    Created On / Latest Version
                   </th>
                   <th className="px-4 py-3 w-32"></th>
                 </tr>
@@ -767,8 +776,8 @@ export default function DocumentsClient({
                     <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                       {item.type === "folder" ? "—" : formatSize(item.size)}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-                      {formatDate(item.created_at)}
+                    <td className="px-4 py-3 text-xs text-gray-400">
+                      {formatDate(item.created_at, item.created_by_name)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-0.5">
