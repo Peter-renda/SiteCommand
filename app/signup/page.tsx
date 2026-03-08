@@ -35,7 +35,7 @@ function SignupForm() {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName, lastName, company, email, password }),
+      body: JSON.stringify({ firstName, lastName, company, email, password, plan }),
     });
 
     const data = await res.json();
@@ -46,17 +46,9 @@ function SignupForm() {
       return;
     }
 
-    if (plan) {
-      const checkoutRes = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-      });
-      const checkoutData = await checkoutRes.json();
-      if (checkoutData.url) {
-        window.location.href = checkoutData.url;
-        return;
-      }
+    if (data.checkoutUrl) {
+      window.location.href = data.checkoutUrl;
+      return;
     }
 
     router.push("/company");
