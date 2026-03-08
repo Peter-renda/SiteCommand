@@ -35,7 +35,7 @@ export async function PATCH(
 
   const allowed = [
     "subject", "question", "due_date", "status",
-    "rfi_manager_id", "received_from_id", "assignee_id", "assignees", "distribution_list",
+    "rfi_manager_id", "received_from_id", "assignees", "distribution_list",
     "responsible_contractor_id", "specification_id", "drawing_number", "attachments",
   ];
   const update: Record<string, unknown> = {};
