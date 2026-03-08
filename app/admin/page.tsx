@@ -88,11 +88,16 @@ export default function AdminPage() {
     }
   }
 
+  const [myCompanyId, setMyCompanyId] = useState<string | null>(null);
+
   async function loadLessonUploads() {
     const res = await fetch("/api/admin/company-lessons");
     if (res.ok) {
       const data = await res.json();
-      setLessonUploads(data);
+      setLessonUploads(data.lessons ?? data);
+      setMyCompanyId(data.myCompanyId ?? null);
+      // Pre-fill for company admins
+      if (data.myCompanyId) setLessonCompanyId(data.myCompanyId);
     }
   }
 
@@ -356,20 +361,22 @@ export default function AdminPage() {
 
         {showLessonsUpload && (
           <form onSubmit={handleLessonUpload} className="mb-6 bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Company</label>
-              <select
-                required
-                value={lessonCompanyId}
-                onChange={(e) => setLessonCompanyId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
-              >
-                <option value="">Select a company…</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+            {!myCompanyId && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Company</label>
+                <select
+                  required
+                  value={lessonCompanyId}
+                  onChange={(e) => setLessonCompanyId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                >
+                  <option value="">Select a company…</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Excel File (.xlsx, .xls, .csv)</label>
               <input
@@ -385,7 +392,7 @@ export default function AdminPage() {
             {lessonUploadSuccess && <p className="text-xs text-green-600">{lessonUploadSuccess}</p>}
             <button
               type="submit"
-              disabled={uploadingLesson || !lessonFile || !lessonCompanyId}
+              disabled={uploadingLesson || !lessonFile || (!myCompanyId && !lessonCompanyId)}
               className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
             >
               {uploadingLesson ? "Uploading…" : "Upload"}

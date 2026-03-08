@@ -5,29 +5,49 @@ import * as XLSX from "xlsx";
 
 export async function GET() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  const isSystemAdmin = session?.role === "admin";
+  const isCompanyAdmin = session?.company_role === "admin" && !!session?.company_id;
+
+  if (!session || (!isSystemAdmin && !isCompanyAdmin)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = getSupabase();
-  const { data, error } = await supabase
+  let query = supabase
     .from("company_lessons")
     .select("id, company_id, filename, uploaded_by_name, uploaded_at, row_count, columns")
     .order("uploaded_at", { ascending: false });
 
+  // Company admins only see their own company's lessons
+  if (isCompanyAdmin) {
+    query = query.eq("company_id", session.company_id!);
+  }
+
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+
+  return NextResponse.json({
+    lessons: data || [],
+    myCompanyId: session.company_id ?? null,
+  });
 }
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  const isSystemAdmin = session?.role === "admin";
+  const isCompanyAdmin = session?.company_role === "admin" && !!session?.company_id;
+
+  if (!session || (!isSystemAdmin && !isCompanyAdmin)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
-  const companyId = formData.get("company_id") as string | null;
+
+  // Company admins always upload to their own company; system admin picks one
+  const companyId = isCompanyAdmin
+    ? session.company_id!
+    : (formData.get("company_id") as string | null);
 
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
   if (!companyId) return NextResponse.json({ error: "No company selected" }, { status: 400 });
