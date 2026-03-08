@@ -79,8 +79,8 @@ export default function CompanyClient({
       return;
     }
 
-    setInviteSuccess(`Invitation sent to ${inviteEmail}`);
     setInviteEmail("");
+    setShowAddUser(false);
 
     const res2 = await fetch("/api/company/invites");
     if (res2.ok) {
