@@ -135,26 +135,17 @@ function UserModal({
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Company</label>
-            {companies.length > 0 ? (
-              <select
-                value={form.company}
-                onChange={(e) => set("company", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-              >
-                <option value="">Select company...</option>
-                {companies.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={form.company}
-                onChange={(e) => set("company", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                placeholder="Company name"
-              />
-            )}
+            <input
+              type="text"
+              list="company-suggestions"
+              value={form.company}
+              onChange={(e) => set("company", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              placeholder="Company name"
+            />
+            <datalist id="company-suggestions">
+              {companies.map((c) => <option key={c} value={c} />)}
+            </datalist>
           </div>
 
           <div>
