@@ -19,6 +19,147 @@ type BreadcrumbItem = { id: string | null; name: string };
 
 type FolderOption = { id: string | null; name: string; depth: number };
 
+function InfoSidebar({
+  item,
+  projectName,
+  breadcrumb,
+  onClose,
+}: {
+  item: DocItem;
+  projectName: string;
+  breadcrumb: BreadcrumbItem[];
+  onClose: () => void;
+}) {
+  const [trackingOpen, setTrackingOpen] = useState(false);
+
+  const locationName =
+    breadcrumb.length > 1
+      ? breadcrumb[breadcrumb.length - 1].name
+      : projectName;
+
+  const dateOnly = item.created_at
+    ? new Date(item.created_at).toLocaleDateString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        year: "numeric",
+      })
+    : "—";
+  const timeOnly = item.created_at
+    ? new Date(item.created_at).toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "";
+  const createdOnDisplay = item.created_at ? `${dateOnly} at ${timeOnly}` : "—";
+
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end">
+      {/* Backdrop */}
+      <div className="absolute inset-0" onClick={onClose} />
+      {/* Panel */}
+      <div className="relative w-80 bg-white border-l border-gray-200 shadow-xl h-full overflow-y-auto flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <span className="text-sm font-semibold text-gray-900">Details</span>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 px-5 py-5 space-y-6">
+          {/* General Information */}
+          <section>
+            <h3 className="text-sm font-bold text-gray-900 mb-4">General Information</h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Title</p>
+                <div className="bg-gray-100 rounded px-3 py-2 text-sm text-gray-900">
+                  {item.name}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Created On</p>
+                <p className="text-sm text-gray-900">{createdOnDisplay}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Location</p>
+                <div className="flex items-center gap-1.5">
+                  <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                  </svg>
+                  <span className="text-sm text-blue-600">{locationName}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div className="border-t border-gray-100" />
+
+          {/* Permissions */}
+          <section>
+            <h3 className="text-sm font-bold text-gray-900 mb-4">Permissions</h3>
+            <label className="flex items-center gap-2 mb-3 cursor-pointer">
+              <input type="checkbox" className="w-4 h-4 rounded border-gray-300 accent-gray-900" />
+              <span className="text-sm text-gray-900">Make Private</span>
+              <span title="Private items are only visible to you and admins">
+                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+              </span>
+            </label>
+            <p className="text-xs text-gray-600">
+              This {item.type} is public to everybody in:{" "}
+              <span className="font-bold">{projectName}</span>
+            </p>
+          </section>
+
+          <div className="border-t border-gray-100" />
+
+          {/* Tracking */}
+          <section>
+            <button
+              onClick={() => setTrackingOpen((o) => !o)}
+              className="flex items-center gap-2 w-full text-left"
+            >
+              <svg
+                className={`w-4 h-4 text-gray-500 transition-transform ${trackingOpen ? "rotate-90" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="text-sm font-bold text-gray-900">Tracking</span>
+            </button>
+            {trackingOpen && (
+              <div className="mt-3 text-xs text-gray-400 pl-6">No tracking info available.</div>
+            )}
+          </section>
+
+          <div className="border-t border-gray-100" />
+
+          {/* Change History */}
+          <section>
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              <span className="text-sm font-bold text-gray-900">Change History</span>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function formatSize(bytes: number | null): string {
   if (bytes === null || bytes === undefined) return "—";
   if (bytes === 0) return "0 B";
@@ -335,6 +476,8 @@ export default function DocumentsClient({
   const [moveTarget, setMoveTarget] = useState<DocItem | null>(null);
   const [allFolders, setAllFolders] = useState<{ id: string; name: string; parent_id: string | null }[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [infoItem, setInfoItem] = useState<DocItem | null>(null);
+  const [projectName, setProjectName] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -371,6 +514,10 @@ export default function DocumentsClient({
   // Initial load
   useEffect(() => {
     loadItems(null);
+    fetch(`/api/projects/${projectId}`)
+      .then((r) => r.json())
+      .then((d) => { if (d?.name) setProjectName(d.name); })
+      .catch(() => {});
   }, [projectId]);
 
   async function loadItems(parentId: string | null) {
@@ -803,6 +950,18 @@ export default function DocumentsClient({
                           </svg>
                         </button>
 
+                        {/* Info button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setInfoItem(item); }}
+                          title="Details"
+                          className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <circle cx="12" cy="12" r="10" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4M12 8h.01" />
+                          </svg>
+                        </button>
+
                         {/* Three-dot menu */}
                         <button
                           onMouseDown={(e) => e.stopPropagation()}
@@ -868,6 +1027,16 @@ export default function DocumentsClient({
           excludeId={moveTarget.id}
           onConfirm={handleMove}
           onCancel={() => setMoveTarget(null)}
+        />
+      )}
+
+      {/* Info sidebar */}
+      {infoItem && (
+        <InfoSidebar
+          item={infoItem}
+          projectName={projectName}
+          breadcrumb={breadcrumb}
+          onClose={() => setInfoItem(null)}
         />
       )}
 
