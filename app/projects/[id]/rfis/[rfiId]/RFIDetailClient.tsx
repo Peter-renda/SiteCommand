@@ -24,6 +24,7 @@ type RFI = {
   status: string;
   rfi_manager_id: string | null;
   received_from_id: string | null;
+  assignee_id: string | null;
   assignees: DirContact[];
   distribution_list: DirContact[];
   responsible_contractor_id: string | null;
@@ -244,6 +245,10 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
               <div>
                 <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Received From</dt>
                 <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.received_from_id)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</dt>
+                <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.assignee_id)}</dd>
               </div>
               <div className="col-span-2">
                 <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Assignees</dt>

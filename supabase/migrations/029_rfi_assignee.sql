@@ -1,0 +1,1 @@
+ALTER TABLE rfis ADD COLUMN IF NOT EXISTS assignee_id UUID REFERENCES directory_contacts(id) ON DELETE SET NULL;

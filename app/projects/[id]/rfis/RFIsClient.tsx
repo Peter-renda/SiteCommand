@@ -24,6 +24,7 @@ type RFI = {
   status: string;
   rfi_manager_id: string | null;
   received_from_id: string | null;
+  assignee_id: string | null;
   assignees: DirContact[];
   distribution_list: DirContact[];
   responsible_contractor_id: string | null;
@@ -36,7 +37,7 @@ type RFI = {
 
 
 const STATUSES = ["open", "closed", "draft"];
-const COLUMN_KEYS = ["rfi_number", "subject", "due_date", "status", "rfi_manager", "received_from", "assignees", "distribution", "responsible_contractor", "specification", "drawing_number", "created_at"] as const;
+const COLUMN_KEYS = ["rfi_number", "subject", "due_date", "status", "rfi_manager", "received_from", "assignee", "assignees", "distribution", "responsible_contractor", "specification", "drawing_number", "created_at"] as const;
 const COLUMN_LABELS: Record<typeof COLUMN_KEYS[number], string> = {
   rfi_number: "RFI #",
   subject: "Subject",
@@ -44,6 +45,7 @@ const COLUMN_LABELS: Record<typeof COLUMN_KEYS[number], string> = {
   status: "Status",
   rfi_manager: "RFI Manager",
   received_from: "Received From",
+  assignee: "Assignee",
   assignees: "Assignees",
   distribution: "Distribution",
   responsible_contractor: "Responsible Contractor",
@@ -180,6 +182,7 @@ function CreateRFIModal({
     status: "open" | "draft";
     rfi_manager_id: string | null;
     received_from_id: string | null;
+    assignee_id: string | null;
     assignees: DirContact[];
     distribution_list: DirContact[];
     responsible_contractor_id: string | null;
@@ -195,6 +198,7 @@ function CreateRFIModal({
   const [status, setStatus] = useState("open");
   const [rfiManagerId, setRfiManagerId] = useState<string | null>(null);
   const [receivedFromId, setReceivedFromId] = useState<string | null>(null);
+  const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [assignees, setAssignees] = useState<DirContact[]>([]);
   const [distributionList, setDistributionList] = useState<DirContact[]>([]);
   const [responsibleContractorId, setResponsibleContractorId] = useState<string | null>(null);
@@ -286,6 +290,11 @@ function CreateRFIModal({
           </div>
 
           <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Assignee</label>
+            <SingleContactPicker directory={directory} selectedId={assigneeId} onChange={setAssigneeId} placeholder="Select assignee..." />
+          </div>
+
+          <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Assignees</label>
             <MultiContactPicker directory={directory} selected={assignees} onChange={setAssignees} placeholder="Select users..." />
           </div>
@@ -318,8 +327,8 @@ function CreateRFIModal({
 
           <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
             <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "draft", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFile })} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create as Draft</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "open", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFile })} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create as Open</button>
+            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "draft", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignee_id: assigneeId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFile })} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create as Draft</button>
+            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "open", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignee_id: assigneeId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFile })} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create as Open</button>
           </div>
         </div>
       </div>
@@ -355,6 +364,7 @@ function exportRFIsPDF(rfis: RFI[], directory: DirectoryContact[], specification
         case "status": return r.status;
         case "rfi_manager": return getContactNameById(directory, r.rfi_manager_id);
         case "received_from": return getContactNameById(directory, r.received_from_id);
+        case "assignee": return getContactNameById(directory, r.assignee_id);
         case "assignees": return (r.assignees ?? []).map((a) => a.name).join(", ") || "—";
         case "distribution": return (r.distribution_list ?? []).map((d) => d.name).join(", ") || "—";
         case "responsible_contractor": return getContactNameById(directory, r.responsible_contractor_id);
@@ -420,6 +430,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
     status: "open" | "draft";
     rfi_manager_id: string | null;
     received_from_id: string | null;
+    assignee_id: string | null;
     assignees: DirContact[];
     distribution_list: DirContact[];
     responsible_contractor_id: string | null;
@@ -439,6 +450,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
         status: data.status,
         rfi_manager_id: data.rfi_manager_id,
         received_from_id: data.received_from_id,
+        assignee_id: data.assignee_id,
         assignees: data.assignees,
         distribution_list: data.distribution_list,
         responsible_contractor_id: data.responsible_contractor_id,
@@ -584,6 +596,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                         case "status": cell = <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${rfi.status === "open" ? "bg-blue-50 text-blue-700" : rfi.status === "closed" ? "bg-gray-100 text-gray-600" : "bg-amber-50 text-amber-700"}`}>{rfi.status}</span>; break;
                         case "rfi_manager": cell = getContactNameById(directory, rfi.rfi_manager_id); break;
                         case "received_from": cell = getContactNameById(directory, rfi.received_from_id); break;
+                        case "assignee": cell = getContactNameById(directory, rfi.assignee_id); break;
                         case "assignees": cell = (rfi.assignees ?? []).map((a) => a.name).join(", ") || "—"; break;
                         case "distribution": cell = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
                         case "responsible_contractor": cell = getContactNameById(directory, rfi.responsible_contractor_id); break;
