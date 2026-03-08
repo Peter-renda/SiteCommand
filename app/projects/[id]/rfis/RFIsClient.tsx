@@ -163,6 +163,54 @@ function SingleContactPicker({
   );
 }
 
+function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex items-center gap-2 text-base font-semibold text-gray-900 hover:text-gray-700 transition-colors select-none"
+    >
+      <svg
+        className={`w-4 h-4 text-gray-500 transition-transform ${open ? "" : "-rotate-90"}`}
+        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+      {title}
+    </button>
+  );
+}
+
+function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label className="block text-xs font-medium text-gray-600 mb-1">
+      {children}
+      {required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+  );
+}
+
+function RequiredError({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <p className="flex items-center gap-1 text-xs text-red-600 mt-1">
+      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+      </svg>
+      Required Field
+    </p>
+  );
+}
+
+function ReadOnlyField({ label, value = "—" }: { label: string; value?: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-600 mb-1">{label}</p>
+      <p className="text-sm text-gray-400">{value}</p>
+    </div>
+  );
+}
+
 function CreateRFIModal({
   nextNumber,
   directory,
@@ -192,7 +240,6 @@ function CreateRFIModal({
   const [subject, setSubject] = useState("");
   const [question, setQuestion] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [status, setStatus] = useState("open");
   const [rfiManagerId, setRfiManagerId] = useState<string | null>(null);
   const [receivedFromId, setReceivedFromId] = useState<string | null>(null);
   const [assignees, setAssignees] = useState<DirContact[]>([]);
@@ -200,127 +247,265 @@ function CreateRFIModal({
   const [responsibleContractorId, setResponsibleContractorId] = useState<string | null>(null);
   const [specificationId, setSpecificationId] = useState<string | null>(null);
   const [drawingNumber, setDrawingNumber] = useState("");
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [reference, setReference] = useState("");
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(true);
+  const [generalOpen, setGeneralOpen] = useState(true);
+  const [submitted, setSubmitted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) setAttachmentFile(file);
+  function addFiles(files: FileList | null) {
+    if (!files) return;
+    setAttachmentFiles((prev) => [...prev, ...Array.from(files)]);
+  }
+  function removeFile(idx: number) {
+    setAttachmentFiles((prev) => prev.filter((_, i) => i !== idx));
   }
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) setAttachmentFile(file);
+    addFiles(e.dataTransfer.files);
   }
 
+  function isValid() {
+    return subject.trim() !== "" && dueDate !== "" && rfiManagerId !== null && assignees.length > 0;
+  }
+
+  function handleSubmit(status: "open" | "draft") {
+    setSubmitted(true);
+    if (!isValid()) return;
+    onConfirm({
+      subject, question, due_date: dueDate, status,
+      rfi_manager_id: rfiManagerId, received_from_id: receivedFromId,
+      assignees, distribution_list: distributionList,
+      responsible_contractor_id: responsibleContractorId,
+      specification_id: specificationId, drawing_number: drawingNumber || reference,
+      attachmentFile: attachmentFiles[0] ?? null,
+    });
+  }
+
+  const inputBase = "w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 bg-white";
+  const inputNormal = `${inputBase} border-gray-300 focus:ring-blue-500 focus:border-blue-500`;
+  const inputError = `${inputBase} border-red-400 focus:ring-red-400 focus:border-red-400`;
+
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-6 overflow-y-auto">
-      <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl my-auto max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
-          <h2 className="text-sm font-semibold text-gray-900">Create RFI</h2>
-          <button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 overflow-y-auto py-6 px-4">
+      <div className="bg-gray-50 rounded-xl w-full max-w-6xl shadow-2xl my-auto">
+
+        {/* Page header */}
+        <div className="flex items-center justify-between px-8 py-5 bg-white rounded-t-xl border-b border-gray-200">
+          <h1 className="text-xl font-bold text-gray-900">New RFI</h1>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors bg-white">
+              Cancel
+            </button>
+            <button type="button" onClick={() => handleSubmit("draft")} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors bg-white">
+              Save as Draft
+            </button>
+            <button type="button" onClick={() => handleSubmit("open")} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors">
+              Create RFI
+            </button>
+          </div>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">RFI Number</label>
-              <input type="text" readOnly value={nextNumber} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
+        <div className="px-8 py-6 space-y-4">
+
+          {/* ── Request section ── */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <SectionHeader title="Request" open={requestOpen} onToggle={() => setRequestOpen((o) => !o)} />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Due Date</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
+            {requestOpen && (
+              <div className="px-6 py-5">
+                {/* Subject — full width */}
+                <div className="mb-4">
+                  <FieldLabel required>Subject</FieldLabel>
+                  <input
+                    type="text"
+                    maxLength={200}
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className={submitted && !subject.trim() ? inputError : inputNormal}
+                    placeholder=""
+                  />
+                  <RequiredError show={submitted && !subject.trim()} />
+                </div>
+
+                {/* Question (left) + Attachments (right) */}
+                <div className="grid grid-cols-5 gap-6">
+                  {/* Question – 3/5 width */}
+                  <div className="col-span-3">
+                    <FieldLabel>Question</FieldLabel>
+                    <textarea
+                      value={question}
+                      onChange={(e) => setQuestion(e.target.value)}
+                      rows={8}
+                      className={`${inputNormal} resize-none`}
+                      placeholder=""
+                    />
+                  </div>
+
+                  {/* Attachments – 2/5 width */}
+                  <div className="col-span-2">
+                    <FieldLabel>Attachments</FieldLabel>
+                    <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={handleDrop}
+                      className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-3 transition-colors cursor-pointer min-h-[200px] ${dragOver ? "border-blue-400 bg-blue-50" : "border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100"}`}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {attachmentFiles.length === 0 ? (
+                        <>
+                          <div className="w-14 h-14 rounded-lg bg-gray-300 flex items-center justify-center">
+                            <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                            </svg>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                            className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors"
+                          >
+                            Attach Files
+                          </button>
+                          <p className="text-xs text-gray-500">or Drag &amp; Drop</p>
+                        </>
+                      ) : (
+                        <div className="w-full px-4 py-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                          {attachmentFiles.map((f, i) => (
+                            <div key={i} className="flex items-center justify-between gap-2 bg-white border border-gray-200 rounded px-3 py-2">
+                              <span className="text-xs text-gray-700 truncate">{f.name}</span>
+                              <button type="button" onClick={() => removeFile(i)} className="text-gray-400 hover:text-red-500 flex-shrink-0 transition-colors">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="mt-1 text-xs text-blue-600 hover:underline"
+                          >
+                            + Add more files
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── General Information section ── */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <SectionHeader title="General Information" open={generalOpen} onToggle={() => setGeneralOpen((o) => !o)} />
             </div>
+            {generalOpen && (
+              <div className="px-6 py-5 space-y-6">
+
+                {/* Row 1: Number | Due Date | RFI Manager | Status */}
+                <div className="grid grid-cols-4 gap-5">
+                  <div>
+                    <FieldLabel required>Number</FieldLabel>
+                    <input type="text" readOnly value={nextNumber} className={`${inputBase} border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed`} />
+                  </div>
+                  <div>
+                    <FieldLabel required>Due Date</FieldLabel>
+                    <input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className={submitted && !dueDate ? inputError : inputNormal}
+                    />
+                    <RequiredError show={submitted && !dueDate} />
+                  </div>
+                  <div>
+                    <FieldLabel required>RFI Manager</FieldLabel>
+                    <div className={submitted && !rfiManagerId ? "ring-2 ring-red-400 rounded" : ""}>
+                      <SingleContactPicker directory={directory} selectedId={rfiManagerId} onChange={setRfiManagerId} placeholder="Select a person" />
+                    </div>
+                    <RequiredError show={submitted && !rfiManagerId} />
+                  </div>
+                  <ReadOnlyField label="Status" />
+                </div>
+
+                {/* Row 2: Received From | Assignees | Distribution List | Ball In Court */}
+                <div className="grid grid-cols-4 gap-5">
+                  <div>
+                    <FieldLabel>Received From</FieldLabel>
+                    <SingleContactPicker directory={directory} selectedId={receivedFromId} onChange={setReceivedFromId} placeholder="Select a person" />
+                  </div>
+                  <div>
+                    <FieldLabel required>Assignees</FieldLabel>
+                    <div className={submitted && assignees.length === 0 ? "ring-2 ring-red-400 rounded" : ""}>
+                      <MultiContactPicker directory={directory} selected={assignees} onChange={setAssignees} placeholder="Select a person" />
+                    </div>
+                    <RequiredError show={submitted && assignees.length === 0} />
+                  </div>
+                  <div>
+                    <FieldLabel>Distribution List</FieldLabel>
+                    <MultiContactPicker directory={directory} selected={distributionList} onChange={setDistributionList} placeholder="Select a person" />
+                  </div>
+                  <ReadOnlyField label="Ball In Court" />
+                </div>
+
+                {/* Row 3: Responsible Contractor | Specification | Drawing Number | Created By */}
+                <div className="grid grid-cols-4 gap-5">
+                  <div>
+                    <FieldLabel>Responsible Contractor</FieldLabel>
+                    <SingleContactPicker directory={directory} selectedId={responsibleContractorId} onChange={setResponsibleContractorId} filterType="company" placeholder="Select a vendor" />
+                  </div>
+                  <div>
+                    <FieldLabel>Specification</FieldLabel>
+                    <select
+                      value={specificationId ?? ""}
+                      onChange={(e) => setSpecificationId(e.target.value || null)}
+                      className={inputNormal}
+                    >
+                      <option value="">Select a Specification</option>
+                      {specifications.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ""}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <FieldLabel>Drawing Number</FieldLabel>
+                    <input
+                      type="text"
+                      value={drawingNumber}
+                      onChange={(e) => setDrawingNumber(e.target.value)}
+                      placeholder=""
+                      className={inputNormal}
+                    />
+                  </div>
+                  <ReadOnlyField label="Created By" />
+                </div>
+
+                {/* Row 4: Reference | (empty) | (empty) | Date Initiated */}
+                <div className="grid grid-cols-4 gap-5">
+                  <div>
+                    <FieldLabel>Reference</FieldLabel>
+                    <input
+                      type="text"
+                      value={reference}
+                      onChange={(e) => setReference(e.target.value)}
+                      placeholder=""
+                      className={inputNormal}
+                    />
+                  </div>
+                  <div />
+                  <div />
+                  <ReadOnlyField label="Date Initiated" />
+                </div>
+
+              </div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Subject (max 200 characters)</label>
-            <input type="text" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
-            <p className="text-xs text-gray-400 mt-0.5">{subject.length}/200</p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Question</label>
-            <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={4} placeholder="Question..." className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Attachment</label>
-            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${dragOver ? "border-gray-400 bg-gray-50" : "border-gray-200 hover:border-gray-300"} ${attachmentFile ? "bg-gray-50" : ""}`}
-            >
-              {attachmentFile ? (
-                <p className="text-sm text-gray-700">{attachmentFile.name}</p>
-              ) : (
-                <p className="text-sm text-gray-500">Drag and drop a file or click to attach</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
-                <option value="open">Open</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">RFI Manager</label>
-              <SingleContactPicker directory={directory} selectedId={rfiManagerId} onChange={setRfiManagerId} placeholder="Select user..." />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Received From</label>
-            <SingleContactPicker directory={directory} selectedId={receivedFromId} onChange={setReceivedFromId} placeholder="Select user..." />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Assignees</label>
-            <MultiContactPicker directory={directory} selected={assignees} onChange={setAssignees} placeholder="Select users..." />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Distribution List</label>
-            <MultiContactPicker directory={directory} selected={distributionList} onChange={setDistributionList} placeholder="Select users..." />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Responsible Contractor</label>
-            <SingleContactPicker directory={directory} selectedId={responsibleContractorId} onChange={setResponsibleContractorId} filterType="company" placeholder="Select company..." />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Specification</label>
-              <select value={specificationId ?? ""} onChange={(e) => setSpecificationId(e.target.value || null)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
-                <option value="">Select specification...</option>
-                {specifications.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ""}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Drawing Number</label>
-              <input type="text" value={drawingNumber} onChange={(e) => setDrawingNumber(e.target.value)} placeholder="Drawing number" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
-            </div>
-          </div>
-
-          <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
-            <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "draft", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFile })} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create as Draft</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "open", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFile })} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create as Open</button>
-          </div>
         </div>
       </div>
     </div>
