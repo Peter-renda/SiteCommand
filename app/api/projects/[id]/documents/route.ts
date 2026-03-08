@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   let query = supabase
     .from("documents")
-    .select("*")
+    .select("*, creator:users!created_by(first_name, last_name)")
     .eq("project_id", projectId)
     .order("type", { ascending: false })
     .order("name", { ascending: true });
@@ -36,12 +36,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const { data } = await query;
-  const items = (data || []).map((doc) => ({
-    ...doc,
-    url: doc.storage_path
-      ? supabase.storage.from("project-documents").getPublicUrl(doc.storage_path).data.publicUrl
-      : null,
-  }));
+  const items = (data || []).map((doc) => {
+    const { creator, ...rest } = doc;
+    const creatorName = creator
+      ? [creator.first_name, creator.last_name].filter(Boolean).join(" ") || null
+      : null;
+    return {
+      ...rest,
+      created_by_name: creatorName,
+      url: doc.storage_path
+        ? supabase.storage.from("project-documents").getPublicUrl(doc.storage_path).data.publicUrl
+        : null,
+    };
+  });
 
   return NextResponse.json(items);
 }
