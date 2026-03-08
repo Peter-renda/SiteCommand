@@ -239,8 +239,9 @@ const GROUPS = Array.from(new Set(REPORT_TYPES.map((r) => r.group)));
 
 export default function ReportingClient({ projectId }: { projectId: string }) {
   const [selectedType, setSelectedType] = useState<string>("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = new Date();
+  const [startDate, setStartDate] = useState(`${today.getFullYear()}-01-01`);
+  const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
