@@ -33,11 +33,11 @@ export async function POST(req: NextRequest) {
 
   let redirect: string | null = null;
   if (user.role !== "admin") {
-    if (user.company_role === "admin") {
-      redirect = "/company";
-    } else if (!user.company_id) {
+    if (!user.company_id) {
+      // No company at all — send to pricing to pick a plan
       redirect = "/pricing";
-    } else {
+    } else if (user.company_role === "admin") {
+      // Company owner — check subscription status
       const { data: company } = await supabase
         .from("companies")
         .select("subscription_status")
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
         redirect = "/pricing";
       }
     }
+    // Invited members always go to /dashboard
   }
 
   const res = NextResponse.json({ message: "Logged in", redirect });
