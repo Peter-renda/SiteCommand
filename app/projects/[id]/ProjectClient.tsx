@@ -403,22 +403,22 @@ export default function ProjectClient({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
+      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
+        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors shrink-0">
           SiteCommand
         </a>
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
           {role === "admin" && (
-            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">Admin</a>
+            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">Admin</a>
           )}
-          <span className="text-sm text-gray-400">{username}</span>
-          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button>
+          <span className="hidden sm:block text-sm text-gray-400 truncate max-w-[120px]">{username}</span>
+          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors shrink-0">Logout</button>
         </div>
       </header>
 
       {project && <ProjectNav projectId={project.id} showBackToProject={false} />}
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {loading ? (
           <p className="text-sm text-gray-400">Loading...</p>
         ) : notFound ? (
@@ -426,8 +426,8 @@ export default function ProjectClient({
         ) : project ? (
           <>
             {/* Centered project name */}
-            <div className="text-center mb-10">
-              <h1 className="text-5xl font-bold text-gray-900">{project.name}</h1>
+            <div className="text-center mb-6 sm:mb-10">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-gray-900">{project.name}</h1>
             </div>
 
             {/* Two-column layout */}

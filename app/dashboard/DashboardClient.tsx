@@ -270,23 +270,23 @@ export default function DashboardClient({ username, email, role, companyRole }: 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
-        <div className="flex items-center gap-5">
+      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
+        <span className="text-sm font-semibold text-gray-900 shrink-0">SiteCommand</span>
+        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
           {role === "admin" && (
-            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">
+            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">
               Admin
             </a>
           )}
           {companyRole === "admin" && (
-            <a href="/company" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">
+            <a href="/company" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">
               Team
             </a>
           )}
-          <span className="text-sm text-gray-400">{username}</span>
+          <span className="hidden sm:block text-sm text-gray-400 truncate max-w-[120px]">{username}</span>
           <button
             onClick={openSettings}
-            className="text-gray-400 hover:text-gray-700 transition-colors"
+            className="text-gray-400 hover:text-gray-700 transition-colors shrink-0"
             title="Account Settings"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -294,13 +294,13 @@ export default function DashboardClient({ username, email, role, companyRole }: 
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
-          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">
+          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors shrink-0">
             Logout
           </button>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="flex items-center justify-between mb-8">
           <div></div>
           {(role === "admin" || companyRole === "admin") && (

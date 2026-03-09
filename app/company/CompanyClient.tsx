@@ -140,14 +140,14 @@ export default function CompanyClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
+      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
         <a href="/dashboard" className="text-sm text-gray-400 hover:text-gray-900 transition-colors">
           ← Dashboard
         </a>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-10">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-8">
           <h1 className="text-xl font-semibold text-gray-900">{company?.name ?? "Team"}</h1>
           <div className="flex items-center gap-3 mt-1">
