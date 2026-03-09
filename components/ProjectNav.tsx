@@ -166,7 +166,7 @@ export default function ProjectNav({
 
   return (
     <>
-      <nav className="bg-white border-b border-gray-100 w-full px-6 flex items-center gap-4">
+      <nav className="bg-white border-b border-gray-100 w-full px-6 flex items-center gap-4 overflow-visible relative">
         {/* All Projects */}
         <a
           href="/dashboard"
@@ -210,7 +210,7 @@ export default function ProjectNav({
             </svg>
           </button>
           {open && (
-            <div className="absolute left-0 top-full mt-1 w-[580px] bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-5">
+            <div className="absolute left-0 top-full mt-1 w-[580px] bg-white border border-gray-100 rounded-xl shadow-xl z-[9999] p-5">
               <div className="grid grid-cols-3 gap-6">
                 {TOOL_SECTIONS.map((section) => (
                   <div key={section.label}>
