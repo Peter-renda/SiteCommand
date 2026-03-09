@@ -60,6 +60,8 @@ export async function POST(req: NextRequest) {
     project_number, sector, value, status,
     start_date, actual_start_date, completion_date,
     projected_finish_date, warranty_start_date, warranty_end_date,
+    company_id: bodyCompanyId,
+    memberIds,
   } = await req.json();
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
@@ -78,12 +80,26 @@ export async function POST(req: NextRequest) {
       projected_finish_date: projected_finish_date || null,
       warranty_start_date: warranty_start_date || null,
       warranty_end_date: warranty_end_date || null,
-      company_id: session.role === "admin" ? null : session.company_id,
+      company_id: session.role === "admin" ? (bodyCompanyId || null) : session.company_id,
     })
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
+
+  // Add initial members to project_memberships
+  if (Array.isArray(memberIds) && memberIds.length > 0) {
+    const companyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
+    await supabase.from("project_memberships").insert(
+      memberIds.map((uid: string) => ({
+        project_id: project.id,
+        user_id: uid,
+        company_id: companyId,
+        role: "member",
+        invited_by: session.id,
+      }))
+    );
+  }
 
   return NextResponse.json({ ...project, members: [] });
 }

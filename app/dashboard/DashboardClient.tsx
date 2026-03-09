@@ -303,7 +303,7 @@ export default function DashboardClient({ username, email, role, companyRole }: 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="flex items-center justify-between mb-8">
           <div></div>
-          {(role === "admin" || companyRole === "admin") && (
+          {role === "admin" && (
             <button
               onClick={openModal}
               className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
@@ -332,13 +332,6 @@ export default function DashboardClient({ username, email, role, companyRole }: 
           <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 flex flex-col items-center justify-center text-center">
             <p className="text-sm font-medium text-gray-500 mb-1">No projects yet</p>
             {role === "admin" ? (
-              <>
-                <p className="text-xs text-gray-400 mb-6">Create your first project to get started.</p>
-                <button onClick={openModal} className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors">
-                  New Project
-                </button>
-              </>
-            ) : companyRole === "admin" ? (
               <>
                 <p className="text-xs text-gray-400 mb-6">Create your first project to get started.</p>
                 <button onClick={openModal} className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors">
