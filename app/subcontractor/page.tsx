@@ -26,17 +26,23 @@ export default async function SubcontractorPage() {
     `)
     .eq("user_id", session.id);
 
+  type RawProject = {
+    id: string;
+    name: string;
+    description: string | null;
+    address: string | null;
+    status: string;
+    value: number;
+    company_id: string;
+    companies: { name: string } | { name: string }[] | null;
+  };
+
   const projects = (memberships ?? []).map((m) => {
-    const project = m.projects as {
-      id: string;
-      name: string;
-      description: string | null;
-      address: string | null;
-      status: string;
-      value: number;
-      company_id: string;
-      companies: { name: string } | null;
-    } | null;
+    const project = (m.projects as unknown) as RawProject | null;
+    const companiesRaw = project?.companies;
+    const companyName = Array.isArray(companiesRaw)
+      ? (companiesRaw[0]?.name ?? "")
+      : (companiesRaw?.name ?? "");
 
     return {
       id: project?.id ?? "",
@@ -45,7 +51,7 @@ export default async function SubcontractorPage() {
       address: project?.address ?? null,
       status: project?.status ?? "",
       value: project?.value ?? 0,
-      companyName: (project?.companies as { name: string } | null)?.name ?? "",
+      companyName,
       role: m.role as string,
       allowedSections: (m.allowed_sections as string[] | null) ?? null,
     };
