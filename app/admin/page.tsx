@@ -68,6 +68,8 @@ export default function AdminPage() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [savingProjects, setSavingProjects] = useState(false);
 
+  const [myCompanyId, setMyCompanyId] = useState<string | null>(null);
+
   async function loadUsers() {
     const res = await fetch("/api/admin/users");
     if (!res.ok) {
@@ -88,15 +90,12 @@ export default function AdminPage() {
     }
   }
 
-  const [myCompanyId, setMyCompanyId] = useState<string | null>(null);
-
   async function loadLessonUploads() {
     const res = await fetch("/api/admin/company-lessons");
     if (res.ok) {
       const data = await res.json();
       setLessonUploads(data.lessons ?? data);
       setMyCompanyId(data.myCompanyId ?? null);
-      // Pre-fill for company admins
       if (data.myCompanyId) setLessonCompanyId(data.myCompanyId);
     }
   }
@@ -107,13 +106,26 @@ export default function AdminPage() {
     loadLessonUploads();
   }, []);
 
+  // Optimistic system-role update — reflects in the table immediately
   async function handleRoleChange(id: string, role: string) {
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)));
     const res = await fetch("/api/admin/role", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, role }),
     });
-    if (res.ok) loadUsers();
+    if (!res.ok) loadUsers(); // revert on error
+  }
+
+  // Optimistic company-role update
+  async function handleCompanyRoleChange(id: string, company_role: string) {
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, company_role } : u)));
+    const res = await fetch("/api/admin/company-role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, company_role }),
+    });
+    if (!res.ok) loadUsers(); // revert on error
   }
 
   async function handleInvite(e: React.FormEvent) {
@@ -228,13 +240,13 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white px-6 py-16 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-10">
+    <div className="min-h-screen bg-white px-4 sm:px-6 py-12 sm:py-16 max-w-4xl mx-auto">
+      <div className="flex items-start justify-between mb-10 gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
           <p className="text-sm text-gray-400 mt-1">Manage users, roles, and project access.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
           <button
             onClick={() => {
               setShowAddUser(true);
@@ -264,67 +276,109 @@ export default function AdminPage() {
             {users.map((user) => (
               <div
                 key={user.id}
-                className={`flex items-center justify-between px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${
-                  user.company_id ? "hover:bg-gray-50 cursor-pointer" : ""
-                }`}
-                onClick={() => openUserProjects(user)}
+                className="px-4 py-3 border-b border-gray-100 last:border-0"
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-900">{user.username}</p>
-                    {user.email === SUPER_ADMIN_EMAIL && (
-                      <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-900 text-white rounded">
-                        Owner
-                      </span>
-                    )}
-                    {user.company_role && (
-                      <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
-                        {user.company_role}
-                      </span>
+                <div className="flex items-start justify-between gap-3">
+                  {/* User info */}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-gray-900">{user.username}</p>
+                      {user.email === SUPER_ADMIN_EMAIL && (
+                        <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-900 text-white rounded">
+                          Owner
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400">{user.email}</p>
+                    {user.company_id && (
+                      <p className="text-xs text-gray-300 mt-0.5">
+                        {companies.find((c) => c.id === user.company_id)?.name ?? "Unknown company"}
+                      </p>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400">{user.email}</p>
-                  {user.company_id && (
-                    <p className="text-xs text-gray-300 mt-0.5">
-                      {companies.find((c) => c.id === user.company_id)?.name ?? "Unknown company"}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+
+                  {/* Controls — hidden for super admin */}
                   {user.email !== SUPER_ADMIN_EMAIL && (
-                    <div className="flex items-center gap-1 bg-gray-100 rounded-md p-0.5">
-                      <button
-                        onClick={() => handleRoleChange(user.id, "user")}
-                        className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                          user.role !== "admin"
-                            ? "bg-white text-gray-900 shadow-sm"
-                            : "text-gray-400 hover:text-gray-600"
-                        }`}
-                      >
-                        User
-                      </button>
-                      <button
-                        onClick={() => handleRoleChange(user.id, "admin")}
-                        className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                          user.role === "admin"
-                            ? "bg-white text-gray-900 shadow-sm"
-                            : "text-gray-400 hover:text-gray-600"
-                        }`}
-                      >
-                        Admin
-                      </button>
-                    </div>
-                  )}
-                  {user.company_id && (
-                    <svg
-                      className="w-4 h-4 text-gray-300"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
+                    <div
+                      className="flex flex-wrap items-end gap-2 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
+                      {/* Company role toggle (Member / Admin within their company) */}
+                      {user.company_id && (
+                        <div>
+                          <p className="text-[10px] text-gray-300 mb-0.5">Company</p>
+                          <div className="flex items-center bg-gray-100 rounded-md p-0.5">
+                            <button
+                              onClick={() => handleCompanyRoleChange(user.id, "member")}
+                              title="Company member — standard access"
+                              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                                user.company_role !== "admin"
+                                  ? "bg-white text-gray-900 shadow-sm"
+                                  : "text-gray-400 hover:text-gray-600"
+                              }`}
+                            >
+                              Member
+                            </button>
+                            <button
+                              onClick={() => handleCompanyRoleChange(user.id, "admin")}
+                              title="Company admin — can manage members and projects"
+                              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                                user.company_role === "admin"
+                                  ? "bg-white text-gray-900 shadow-sm"
+                                  : "text-gray-400 hover:text-gray-600"
+                              }`}
+                            >
+                              Admin
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* System role toggle (User / System Admin) */}
+                      <div>
+                        <p className="text-[10px] text-gray-300 mb-0.5">System</p>
+                        <div className="flex items-center bg-gray-100 rounded-md p-0.5">
+                          <button
+                            onClick={() => handleRoleChange(user.id, "user")}
+                            title="Regular user"
+                            className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                              user.role !== "admin"
+                                ? "bg-white text-gray-900 shadow-sm"
+                                : "text-gray-400 hover:text-gray-600"
+                            }`}
+                          >
+                            User
+                          </button>
+                          <button
+                            onClick={() => handleRoleChange(user.id, "admin")}
+                            title="System admin — full access across all companies"
+                            className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                              user.role === "admin"
+                                ? "bg-white text-gray-900 shadow-sm"
+                                : "text-gray-400 hover:text-gray-600"
+                            }`}
+                          >
+                            Admin
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Projects button — only for users with a company */}
+                      {user.company_id && (
+                        <div>
+                          <p className="text-[10px] text-gray-300 mb-0.5">&nbsp;</p>
+                          <button
+                            onClick={() => openUserProjects(user)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                          >
+                            Projects
+                            <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -333,8 +387,8 @@ export default function AdminPage() {
         )}
       </section>
 
-      <p className="mt-8 text-xs text-gray-400">
-        Note: users must log out and back in for role changes to take effect.
+      <p className="mt-6 text-xs text-gray-400">
+        Note: users must log out and back in for role changes to take effect on their session.
       </p>
 
       {/* Company Lessons */}
@@ -553,46 +607,60 @@ export default function AdminPage() {
       {/* Project Access Modal */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-0.5">Project Access</h2>
-            <p className="text-sm text-gray-500 mb-4">{selectedUser.username}</p>
-            {loadingProjects ? (
-              <p className="text-sm text-gray-400 py-4 text-center">Loading projects...</p>
-            ) : projects.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">No projects for this company yet.</p>
-            ) : (
-              <div className="space-y-1 max-h-60 overflow-y-auto mb-4">
-                {projects.map((project) => (
-                  <label
-                    key={project.id}
-                    className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={project.hasAccess}
-                      onChange={() => toggleProject(project.id)}
-                      className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-                    />
-                    <span className="text-sm text-gray-900">{project.name}</span>
-                    <span className="text-xs text-gray-400 ml-auto capitalize">{project.status}</span>
-                  </label>
-                ))}
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Project Access</h2>
+                <p className="text-sm text-gray-500">{selectedUser.username}</p>
               </div>
-            )}
-            <div className="flex gap-2">
               <button
                 onClick={() => setSelectedUser(null)}
-                className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
+                className="text-gray-400 hover:text-gray-700 transition-colors"
               >
-                Cancel
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
-              <button
-                onClick={saveProjectAccess}
-                disabled={savingProjects || loadingProjects}
-                className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
-              >
-                {savingProjects ? "Saving..." : "Save"}
-              </button>
+            </div>
+            <div className="px-6 py-4">
+              {loadingProjects ? (
+                <p className="text-sm text-gray-400 py-4 text-center">Loading projects...</p>
+              ) : projects.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center">No projects for this company yet.</p>
+              ) : (
+                <div className="space-y-1 max-h-64 overflow-y-auto mb-4">
+                  {projects.map((project) => (
+                    <label
+                      key={project.id}
+                      className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={project.hasAccess}
+                        onChange={() => toggleProject(project.id)}
+                        className="w-4 h-4 rounded border-gray-300 accent-gray-900"
+                      />
+                      <span className="text-sm text-gray-900 flex-1">{project.name}</span>
+                      <span className="text-xs text-gray-400 capitalize">{project.status}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveProjectAccess}
+                  disabled={savingProjects || loadingProjects}
+                  className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+                >
+                  {savingProjects ? "Saving..." : "Save"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
