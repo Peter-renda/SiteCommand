@@ -76,7 +76,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .single();
 
   if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
-  if (targetUser.company_id !== project?.company_id) {
+  if (!project || targetUser.company_id !== project.company_id) {
     return NextResponse.json(
       { error: "User does not belong to this project's company. Use the external invite endpoint instead." },
       { status: 400 }
