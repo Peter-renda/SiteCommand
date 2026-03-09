@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     .select(`
       id, email, company_id, accepted_at, expires_at,
       invitation_type, project_id, project_role,
-      companies(name, seat_limit, subscription_status, stripe_subscription_id)
+      companies(name, seat_limit)
     `)
     .eq("token", token)
     .single();
@@ -38,8 +38,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const company = invite.companies as unknown as {
     name: string;
     seat_limit: number;
-    subscription_status: string;
-    stripe_subscription_id: string | null;
   } | null;
 
   if (!company) {
@@ -48,12 +46,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   const isExternal = invite.invitation_type === "external";
 
-  // Internal invites consume a seat and require an active subscription
+  // Internal invites consume a seat
   if (!isExternal) {
-    if (company.stripe_subscription_id && company.subscription_status !== "active") {
-      return NextResponse.json({ error: "Company subscription is not active" }, { status: 403 });
-    }
-
     const { count: memberCount } = await supabase
       .from("users")
       .select("id", { count: "exact", head: true })
