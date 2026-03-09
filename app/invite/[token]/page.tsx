@@ -64,7 +64,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
       return;
     }
 
-    router.push(data.redirect ?? "/dashboard");
+    window.location.href = data.redirect ?? "/dashboard";
   }
 
   if (loading) {

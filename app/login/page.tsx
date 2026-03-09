@@ -33,8 +33,7 @@ function LoginForm() {
       return;
     }
 
-    router.push(data.redirect ?? "/dashboard");
-    router.refresh();
+    window.location.href = data.redirect ?? "/dashboard";
   }
 
   return (

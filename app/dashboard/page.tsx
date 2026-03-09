@@ -10,15 +10,19 @@ export default async function DashboardPage() {
   if (session.role !== "admin") {
     if (!session.company_id) redirect("/pricing");
 
-    const supabase = getSupabase();
-    const { data: company } = await supabase
-      .from("companies")
-      .select("subscription_status")
-      .eq("id", session.company_id)
-      .single();
+    // Only gate company owners (admins) on subscription status.
+    // Invited members belong to the company and can always access the dashboard.
+    if (session.company_role === "admin") {
+      const supabase = getSupabase();
+      const { data: company } = await supabase
+        .from("companies")
+        .select("subscription_status")
+        .eq("id", session.company_id)
+        .single();
 
-    if (!company || company.subscription_status !== "active") {
-      redirect("/pricing");
+      if (!company || company.subscription_status !== "active") {
+        redirect("/pricing");
+      }
     }
   }
 
