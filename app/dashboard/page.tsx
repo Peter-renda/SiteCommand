@@ -13,11 +13,11 @@ export default async function DashboardPage() {
     const supabase = getSupabase();
     const { data: company } = await supabase
       .from("companies")
-      .select("subscription_status")
+      .select("subscription_status, stripe_subscription_id")
       .eq("id", session.company_id)
       .single();
 
-    if (!company || company.subscription_status !== "active") {
+    if (!company || (company.stripe_subscription_id && company.subscription_status !== "active")) {
       redirect("/pricing");
     }
   }
