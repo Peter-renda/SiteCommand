@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
       email,
       password_hash,
       company,
-      role: isAdmin ? "admin" : "user",
+      role: "admin",
       company_id: companyId,
       company_role: isAdmin ? null : "admin",
     })
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     id: newUser.id,
     email,
     username: displayName,
-    role: isAdmin ? "admin" : "user",
+    role: "admin",
     company_id: companyId,
     company_role: isAdmin ? null : "admin",
   });
