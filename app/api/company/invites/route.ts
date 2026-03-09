@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
       company_id: session.company_id,
       email,
       invited_by: session.id,
+      invitation_type: "internal",
     })
     .select("token")
     .single();

@@ -8,24 +8,50 @@ export async function GET() {
 
   const supabase = getSupabase();
 
-  let query = supabase
-    .from("projects")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (session.role !== "admin") {
-    if (!session.company_id) return NextResponse.json([]);
-    query = query.eq("company_id", session.company_id);
+  // System admin: all projects across all tenants
+  if (session.role === "admin") {
+    const { data } = await supabase
+      .from("projects")
+      .select("*")
+      .order("created_at", { ascending: false });
+    return NextResponse.json(data || []);
   }
 
-  const { data } = await query;
+  // Internal company user: every project owned by their company
+  if (session.company_id) {
+    const { data } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("company_id", session.company_id)
+      .order("created_at", { ascending: false });
+    return NextResponse.json(data || []);
+  }
+
+  // External collaborator (no company): only projects they were explicitly
+  // invited to via project_memberships
+  const { data: memberships } = await supabase
+    .from("project_memberships")
+    .select("project_id")
+    .eq("user_id", session.id);
+
+  if (!memberships || memberships.length === 0) return NextResponse.json([]);
+
+  const projectIds = memberships.map((m: { project_id: string }) => m.project_id);
+  const { data } = await supabase
+    .from("projects")
+    .select("*")
+    .in("id", projectIds)
+    .order("created_at", { ascending: false });
+
   return NextResponse.json(data || []);
 }
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
+  // External collaborators (no company) may never create projects.
+  // Only system admins and internal company admins can.
   const canCreate = session?.role === "admin" || session?.company_role === "admin";
-  if (!session || !canCreate) {
+  if (!session || !canCreate || (!session.company_id && session.role !== "admin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
