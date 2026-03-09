@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { isCompanyAdmin } from "@/lib/project-access";
 import { sendInviteEmail } from "@/lib/email";
 
 export async function GET() {
   const session = await getSession();
-  if (!session || session.company_role !== "admin") {
+  if (!session || !isCompanyAdmin(session.company_role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = getSupabase();
   const { data } = await supabase
     .from("invitations")
-    .select("id, email, created_at, expires_at")
+    .select("id, email, invited_role, created_at, expires_at")
     .eq("company_id", session.company_id)
+    .eq("invitation_type", "internal")
     .is("accepted_at", null)
     .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false });
@@ -23,13 +25,27 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
-  if (!session || session.company_role !== "admin") {
+  if (!session || !isCompanyAdmin(session.company_role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { email } = await req.json();
+  const { email, invited_role } = await req.json();
   if (!email) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  }
+
+  // Role validation:
+  //   super_admin → may invite 'admin' or 'member'
+  //   admin       → may only invite 'member'
+  const requestedRole = invited_role ?? "member";
+  if (requestedRole === "admin" && session.company_role !== "super_admin") {
+    return NextResponse.json(
+      { error: "Only the Super Admin can invite new Admins" },
+      { status: 403 }
+    );
+  }
+  if (!["admin", "member"].includes(requestedRole)) {
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
   const supabase = getSupabase();
@@ -50,7 +66,7 @@ export async function POST(req: NextRequest) {
     .select("id", { count: "exact", head: true })
     .eq("company_id", session.company_id);
 
-  // seat_limit of 0 means no subscription plan is configured yet — treat as unlimited
+  // seat_limit of 0 means no subscription plan configured — treat as unlimited
   if (company.seat_limit > 0 && (memberCount ?? 0) >= company.seat_limit) {
     return NextResponse.json({ error: "Seat limit reached" }, { status: 403 });
   }
@@ -62,6 +78,7 @@ export async function POST(req: NextRequest) {
       email,
       invited_by: session.id,
       invitation_type: "internal",
+      invited_role: requestedRole,
     })
     .select("token")
     .single();

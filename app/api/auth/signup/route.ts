@@ -36,12 +36,12 @@ export async function POST(req: NextRequest) {
   }
 
   const password_hash = await bcrypt.hash(password, 10);
-  const isAdmin = email === ADMIN_EMAIL;
+  const isSystemAdmin = email === ADMIN_EMAIL;
   const displayName = `${firstName} ${lastName}`;
 
   // Create company for non-system-admin signups
   let companyId: string | null = null;
-  if (!isAdmin) {
+  if (!isSystemAdmin) {
     const { data: newCompany, error: companyError } = await supabase
       .from("companies")
       .insert({ name: company })
@@ -57,6 +57,10 @@ export async function POST(req: NextRequest) {
     companyId = newCompany.id;
   }
 
+  // The person who signs up and creates the company is the Super Admin —
+  // they are the billing owner and have full rights including billing management.
+  const companyRole = isSystemAdmin ? null : "super_admin";
+
   const { data: newUser, error } = await supabase
     .from("users")
     .insert({
@@ -68,7 +72,8 @@ export async function POST(req: NextRequest) {
       company,
       role: "admin",
       company_id: companyId,
-      company_role: isAdmin ? null : "admin",
+      company_role: companyRole,
+      user_type: isSystemAdmin ? null : "internal",
     })
     .select("id")
     .single();
@@ -80,19 +85,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Record the billing owner on the company record
+  if (companyId) {
+    await supabase
+      .from("companies")
+      .update({ billing_owner_id: newUser.id })
+      .eq("id", companyId);
+  }
+
   const token = await createToken({
     id: newUser.id,
     email,
     username: displayName,
     role: "admin",
     company_id: companyId,
-    company_role: isAdmin ? null : "admin",
+    company_role: companyRole,
+    user_type: isSystemAdmin ? null : "internal",
   });
 
   // If a plan was provided, create the Stripe checkout session server-side
-  // so there's no second round-trip that might miss the new cookie.
   let checkoutUrl: string | null = null;
-  if (plan && PRICE_IDS[plan] && !isAdmin) {
+  if (plan && PRICE_IDS[plan] && !isSystemAdmin) {
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
       const checkoutSession = await stripe.checkout.sessions.create({
@@ -105,7 +118,7 @@ export async function POST(req: NextRequest) {
       });
       checkoutUrl = checkoutSession.url;
     } catch {
-      // Non-fatal: fall through and let client redirect to company page
+      // Non-fatal: fall through and let client redirect to dashboard
     }
   }
 

@@ -10,6 +10,7 @@ export async function createToken(payload: {
   role: string;
   company_id?: string | null;
   company_role?: string | null;
+  user_type?: string | null;
 }) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
@@ -27,6 +28,7 @@ export async function verifyToken(token: string) {
       role: string;
       company_id: string | null;
       company_role: string | null;
+      user_type: string | null;
     };
   } catch {
     return null;

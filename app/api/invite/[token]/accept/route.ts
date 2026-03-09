@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     .from("invitations")
     .select(`
       id, email, company_id, accepted_at, expires_at,
-      invitation_type, project_id, project_role,
+      invitation_type, project_id, project_role, invited_role,
       companies(name, seat_limit)
     `)
     .eq("token", token)
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   if (isExternal) {
     // ---------------------------------------------------------------
-    // External collaborator flow
+    // External collaborator (subcontractor) flow
     //   - No company affiliation: company_id = null, company_role = null
     //   - user_type = 'external'
     //   - A project_memberships row scopes them to one project only
@@ -103,6 +103,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         user_id: newUser.id,
         company_id: invite.company_id,
         role: invite.project_role ?? "external_viewer",
+        // allowed_sections defaults to NULL = access to all sections
+        // (can be restricted via the project members UI after the fact)
       });
     }
 
@@ -118,9 +120,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       role: "user",
       company_id: null,
       company_role: null,
+      user_type: "external",
     });
 
-    const res = NextResponse.json({ redirect: "/dashboard" });
+    // External users land on the dedicated subcontractor portal
+    const res = NextResponse.json({ redirect: "/subcontractor" });
     res.cookies.set("token", jwtToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -132,8 +136,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   }
 
   // ---------------------------------------------------------------
-  // Internal (company member) flow — unchanged behaviour
+  // Internal (company member) flow
+  //   Uses invited_role from the invitation so super_admins can
+  //   invite new admins as well as regular members.
   // ---------------------------------------------------------------
+  const assignedRole: string = invite.invited_role ?? "member";
+
   const { data: newUser, error } = await supabase
     .from("users")
     .insert({
@@ -143,7 +151,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       company: company.name,
       role: "user",
       company_id: invite.company_id,
-      company_role: "member",
+      company_role: assignedRole,
       user_type: "internal",
     })
     .select("id")
@@ -165,7 +173,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     username,
     role: "user",
     company_id: invite.company_id,
-    company_role: "member",
+    company_role: assignedRole,
+    user_type: "internal",
   });
 
   const res = NextResponse.json({ redirect: "/dashboard" });

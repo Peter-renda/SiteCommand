@@ -7,6 +7,11 @@ type Session = {
   company_role: string | null;
 };
 
+/** Returns true if the company_role is admin-level (super_admin or admin). */
+export function isCompanyAdmin(companyRole: string | null): boolean {
+  return companyRole === "super_admin" || companyRole === "admin";
+}
+
 /**
  * Checks whether a user may access a given project at all.
  *
@@ -45,8 +50,9 @@ export async function canAccessProject(projectId: string, session: Session): Pro
  * Returns the user's role on a specific project, or null if they have
  * no explicit membership row.
  *
- * Internal company admins are treated as 'project_admin' on every project
- * their company owns even without an explicit row.
+ * Internal company admins (super_admin or admin) are treated as
+ * 'project_admin' on every project their company owns, even without
+ * an explicit membership row.
  */
 export async function getProjectRole(
   projectId: string,
@@ -56,7 +62,7 @@ export async function getProjectRole(
 
   const supabase = getSupabase();
 
-  if (session.company_role === "admin" && session.company_id) {
+  if (isCompanyAdmin(session.company_role) && session.company_id) {
     const { data: project } = await supabase
       .from("projects")
       .select("company_id")
@@ -75,4 +81,40 @@ export async function getProjectRole(
 
   if (!membership) return null;
   return membership.role as "project_admin" | "member" | "external_viewer";
+}
+
+/**
+ * Returns the sections a user is permitted to access within a project.
+ * Returns null if they have access to all sections (internal members,
+ * project admins). Returns an array of section slugs for external_viewers
+ * with restricted access.
+ */
+export async function getAllowedSections(
+  projectId: string,
+  session: Session
+): Promise<string[] | null> {
+  if (session.role === "admin") return null;
+  if (isCompanyAdmin(session.company_role)) return null;
+
+  const supabase = getSupabase();
+
+  // Internal members whose company owns the project get full access
+  if (session.company_id) {
+    const { data: project } = await supabase
+      .from("projects")
+      .select("company_id")
+      .eq("id", projectId)
+      .single();
+    if (project?.company_id === session.company_id) return null;
+  }
+
+  const { data: membership } = await supabase
+    .from("project_memberships")
+    .select("allowed_sections")
+    .eq("project_id", projectId)
+    .eq("user_id", session.id)
+    .maybeSingle();
+
+  // null means unrestricted; an empty/populated array means restricted
+  return membership?.allowed_sections ?? null;
 }

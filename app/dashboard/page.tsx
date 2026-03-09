@@ -7,12 +7,15 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
+  // External users (subcontractors) have their own dedicated portal
+  if (session.user_type === "external") redirect("/subcontractor");
+
   if (session.role !== "admin") {
     if (!session.company_id) redirect("/pricing");
 
-    // Only gate company owners (admins) on subscription status.
-    // Invited members belong to the company and can always access the dashboard.
-    if (session.company_role === "admin") {
+    // Gate the billing owner (super_admin) on subscription status.
+    // Regular admins and members belong to the company and can always access.
+    if (session.company_role === "super_admin") {
       const supabase = getSupabase();
       const { data: company } = await supabase
         .from("companies")
@@ -32,6 +35,7 @@ export default async function DashboardPage() {
       email={session.email}
       role={session.role}
       companyRole={session.company_role ?? null}
+      userType={session.user_type ?? "internal"}
     />
   );
 }
