@@ -13,19 +13,15 @@ export default async function DashboardPage() {
   if (session.role !== "admin") {
     if (!session.company_id) redirect("/pricing");
 
-    // Gate the billing owner (super_admin) on subscription status.
-    // Regular admins and members belong to the company and can always access.
-    if (session.company_role === "super_admin") {
-      const supabase = getSupabase();
-      const { data: company } = await supabase
-        .from("companies")
-        .select("subscription_status")
-        .eq("id", session.company_id)
-        .single();
+    const supabase = getSupabase();
+    const { data: company } = await supabase
+      .from("companies")
+      .select("subscription_status, stripe_subscription_id")
+      .eq("id", session.company_id)
+      .single();
 
-      if (!company || company.subscription_status !== "active") {
-        redirect("/pricing");
-      }
+    if (!company || (company.stripe_subscription_id && company.subscription_status !== "active")) {
+      redirect("/pricing");
     }
   }
 

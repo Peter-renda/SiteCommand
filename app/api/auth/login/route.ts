@@ -32,19 +32,20 @@ export async function POST(req: NextRequest) {
   });
 
   let redirect: string | null = null;
-  if (user.role !== "admin") {
+  if (user.role === "contractor") {
+    redirect = "/teammate";
+  } else if (user.role !== "admin") {
     if (!user.company_id) {
-      // No company at all — send to pricing to pick a plan
       redirect = "/pricing";
     } else if (user.company_role === "admin") {
       // Company owner — check subscription status
       const { data: company } = await supabase
         .from("companies")
-        .select("subscription_status")
+        .select("subscription_status, stripe_subscription_id")
         .eq("id", user.company_id)
         .single();
 
-      if (!company || company.subscription_status !== "active") {
+      if (!company || (company.stripe_subscription_id && company.subscription_status !== "active")) {
         redirect = "/pricing";
       }
     }
