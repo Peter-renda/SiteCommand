@@ -18,9 +18,17 @@ export async function GET(
   if (data.accepted_at) return NextResponse.json({ error: "Invitation already accepted" }, { status: 410 });
   if (new Date(data.expires_at) < new Date()) return NextResponse.json({ error: "Invitation has expired" }, { status: 410 });
 
+  // Check if this email already has an account
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", data.email)
+    .single();
+
   return NextResponse.json({
     email: data.email,
     contactName: data.contact_name,
     projectName: (data.projects as unknown as { name: string } | null)?.name ?? "Unknown Project",
+    hasAccount: !!existingUser,
   });
 }
