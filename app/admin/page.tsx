@@ -68,6 +68,79 @@ export default function AdminPage() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [savingProjects, setSavingProjects] = useState(false);
 
+  const [myCompanyId, setMyCompanyId] = useState<string | null>(null);
+
+  // New Project modal
+  type CompanyUser = { id: string; username: string; email: string };
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [npCompanyId, setNpCompanyId] = useState("");
+  const [npName, setNpName] = useState("");
+  const [npProjectNumber, setNpProjectNumber] = useState("");
+  const [npSector, setNpSector] = useState("");
+  const [npAddress, setNpAddress] = useState("");
+  const [npCity, setNpCity] = useState("");
+  const [npState, setNpState] = useState("");
+  const [npZip, setNpZip] = useState("");
+  const [npCounty, setNpCounty] = useState("");
+  const [npDescription, setNpDescription] = useState("");
+  const [npValue, setNpValue] = useState("");
+  const [npStatus, setNpStatus] = useState("bidding");
+  const [npMembers, setNpMembers] = useState<CompanyUser[]>([]);
+  const [npCompanyUsers, setNpCompanyUsers] = useState<CompanyUser[]>([]);
+  const [npSaving, setNpSaving] = useState(false);
+  const [npError, setNpError] = useState("");
+  const [npMemberSearch, setNpMemberSearch] = useState("");
+  const [npMemberOpen, setNpMemberOpen] = useState(false);
+  const npMemberRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (npMemberRef.current && !npMemberRef.current.contains(e.target as Node)) setNpMemberOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  async function onNpCompanyChange(companyId: string) {
+    setNpCompanyId(companyId);
+    setNpMembers([]);
+    setNpCompanyUsers([]);
+    if (!companyId) return;
+    const res = await fetch(`/api/users?company_id=${companyId}`);
+    if (res.ok) setNpCompanyUsers(await res.json());
+  }
+
+  function openNewProject() {
+    setNpCompanyId(companies[0]?.id ?? "");
+    setNpName(""); setNpProjectNumber(""); setNpSector("");
+    setNpAddress(""); setNpCity(""); setNpState(""); setNpZip(""); setNpCounty("");
+    setNpDescription(""); setNpValue(""); setNpStatus("bidding");
+    setNpMembers([]); setNpCompanyUsers([]); setNpError("");
+    setShowNewProject(true);
+    if (companies[0]?.id) onNpCompanyChange(companies[0].id);
+  }
+
+  async function handleCreateProject(e: React.FormEvent) {
+    e.preventDefault();
+    setNpSaving(true);
+    setNpError("");
+    const res = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: npName, project_number: npProjectNumber, sector: npSector,
+        address: npAddress, city: npCity, state: npState, zip_code: npZip, county: npCounty,
+        description: npDescription, value: npValue, status: npStatus,
+        company_id: npCompanyId || null,
+        memberIds: npMembers.map((m) => m.id),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setNpSaving(false);
+    if (!res.ok) { setNpError(data.error || "Failed to create project"); return; }
+    setShowNewProject(false);
+  }
+
   async function loadUsers() {
     const res = await fetch("/api/admin/users");
     if (!res.ok) {
@@ -88,15 +161,12 @@ export default function AdminPage() {
     }
   }
 
-  const [myCompanyId, setMyCompanyId] = useState<string | null>(null);
-
   async function loadLessonUploads() {
     const res = await fetch("/api/admin/company-lessons");
     if (res.ok) {
       const data = await res.json();
       setLessonUploads(data.lessons ?? data);
       setMyCompanyId(data.myCompanyId ?? null);
-      // Pre-fill for company admins
       if (data.myCompanyId) setLessonCompanyId(data.myCompanyId);
     }
   }
@@ -107,13 +177,26 @@ export default function AdminPage() {
     loadLessonUploads();
   }, []);
 
+  // Optimistic system-role update — reflects in the table immediately
   async function handleRoleChange(id: string, role: string) {
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)));
     const res = await fetch("/api/admin/role", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, role }),
     });
-    if (res.ok) loadUsers();
+    if (!res.ok) loadUsers(); // revert on error
+  }
+
+  // Optimistic company-role update
+  async function handleCompanyRoleChange(id: string, company_role: string) {
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, company_role } : u)));
+    const res = await fetch("/api/admin/company-role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, company_role }),
+    });
+    if (!res.ok) loadUsers(); // revert on error
   }
 
   async function handleInvite(e: React.FormEvent) {
@@ -228,13 +311,19 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white px-6 py-16 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-10">
+    <div className="min-h-screen bg-white px-4 sm:px-6 py-12 sm:py-16 max-w-4xl mx-auto">
+      <div className="flex items-start justify-between mb-10 gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
           <p className="text-sm text-gray-400 mt-1">Manage users, roles, and project access.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={openNewProject}
+            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+          >
+            + New Project
+          </button>
           <button
             onClick={() => {
               setShowAddUser(true);
@@ -243,7 +332,7 @@ export default function AdminPage() {
               setInviteEmail("");
               setInviteCompanyName(companies[0]?.name ?? "");
             }}
-            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+            className="px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
           >
             + Add User
           </button>
@@ -264,67 +353,109 @@ export default function AdminPage() {
             {users.map((user) => (
               <div
                 key={user.id}
-                className={`flex items-center justify-between px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${
-                  user.company_id ? "hover:bg-gray-50 cursor-pointer" : ""
-                }`}
-                onClick={() => openUserProjects(user)}
+                className="px-4 py-3 border-b border-gray-100 last:border-0"
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-900">{user.username}</p>
-                    {user.email === SUPER_ADMIN_EMAIL && (
-                      <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-900 text-white rounded">
-                        Owner
-                      </span>
-                    )}
-                    {user.company_role && (
-                      <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
-                        {user.company_role}
-                      </span>
+                <div className="flex items-start justify-between gap-3">
+                  {/* User info */}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-gray-900">{user.username}</p>
+                      {user.email === SUPER_ADMIN_EMAIL && (
+                        <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-900 text-white rounded">
+                          Owner
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400">{user.email}</p>
+                    {user.company_id && (
+                      <p className="text-xs text-gray-300 mt-0.5">
+                        {companies.find((c) => c.id === user.company_id)?.name ?? "Unknown company"}
+                      </p>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400">{user.email}</p>
-                  {user.company_id && (
-                    <p className="text-xs text-gray-300 mt-0.5">
-                      {companies.find((c) => c.id === user.company_id)?.name ?? "Unknown company"}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+
+                  {/* Controls — hidden for super admin */}
                   {user.email !== SUPER_ADMIN_EMAIL && (
-                    <div className="flex items-center gap-1 bg-gray-100 rounded-md p-0.5">
-                      <button
-                        onClick={() => handleRoleChange(user.id, "user")}
-                        className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                          user.role !== "admin"
-                            ? "bg-white text-gray-900 shadow-sm"
-                            : "text-gray-400 hover:text-gray-600"
-                        }`}
-                      >
-                        User
-                      </button>
-                      <button
-                        onClick={() => handleRoleChange(user.id, "admin")}
-                        className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                          user.role === "admin"
-                            ? "bg-white text-gray-900 shadow-sm"
-                            : "text-gray-400 hover:text-gray-600"
-                        }`}
-                      >
-                        Admin
-                      </button>
-                    </div>
-                  )}
-                  {user.company_id && (
-                    <svg
-                      className="w-4 h-4 text-gray-300"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
+                    <div
+                      className="flex flex-wrap items-end gap-2 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
+                      {/* Company role toggle (Member / Admin within their company) */}
+                      {user.company_id && (
+                        <div>
+                          <p className="text-[10px] text-gray-300 mb-0.5">Company</p>
+                          <div className="flex items-center bg-gray-100 rounded-md p-0.5">
+                            <button
+                              onClick={() => handleCompanyRoleChange(user.id, "member")}
+                              title="Company member — standard access"
+                              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                                user.company_role !== "admin"
+                                  ? "bg-white text-gray-900 shadow-sm"
+                                  : "text-gray-400 hover:text-gray-600"
+                              }`}
+                            >
+                              Member
+                            </button>
+                            <button
+                              onClick={() => handleCompanyRoleChange(user.id, "admin")}
+                              title="Company admin — can manage members and projects"
+                              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                                user.company_role === "admin"
+                                  ? "bg-white text-gray-900 shadow-sm"
+                                  : "text-gray-400 hover:text-gray-600"
+                              }`}
+                            >
+                              Admin
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* System role toggle (User / System Admin) */}
+                      <div>
+                        <p className="text-[10px] text-gray-300 mb-0.5">System</p>
+                        <div className="flex items-center bg-gray-100 rounded-md p-0.5">
+                          <button
+                            onClick={() => handleRoleChange(user.id, "user")}
+                            title="Regular user"
+                            className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                              user.role !== "admin"
+                                ? "bg-white text-gray-900 shadow-sm"
+                                : "text-gray-400 hover:text-gray-600"
+                            }`}
+                          >
+                            User
+                          </button>
+                          <button
+                            onClick={() => handleRoleChange(user.id, "admin")}
+                            title="System admin — full access across all companies"
+                            className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                              user.role === "admin"
+                                ? "bg-white text-gray-900 shadow-sm"
+                                : "text-gray-400 hover:text-gray-600"
+                            }`}
+                          >
+                            Admin
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Projects button — only for users with a company */}
+                      {user.company_id && (
+                        <div>
+                          <p className="text-[10px] text-gray-300 mb-0.5">&nbsp;</p>
+                          <button
+                            onClick={() => openUserProjects(user)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                          >
+                            Projects
+                            <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -333,8 +464,8 @@ export default function AdminPage() {
         )}
       </section>
 
-      <p className="mt-8 text-xs text-gray-400">
-        Note: users must log out and back in for role changes to take effect.
+      <p className="mt-6 text-xs text-gray-400">
+        Note: users must log out and back in for role changes to take effect on their session.
       </p>
 
       {/* Company Lessons */}
@@ -550,49 +681,261 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* New Project Modal */}
+      {showNewProject && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8">
+          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl flex flex-col max-h-full">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <h2 className="text-sm font-semibold text-gray-900">New Project</h2>
+              <button onClick={() => setShowNewProject(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProject} className="px-6 py-5 space-y-6 overflow-y-auto">
+
+              {/* Company */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Company</label>
+                <select
+                  required
+                  value={npCompanyId}
+                  onChange={(e) => onNpCompanyChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                >
+                  <option value="">Select a company…</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* General Info */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">General Information</p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Project Name</label>
+                  <input
+                    type="text" required value={npName} onChange={(e) => setNpName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="e.g. 123 Main St Renovation"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Project Number <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="text" value={npProjectNumber} onChange={(e) => setNpProjectNumber(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="e.g. 2024-001"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                    <select
+                      value={npStatus} onChange={(e) => setNpStatus(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    >
+                      <option value="bidding">Bidding</option>
+                      <option value="pre-construction">Pre-Construction</option>
+                      <option value="course of construction">Course of Construction</option>
+                      <option value="post-construction">Post-Construction</option>
+                      <option value="warranty">Warranty</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Sector <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="text" value={npSector} onChange={(e) => setNpSector(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="e.g. Commercial"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Value ($)</label>
+                    <input
+                      type="number" min="0" step="0.01" value={npValue} onChange={(e) => setNpValue(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <textarea
+                    rows={2} value={npDescription} onChange={(e) => setNpDescription(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                    placeholder="Brief description..."
+                  />
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Location</p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Address <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text" value={npAddress} onChange={(e) => setNpAddress(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="Street address"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">City <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="text" value={npCity} onChange={(e) => setNpCity(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" placeholder="City" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">State <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="text" value={npState} onChange={(e) => setNpState(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" placeholder="State" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">ZIP Code <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="text" value={npZip} onChange={(e) => setNpZip(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" placeholder="e.g. 10001" maxLength={5} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">County <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="text" value={npCounty} onChange={(e) => setNpCounty(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" placeholder="County" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Team */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Team</p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Project Members <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <div ref={npMemberRef} className="relative">
+                    {npMembers.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {npMembers.map((u) => (
+                          <span key={u.id} className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 bg-gray-100 text-xs text-gray-700 rounded-full">
+                            {u.username}
+                            <button type="button" onClick={() => setNpMembers((p) => p.filter((m) => m.id !== u.id))} className="text-gray-400 hover:text-gray-700 ml-0.5">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={npMemberSearch}
+                      onChange={(e) => { setNpMemberSearch(e.target.value); setNpMemberOpen(true); }}
+                      onFocus={() => setNpMemberOpen(true)}
+                      placeholder={npCompanyId ? "Search by name or email..." : "Select a company first"}
+                      disabled={!npCompanyId}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
+                    />
+                    {npMemberOpen && npCompanyId && (() => {
+                      const filtered = npCompanyUsers.filter(
+                        (u) => !npMembers.find((m) => m.id === u.id) &&
+                          (u.username.toLowerCase().includes(npMemberSearch.toLowerCase()) ||
+                           u.email.toLowerCase().includes(npMemberSearch.toLowerCase()))
+                      );
+                      return filtered.length > 0 ? (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg max-h-40 overflow-y-auto z-20">
+                          {filtered.map((u) => (
+                            <button key={u.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => { setNpMembers((p) => [...p, u]); setNpMemberSearch(""); }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2.5">
+                              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600 shrink-0">
+                                {u.username[0].toUpperCase()}
+                              </div>
+                              <span className="font-medium text-gray-900">{u.username}</span>
+                              <span className="text-gray-400 text-xs">{u.email}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : npMemberSearch ? (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg px-3 py-2 z-20">
+                          <p className="text-xs text-gray-400">No matching team members</p>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {npError && <p className="text-sm text-red-600">{npError}</p>}
+
+              <div className="flex gap-3 pt-1 pb-1">
+                <button type="button" onClick={() => setShowNewProject(false)} className="flex-1 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={npSaving} className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
+                  {npSaving ? "Creating..." : "Create Project"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Project Access Modal */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-0.5">Project Access</h2>
-            <p className="text-sm text-gray-500 mb-4">{selectedUser.username}</p>
-            {loadingProjects ? (
-              <p className="text-sm text-gray-400 py-4 text-center">Loading projects...</p>
-            ) : projects.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">No projects for this company yet.</p>
-            ) : (
-              <div className="space-y-1 max-h-60 overflow-y-auto mb-4">
-                {projects.map((project) => (
-                  <label
-                    key={project.id}
-                    className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={project.hasAccess}
-                      onChange={() => toggleProject(project.id)}
-                      className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-                    />
-                    <span className="text-sm text-gray-900">{project.name}</span>
-                    <span className="text-xs text-gray-400 ml-auto capitalize">{project.status}</span>
-                  </label>
-                ))}
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Project Access</h2>
+                <p className="text-sm text-gray-500">{selectedUser.username}</p>
               </div>
-            )}
-            <div className="flex gap-2">
               <button
                 onClick={() => setSelectedUser(null)}
-                className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
+                className="text-gray-400 hover:text-gray-700 transition-colors"
               >
-                Cancel
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
-              <button
-                onClick={saveProjectAccess}
-                disabled={savingProjects || loadingProjects}
-                className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
-              >
-                {savingProjects ? "Saving..." : "Save"}
-              </button>
+            </div>
+            <div className="px-6 py-4">
+              {loadingProjects ? (
+                <p className="text-sm text-gray-400 py-4 text-center">Loading projects...</p>
+              ) : projects.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center">No projects for this company yet.</p>
+              ) : (
+                <div className="space-y-1 max-h-64 overflow-y-auto mb-4">
+                  {projects.map((project) => (
+                    <label
+                      key={project.id}
+                      className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={project.hasAccess}
+                        onChange={() => toggleProject(project.id)}
+                        className="w-4 h-4 rounded border-gray-300 accent-gray-900"
+                      />
+                      <span className="text-sm text-gray-900 flex-1">{project.name}</span>
+                      <span className="text-xs text-gray-400 capitalize">{project.status}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveProjectAccess}
+                  disabled={savingProjects || loadingProjects}
+                  className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+                >
+                  {savingProjects ? "Saving..." : "Save"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

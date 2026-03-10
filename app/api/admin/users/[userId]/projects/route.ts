@@ -30,12 +30,12 @@ export async function GET(
     .eq("company_id", user.company_id)
     .order("created_at", { ascending: false });
 
-  const { data: memberProjects } = await supabase
-    .from("project_members")
+  const { data: memberships } = await supabase
+    .from("project_memberships")
     .select("project_id")
     .eq("user_id", userId);
 
-  const accessSet = new Set((memberProjects || []).map((pm: { project_id: string }) => pm.project_id));
+  const accessSet = new Set((memberships || []).map((m: { project_id: string }) => m.project_id));
 
   return NextResponse.json({
     projects: (projects || []).map((p: { id: string; name: string; status: string }) => ({
@@ -75,18 +75,27 @@ export async function PUT(
 
   const companyProjectIds = (companyProjects || []).map((p: { id: string }) => p.id);
 
+  // Clear existing memberships for company projects
   if (companyProjectIds.length > 0) {
     await supabase
-      .from("project_members")
+      .from("project_memberships")
       .delete()
       .eq("user_id", userId)
       .in("project_id", companyProjectIds);
   }
 
+  // Insert new memberships
   if (projectIds && projectIds.length > 0) {
     await supabase
-      .from("project_members")
-      .insert(projectIds.map((pid: string) => ({ project_id: pid, user_id: userId })));
+      .from("project_memberships")
+      .insert(
+        projectIds.map((pid: string) => ({
+          project_id: pid,
+          user_id: userId,
+          company_id: user.company_id,
+          role: "member",
+        }))
+      );
   }
 
   return NextResponse.json({ success: true });

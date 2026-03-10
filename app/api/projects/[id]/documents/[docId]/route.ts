@@ -21,6 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const update: Record<string, unknown> = {};
   if (body.name !== undefined) update.name = body.name;
   if (body.parent_id !== undefined) update.parent_id = body.parent_id;
+  if (body.is_private !== undefined) update.is_private = Boolean(body.is_private);
 
   const supabase = getSupabase();
   const { data, error } = await supabase

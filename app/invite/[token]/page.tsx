@@ -3,13 +3,20 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 
+type InviteData = {
+  email: string;
+  companyName: string;
+  invitationType: "internal" | "external";
+  projectName: string | null;
+};
+
 export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [inviteData, setInviteData] = useState<{ email: string; companyName: string } | null>(null);
+  const [inviteData, setInviteData] = useState<InviteData | null>(null);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -57,7 +64,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
       return;
     }
 
-    router.push(data.redirect ?? "/dashboard");
+    window.location.href = data.redirect ?? "/dashboard";
   }
 
   if (loading) {
@@ -81,14 +88,42 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
     );
   }
 
+  const isExternal = inviteData?.invitationType === "external";
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-xl font-semibold text-gray-900 mb-1">Join {inviteData?.companyName}</h1>
-          <p className="text-sm text-gray-500">
-            You&apos;ve been invited to join <strong>{inviteData?.companyName}</strong> on SiteCommand.
-          </p>
+          {isExternal ? (
+            <>
+              <h1 className="text-xl font-semibold text-gray-900 mb-1">
+                You&apos;ve been invited to collaborate
+              </h1>
+              <p className="text-sm text-gray-500">
+                <strong>{inviteData?.companyName}</strong> has invited you to view{" "}
+                {inviteData?.projectName ? (
+                  <>the project <strong>{inviteData.projectName}</strong></>
+                ) : (
+                  "a project"
+                )}{" "}
+                on SiteCommand.
+              </p>
+              <p className="text-xs text-gray-400 mt-2">
+                As an external collaborator you can view project content but cannot create projects
+                or access other company data.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-semibold text-gray-900 mb-1">
+                Join {inviteData?.companyName}
+              </h1>
+              <p className="text-sm text-gray-500">
+                You&apos;ve been invited to join <strong>{inviteData?.companyName}</strong> on
+                SiteCommand.
+              </p>
+            </>
+          )}
           <p className="text-xs text-gray-400 mt-2">Signing up as: {inviteData?.email}</p>
         </div>
 

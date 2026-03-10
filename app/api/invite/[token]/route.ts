@@ -7,7 +7,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
   const { data: invite } = await supabase
     .from("invitations")
-    .select("id, email, accepted_at, expires_at, companies(name)")
+    .select("id, email, accepted_at, expires_at, invitation_type, project_id, companies(name)")
     .eq("token", token)
     .single();
 
@@ -25,8 +25,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
   const company = invite.companies as unknown as { name: string } | null;
 
+  // For external invites include the project name so the UI shows context
+  let projectName: string | null = null;
+  if (invite.invitation_type === "external" && invite.project_id) {
+    const { data: project } = await supabase
+      .from("projects")
+      .select("name")
+      .eq("id", invite.project_id)
+      .single();
+    projectName = project?.name ?? null;
+  }
+
   return NextResponse.json({
     email: invite.email,
     companyName: company?.name ?? "",
+    invitationType: invite.invitation_type ?? "internal",
+    projectName,
   });
 }

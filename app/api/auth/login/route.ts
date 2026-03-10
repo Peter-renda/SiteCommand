@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
   } else if (user.role !== "admin") {
     if (!user.company_id) {
       redirect = "/pricing";
-    } else {
+    } else if (user.company_role === "admin") {
+      // Company owner — check subscription status
       const { data: company } = await supabase
         .from("companies")
         .select("subscription_status, stripe_subscription_id")
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
         redirect = "/pricing";
       }
     }
+    // Invited members always go to /dashboard
   }
 
   const res = NextResponse.json({ message: "Logged in", redirect });

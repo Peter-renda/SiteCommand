@@ -13,6 +13,7 @@ type Member = {
 type Invite = {
   id: string;
   email: string;
+  invited_role: string;
   created_at: string;
   expires_at: string;
 };
@@ -23,6 +24,7 @@ type Company = {
   subscription_plan: string | null;
   subscription_status: string;
   seat_limit: number;
+  billing_owner_id: string | null;
 } | null;
 
 type Project = {
@@ -32,16 +34,30 @@ type Project = {
   hasAccess: boolean;
 };
 
+function roleBadgeClass(role: string) {
+  if (role === "super_admin") return "bg-amber-50 text-amber-700";
+  if (role === "admin") return "bg-gray-100 text-gray-700";
+  return "bg-gray-50 text-gray-400";
+}
+
+function roleLabel(role: string) {
+  if (role === "super_admin") return "Owner";
+  if (role === "admin") return "Admin";
+  return "Member";
+}
+
 export default function CompanyClient({
   company,
   members: initialMembers,
   invites: initialInvites,
   currentUserId,
+  isSuperAdmin,
 }: {
   company: Company;
   members: Member[];
   invites: Invite[];
   currentUserId: string;
+  isSuperAdmin: boolean;
 }) {
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
@@ -49,9 +65,9 @@ export default function CompanyClient({
   // Add user modal
   const [showAddUser, setShowAddUser] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"member" | "admin">("member");
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState("");
-  const [inviteSuccess, setInviteSuccess] = useState("");
 
   // Project access modal
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -63,12 +79,11 @@ export default function CompanyClient({
     e.preventDefault();
     setInviting(true);
     setInviteError("");
-    setInviteSuccess("");
 
     const res = await fetch("/api/company/invites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail }),
+      body: JSON.stringify({ email: inviteEmail, invited_role: inviteRole }),
     });
 
     const data = await res.json();
@@ -80,20 +95,16 @@ export default function CompanyClient({
     }
 
     setInviteEmail("");
+    setInviteRole("member");
     setShowAddUser(false);
 
     const res2 = await fetch("/api/company/invites");
-    if (res2.ok) {
-      const newInvites = await res2.json();
-      setInvites(newInvites);
-    }
+    if (res2.ok) setInvites(await res2.json());
   }
 
   async function handleRevokeInvite(id: string) {
     const res = await fetch(`/api/company/invites/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      setInvites((prev) => prev.filter((i) => i.id !== id));
-    }
+    if (res.ok) setInvites((prev) => prev.filter((i) => i.id !== id));
   }
 
   async function handleRemoveMember(userId: string) {
@@ -140,25 +151,42 @@ export default function CompanyClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
+      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
         <a href="/dashboard" className="text-sm text-gray-400 hover:text-gray-900 transition-colors">
           ← Dashboard
         </a>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-10">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-8">
           <h1 className="text-xl font-semibold text-gray-900">{company?.name ?? "Team"}</h1>
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
             <span className="text-sm text-gray-500 capitalize">
               {company?.subscription_plan ?? "No plan"} plan
             </span>
             <span className="text-gray-300">·</span>
             <span className="text-sm text-gray-500">
-              {seatCount} / {seatLimit} seats used
+              {seatCount} / {seatLimit > 0 ? seatLimit : "∞"} seats used
             </span>
+            {/* Billing link — only visible to the Super Admin */}
+            {isSuperAdmin && (
+              <>
+                <span className="text-gray-300">·</span>
+                <a
+                  href="/pricing"
+                  className="text-sm text-amber-600 hover:text-amber-800 font-medium transition-colors"
+                >
+                  {company?.subscription_plan ? "Manage billing" : "Upgrade plan"}
+                </a>
+              </>
+            )}
           </div>
+          {isSuperAdmin && (
+            <p className="text-xs text-gray-400 mt-2">
+              You are the account owner and control billing for this organisation.
+            </p>
+          )}
         </div>
 
         {/* User Management */}
@@ -169,8 +197,8 @@ export default function CompanyClient({
               onClick={() => {
                 setShowAddUser(true);
                 setInviteError("");
-                setInviteSuccess("");
                 setInviteEmail("");
+                setInviteRole("member");
               }}
               className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-md hover:bg-gray-700 transition-colors"
             >
@@ -182,51 +210,49 @@ export default function CompanyClient({
             <p className="text-sm text-gray-400">No members yet.</p>
           ) : (
             <div className="space-y-1">
-              {members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => openMemberProjects(member)}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-gray-900">{member.username}</p>
-                      <span
-                        className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                          member.company_role === "admin"
-                            ? "bg-gray-100 text-gray-700"
-                            : "bg-gray-50 text-gray-400"
-                        }`}
-                      >
-                        {member.company_role}
-                      </span>
+              {members.map((member) => {
+                const isOwner = member.company_role === "super_admin";
+                const isCurrentUser = member.id === currentUserId;
+                // Can remove: super_admin can remove admins/members; admin can only remove members
+                const canRemove =
+                  !isCurrentUser &&
+                  !isOwner &&
+                  (isSuperAdmin || member.company_role === "member");
+
+                return (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => openMemberProjects(member)}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-gray-900">{member.username}</p>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${roleBadgeClass(member.company_role)}`}>
+                          {roleLabel(member.company_role)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400">{member.email}</p>
                     </div>
-                    <p className="text-xs text-gray-400">{member.email}</p>
+                    <div className="flex items-center gap-3">
+                      {canRemove && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveMember(member.id);
+                          }}
+                          className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      )}
+                      <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {member.id !== currentUserId && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveMember(member.id);
-                        }}
-                        className="text-xs text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        Remove
-                      </button>
-                    )}
-                    <svg
-                      className="w-4 h-4 text-gray-300"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -238,12 +264,14 @@ export default function CompanyClient({
               </p>
               <div className="space-y-1">
                 {invites.map((invite) => (
-                  <div
-                    key={invite.id}
-                    className="flex items-center justify-between py-2 px-3"
-                  >
+                  <div key={invite.id} className="flex items-center justify-between py-2 px-3">
                     <div>
-                      <p className="text-sm text-gray-500">{invite.email}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-gray-500">{invite.email}</p>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${roleBadgeClass(invite.invited_role)}`}>
+                          {roleLabel(invite.invited_role)}
+                        </span>
+                      </div>
                       <p className="text-xs text-gray-300">
                         Expires{" "}
                         {new Date(invite.expires_at).toLocaleDateString("en-US", {
@@ -284,8 +312,21 @@ export default function CompanyClient({
                 placeholder="colleague@company.com"
                 className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
+              {/* Role selector — admins can only invite members; super_admin can invite admins too */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as "member" | "admin")}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                >
+                  <option value="member">Member — standard access, can invite subcontractors</option>
+                  {isSuperAdmin && (
+                    <option value="admin">Admin — manage users and invite subcontractors (no billing)</option>
+                  )}
+                </select>
+              </div>
               {inviteError && <p className="text-xs text-red-600">{inviteError}</p>}
-              {inviteSuccess && <p className="text-xs text-green-600">{inviteSuccess}</p>}
               <div className="flex gap-2 pt-1">
                 <button
                   type="button"
