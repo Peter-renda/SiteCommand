@@ -12,13 +12,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const allFolders = sp.get("all_folders") === "true";
   const supabase = getSupabase();
 
+  const isExternal = session.user_type === "external";
+
   if (allFolders) {
-    const { data } = await supabase
+    let foldersQuery = supabase
       .from("documents")
       .select("id, name, parent_id")
       .eq("project_id", projectId)
       .eq("type", "folder")
       .order("name");
+    if (isExternal) foldersQuery = foldersQuery.eq("is_private", false);
+    const { data } = await foldersQuery;
     return NextResponse.json(data || []);
   }
 
@@ -28,6 +32,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .eq("project_id", projectId)
     .order("type", { ascending: false })
     .order("name", { ascending: true });
+
+  if (isExternal) query = query.eq("is_private", false);
 
   if (parentId) {
     query = query.eq("parent_id", parentId);
