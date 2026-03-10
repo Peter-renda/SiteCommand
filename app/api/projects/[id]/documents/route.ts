@@ -75,7 +75,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
     const docId = crypto.randomUUID();
-    const path = `${projectId}/${docId}/${file.name}`;
+    const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${projectId}/${docId}/${safeFilename}`;
 
     const { error: uploadError } = await supabase.storage
       .from("project-documents")
