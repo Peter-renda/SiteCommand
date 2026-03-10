@@ -1,11 +1,11 @@
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import ContractorClient from "./ContractorClient";
+import TeammateClient from "./TeammateClient";
 
-export default async function ContractorPage() {
+export default async function TeammatePage() {
   const session = await getSession();
   if (!session) redirect("/login");
   if (session.role !== "contractor") redirect("/dashboard");
 
-  return <ContractorClient username={session.username} />;
+  return <TeammateClient username={session.username} />;
 }

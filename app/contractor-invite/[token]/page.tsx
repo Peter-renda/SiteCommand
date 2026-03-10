@@ -53,7 +53,7 @@ export default function ContractorInvitePage({ params }: { params: Promise<{ tok
     setSubmitting(false);
 
     if (!res.ok) { setFormError(data.error || "Failed to accept invitation"); return; }
-    router.push(data.redirect ?? "/contractor");
+    router.push(data.redirect ?? "/teammate");
   }
 
   if (loading) {

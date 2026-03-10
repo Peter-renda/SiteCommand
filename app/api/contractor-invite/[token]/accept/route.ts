@@ -83,10 +83,7 @@ export async function POST(
   // Issue JWT
   const jwtToken = await createToken(tokenPayload);
 
-  // Redirect: existing users go to their normal home, new contractor accounts go to /contractor
-  const redirect = existingUser
-    ? (existingUser.role === "admin" ? "/dashboard" : existingUser.company_id ? "/dashboard" : "/contractor")
-    : "/contractor";
+  const redirect = "/teammate";
 
   const res = NextResponse.json({ redirect });
   res.cookies.set("token", jwtToken, {

@@ -22,7 +22,14 @@
       "Bash(find:*)",
       "Bash(gh run:*)",
       "Bash(wc:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(sed:*)",
+      "Bash(rm:*)",
+      "Bash(python:*)",
+      "Bash(cat:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd:*)",
+      "Bash(mkdir:*)"
     ]
   }
 }

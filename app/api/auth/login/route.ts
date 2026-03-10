@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
   let redirect: string | null = null;
   if (user.role === "contractor") {
-    redirect = "/contractor";
+    redirect = "/teammate";
   } else if (user.role !== "admin") {
     if (!user.company_id) {
       redirect = "/pricing";
