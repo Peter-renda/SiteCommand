@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id: projectId } = await params;
   const body = await req.json();
-  const { type, first_name, last_name, email, phone, company, permission, group_name, notes } = body;
+  const { type, first_name, last_name, email, phone, company, permission, group_name, notes, job_title, address } = body;
 
   if (!type) return NextResponse.json({ error: "Type is required" }, { status: 400 });
 
@@ -43,6 +43,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       permission: permission || null,
       group_name: group_name || null,
       notes: notes || null,
+      job_title: job_title || null,
+      address: address || null,
     })
     .select()
     .single();

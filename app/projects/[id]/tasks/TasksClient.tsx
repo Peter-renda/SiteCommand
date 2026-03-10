@@ -14,6 +14,7 @@ type Task = {
   description: string | null;
   photo_url: string | null;
   distribution_list: DistributionContact[];
+  assignees: DistributionContact[];
   due_date: string | null;
   created_at: string;
 };
@@ -38,6 +39,171 @@ const STATUS_COLORS: Record<string, string> = {
   closed: "bg-gray-100 text-gray-500",
 };
 
+
+// ── Assignee Picker ───────────────────────────────────────────────────────────
+
+const AVATAR_COLORS = [
+  "bg-slate-600", "bg-blue-600", "bg-violet-600",
+  "bg-rose-600", "bg-amber-600", "bg-teal-600", "bg-emerald-600",
+];
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "");
+}
+
+function avatarBg(name: string): string {
+  const code = name.charCodeAt(0) + (name.charCodeAt(1) || 0);
+  return AVATAR_COLORS[code % AVATAR_COLORS.length];
+}
+
+function AssigneePicker({
+  directory,
+  selected,
+  onChange,
+}: {
+  directory: DirectoryContact[];
+  selected: DistributionContact[];
+  onChange: (v: DistributionContact[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    if (open) setTimeout(() => searchRef.current?.focus(), 50);
+  }, [open]);
+
+  const selectedIds = new Set(selected.map((s) => s.id));
+
+  const users = directory.filter((c) => c.type === "user");
+  const filtered = users.filter(
+    (c) =>
+      contactDisplayName(c).toLowerCase().includes(search.toLowerCase()) ||
+      (c.email ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  function toggle(c: DirectoryContact) {
+    const name = contactDisplayName(c);
+    if (selectedIds.has(c.id)) {
+      onChange(selected.filter((s) => s.id !== c.id));
+    } else {
+      onChange([...selected, { id: c.id, name, email: c.email }]);
+    }
+  }
+
+  const label =
+    selected.length === 0
+      ? "Select Assignees"
+      : selected.map((s) => s.name).join(", ");
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 text-left"
+      >
+        <span className={selected.length === 0 ? "text-gray-400" : "text-gray-900 truncate"}>
+          {label}
+        </span>
+        <svg
+          className={`w-4 h-4 text-gray-400 shrink-0 ml-2 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Selected chips */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {selected.map((s) => (
+            <span key={s.id} className="flex items-center gap-1 pl-2 pr-1.5 py-0.5 bg-gray-100 text-xs text-gray-700 rounded-full">
+              {s.name}
+              <button
+                type="button"
+                onClick={() => onChange(selected.filter((x) => x.id !== s.id))}
+                className="text-gray-400 hover:text-gray-700 ml-0.5"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-30 overflow-hidden">
+          {/* Search */}
+          <div className="p-2 border-b border-gray-100">
+            <div className="relative">
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search"
+                className="w-full pl-3 pr-8 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="max-h-56 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-gray-400 px-4 py-3">No contacts found</p>
+            ) : (
+              <>
+                <p className="px-4 pt-3 pb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Users</p>
+                {filtered.map((c) => {
+                  const name = contactDisplayName(c);
+                  const initials = getInitials(name).toUpperCase();
+                  const checked = selectedIds.has(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => toggle(c)}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${checked ? "bg-blue-50" : "hover:bg-gray-50"}`}
+                    >
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-xs font-semibold shrink-0 ${avatarBg(name)}`}>
+                        {initials}
+                      </span>
+                      <span className="text-sm text-gray-900">{name}</span>
+                      {checked && (
+                        <svg className="w-4 h-4 text-blue-600 ml-auto shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Distribution Picker ───────────────────────────────────────────────────────
 
@@ -150,6 +316,7 @@ function NewTaskModal({
     category: string;
     description: string;
     distribution_list: DistributionContact[];
+    assignees: DistributionContact[];
     due_date: string;
     photoFile: File | null;
   }) => void;
@@ -160,6 +327,7 @@ function NewTaskModal({
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [distribution, setDistribution] = useState<DistributionContact[]>([]);
+  const [assignees, setAssignees] = useState<DistributionContact[]>([]);
   const [dueDate, setDueDate] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -177,7 +345,7 @@ function NewTaskModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onConfirm({ title, status, category, description, distribution_list: distribution, due_date: dueDate, photoFile });
+    onConfirm({ title, status, category, description, distribution_list: distribution, assignees, due_date: dueDate, photoFile });
   }
 
   return (
@@ -257,6 +425,16 @@ function NewTaskModal({
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+            />
+          </div>
+
+          {/* Assignees */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Assignee(s)</label>
+            <AssigneePicker
+              directory={directory}
+              selected={assignees}
+              onChange={setAssignees}
             />
           </div>
 
@@ -359,6 +537,7 @@ function TaskDetailModal({
   const [category, setCategory] = useState(task.category ?? "");
   const [description, setDescription] = useState(task.description ?? "");
   const [distribution, setDistribution] = useState<DistributionContact[]>(task.distribution_list ?? []);
+  const [assignees, setAssignees] = useState<DistributionContact[]>(task.assignees ?? []);
   const [dueDate, setDueDate] = useState(task.due_date ?? "");
   const [photoUrl, setPhotoUrl] = useState(task.photo_url);
   const [saving, setSaving] = useState(false);
@@ -384,11 +563,11 @@ function TaskDetailModal({
     const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, category, description, distribution_list: distribution, due_date: dueDate || null, photo_url: photoUrl }),
+      body: JSON.stringify({ status, category, description, distribution_list: distribution, assignees, due_date: dueDate || null, photo_url: photoUrl }),
     });
     if (res.ok) {
       const updated = await res.json();
-      onUpdate({ ...updated, distribution_list: distribution });
+      onUpdate({ ...updated, distribution_list: distribution, assignees });
     }
     setSaving(false);
     onClose();
@@ -446,6 +625,11 @@ function TaskDetailModal({
               onChange={(e) => setDueDate(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Assignee(s)</label>
+            <AssigneePicker directory={directory} selected={assignees} onChange={setAssignees} />
           </div>
 
           <div>
@@ -627,6 +811,7 @@ export default function TasksClient({
     category: string;
     description: string;
     distribution_list: DistributionContact[];
+    assignees: DistributionContact[];
     due_date: string;
     photoFile: File | null;
   }) {
@@ -642,6 +827,7 @@ export default function TasksClient({
         category: data.category || null,
         description: data.description || null,
         distribution_list: data.distribution_list,
+        assignees: data.assignees,
         due_date: data.due_date || null,
       }),
     });
@@ -649,6 +835,7 @@ export default function TasksClient({
     if (res.ok) {
       const newTask: Task = await res.json();
       newTask.distribution_list = data.distribution_list;
+      newTask.assignees = data.assignees;
 
       // Upload photo if provided
       if (data.photoFile) {
@@ -770,6 +957,7 @@ export default function TasksClient({
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Title</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Assignees</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Distribution</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Due Date</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
@@ -797,6 +985,11 @@ export default function TasksClient({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">{task.category || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {(task.assignees ?? []).length > 0
+                        ? task.assignees.map((a) => a.name).join(", ")
+                        : <span className="text-gray-300">—</span>}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {(task.distribution_list ?? []).length > 0
                         ? task.distribution_list.map((d) => d.name).join(", ")

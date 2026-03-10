@@ -75,11 +75,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
     const docId = crypto.randomUUID();
-    const path = `${projectId}/${docId}/${file.name}`;
+    const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${projectId}/${docId}/${safeFilename}`;
+
+    // Convert to ArrayBuffer to strip the original filename from the upload payload
+    // (File objects carry their .name in Content-Disposition headers which breaks on & and spaces)
+    const fileBuffer = await file.arrayBuffer();
 
     const { error: uploadError } = await supabase.storage
       .from("project-documents")
-      .upload(path, file, { contentType: file.type });
+      .upload(path, fileBuffer, { contentType: file.type });
 
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
