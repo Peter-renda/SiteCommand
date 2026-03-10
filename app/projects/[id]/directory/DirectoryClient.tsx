@@ -790,6 +790,10 @@ export default function DirectoryClient({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
 
+  // Send invite
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     loadContacts();
   }, [projectId]);
@@ -895,6 +899,24 @@ export default function DirectoryClient({
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
+  }
+
+  async function handleSendInvite(c: Contact) {
+    if (!c.email) return;
+    setInvitingId(c.id);
+    const name = displayName(c);
+    const res = await fetch(`/api/projects/${projectId}/contractor-invite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contact_id: c.id, email: c.email, contact_name: name }),
+    });
+    setInvitingId(null);
+    if (res.ok) {
+      setInvitedIds((prev) => new Set(prev).add(c.id));
+    } else {
+      const data = await res.json();
+      alert(data.error || "Failed to send invite");
+    }
   }
 
   function displayName(c: Contact): string {
@@ -1027,7 +1049,7 @@ export default function DirectoryClient({
                         <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Phone</th>
                         <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Company</th>
                         <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Permission</th>
-                        <th className="px-4 py-3 w-10"></th>
+                        <th className="px-4 py-3"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1043,21 +1065,32 @@ export default function DirectoryClient({
                           <td className="px-4 py-3 text-sm text-gray-500">{c.company || <span className="text-gray-300">—</span>}</td>
                           <td className="px-4 py-3"><PermissionBadge value={c.permission} /></td>
                           <td className="px-4 py-3">
-                            <button
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (openMenuId === c.id) { setOpenMenuId(null); setMenuPos(null); return; }
-                                const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                                setOpenMenuId(c.id);
-                              }}
-                              className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                            >
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
-                              </svg>
-                            </button>
+                            <div className="flex items-center gap-1 justify-end">
+                              {c.email && (
+                                <button
+                                  onClick={() => handleSendInvite(c)}
+                                  disabled={invitingId === c.id || invitedIds.has(c.id)}
+                                  className="px-2.5 py-1 text-xs font-medium rounded-md border transition-colors disabled:opacity-50 disabled:cursor-default border-gray-200 text-gray-600 hover:bg-gray-50"
+                                >
+                                  {invitedIds.has(c.id) ? "Invited" : invitingId === c.id ? "Sending..." : "Send Invite"}
+                                </button>
+                              )}
+                              <button
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (openMenuId === c.id) { setOpenMenuId(null); setMenuPos(null); return; }
+                                  const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                  setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                  setOpenMenuId(c.id);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                  <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
+                                </svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1087,7 +1120,7 @@ export default function DirectoryClient({
                         <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
                         <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Phone</th>
                         <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Notes</th>
-                        <th className="px-4 py-3 w-10"></th>
+                        <th className="px-4 py-3"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1102,21 +1135,32 @@ export default function DirectoryClient({
                           <td className="px-4 py-3 text-sm text-gray-500">{c.phone || <span className="text-gray-300">—</span>}</td>
                           <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">{c.notes || <span className="text-gray-300">—</span>}</td>
                           <td className="px-4 py-3">
-                            <button
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (openMenuId === c.id) { setOpenMenuId(null); setMenuPos(null); return; }
-                                const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                                setOpenMenuId(c.id);
-                              }}
-                              className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                            >
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
-                              </svg>
-                            </button>
+                            <div className="flex items-center gap-1 justify-end">
+                              {c.email && (
+                                <button
+                                  onClick={() => handleSendInvite(c)}
+                                  disabled={invitingId === c.id || invitedIds.has(c.id)}
+                                  className="px-2.5 py-1 text-xs font-medium rounded-md border transition-colors disabled:opacity-50 disabled:cursor-default border-gray-200 text-gray-600 hover:bg-gray-50"
+                                >
+                                  {invitedIds.has(c.id) ? "Invited" : invitingId === c.id ? "Sending..." : "Send Invite"}
+                                </button>
+                              )}
+                              <button
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (openMenuId === c.id) { setOpenMenuId(null); setMenuPos(null); return; }
+                                  const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                  setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                  setOpenMenuId(c.id);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                  <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
+                                </svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1145,7 +1189,7 @@ export default function DirectoryClient({
                         <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Group Name</th>
                         <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
                         <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Notes</th>
-                        <th className="px-4 py-3 w-10"></th>
+                        <th className="px-4 py-3"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1159,21 +1203,32 @@ export default function DirectoryClient({
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">{c.notes || <span className="text-gray-300">—</span>}</td>
                           <td className="px-4 py-3">
-                            <button
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (openMenuId === c.id) { setOpenMenuId(null); setMenuPos(null); return; }
-                                const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                                setOpenMenuId(c.id);
-                              }}
-                              className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                            >
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
-                              </svg>
-                            </button>
+                            <div className="flex items-center gap-1 justify-end">
+                              {c.email && (
+                                <button
+                                  onClick={() => handleSendInvite(c)}
+                                  disabled={invitingId === c.id || invitedIds.has(c.id)}
+                                  className="px-2.5 py-1 text-xs font-medium rounded-md border transition-colors disabled:opacity-50 disabled:cursor-default border-gray-200 text-gray-600 hover:bg-gray-50"
+                                >
+                                  {invitedIds.has(c.id) ? "Invited" : invitingId === c.id ? "Sending..." : "Send Invite"}
+                                </button>
+                              )}
+                              <button
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (openMenuId === c.id) { setOpenMenuId(null); setMenuPos(null); return; }
+                                  const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                  setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                  setOpenMenuId(c.id);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                  <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
+                                </svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
