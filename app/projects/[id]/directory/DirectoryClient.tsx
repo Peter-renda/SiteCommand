@@ -355,7 +355,7 @@ export default function DirectoryClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "user", ...data }),
     });
-    if (res.ok) setContacts((prev) => [...prev, await res.json()]);
+    if (res.ok) { const c = await res.json(); setContacts((prev) => [...prev, c]); }
   }
 
   async function handleAddCompany(data: CompanyFormData) {
@@ -365,7 +365,7 @@ export default function DirectoryClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "company", ...data }),
     });
-    if (res.ok) setContacts((prev) => [...prev, await res.json()]);
+    if (res.ok) { const c = await res.json(); setContacts((prev) => [...prev, c]); }
   }
 
   async function handleEdit(data: UserFormData | CompanyFormData) {
