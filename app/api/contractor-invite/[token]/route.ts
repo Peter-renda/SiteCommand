@@ -21,6 +21,6 @@ export async function GET(
   return NextResponse.json({
     email: data.email,
     contactName: data.contact_name,
-    projectName: (data.projects as { name: string } | null)?.name ?? "Unknown Project",
+    projectName: (data.projects as unknown as { name: string } | null)?.name ?? "Unknown Project",
   });
 }
