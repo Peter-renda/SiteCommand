@@ -371,6 +371,23 @@ export function initDb() {
       uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (project_id) REFERENCES projects (id)
     );
+    CREATE TABLE IF NOT EXISTS budget_line_items (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      cost_code TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      original_budget_amount REAL NOT NULL DEFAULT 0,
+      budget_modifications REAL NOT NULL DEFAULT 0,
+      approved_cos REAL NOT NULL DEFAULT 0,
+      pending_budget_changes REAL NOT NULL DEFAULT 0,
+      committed_costs REAL NOT NULL DEFAULT 0,
+      direct_costs REAL NOT NULL DEFAULT 0,
+      pending_cost_changes REAL NOT NULL DEFAULT 0,
+      forecast_to_complete REAL NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects (id)
+    );
   `);
   // Create default admin user if not exists
   const adminEmail = "ptrenda1@gmail.com";

@@ -294,6 +294,38 @@ async function startServer() {
     const users = db.prepare("SELECT id, username, email FROM users WHERE company_id = ?").all(req.user.company_id);
     res.json(users);
   });
+  // --- Budget Routes ---
+  app.get("/api/projects/:id/budget", authenticate, (req, res) => {
+    const items = db.prepare("SELECT * FROM budget_line_items WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC").all(req.params.id);
+    res.json(items);
+  });
+  app.post("/api/projects/:id/budget", authenticate, (req, res) => {
+    const { cost_code, description, original_budget_amount, budget_modifications, approved_cos, pending_budget_changes, committed_costs, direct_costs, pending_cost_changes, forecast_to_complete } = req.body;
+    if (!cost_code?.trim() && !description?.trim()) {
+      return res.status(400).json({ error: "Cost code or description is required" });
+    }
+    const items = db.prepare("SELECT COUNT(*) as count FROM budget_line_items WHERE project_id = ?").get(req.params.id) as any;
+    const id = uuidv4();
+    db.prepare(`
+      INSERT INTO budget_line_items (id, project_id, cost_code, description, original_budget_amount, budget_modifications, approved_cos, pending_budget_changes, committed_costs, direct_costs, pending_cost_changes, forecast_to_complete, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, req.params.id, cost_code || "", description || "", original_budget_amount ?? 0, budget_modifications ?? 0, approved_cos ?? 0, pending_budget_changes ?? 0, committed_costs ?? 0, direct_costs ?? 0, pending_cost_changes ?? 0, forecast_to_complete ?? 0, items.count);
+    const newItem = db.prepare("SELECT * FROM budget_line_items WHERE id = ?").get(id);
+    res.json(newItem);
+  });
+  app.patch("/api/projects/:id/budget/:lineItemId", authenticate, (req, res) => {
+    const { cost_code, description, original_budget_amount, budget_modifications, approved_cos, pending_budget_changes, committed_costs, direct_costs, pending_cost_changes, forecast_to_complete } = req.body;
+    db.prepare(`
+      UPDATE budget_line_items SET cost_code = ?, description = ?, original_budget_amount = ?, budget_modifications = ?, approved_cos = ?, pending_budget_changes = ?, committed_costs = ?, direct_costs = ?, pending_cost_changes = ?, forecast_to_complete = ?
+      WHERE id = ? AND project_id = ?
+    `).run(cost_code ?? "", description ?? "", original_budget_amount ?? 0, budget_modifications ?? 0, approved_cos ?? 0, pending_budget_changes ?? 0, committed_costs ?? 0, direct_costs ?? 0, pending_cost_changes ?? 0, forecast_to_complete ?? 0, req.params.lineItemId, req.params.id);
+    const updated = db.prepare("SELECT * FROM budget_line_items WHERE id = ?").get(req.params.lineItemId);
+    res.json(updated);
+  });
+  app.delete("/api/projects/:id/budget/:lineItemId", authenticate, (req, res) => {
+    db.prepare("DELETE FROM budget_line_items WHERE id = ? AND project_id = ?").run(req.params.lineItemId, req.params.id);
+    res.json({ success: true });
+  });
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
