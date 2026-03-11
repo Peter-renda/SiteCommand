@@ -1,23 +1,23 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Dashboard from "./pages/Dashboard";
-import ProjectDetail from "./pages/ProjectDetail";
-import DailyLog from "./pages/DailyLog";
-import Directory from "./pages/Directory";
-import Tasks from "./pages/Tasks";
-import RFIs from "./pages/RFIs";
-import Submittals from "./pages/Submittals";
-import PunchList from "./pages/PunchList";
-import Schedule from "./pages/Schedule";
-import Photos from "./pages/Photos";
-import Drawings from "./pages/Drawings";
-import Admin from "./pages/Admin";
-import Pricing from "./pages/Pricing";
-import Reporting from "./pages/Reporting";
-import Insights from "./pages/Insights";
-import Budget from "./pages/Budget";
+import Home from "./views/Home";
+import Login from "./views/Login";
+import Signup from "./views/Signup";
+import Dashboard from "./views/Dashboard";
+import ProjectDetail from "./views/ProjectDetail";
+import DailyLog from "./views/DailyLog";
+import Directory from "./views/Directory";
+import Tasks from "./views/Tasks";
+import RFIs from "./views/RFIs";
+import Submittals from "./views/Submittals";
+import PunchList from "./views/PunchList";
+import Schedule from "./views/Schedule";
+import Photos from "./views/Photos";
+import Drawings from "./views/Drawings";
+import Admin from "./views/Admin";
+import Pricing from "./views/Pricing";
+import Reporting from "./views/Reporting";
+import Insights from "./views/Insights";
+import Budget from "./views/Budget";
 export default function App() {
   return (
     <Router>
