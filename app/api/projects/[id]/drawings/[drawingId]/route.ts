@@ -13,7 +13,7 @@ export async function PATCH(
   const supabase = getSupabase();
 
   const body = await req.json();
-  const { drawing_no, title, revision, drawing_date, received_date } = body;
+  const { drawing_no, title, revision, drawing_date, received_date, discipline, set_name, status } = body;
 
   const { data, error } = await supabase
     .from("project_drawings")
@@ -23,6 +23,9 @@ export async function PATCH(
       revision: revision ?? null,
       drawing_date: drawing_date || null,
       received_date: received_date || null,
+      discipline: discipline ?? null,
+      set_name: set_name ?? null,
+      status: status || "draft",
       updated_at: new Date().toISOString(),
     })
     .eq("id", drawingId)
