@@ -17,6 +17,7 @@ import Admin from "./pages/Admin";
 import Pricing from "./pages/Pricing";
 import Reporting from "./pages/Reporting";
 import Insights from "./pages/Insights";
+import Budget from "./pages/Budget";
 export default function App() {
   return (
     <Router>
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/projects/:id/drawings" element={<Drawings />} />
         <Route path="/projects/:id/reporting" element={<Reporting />} />
         <Route path="/projects/:id/insights" element={<Insights />} />
+        <Route path="/projects/:id/budget" element={<Budget />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
