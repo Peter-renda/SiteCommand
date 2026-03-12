@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .single();
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-    const taskUrl = `${appUrl}/projects/${projectId}/tasks`;
+    const taskUrl = `${appUrl}/projects/${projectId}/tasks/${data!.id}`;
 
     await Promise.allSettled(
       recipients.map((r) =>
