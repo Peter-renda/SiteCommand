@@ -8,6 +8,7 @@ type InviteData = {
   companyName: string;
   invitationType: "internal" | "external";
   projectName: string | null;
+  hasAccount: boolean;
 };
 
 export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {
@@ -22,6 +23,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [useExisting, setUseExisting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/invite/${token}`)
@@ -41,6 +43,8 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
       });
   }, [token]);
 
+  const isExistingFlow = inviteData?.hasAccount || useExisting;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (password.length < 6) {
@@ -50,17 +54,21 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
     setSubmitting(true);
     setFormError("");
 
+    const body = isExistingFlow
+      ? { password, existingAccount: true }
+      : { username, password };
+
     const res = await fetch(`/api/invite/${token}/accept`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify(body),
     });
 
     const data = await res.json();
     setSubmitting(false);
 
     if (!res.ok) {
-      setFormError(data.error || "Failed to create account");
+      setFormError(data.error || (isExistingFlow ? "Failed to log in" : "Failed to create account"));
       return;
     }
 
@@ -128,17 +136,19 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Username</label>
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              placeholder="Choose a username"
-            />
-          </div>
+          {!isExistingFlow && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Username</label>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                placeholder="Choose a username"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Password</label>
             <input
@@ -147,7 +157,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              placeholder="At least 6 characters"
+              placeholder={isExistingFlow ? "Your SiteCommand password" : "At least 6 characters"}
             />
           </div>
 
@@ -158,9 +168,29 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
             disabled={submitting}
             className="w-full py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
           >
-            {submitting ? "Creating account..." : "Create account"}
+            {submitting
+              ? isExistingFlow ? "Logging in..." : "Creating account..."
+              : isExistingFlow ? "Log in and accept" : "Create account"}
           </button>
         </form>
+
+        <p className="text-center text-xs text-gray-400 mt-4">
+          {isExistingFlow ? (
+            <>
+              No account yet?{" "}
+              <button onClick={() => { setUseExisting(false); setFormError(""); }} className="text-gray-700 underline">
+                Create one
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <button onClick={() => { setUseExisting(true); setFormError(""); }} className="text-gray-700 underline">
+                Log in instead
+              </button>
+            </>
+          )}
+        </p>
       </div>
     </div>
   );

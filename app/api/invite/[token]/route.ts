@@ -36,10 +36,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     projectName = project?.name ?? null;
   }
 
+  // Check if a SiteCommand account already exists for this email
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", invite.email)
+    .maybeSingle();
+
   return NextResponse.json({
     email: invite.email,
     companyName: company?.name ?? "",
     invitationType: invite.invitation_type ?? "internal",
     projectName,
+    hasAccount: !!existingUser,
   });
 }

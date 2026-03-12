@@ -5,10 +5,13 @@ import { createToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const { username, password } = await req.json();
+  const { username, password, existingAccount } = await req.json();
 
-  if (!username || !password) {
-    return NextResponse.json({ error: "Username and password are required" }, { status: 400 });
+  if (!password) {
+    return NextResponse.json({ error: "Password is required" }, { status: 400 });
+  }
+  if (!existingAccount && !username) {
+    return NextResponse.json({ error: "Username is required" }, { status: 400 });
   }
 
   const supabase = getSupabase();
@@ -58,7 +61,61 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     }
   }
 
-  // Check username / email uniqueness
+  // ── Existing account: log in and grant access ──────────────────────────────
+  if (existingAccount) {
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, username, email, role, company_id, company_role, user_type, password_hash")
+      .eq("email", invite.email)
+      .maybeSingle();
+
+    if (!user) {
+      return NextResponse.json({ error: "No account found for this email" }, { status: 404 });
+    }
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
+    }
+
+    // Grant project access
+    if (invite.project_id) {
+      await supabase.from("project_memberships").upsert(
+        {
+          project_id: invite.project_id,
+          user_id: user.id,
+          company_id: invite.company_id,
+          role: invite.project_role ?? "external_viewer",
+        },
+        { onConflict: "project_id,user_id" }
+      );
+    }
+
+    await supabase.from("invitations").update({ accepted_at: new Date().toISOString() }).eq("id", invite.id);
+
+    const jwtToken = await createToken({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      company_id: user.company_id,
+      company_role: user.company_role,
+      user_type: user.user_type,
+    });
+
+    const redirect = isExternal ? "/subcontractor" : "/dashboard";
+    const res = NextResponse.json({ redirect });
+    res.cookies.set("token", jwtToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+    return res;
+  }
+
+  // ── New account: check uniqueness then create ────────────────────────────────
   const { data: existingUser } = await supabase
     .from("users")
     .select("id")

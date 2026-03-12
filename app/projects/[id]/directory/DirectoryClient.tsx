@@ -355,7 +355,19 @@ export default function DirectoryClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "user", ...data }),
     });
-    if (res.ok) { const c = await res.json(); setContacts((prev) => [...prev, c]); }
+    if (res.ok) {
+      const c = await res.json();
+      setContacts((prev) => [...prev, c]);
+      if (data.email) {
+        const contactName = [data.first_name, data.last_name].filter(Boolean).join(" ");
+        await fetch(`/api/projects/${projectId}/invite-external`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: data.email, contact_name: contactName }),
+        });
+        setInvitedIds((prev) => new Set(prev).add(c.id));
+      }
+    }
   }
 
   async function handleAddCompany(data: CompanyFormData) {
@@ -394,10 +406,10 @@ export default function DirectoryClient({
   async function handleSendInvite(c: Contact) {
     if (!c.email) return;
     setInvitingId(c.id);
-    const res = await fetch(`/api/projects/${projectId}/contractor-invite`, {
+    const res = await fetch(`/api/projects/${projectId}/invite-external`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contact_id: c.id, email: c.email, contact_name: displayName(c) }),
+      body: JSON.stringify({ email: c.email, contact_name: displayName(c) }),
     });
     setInvitingId(null);
     if (res.ok) setInvitedIds((prev) => new Set(prev).add(c.id));

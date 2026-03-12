@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/project-access";
-import { sendInviteEmail } from "@/lib/email";
+import { sendContractorInviteEmail } from "@/lib/email";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  const { email, allowed_sections } = await req.json();
+  const { email, allowed_sections, contact_name } = await req.json();
   if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
 
   // Validate allowed_sections if provided
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const inviteUrl = `${appUrl}/invite/${invite.token}`;
 
-  await sendInviteEmail(email, inviteUrl, company?.name ?? "");
+  await sendContractorInviteEmail(email, inviteUrl, project.name, contact_name ?? "");
 
   return NextResponse.json({ success: true });
 }
