@@ -404,6 +404,37 @@ function RunReportModal({
     downloadCSV(`${reportName.toLowerCase().replace(/\s+/g, "-")}.csv`, csv);
   }
 
+  function handleExportPDF() {
+    if (rows.length === 0) return;
+    const headerCells = reportDef.columns.map((c) => `<th>${c.label}</th>`).join("");
+    const bodyRows = rows
+      .map(
+        (row) =>
+          `<tr>${reportDef.columns.map((c) => `<td>${formatCell(c.key, row[c.key])}</td>`).join("")}</tr>`
+      )
+      .join("");
+    const html = `<!DOCTYPE html><html><head><title>${reportName}</title><style>
+      body{font-family:sans-serif;font-size:11px;margin:24px}
+      h2{margin:0 0 4px;font-size:14px}
+      p{margin:0 0 12px;color:#666;font-size:11px}
+      table{width:100%;border-collapse:collapse}
+      th,td{border:1px solid #ddd;padding:5px 8px;text-align:left}
+      th{background:#f3f4f6;font-weight:600;font-size:10px;text-transform:uppercase}
+      tr:nth-child(even){background:#fafafa}
+      @media print{body{margin:12px}}
+    </style></head><body>
+      <h2>${reportName}</h2>
+      <p>${reportDef.group} &middot; ${rows.length} record${rows.length === 1 ? "" : "s"}</p>
+      <table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table>
+    </body></html>`;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
   function handleSave() {
     const saved: SavedReport = {
       id: crypto.randomUUID(),
@@ -474,6 +505,12 @@ function RunReportModal({
                   className="px-4 py-1.5 border border-gray-200 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
                 >
                   Export CSV
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="px-4 py-1.5 border border-gray-200 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Export PDF
                 </button>
                 <button
                   onClick={handleSave}
