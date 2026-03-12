@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { useState, useEffect } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
 type DistributionContact = { id: string; name: string; email: string | null };
@@ -148,36 +148,16 @@ export default function TaskDetailClient({
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Editable fields
-  const [title, setTitle] = useState("");
   const [status, setStatus] = useState("open");
-  const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
-  const [distribution, setDistribution] = useState<DistributionContact[]>([]);
-  const [dueDate, setDueDate] = useState("");
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-
   const [saving, setSaving] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/projects/${projectId}/tasks/${taskId}`),
-      fetch(`/api/projects/${projectId}/directory`),
-    ]).then(async ([taskRes, dirRes]) => {
-      if (!taskRes.ok) { setNotFound(true); setLoading(false); return; }
-      const [taskData, dirData] = await Promise.all([taskRes.json(), dirRes.json()]);
+    fetch(`/api/projects/${projectId}/tasks/${taskId}`).then(async (res) => {
+      if (!res.ok) { setNotFound(true); setLoading(false); return; }
+      const taskData = await res.json();
       setTask(taskData);
-      setTitle(taskData.title);
       setStatus(taskData.status);
-      setCategory(taskData.category ?? "");
-      setDescription(taskData.description ?? "");
-      setDistribution(taskData.distribution_list ?? []);
-      setDueDate(taskData.due_date ?? "");
-      setPhotoUrl(taskData.photo_url);
-      setDirectory(Array.isArray(dirData) ? dirData : []);
       setLoading(false);
     });
   }, [projectId, taskId]);
@@ -188,38 +168,13 @@ export default function TaskDetailClient({
     const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        status,
-        category: category || null,
-        description: description || null,
-        distribution_list: distribution,
-        due_date: dueDate || null,
-        photo_url: photoUrl,
-      }),
+      body: JSON.stringify({ status }),
     });
     if (res.ok) {
       const updated = await res.json();
-      setTask({ ...updated, distribution_list: distribution });
+      setTask((prev) => prev ? { ...prev, status: updated.status } : prev);
     }
     setSaving(false);
-  }
-
-  async function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !task) return;
-    setUploadingPhoto(true);
-    const formData = new FormData();
-    formData.append("photo", file);
-    const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}/photo`, {
-      method: "POST",
-      body: formData,
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setPhotoUrl(data.photo_url + `?t=${Date.now()}`);
-    }
-    setUploadingPhoto(false);
   }
 
   async function handleDelete() {
@@ -288,23 +243,16 @@ export default function TaskDetailClient({
 
             {/* Task header */}
             <div className="mb-6">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                Task #{task.task_number}
-              </p>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full text-2xl font-bold text-gray-900 bg-transparent border-0 border-b-2 border-transparent focus:border-gray-300 focus:outline-none pb-1 transition-colors"
-              />
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Task #{task.task_number}</p>
+              <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-              {/* Left column: main fields */}
+              {/* Left column */}
               <div className="lg:col-span-2 space-y-5">
 
-                {/* Status + Category + Due Date */}
+                {/* Status (editable) + read-only fields */}
                 <div className="bg-white border border-gray-100 rounded-xl p-5">
                   <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Details</h2>
                   <div className="grid grid-cols-3 gap-4">
@@ -321,85 +269,50 @@ export default function TaskDetailClient({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1.5">Category</label>
-                      <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                      >
-                        <option value="">No category</option>
-                        {CATEGORIES.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
+                      <p className="text-xs font-medium text-gray-500 mb-1.5">Category</p>
+                      <p className="text-sm text-gray-700 py-2">{task.category || "—"}</p>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1.5">Due Date</label>
-                      <input
-                        type="date"
-                        value={dueDate}
-                        onChange={(e) => setDueDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                      />
+                      <p className="text-xs font-medium text-gray-500 mb-1.5">Due Date</p>
+                      <p className="text-sm text-gray-700 py-2">
+                        {task.due_date
+                          ? new Date(task.due_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                          : "—"}
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Description */}
-                <div className="bg-white border border-gray-100 rounded-xl p-5">
-                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Description</h2>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={6}
-                    placeholder="Add a description..."
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
-                  />
-                </div>
+                {task.description && (
+                  <div className="bg-white border border-gray-100 rounded-xl p-5">
+                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Description</h2>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{task.description}</p>
+                  </div>
+                )}
 
                 {/* Distribution list */}
-                <div className="bg-white border border-gray-100 rounded-xl p-5">
-                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Distribution List</h2>
-                  <DistributionPicker
-                    directory={directory}
-                    selected={distribution}
-                    onChange={setDistribution}
-                  />
-                </div>
+                {(task.distribution_list ?? []).length > 0 && (
+                  <div className="bg-white border border-gray-100 rounded-xl p-5">
+                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Distribution List</h2>
+                    <div className="flex flex-wrap gap-1.5">
+                      {task.distribution_list.map((d) => (
+                        <span key={d.id} className="px-2.5 py-1 bg-gray-100 text-xs text-gray-700 rounded-full">{d.name}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Right column: photo + meta */}
               <div className="space-y-5">
 
                 {/* Photo */}
-                <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                  <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-                  {photoUrl ? (
-                    <>
-                      <img src={photoUrl} alt="Task photo" className="w-full h-44 object-cover" />
-                      <div className="px-4 py-3 border-t border-gray-100">
-                        <button
-                          onClick={() => photoInputRef.current?.click()}
-                          disabled={uploadingPhoto}
-                          className="w-full py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
-                        >
-                          {uploadingPhoto ? "Uploading..." : "Change Photo"}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => photoInputRef.current?.click()}
-                      disabled={uploadingPhoto}
-                      className="w-full flex flex-col items-center justify-center gap-2 py-10 text-gray-300 hover:text-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                    >
-                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a.75.75 0 00.75-.75V6.75A.75.75 0 0019.5 6h-15a.75.75 0 00-.75.75v12c0 .414.336.75.75.75z" />
-                      </svg>
-                      <span className="text-xs">{uploadingPhoto ? "Uploading..." : "Add Photo"}</span>
-                    </button>
-                  )}
-                </div>
+                {task.photo_url && (
+                  <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                    <img src={task.photo_url} alt="Task photo" className="w-full h-44 object-cover" />
+                  </div>
+                )}
 
                 {/* Meta */}
                 <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
@@ -411,11 +324,11 @@ export default function TaskDetailClient({
                         {status}
                       </span>
                     </div>
-                    {dueDate && (
+                    {task.due_date && (
                       <div className="flex justify-between">
                         <span className="text-gray-400">Due</span>
                         <span className="text-gray-700 font-medium">
-                          {new Date(dueDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          {new Date(task.due_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                         </span>
                       </div>
                     )}

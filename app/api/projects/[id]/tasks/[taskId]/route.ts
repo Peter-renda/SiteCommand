@@ -33,11 +33,8 @@ export async function PATCH(
   const { id: projectId, taskId } = await params;
   const body = await req.json();
 
-  const allowed = ["title", "status", "category", "description", "distribution_list", "assignees", "photo_url", "due_date"];
   const update: Record<string, unknown> = {};
-  for (const key of allowed) {
-    if (key in body) update[key] = body[key] ?? null;
-  }
+  if (body.status !== undefined) update.status = body.status;
 
   const supabase = getSupabase();
   const { data, error } = await supabase

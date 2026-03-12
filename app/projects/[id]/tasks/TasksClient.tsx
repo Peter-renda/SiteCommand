@@ -534,40 +534,18 @@ function TaskDetailModal({
   onClose: () => void;
 }) {
   const [status, setStatus] = useState(task.status);
-  const [category, setCategory] = useState(task.category ?? "");
-  const [description, setDescription] = useState(task.description ?? "");
-  const [distribution, setDistribution] = useState<DistributionContact[]>(task.distribution_list ?? []);
-  const [assignees, setAssignees] = useState<DistributionContact[]>(task.assignees ?? []);
-  const [dueDate, setDueDate] = useState(task.due_date ?? "");
-  const [photoUrl, setPhotoUrl] = useState(task.photo_url);
   const [saving, setSaving] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
-
-  async function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingPhoto(true);
-    const formData = new FormData();
-    formData.append("photo", file);
-    const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}/photo`, { method: "POST", body: formData });
-    if (res.ok) {
-      const data = await res.json();
-      setPhotoUrl(data.photo_url + `?t=${Date.now()}`);
-    }
-    setUploadingPhoto(false);
-  }
 
   async function handleSave() {
     setSaving(true);
     const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, category, description, distribution_list: distribution, assignees, due_date: dueDate || null, photo_url: photoUrl }),
+      body: JSON.stringify({ status }),
     });
     if (res.ok) {
       const updated = await res.json();
-      onUpdate({ ...updated, distribution_list: distribution, assignees });
+      onUpdate({ ...task, status: updated.status });
     }
     setSaving(false);
     onClose();
@@ -589,93 +567,54 @@ function TaskDetailModal({
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-              >
-                <option value="">Select category...</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Due Date</label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Assignee(s)</label>
-            <AssigneePicker directory={directory} selected={assignees} onChange={setAssignees} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Distribution List</label>
-            <DistributionPicker directory={directory} selected={distribution} onChange={setDistribution} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
-              placeholder="Add a description..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Photo</label>
-            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            {photoUrl ? (
-              <div className="relative">
-                <img src={photoUrl} alt="Task photo" className="w-full h-40 object-cover rounded-lg border border-gray-200" />
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={uploadingPhoto}
-                  className="absolute bottom-2 right-2 px-2.5 py-1 bg-white rounded-md text-xs font-medium text-gray-700 shadow border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  {uploadingPhoto ? "Uploading..." : "Change"}
-                </button>
+          {/* Read-only info */}
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {task.category && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Category</p>
+                <p className="text-gray-700">{task.category}</p>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => photoInputRef.current?.click()}
-                disabled={uploadingPhoto}
-                className="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors disabled:opacity-50"
-              >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a.75.75 0 00.75-.75V6.75A.75.75 0 0019.5 6h-15a.75.75 0 00-.75.75v12c0 .414.336.75.75.75z" />
-                </svg>
-                <span className="text-xs">{uploadingPhoto ? "Uploading..." : "Click to attach a photo"}</span>
-              </button>
             )}
+            {task.due_date && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Due Date</p>
+                <p className="text-gray-700">
+                  {new Date(task.due_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {task.description && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-1">Description</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{task.description}</p>
+            </div>
+          )}
+
+          {(task.distribution_list ?? []).length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-1">Distribution List</p>
+              <p className="text-sm text-gray-700">{task.distribution_list.map((d) => d.name).join(", ")}</p>
+            </div>
+          )}
+
+          {task.photo_url && (
+            <img src={task.photo_url} alt="Task photo" className="w-full h-36 object-cover rounded-lg border border-gray-200" />
+          )}
+
+          {/* Status (only editable field) */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-3 justify-end pt-1">
