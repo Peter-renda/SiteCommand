@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { sendTaskCreatedEmail } from "@/lib/email";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -58,5 +59,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Send email notifications to distribution list members with emails
+  const recipients: { name: string; email: string }[] = (distribution_list ?? []).filter(
+    (d: { email?: string | null }) => d.email
+  );
+
+  if (recipients.length > 0) {
+    const { data: project } = await supabase
+      .from("projects")
+      .select("name")
+      .eq("id", projectId)
+      .single();
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+    const taskUrl = `${appUrl}/projects/${projectId}/tasks`;
+
+    await Promise.allSettled(
+      recipients.map((r) =>
+        sendTaskCreatedEmail(r.email, project?.name ?? "", data!.task_number, title, taskUrl, description || null, due_date || null)
+      )
+    );
+  }
+
   return NextResponse.json(data);
 }
