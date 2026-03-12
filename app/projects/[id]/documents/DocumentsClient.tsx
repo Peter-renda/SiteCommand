@@ -660,8 +660,13 @@ export default function DocumentsClient({
     setUploading(true);
     setUploadError(null);
 
+    const MAX_SIZE = 4.5 * 1024 * 1024; // 4.5MB Vercel limit
     const errors: string[] = [];
     for (const file of Array.from(files)) {
+      if (file.size > MAX_SIZE) {
+        errors.push(`${file.name} exceeds the 4.5MB upload limit. Please compress the file and try again.`);
+        continue;
+      }
       const formData = new FormData();
       formData.append("file", file);
       formData.append("parent_id", currentParentId ?? "null");

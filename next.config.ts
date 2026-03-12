@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    serverBodySizeLimit: "100mb",
+  },
   turbopack: {
     resolveAlias: {
       // pdfjs-dist optionally requires 'canvas' for server-side rendering; stub it out
