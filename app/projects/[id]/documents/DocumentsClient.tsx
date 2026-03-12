@@ -280,31 +280,40 @@ function MoveModal({
   onConfirm: (targetParentId: string | null) => void;
   onCancel: () => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [hasSelected, setHasSelected] = useState(false);
+  // browsing state: null = root
+  const [browsing, setBrowsing] = useState<string | null>(null);
+  const [breadcrumb, setBreadcrumb] = useState<{ id: string | null; name: string }[]>([
+    { id: null, name: "Documents" },
+  ]);
 
   function getDescendantIds(id: string): Set<string> {
     const ids = new Set<string>([id]);
-    const children = folders.filter((f) => f.parent_id === id);
-    for (const child of children) {
-      const childIds = getDescendantIds(child.id);
-      childIds.forEach((cid) => ids.add(cid));
+    for (const child of folders.filter((f) => f.parent_id === id)) {
+      getDescendantIds(child.id).forEach((cid) => ids.add(cid));
     }
     return ids;
   }
 
   const excludedIds = getDescendantIds(excludeId);
-  const filteredFolders = folders.filter((f) => !excludedIds.has(f.id));
-  const tree = buildFolderTree(filteredFolders, null, 0);
+  const visibleFolders = folders.filter(
+    (f) => !excludedIds.has(f.id) && f.parent_id === browsing
+  );
 
-  function handleSelect(id: string | null) {
-    setSelected(id);
-    setHasSelected(true);
+  function enter(folder: { id: string; name: string }) {
+    setBrowsing(folder.id);
+    setBreadcrumb((prev) => [...prev, { id: folder.id, name: folder.name }]);
+  }
+
+  function navigateTo(index: number) {
+    const crumb = breadcrumb[index];
+    setBrowsing(crumb.id);
+    setBreadcrumb((prev) => prev.slice(0, index + 1));
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-xl w-full max-w-sm shadow-xl">
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-sm font-semibold text-gray-900">Move To</h2>
           <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -314,53 +323,80 @@ function MoveModal({
           </button>
         </div>
 
-        <div className="max-h-64 overflow-y-auto py-2">
-          <button
-            onClick={() => handleSelect(null)}
-            className={`w-full text-left px-5 py-2 text-sm transition-colors flex items-center gap-2 ${
-              hasSelected && selected === null
-                ? "bg-gray-100 text-gray-900 font-medium"
-                : "text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            <svg className="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-            </svg>
-            Documents (root)
-          </button>
-
-          {tree.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => handleSelect(option.id)}
-              className={`w-full text-left py-2 text-sm transition-colors flex items-center gap-2 ${
-                hasSelected && selected === option.id
-                  ? "bg-gray-100 text-gray-900 font-medium"
-                  : "text-gray-700 hover:bg-gray-50"
-              }`}
-              style={{ paddingLeft: `${20 + option.depth * 16}px` }}
-            >
-              <svg className="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-              </svg>
-              {option.name}
-            </button>
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1 px-5 py-2 border-b border-gray-50 flex-wrap">
+          {breadcrumb.map((crumb, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span className="text-gray-300 text-xs">/</span>}
+              <button
+                onClick={() => navigateTo(i)}
+                className={`text-xs px-1 py-0.5 rounded transition-colors ${
+                  i === breadcrumb.length - 1
+                    ? "text-gray-900 font-medium"
+                    : "text-gray-400 hover:text-gray-700"
+                }`}
+              >
+                {crumb.name}
+              </button>
+            </React.Fragment>
           ))}
         </div>
 
-        <div className="flex gap-3 justify-end px-5 py-4 border-t border-gray-100">
+        {/* Folder list */}
+        <div className="min-h-[120px] max-h-64 overflow-y-auto py-2">
+          {visibleFolders.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-gray-400">No subfolders here</p>
+          ) : (
+            visibleFolders.map((folder) => {
+              const hasChildren = folders.some(
+                (f) => f.parent_id === folder.id && !excludedIds.has(f.id)
+              );
+              return (
+                <div key={folder.id} className="flex items-center group px-4 py-1.5">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <svg className="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                    </svg>
+                    <span className="text-sm text-gray-700 truncate">{folder.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => onConfirm(folder.id)}
+                      className="text-xs px-2.5 py-1 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+                    >
+                      Move here
+                    </button>
+                    {hasChildren && (
+                      <button
+                        onClick={() => enter(folder)}
+                        className="p-1 text-gray-400 hover:text-gray-700 transition-colors"
+                        title="Open folder"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 justify-between px-5 py-4 border-t border-gray-100">
           <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+            onClick={() => onConfirm(null)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
           >
-            Cancel
+            Move to root
           </button>
           <button
-            onClick={() => hasSelected && onConfirm(selected)}
-            disabled={!hasSelected}
-            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
           >
-            Move
+            Cancel
           </button>
         </div>
       </div>
