@@ -888,10 +888,14 @@ export default function DocumentsClient({
 
   async function openMoveModal(item: DocItem) {
     setOpenMenuId(null);
-    const res = await fetch(`/api/projects/${projectId}/documents?all_folders=true`);
-    if (res.ok) {
-      const data = await res.json();
-      setAllFolders(Array.isArray(data) ? data : []);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/documents?all_folders=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setAllFolders(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      setAllFolders([]);
     }
     setMoveTarget(item);
   }
@@ -1267,26 +1271,26 @@ export default function DocumentsClient({
             className="w-44 bg-white border border-gray-100 rounded-lg shadow-lg py-1"
           >
             <button
-              onClick={() => { setRenameTarget(item); setOpenMenuId(null); setMenuPos(null); }}
+              onMouseDown={() => { setRenameTarget(item); setOpenMenuId(null); setMenuPos(null); }}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Rename
             </button>
             <button
-              onClick={() => openMoveModal(item)}
+              onMouseDown={() => openMoveModal(item)}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Move
             </button>
             <button
-              onClick={() => handleCopy(item)}
+              onMouseDown={() => handleCopy(item)}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Copy
             </button>
             <div className="border-t border-gray-100 my-1" />
             <button
-              onClick={() => { setDeleteTarget(item); setOpenMenuId(null); setMenuPos(null); }}
+              onMouseDown={() => { setDeleteTarget(item); setOpenMenuId(null); setMenuPos(null); }}
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
               Delete
