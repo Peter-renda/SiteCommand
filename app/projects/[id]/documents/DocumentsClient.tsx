@@ -675,8 +675,12 @@ export default function DocumentsClient({
         body: formData,
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        errors.push(data.error ?? `Failed to upload ${file.name}`);
+        if (res.status === 413) {
+          errors.push(`${file.name} is too large to upload (exceeds server limit).`);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          errors.push(data.error ?? `Failed to upload ${file.name} (server error ${res.status}).`);
+        }
       }
     }
 

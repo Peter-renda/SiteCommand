@@ -88,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
-    const { data } = await supabase
+    const { data, error: insertError } = await supabase
       .from("documents")
       .insert({
         id: docId,
@@ -103,6 +103,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       })
       .select()
       .single();
+
+    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
 
     return NextResponse.json({
       ...data,
