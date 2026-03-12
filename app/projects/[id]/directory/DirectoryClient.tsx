@@ -179,7 +179,7 @@ function UserModal({
             </button>
             <button type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">
-              {initial ? "Save Changes" : "Add Person"}
+              {initial ? "Save Changes" : "Save and Invite"}
             </button>
           </div>
         </form>
@@ -903,7 +903,7 @@ function PersonRow({
                 alreadyInvited ? "bg-orange-500 hover:bg-orange-600" : "bg-orange-500 hover:bg-orange-600"
               }`}
             >
-              {sending ? "Sending…" : alreadyInvited ? "Re-Invite" : "Invite"}
+              {sending ? "Sending…" : "Re-Invite"}
             </button>
           )}
           <button
