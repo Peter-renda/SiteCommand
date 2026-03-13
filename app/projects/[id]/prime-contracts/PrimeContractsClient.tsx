@@ -71,6 +71,7 @@ export default function PrimeContractsClient({
 }) {
   const [contracts, setContracts] = useState<PrimeContract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tableError, setTableError] = useState(false);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -117,7 +118,11 @@ export default function PrimeContractsClient({
     fetch(`/api/projects/${projectId}/prime-contracts`)
       .then((r) => r.json())
       .then((d) => {
-        setContracts(Array.isArray(d) ? d : []);
+        if (d?.error === "MISSING_TABLE") {
+          setTableError(true);
+        } else {
+          setContracts(Array.isArray(d) ? d : []);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -179,7 +184,12 @@ export default function PrimeContractsClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to create contract");
+        if (res.status === 503) {
+          setTableError(true);
+          setShowCreate(false);
+        } else {
+          setError(data.error || "Failed to create contract");
+        }
         setSaving(false);
         return;
       }
@@ -365,6 +375,60 @@ export default function PrimeContractsClient({
                 <tr>
                   <td colSpan={16} className="px-3 py-8 text-center text-gray-400">
                     Loading...
+                  </td>
+                </tr>
+              ) : tableError ? (
+                <tr>
+                  <td colSpan={16} className="px-3 py-16 text-center">
+                    <div className="flex flex-col items-center gap-3 max-w-lg mx-auto">
+                      <p className="text-sm font-medium text-red-600">Database tables not set up yet</p>
+                      <p className="text-xs text-gray-500">
+                        Run the following SQL in your{" "}
+                        <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                          Supabase SQL editor
+                        </a>
+                        :
+                      </p>
+                      <pre className="text-left text-xs bg-gray-50 border border-gray-200 rounded p-3 w-full overflow-auto max-h-48 text-gray-700">{`CREATE TABLE IF NOT EXISTS prime_contracts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL,
+  number TEXT, owner_client TEXT, title TEXT,
+  erp_status TEXT NOT NULL DEFAULT 'Not Ready',
+  status TEXT NOT NULL DEFAULT 'Draft',
+  executed BOOLEAN NOT NULL DEFAULT false,
+  original_contract_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  approved_change_orders NUMERIC(15,2) NOT NULL DEFAULT 0,
+  pending_change_orders NUMERIC(15,2) NOT NULL DEFAULT 0,
+  draft_change_orders NUMERIC(15,2) NOT NULL DEFAULT 0,
+  invoiced NUMERIC(15,2) NOT NULL DEFAULT 0,
+  payments_received NUMERIC(15,2) NOT NULL DEFAULT 0,
+  default_retainage NUMERIC(5,2),
+  contractor TEXT, architect_engineer TEXT,
+  description TEXT, inclusions TEXT, exclusions TEXT,
+  start_date DATE, estimated_completion_date DATE,
+  actual_completion_date DATE,
+  signed_contract_received_date DATE,
+  contract_termination_date DATE,
+  is_private BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS prime_contract_sov_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  contract_id UUID NOT NULL, project_id UUID NOT NULL,
+  budget_code TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  billed_to_date NUMERIC(15,2) NOT NULL DEFAULT 0,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);`}</pre>
+                      <button
+                        onClick={() => { setTableError(false); setLoading(true); fetch(`/api/projects/${projectId}/prime-contracts`).then(r => r.json()).then(d => { setContracts(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false)); }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
