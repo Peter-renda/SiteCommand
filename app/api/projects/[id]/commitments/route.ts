@@ -51,19 +51,35 @@ export async function POST(
     erp_status,
     status,
     executed,
+    default_retainage,
+    assigned_to,
+    bill_to,
+    payment_terms,
+    ship_to,
+    ship_via,
+    description,
+    delivery_date,
+    signed_po_received_date,
+    is_private,
+    sov_view_allowed,
     ssov_status,
     original_contract_amount,
     approved_change_orders,
     pending_change_orders,
     draft_amount,
+    subcontract_cover_letter,
+    bond_amount,
+    exhibit_a_scope,
+    trades,
+    subcontractor_contact,
+    subcontract_type,
+    show_cover_letter,
+    show_executed_cover_letter,
+    sov_accounting_method,
     sort_order,
   } = body;
 
-  if (!title?.trim() && !contract_company?.trim()) {
-    return NextResponse.json({ error: "Title or contract company is required" }, { status: 400 });
-  }
-
-  // Get next number for this project
+  // Get next number for this project (includes soft-deleted for uniqueness)
   const { data: existing } = await supabase
     .from("commitments")
     .select("number")
@@ -84,11 +100,31 @@ export async function POST(
       erp_status: erp_status || "not_synced",
       status: status || "draft",
       executed: executed ?? false,
+      default_retainage: default_retainage ?? 10,
+      assigned_to: assigned_to || "",
+      bill_to: bill_to || "",
+      payment_terms: payment_terms || "",
+      ship_to: ship_to || "",
+      ship_via: ship_via || "",
+      description: description || "",
+      delivery_date: delivery_date || null,
+      signed_po_received_date: signed_po_received_date || null,
+      is_private: is_private ?? true,
+      sov_view_allowed: sov_view_allowed ?? false,
       ssov_status: ssov_status || "",
       original_contract_amount: original_contract_amount ?? 0,
       approved_change_orders: approved_change_orders ?? 0,
       pending_change_orders: pending_change_orders ?? 0,
       draft_amount: draft_amount ?? 0,
+      subcontract_cover_letter: subcontract_cover_letter || "",
+      bond_amount: bond_amount ?? 0,
+      exhibit_a_scope: exhibit_a_scope || "",
+      trades: trades || "",
+      subcontractor_contact: subcontractor_contact || "",
+      subcontract_type: subcontract_type || "",
+      show_cover_letter: show_cover_letter ?? false,
+      show_executed_cover_letter: show_executed_cover_letter ?? false,
+      sov_accounting_method: sov_accounting_method || "unit_quantity",
       sort_order: sort_order ?? nextNumber,
     })
     .select()

@@ -526,8 +526,6 @@ export default function CommitmentsClient({
   const [search, setSearch] = useState("");
 
   // Modal state
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createType, setCreateType] = useState<"subcontract" | "purchase_order">("subcontract");
   const [editingItem, setEditingItem] = useState<Commitment | null>(null);
   const [restoringItem, setRestoringItem] = useState<Commitment | null>(null);
 
@@ -564,32 +562,6 @@ export default function CommitmentsClient({
       setLoading(false);
     });
   }, [projectId]);
-
-  async function handleCreate(data: CommitmentFormData) {
-    const res = await fetch(`/api/projects/${projectId}/commitments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: data.type,
-        contract_company: data.contract_company,
-        title: data.title,
-        erp_status: data.erp_status,
-        status: data.status,
-        executed: data.executed,
-        ssov_status: data.ssov_status,
-        original_contract_amount: numVal(data.original_contract_amount),
-        approved_change_orders: numVal(data.approved_change_orders),
-        pending_change_orders: numVal(data.pending_change_orders),
-        draft_amount: numVal(data.draft_amount),
-        sort_order: items.length,
-      }),
-    });
-    if (res.ok) {
-      const newItem: Commitment = await res.json();
-      setItems((prev) => [...prev, newItem]);
-    }
-    setShowCreateModal(false);
-  }
 
   async function handleEdit(data: CommitmentFormData) {
     if (!editingItem) return;
@@ -929,9 +901,7 @@ export default function CommitmentsClient({
                 <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
                   <button
                     onClick={() => {
-                      setCreateType("subcontract");
-                      setShowCreateModal(true);
-                      setShowCreateMenu(false);
+                      window.location.href = `/projects/${projectId}/commitments/new?type=subcontract`;
                     }}
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
                   >
@@ -952,9 +922,7 @@ export default function CommitmentsClient({
                   </button>
                   <button
                     onClick={() => {
-                      setCreateType("purchase_order");
-                      setShowCreateModal(true);
-                      setShowCreateMenu(false);
+                      window.location.href = `/projects/${projectId}/commitments/new?type=purchase_order`;
                     }}
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
                   >
@@ -1181,13 +1149,6 @@ export default function CommitmentsClient({
       </main>
 
       {/* Modals */}
-      {showCreateModal && (
-        <CommitmentModal
-          defaultType={createType}
-          onConfirm={handleCreate}
-          onCancel={() => setShowCreateModal(false)}
-        />
-      )}
       {editingItem && (
         <CommitmentModal
           initial={editingItem}

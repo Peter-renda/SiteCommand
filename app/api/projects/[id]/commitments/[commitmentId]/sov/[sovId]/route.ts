@@ -4,49 +4,27 @@ import { getSession } from "@/lib/auth";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string; commitmentId: string }> }
+  { params }: { params: Promise<{ id: string; commitmentId: string; sovId: string }> }
 ) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id: projectId, commitmentId } = await params;
+  const { id: projectId, commitmentId, sovId } = await params;
   const supabase = getSupabase();
   const body = await req.json();
 
   const allowed = [
-    "type",
-    "contract_company",
-    "title",
-    "erp_status",
-    "status",
-    "executed",
-    "default_retainage",
-    "assigned_to",
-    "bill_to",
-    "payment_terms",
-    "ship_to",
-    "ship_via",
+    "is_group_header",
+    "group_name",
+    "change_event_line_item",
+    "budget_code",
     "description",
-    "delivery_date",
-    "signed_po_received_date",
-    "is_private",
-    "sov_view_allowed",
-    "ssov_status",
-    "original_contract_amount",
-    "approved_change_orders",
-    "pending_change_orders",
-    "draft_amount",
-    "subcontract_cover_letter",
-    "bond_amount",
-    "exhibit_a_scope",
-    "trades",
-    "subcontractor_contact",
-    "subcontract_type",
-    "show_cover_letter",
-    "show_executed_cover_letter",
-    "sov_accounting_method",
+    "qty",
+    "uom",
+    "unit_cost",
+    "amount",
+    "billed_to_date",
     "sort_order",
-    "deleted_at",
   ];
 
   const updates: Record<string, unknown> = {};
@@ -55,9 +33,10 @@ export async function PATCH(
   }
 
   const { data, error } = await supabase
-    .from("commitments")
+    .from("commitment_sov_items")
     .update(updates)
-    .eq("id", commitmentId)
+    .eq("id", sovId)
+    .eq("commitment_id", commitmentId)
     .eq("project_id", projectId)
     .select()
     .single();
@@ -68,19 +47,19 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string; commitmentId: string }> }
+  { params }: { params: Promise<{ id: string; commitmentId: string; sovId: string }> }
 ) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id: projectId, commitmentId } = await params;
+  const { id: projectId, commitmentId, sovId } = await params;
   const supabase = getSupabase();
 
-  // Soft delete
   const { error } = await supabase
-    .from("commitments")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", commitmentId)
+    .from("commitment_sov_items")
+    .delete()
+    .eq("id", sovId)
+    .eq("commitment_id", commitmentId)
     .eq("project_id", projectId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
