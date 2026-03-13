@@ -1,0 +1,1207 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import ProjectNav from "@/components/ProjectNav";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type Commitment = {
+  id: string;
+  project_id: string;
+  type: "subcontract" | "purchase_order";
+  number: number;
+  contract_company: string;
+  title: string;
+  erp_status: string;
+  status: string;
+  executed: boolean;
+  ssov_status: string;
+  original_contract_amount: number;
+  approved_change_orders: number;
+  pending_change_orders: number;
+  draft_amount: number;
+  sort_order: number;
+  deleted_at: string | null;
+  created_at: string;
+};
+
+type CommitmentFormData = {
+  type: "subcontract" | "purchase_order";
+  contract_company: string;
+  title: string;
+  erp_status: string;
+  status: string;
+  executed: boolean;
+  ssov_status: string;
+  original_contract_amount: string;
+  approved_change_orders: string;
+  pending_change_orders: string;
+  draft_amount: string;
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmt(n: number): string {
+  const abs = Math.abs(n);
+  const formatted = abs.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return n < 0 ? `($${formatted})` : `$${formatted}`;
+}
+
+function numVal(s: string): number {
+  const n = parseFloat(s.replace(/[^0-9.-]/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  approved: "bg-green-100 text-green-700",
+  draft: "bg-gray-100 text-gray-500",
+  void: "bg-red-50 text-red-500",
+  terminated: "bg-orange-50 text-orange-600",
+};
+
+const ERP_STATUS_COLORS: Record<string, string> = {
+  synced: "text-green-600",
+  not_synced: "text-gray-400",
+  pending: "text-amber-500",
+};
+
+function ErpStatusIcon({ status }: { status: string }) {
+  const color = ERP_STATUS_COLORS[status] ?? "text-gray-400";
+  const label =
+    status === "synced" ? "Synced" : status === "pending" ? "Pending" : "Not Synced";
+  return (
+    <span className={`flex items-center gap-1 text-xs italic ${color}`}>
+      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      {label}
+    </span>
+  );
+}
+
+// ── Export helpers ────────────────────────────────────────────────────────────
+
+function exportCSV(items: Commitment[]) {
+  const headers = [
+    "Number",
+    "Type",
+    "Contract Company",
+    "Title",
+    "ERP Status",
+    "Status",
+    "Executed",
+    "SSOV Status",
+    "Original Contract Amount",
+    "Approved Change Orders",
+    "Revised Contract Amount",
+    "Pending Change Orders",
+    "Draft Amount",
+  ];
+
+  const rows = items.map((item) => [
+    item.number,
+    item.type === "purchase_order" ? "Purchase Order" : "Subcontract",
+    item.contract_company,
+    item.title,
+    item.erp_status,
+    item.status,
+    item.executed ? "Yes" : "No",
+    item.ssov_status,
+    item.original_contract_amount,
+    item.approved_change_orders,
+    item.original_contract_amount + item.approved_change_orders,
+    item.pending_change_orders,
+    item.draft_amount,
+  ]);
+
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "commitments.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportPDF(items: Commitment[]) {
+  const rows = items
+    .map((item) => {
+      const revised = item.original_contract_amount + item.approved_change_orders;
+      return `<tr>
+        <td>${item.number}</td>
+        <td>${item.type === "purchase_order" ? "PO" : "SC"}</td>
+        <td>${item.contract_company}</td>
+        <td>${item.title}</td>
+        <td>${item.erp_status}</td>
+        <td>${item.status}</td>
+        <td>${item.executed ? "Yes" : "No"}</td>
+        <td>${fmt(item.original_contract_amount)}</td>
+        <td>${fmt(item.approved_change_orders)}</td>
+        <td>${fmt(revised)}</td>
+        <td>${fmt(item.pending_change_orders)}</td>
+        <td>${fmt(item.draft_amount)}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Commitments</title>
+    <style>
+      body { font-family: Arial, sans-serif; font-size: 9px; padding: 20px; }
+      h1 { font-size: 14px; margin-bottom: 12px; }
+      table { width: 100%; border-collapse: collapse; }
+      th { background: #f3f4f6; text-align: left; padding: 5px 6px; font-size: 8px;
+           text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;
+           border-bottom: 1px solid #e5e7eb; }
+      td { padding: 5px 6px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+      tr:last-child td { border-bottom: none; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+    <h1>Commitments</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Type</th><th>Company</th><th>Title</th><th>ERP</th>
+          <th>Status</th><th>Executed</th><th>Original Amount</th>
+          <th>Approved COs</th><th>Revised Amount</th>
+          <th>Pending COs</th><th>Draft</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
+// ── Field helpers ─────────────────────────────────────────────────────────────
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function MoneyInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="0.00"
+      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+    />
+  );
+}
+
+// ── Create / Edit Modal ───────────────────────────────────────────────────────
+
+const emptyForm: CommitmentFormData = {
+  type: "subcontract",
+  contract_company: "",
+  title: "",
+  erp_status: "not_synced",
+  status: "draft",
+  executed: false,
+  ssov_status: "",
+  original_contract_amount: "",
+  approved_change_orders: "",
+  pending_change_orders: "",
+  draft_amount: "",
+};
+
+function CommitmentModal({
+  initial,
+  defaultType,
+  onConfirm,
+  onCancel,
+}: {
+  initial?: Commitment;
+  defaultType?: "subcontract" | "purchase_order";
+  onConfirm: (data: CommitmentFormData) => void;
+  onCancel: () => void;
+}) {
+  const [form, setForm] = useState<CommitmentFormData>(
+    initial
+      ? {
+          type: initial.type,
+          contract_company: initial.contract_company,
+          title: initial.title,
+          erp_status: initial.erp_status,
+          status: initial.status,
+          executed: initial.executed,
+          ssov_status: initial.ssov_status,
+          original_contract_amount:
+            initial.original_contract_amount !== 0
+              ? String(initial.original_contract_amount)
+              : "",
+          approved_change_orders:
+            initial.approved_change_orders !== 0
+              ? String(initial.approved_change_orders)
+              : "",
+          pending_change_orders:
+            initial.pending_change_orders !== 0
+              ? String(initial.pending_change_orders)
+              : "",
+          draft_amount:
+            initial.draft_amount !== 0 ? String(initial.draft_amount) : "",
+        }
+      : { ...emptyForm, type: defaultType ?? "subcontract" }
+  );
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  function set<K extends keyof CommitmentFormData>(key: K, val: CommitmentFormData[K]) {
+    setForm((f) => ({ ...f, [key]: val }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.title.trim() && !form.contract_company.trim()) return;
+    onConfirm(form);
+  }
+
+  const isEdit = !!initial;
+  const typeLabel = form.type === "purchase_order" ? "Purchase Order" : "Subcontract";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">
+            {isEdit ? `Edit ${typeLabel}` : `Create ${typeLabel}`}
+          </h2>
+          <button
+            onClick={onCancel}
+            className="text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-5">
+          {/* Type toggle (only on create) */}
+          {!isEdit && (
+            <Field label="Type">
+              <div className="flex gap-2">
+                {(["subcontract", "purchase_order"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => set("type", t)}
+                    className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                      form.type === t
+                        ? "border-gray-900 bg-gray-900 text-white"
+                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {t === "purchase_order" ? "Purchase Order" : "Subcontract"}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Contract Company">
+              <input
+                type="text"
+                value={form.contract_company}
+                onChange={(e) => set("contract_company", e.target.value)}
+                placeholder="e.g. Smith and Jennings, Inc."
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </Field>
+            <Field label="Title">
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => set("title", e.target.value)}
+                placeholder="e.g. Sitework"
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                autoFocus
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Status">
+              <select
+                value={form.status}
+                onChange={(e) => set("status", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+              >
+                <option value="draft">Draft</option>
+                <option value="approved">Approved</option>
+                <option value="void">Void</option>
+                <option value="terminated">Terminated</option>
+              </select>
+            </Field>
+            <Field label="ERP Status">
+              <select
+                value={form.erp_status}
+                onChange={(e) => set("erp_status", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+              >
+                <option value="not_synced">Not Synced</option>
+                <option value="synced">Synced</option>
+                <option value="pending">Pending</option>
+              </select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="SSOV Status">
+              <input
+                type="text"
+                value={form.ssov_status}
+                onChange={(e) => set("ssov_status", e.target.value)}
+                placeholder="e.g. Approved"
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </Field>
+            <Field label="Executed">
+              <div className="flex items-center h-[38px]">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.executed}
+                    onChange={(e) => set("executed", e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                  />
+                  <span className="text-sm text-gray-700">Contract has been executed</span>
+                </label>
+              </div>
+            </Field>
+          </div>
+
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">
+            Amounts
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Original Contract Amount">
+              <MoneyInput
+                value={form.original_contract_amount}
+                onChange={(v) => set("original_contract_amount", v)}
+              />
+            </Field>
+            <Field label="Approved Change Orders">
+              <MoneyInput
+                value={form.approved_change_orders}
+                onChange={(v) => set("approved_change_orders", v)}
+              />
+            </Field>
+            <Field label="Pending Change Orders">
+              <MoneyInput
+                value={form.pending_change_orders}
+                onChange={(v) => set("pending_change_orders", v)}
+              />
+            </Field>
+            <Field label="Draft Amount">
+              <MoneyInput
+                value={form.draft_amount}
+                onChange={(v) => set("draft_amount", v)}
+              />
+            </Field>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+            >
+              {isEdit ? "Save Changes" : `Create ${typeLabel}`}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Restore Confirm Modal ─────────────────────────────────────────────────────
+
+function RestoreModal({
+  commitment,
+  onConfirm,
+  onCancel,
+}: {
+  commitment: Commitment;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <h2 className="text-base font-semibold text-gray-900">Restore Commitment</h2>
+        <p className="text-sm text-gray-500">
+          Restore{" "}
+          <span className="font-medium text-gray-900">
+            {commitment.contract_company || commitment.title || `#${commitment.number}`}
+          </span>{" "}
+          back to the active Contracts list?
+        </p>
+        <div className="flex justify-end gap-3 pt-1">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
+          >
+            Restore
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function CommitmentsClient({
+  projectId,
+  role,
+  username,
+}: {
+  projectId: string;
+  role: string;
+  username: string;
+}) {
+  const [items, setItems] = useState<Commitment[]>([]);
+  const [deletedItems, setDeletedItems] = useState<Commitment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"contracts" | "recycle_bin">("contracts");
+
+  // Search
+  const [search, setSearch] = useState("");
+
+  // Modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createType, setCreateType] = useState<"subcontract" | "purchase_order">("subcontract");
+  const [editingItem, setEditingItem] = useState<Commitment | null>(null);
+  const [restoringItem, setRestoringItem] = useState<Commitment | null>(null);
+
+  // Dropdown refs
+  const createRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Row action menu
+  const [rowMenuId, setRowMenuId] = useState<string | null>(null);
+  const rowMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (createRef.current && !createRef.current.contains(e.target as Node))
+        setShowCreateMenu(false);
+      if (exportRef.current && !exportRef.current.contains(e.target as Node))
+        setShowExportMenu(false);
+      if (rowMenuRef.current && !rowMenuRef.current.contains(e.target as Node))
+        setRowMenuId(null);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/projects/${projectId}/commitments`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/commitments?deleted=true`).then((r) => r.json()),
+    ]).then(([active, deleted]) => {
+      setItems(Array.isArray(active) ? active : []);
+      setDeletedItems(Array.isArray(deleted) ? deleted : []);
+      setLoading(false);
+    });
+  }, [projectId]);
+
+  async function handleCreate(data: CommitmentFormData) {
+    const res = await fetch(`/api/projects/${projectId}/commitments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: data.type,
+        contract_company: data.contract_company,
+        title: data.title,
+        erp_status: data.erp_status,
+        status: data.status,
+        executed: data.executed,
+        ssov_status: data.ssov_status,
+        original_contract_amount: numVal(data.original_contract_amount),
+        approved_change_orders: numVal(data.approved_change_orders),
+        pending_change_orders: numVal(data.pending_change_orders),
+        draft_amount: numVal(data.draft_amount),
+        sort_order: items.length,
+      }),
+    });
+    if (res.ok) {
+      const newItem: Commitment = await res.json();
+      setItems((prev) => [...prev, newItem]);
+    }
+    setShowCreateModal(false);
+  }
+
+  async function handleEdit(data: CommitmentFormData) {
+    if (!editingItem) return;
+    const res = await fetch(
+      `/api/projects/${projectId}/commitments/${editingItem.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contract_company: data.contract_company,
+          title: data.title,
+          erp_status: data.erp_status,
+          status: data.status,
+          executed: data.executed,
+          ssov_status: data.ssov_status,
+          original_contract_amount: numVal(data.original_contract_amount),
+          approved_change_orders: numVal(data.approved_change_orders),
+          pending_change_orders: numVal(data.pending_change_orders),
+          draft_amount: numVal(data.draft_amount),
+        }),
+      }
+    );
+    if (res.ok) {
+      const updated: Commitment = await res.json();
+      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    }
+    setEditingItem(null);
+  }
+
+  async function handleDelete(id: string) {
+    const res = await fetch(`/api/projects/${projectId}/commitments/${id}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      const item = items.find((i) => i.id === id);
+      if (item) {
+        setItems((prev) => prev.filter((i) => i.id !== id));
+        setDeletedItems((prev) => [
+          { ...item, deleted_at: new Date().toISOString() },
+          ...prev,
+        ]);
+      }
+    }
+    setRowMenuId(null);
+  }
+
+  async function handleRestore(item: Commitment) {
+    const res = await fetch(
+      `/api/projects/${projectId}/commitments/${item.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deleted_at: null }),
+      }
+    );
+    if (res.ok) {
+      const restored: Commitment = await res.json();
+      setDeletedItems((prev) => prev.filter((i) => i.id !== item.id));
+      setItems((prev) => [...prev, restored]);
+    }
+    setRestoringItem(null);
+  }
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/";
+  }
+
+  // Filtered list based on search
+  const visibleItems =
+    activeTab === "contracts"
+      ? items.filter((item) => {
+          if (!search.trim()) return true;
+          const q = search.toLowerCase();
+          return (
+            item.contract_company.toLowerCase().includes(q) ||
+            item.title.toLowerCase().includes(q) ||
+            String(item.number).includes(q)
+          );
+        })
+      : deletedItems.filter((item) => {
+          if (!search.trim()) return true;
+          const q = search.toLowerCase();
+          return (
+            item.contract_company.toLowerCase().includes(q) ||
+            item.title.toLowerCase().includes(q) ||
+            String(item.number).includes(q)
+          );
+        });
+
+  const COLS = [
+    { key: "number", label: "Number", width: "w-24" },
+    { key: "contract_company", label: "Contract Company", width: "min-w-[160px]" },
+    { key: "title", label: "Title", width: "min-w-[140px]" },
+    { key: "erp_status", label: "ERP Status", width: "min-w-[110px]" },
+    { key: "status", label: "Status", width: "w-28" },
+    { key: "executed", label: "Executed", width: "w-24" },
+    { key: "ssov_status", label: "SSOV Status", width: "min-w-[120px]" },
+    {
+      key: "original_contract_amount",
+      label: "Original Contract Amount",
+      width: "min-w-[160px]",
+    },
+    {
+      key: "approved_change_orders",
+      label: "Approved Change Orders",
+      width: "min-w-[155px]",
+    },
+    {
+      key: "revised_contract_amount",
+      label: "Revised Contract Amount",
+      width: "min-w-[155px]",
+    },
+    {
+      key: "pending_change_orders",
+      label: "Pending Change Orders",
+      width: "min-w-[150px]",
+    },
+    { key: "draft_amount", label: "Draft", width: "min-w-[100px]" },
+  ] as const;
+
+  function renderCell(item: Commitment, key: (typeof COLS)[number]["key"]) {
+    switch (key) {
+      case "number":
+        return (
+          <span className="text-blue-600 font-medium hover:underline cursor-pointer">
+            {item.number}
+          </span>
+        );
+      case "contract_company":
+        return (
+          <span className="flex items-center gap-1 text-gray-900">
+            {item.contract_company || <span className="text-gray-300">—</span>}
+            {item.contract_company && (
+              <svg
+                className="w-3 h-3 text-gray-300 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            )}
+          </span>
+        );
+      case "title":
+        return <span className="text-gray-700">{item.title || <span className="text-gray-300">—</span>}</span>;
+      case "erp_status":
+        return <ErpStatusIcon status={item.erp_status} />;
+      case "status": {
+        const cls = STATUS_COLORS[item.status] ?? "bg-gray-100 text-gray-500";
+        const label =
+          item.status === "approved"
+            ? "Approved"
+            : item.status === "void"
+            ? "Void"
+            : item.status === "terminated"
+            ? "Terminated"
+            : "Draft";
+        return (
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cls}`}
+          >
+            {label}
+          </span>
+        );
+      }
+      case "executed":
+        return (
+          <span className="text-gray-700">{item.executed ? "Yes" : "No"}</span>
+        );
+      case "ssov_status":
+        return (
+          <span className="text-gray-500">{item.ssov_status || ""}</span>
+        );
+      case "original_contract_amount":
+        return <span className="text-gray-900 tabular-nums">{fmt(item.original_contract_amount)}</span>;
+      case "approved_change_orders":
+        return <span className="text-gray-900 tabular-nums">{fmt(item.approved_change_orders)}</span>;
+      case "revised_contract_amount": {
+        const revised =
+          item.original_contract_amount + item.approved_change_orders;
+        return <span className="text-gray-900 tabular-nums">{fmt(revised)}</span>;
+      }
+      case "pending_change_orders":
+        return <span className="text-gray-900 tabular-nums">{fmt(item.pending_change_orders)}</span>;
+      case "draft_amount":
+        return <span className="text-gray-900 tabular-nums">{fmt(item.draft_amount)}</span>;
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
+        <a
+          href="/dashboard"
+          className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors"
+        >
+          SiteCommand
+        </a>
+        <div className="flex items-center gap-5">
+          {role === "admin" && (
+            <a
+              href="/admin"
+              className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              Admin
+            </a>
+          )}
+          <span className="text-sm text-gray-400">{username}</span>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-400 hover:text-gray-900 transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <ProjectNav projectId={projectId} />
+
+      <main className="px-6 py-8">
+        {/* Title + actions */}
+        <div className="flex items-center justify-between mb-5">
+          <h1 className="text-xl font-semibold text-gray-900">Commitments</h1>
+
+          <div className="flex items-center gap-2">
+            {/* Export dropdown */}
+            <div ref={exportRef} className="relative">
+              <button
+                onClick={() => setShowExportMenu((o) => !o)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+                Export
+                <svg
+                  className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showExportMenu ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                  <button
+                    onClick={() => {
+                      exportCSV(visibleItems);
+                      setShowExportMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <svg
+                      className="w-4 h-4 text-green-500"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Export as CSV
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportPDF(visibleItems);
+                      setShowExportMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <svg
+                      className="w-4 h-4 text-red-400"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Export as PDF
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Create dropdown */}
+            <div ref={createRef} className="relative">
+              <button
+                onClick={() => setShowCreateMenu((o) => !o)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Create
+                <svg
+                  className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showCreateMenu && (
+                <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                  <button
+                    onClick={() => {
+                      setCreateType("subcontract");
+                      setShowCreateModal(true);
+                      setShowCreateMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <svg
+                      className="w-4 h-4 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    Subcontract
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCreateType("purchase_order");
+                      setShowCreateModal(true);
+                      setShowCreateMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <svg
+                      className="w-4 h-4 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                      />
+                    </svg>
+                    Purchase Order
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 mb-5">
+          <button
+            onClick={() => setActiveTab("contracts")}
+            className={`px-1 pb-3 mr-6 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "contracts"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-400 hover:text-gray-700"
+            }`}
+          >
+            Contracts
+          </button>
+          <button
+            onClick={() => setActiveTab("recycle_bin")}
+            className={`px-1 pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "recycle_bin"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-400 hover:text-gray-700"
+            }`}
+          >
+            Recycle Bin
+            {deletedItems.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500">
+                {deletedItems.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Search + filter bar */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <svg
+                className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 w-48"
+              />
+            </div>
+            <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
+              <svg
+                className="w-4 h-4 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
+              </svg>
+              Filters
+            </button>
+          </div>
+        </div>
+
+        {/* Table */}
+        {loading ? (
+          <p className="text-sm text-gray-400">Loading...</p>
+        ) : (
+          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    {COLS.map((col) => (
+                      <th
+                        key={col.key}
+                        className={`text-left px-3 py-3 font-semibold text-gray-600 whitespace-nowrap ${col.width}`}
+                      >
+                        {col.label}
+                      </th>
+                    ))}
+                    <th className="px-3 py-3 w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleItems.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={COLS.length + 1}
+                        className="px-3 py-16 text-center"
+                      >
+                        {activeTab === "recycle_bin" ? (
+                          <p className="text-sm text-gray-400">
+                            Recycle bin is empty
+                          </p>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-400">
+                              No commitments yet
+                            </p>
+                            <p className="text-xs text-gray-300 mt-1">
+                              Click{" "}
+                              <span className="font-medium">+ Create</span> to
+                              add a Subcontract or Purchase Order
+                            </p>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ) : (
+                    visibleItems.map((item) => (
+                      <tr
+                        key={item.id}
+                        className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 group"
+                      >
+                        {COLS.map((col) => (
+                          <td
+                            key={col.key}
+                            className="px-3 py-3 text-xs whitespace-nowrap"
+                          >
+                            {renderCell(item, col.key)}
+                          </td>
+                        ))}
+                        {/* Row action menu */}
+                        <td className="px-3 py-3 relative">
+                          <div
+                            ref={
+                              rowMenuId === item.id ? rowMenuRef : undefined
+                            }
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRowMenuId((prev) =>
+                                  prev === item.id ? null : item.id
+                                );
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-all"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                              </svg>
+                            </button>
+                            {rowMenuId === item.id && (
+                              <div className="absolute right-0 top-8 w-36 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                                {activeTab === "contracts" ? (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setEditingItem(item);
+                                        setRowMenuId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(item.id)}
+                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                    >
+                                      Delete
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setRestoringItem(item);
+                                      setRowMenuId(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                  >
+                                    Restore
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Modals */}
+      {showCreateModal && (
+        <CommitmentModal
+          defaultType={createType}
+          onConfirm={handleCreate}
+          onCancel={() => setShowCreateModal(false)}
+        />
+      )}
+      {editingItem && (
+        <CommitmentModal
+          initial={editingItem}
+          onConfirm={handleEdit}
+          onCancel={() => setEditingItem(null)}
+        />
+      )}
+      {restoringItem && (
+        <RestoreModal
+          commitment={restoringItem}
+          onConfirm={() => handleRestore(restoringItem)}
+          onCancel={() => setRestoringItem(null)}
+        />
+      )}
+    </div>
+  );
+}
