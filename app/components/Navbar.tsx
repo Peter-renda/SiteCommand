@@ -3,18 +3,33 @@
 import { useState } from "react";
 import Link from "next/link";
 
-const navItems: { label: string; items: string[]; href?: string }[] = [
+type NavSubItem = { label: string; href: string };
+const navItems: { label: string; items: NavSubItem[]; href?: string }[] = [
   {
     label: "Solutions",
-    items: ["Analytics", "Automation", "Integrations", "Security"],
+    items: [
+      { label: "Analytics", href: "#" },
+      { label: "Automation", href: "#" },
+      { label: "Integrations", href: "#" },
+      { label: "Security", href: "#" },
+    ],
   },
   {
     label: "About Us",
-    items: ["Company", "Team", "Careers", "Press"],
+    items: [
+      { label: "Company", href: "#" },
+      { label: "Careers", href: "/careers" },
+      { label: "Press", href: "#" },
+    ],
   },
   {
     label: "Resources",
-    items: ["Documentation", "Blog", "Case Studies", "Community"],
+    items: [
+      { label: "Documentation", href: "#" },
+      { label: "Blog", href: "#" },
+      { label: "Case Studies", href: "#" },
+      { label: "Community", href: "#" },
+    ],
   },
   {
     label: "Pricing",
@@ -74,11 +89,11 @@ export default function Navbar() {
                 >
                   {item.items.map((sub) => (
                     <a
-                      key={sub}
-                      href="#"
+                      key={sub.label}
+                      href={sub.href}
                       className="block px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
                     >
-                      {sub}
+                      {sub.label}
                     </a>
                   ))}
                 </div>
@@ -140,11 +155,11 @@ export default function Navbar() {
                     <div className="pl-4 space-y-1 mb-1">
                       {item.items.map((sub) => (
                         <a
-                          key={sub}
-                          href="#"
+                          key={sub.label}
+                          href={sub.href}
                           className="block px-3 py-1.5 text-sm text-gray-500 rounded-md hover:bg-gray-50 transition-colors"
                         >
-                          {sub}
+                          {sub.label}
                         </a>
                       ))}
                     </div>
