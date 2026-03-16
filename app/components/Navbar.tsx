@@ -59,16 +59,16 @@ export default function Navbar() {
             <div key={item.label} className="relative">
               <button
                 className="flex items-center gap-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 transition-colors"
-                onMouseEnter={() => item.items.length > 0 && setOpen(item.label)}
+                onMouseEnter={() => ((item.items?.length ?? 0) > 0 || (item.sections?.length ?? 0) > 0) && setOpen(item.label)}
                 onMouseLeave={() => setOpen(null)}
                 onClick={() =>
-                  item.items.length === 0
+                  (item.items?.length ?? 0) === 0 && (item.sections?.length ?? 0) === 0
                     ? (window.location.href = item.href ?? "#")
                     : setOpen(open === item.label ? null : item.label)
                 }
               >
                 {item.label}
-                {item.items.length > 0 && (
+                {((item.items?.length ?? 0) > 0 || (item.sections?.length ?? 0) > 0) && (
                   <svg
                     className={`w-3.5 h-3.5 transition-transform ${open === item.label ? "rotate-180" : ""}`}
                     fill="none"
@@ -81,9 +81,9 @@ export default function Navbar() {
                 )}
               </button>
 
-              {item.items.length > 0 && open === item.label && (
+              {((item.items?.length ?? 0) > 0 || (item.sections?.length ?? 0) > 0) && open === item.label && (
                 <div
-                  className="absolute top-full left-0 mt-1 w-44 bg-white border border-gray-100 rounded-lg shadow-lg py-1"
+                  className={`absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg py-1 ${item.sections ? "w-[580px]" : "w-44"}`}
                   onMouseEnter={() => setOpen(item.label)}
                   onMouseLeave={() => setOpen(null)}
                 >
@@ -135,7 +135,7 @@ export default function Navbar() {
         <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
           {navItems.map((item) => (
             <div key={item.label}>
-              {item.items.length === 0 ? (
+              {(item.items?.length ?? 0) === 0 && (item.sections?.length ?? 0) === 0 ? (
                 <a
                   href={item.href ?? "#"}
                   className="block px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
