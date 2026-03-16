@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { dispatchWebhookEvent } from "@/lib/webhook-dispatch";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -75,5 +76,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (session.company_id) {
+    dispatchWebhookEvent(session.company_id, "rfi.created", {
+      id: data.id,
+      rfi_number: data.rfi_number,
+      subject: data.subject,
+      project_id: projectId,
+    }).catch(() => {});
+  }
+
   return NextResponse.json(data);
 }

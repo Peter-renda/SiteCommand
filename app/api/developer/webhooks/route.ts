@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, url, events } = body;
+  const { name, url, events, notify_email } = body;
 
   if (!name || !name.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
   if (!url || !url.trim()) return NextResponse.json({ error: "URL is required" }, { status: 400 });
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       events,
       secret,
       is_active: true,
+      notify_email: notify_email?.trim() || null,
     })
     .select("id, name, url, events, is_active, created_at")
     .single();

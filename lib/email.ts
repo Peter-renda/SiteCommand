@@ -46,6 +46,36 @@ export async function sendTaskCreatedEmail(
   if (error) throw new Error(error.message);
 }
 
+export async function sendWebhookEventEmail(
+  to: string,
+  event: string,
+  payload: Record<string, unknown>,
+  webhookName: string
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // silent — email is optional for webhook notifications
+
+  const resend = new Resend(apiKey);
+  const rows = Object.entries(payload)
+    .filter(([, v]) => v !== null && v !== undefined)
+    .map(([k, v]) => `<tr><td style="padding:4px 8px;color:#555;font-size:12px;">${k}</td><td style="padding:4px 8px;font-size:12px;font-family:monospace;">${String(v)}</td></tr>`)
+    .join("");
+
+  await resend.emails.send({
+    from: "SiteCommand <invites@sitecommand.xyz>",
+    to,
+    subject: `[SiteCommand] ${event}`,
+    html: `
+      <p style="font-size:14px;">A <strong>${event}</strong> event was triggered on your <strong>${webhookName}</strong> webhook.</p>
+      <table style="border-collapse:collapse;width:100%;margin-top:12px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+        <thead><tr style="background:#f9fafb;"><th style="text-align:left;padding:6px 8px;font-size:11px;color:#6b7280;font-weight:600;">FIELD</th><th style="text-align:left;padding:6px 8px;font-size:11px;color:#6b7280;font-weight:600;">VALUE</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="color:#aaa;font-size:11px;margin-top:16px;">You are receiving this because you configured email notifications on a SiteCommand webhook.</p>
+    `,
+  });
+}
+
 export async function sendContractorInviteEmail(to: string, inviteUrl: string, projectName: string, contactName: string) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY is not set in environment variables");

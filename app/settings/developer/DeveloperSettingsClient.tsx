@@ -17,6 +17,7 @@ type Webhook = {
   url: string;
   events: string[];
   is_active: boolean;
+  notify_email: string | null;
   created_at: string;
 };
 
@@ -248,6 +249,7 @@ function WebhooksTab() {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
+  const [notifyEmail, setNotifyEmail] = useState("");
   const [creating, setCreating] = useState(false);
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -268,7 +270,7 @@ function WebhooksTab() {
     const res = await fetch("/api/developer/webhooks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, url, events: selectedEvents }),
+      body: JSON.stringify({ name, url, events: selectedEvents, notify_email: notifyEmail || null }),
     });
     const data = await res.json();
     setCreating(false);
@@ -280,6 +282,7 @@ function WebhooksTab() {
       url: data.url,
       events: data.events,
       is_active: data.is_active,
+      notify_email: notifyEmail || null,
       created_at: data.created_at,
     }, ...prev]);
   }
@@ -313,6 +316,7 @@ function WebhooksTab() {
     setName("");
     setUrl("");
     setSelectedEvents([]);
+    setNotifyEmail("");
     setCreatedSecret(null);
     setError("");
   }
@@ -360,6 +364,11 @@ function WebhooksTab() {
                       </span>
                     ))}
                   </div>
+                  {wh.notify_email && (
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      Email notifications → <span className="text-gray-600">{wh.notify_email}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
@@ -438,6 +447,19 @@ function WebhooksTab() {
                         </label>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Email Notifications <span className="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={notifyEmail}
+                      onChange={(e) => setNotifyEmail(e.target.value)}
+                      placeholder="alerts@yourcompany.com"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Also send an email when this webhook fires.</p>
                   </div>
                   {error && <p className="text-xs text-red-600">{error}</p>}
                   <div className="flex gap-3 pt-1">

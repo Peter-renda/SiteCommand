@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { dispatchWebhookEvent } from "@/lib/webhook-dispatch";
 
 export async function GET() {
   const session = await getSession();
@@ -99,6 +100,15 @@ export async function POST(req: NextRequest) {
         invited_by: session.id,
       }))
     );
+  }
+
+  const companyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
+  if (companyId) {
+    dispatchWebhookEvent(companyId, "project.created", {
+      id: project.id,
+      name: project.name,
+      status: project.status,
+    }).catch(() => {});
   }
 
   return NextResponse.json({ ...project, members: [] });

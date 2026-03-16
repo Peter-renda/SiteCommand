@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { dispatchWebhookEvent } from "@/lib/webhook-dispatch";
 
 export async function GET(
   req: NextRequest,
@@ -51,6 +52,15 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (session.company_id) {
+    dispatchWebhookEvent(session.company_id, "daily_log.created", {
+      id: data.id,
+      log_date: data.log_date,
+      project_id: projectId,
+    }).catch(() => {});
+  }
+
   return NextResponse.json(data);
 }
 
