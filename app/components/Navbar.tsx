@@ -71,7 +71,7 @@ const navItems: { label: string; items: NavSubItem[]; href?: string }[] = [
     items: [
       { label: "Documentation", href: "#" },
       { label: "Blog", href: "#" },
-      { label: "Case Studies", href: "#" },
+      { label: "Case Studies", href: "/case-studies" },
       { label: "Community", href: "#" },
     ],
   },

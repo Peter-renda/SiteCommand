@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
+import { Barlow } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+
+const barlow = Barlow({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-barlow",
+});
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -13,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={barlow.variable}>
       <body className="antialiased">
         {children}
         <Analytics />

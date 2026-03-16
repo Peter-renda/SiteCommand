@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, ChangeEvent } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import EmptyState from "@/app/components/EmptyState";
+import { SkeletonTable } from "@/app/components/Skeleton";
 
 type DirContact = { id: string; name: string; email: string | null };
 type DirectoryContact = {
@@ -540,11 +542,18 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
         </div>
 
         {loading ? (
-          <p className="text-sm text-gray-400">Loading...</p>
+          <SkeletonTable rows={5} cols={6} />
         ) : rfis.length === 0 ? (
-          <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
-            <p className="text-sm text-gray-400">No RFIs yet</p>
-            <p className="text-xs text-gray-300 mt-1">Click Create new RFI to add the first one</p>
+          <div className="bg-white border border-dashed border-gray-200 rounded-xl">
+            <EmptyState
+              icon={
+                <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+              title="No RFIs yet"
+              description="Click Create new RFI to add the first one."
+            />
           </div>
         ) : (
           <div className="bg-white border border-gray-100 rounded-xl overflow-x-auto">

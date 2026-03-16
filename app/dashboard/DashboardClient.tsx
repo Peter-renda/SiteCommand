@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import EmptyState from "@/app/components/EmptyState";
+import { SkeletonCard } from "@/app/components/Skeleton";
 
 type Member = { id: string; username: string; email: string };
 
@@ -328,20 +330,27 @@ export default function DashboardClient({ username, email, role, companyRole, us
         <h2 className="text-sm font-semibold text-gray-900 mb-4">Projects</h2>
 
         {loading ? (
-          <p className="text-sm text-gray-400">Loading...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
         ) : projects.length === 0 ? (
-          <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 flex flex-col items-center justify-center text-center">
-            <p className="text-sm font-medium text-gray-500 mb-1">No projects yet</p>
-            {canManageProjects ? (
-              <>
-                <p className="text-xs text-gray-400 mb-6">Create your first project to get started.</p>
-                <button onClick={openModal} className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors">
-                  New Project
-                </button>
-              </>
-            ) : (
-              <p className="text-xs text-gray-400">You haven&apos;t been added to any projects yet.</p>
-            )}
+          <div className="bg-white border border-dashed border-gray-200 rounded-xl">
+            <EmptyState
+              icon={
+                <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              }
+              title="No projects yet"
+              description={
+                canManageProjects
+                  ? "Create your first project to get started."
+                  : "You haven't been added to any projects yet."
+              }
+              action={canManageProjects ? { label: "New Project", onClick: openModal } : undefined}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

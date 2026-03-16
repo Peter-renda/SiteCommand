@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import { SkeletonTable } from "@/app/components/Skeleton";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -825,7 +826,7 @@ export default function BudgetClient({
 
         {/* Table */}
         {loading ? (
-          <p className="text-sm text-gray-400">Loading...</p>
+          <SkeletonTable rows={6} cols={8} />
         ) : (
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">

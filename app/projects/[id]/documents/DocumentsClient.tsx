@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef, ChangeEvent } from "react";
+import React, { useState, useEffect, useRef, useCallback, ChangeEvent } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import * as pdfjsLib from "pdfjs-dist";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
 type DocItem = {
   id: string;
@@ -117,32 +120,252 @@ function buildFolderTree(
 
 // ── PDF Viewer Modal ─────────────────────────────────────────────────────────
 
+const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const ZOOM_LABELS: Record<number, string> = {
+  0.5: "50%",
+  0.75: "75%",
+  1: "100%",
+  1.25: "125%",
+  1.5: "150%",
+  2: "200%",
+};
+
 function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onClose: () => void }) {
+  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [scale, setScale] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
+  const [renderLoading, setRenderLoading] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+
+  // Load PDF document
   useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+    let cancelled = false;
+    async function load() {
+      setRenderLoading(true);
+      try {
+        const doc = await pdfjsLib.getDocument(url).promise;
+        if (cancelled) { doc.destroy(); return; }
+        setPdfDoc(doc);
+        setTotalPages(doc.numPages);
+        setCurrentPage(1);
+        setPageInput("1");
+      } catch {
+        // silently fail — canvas will stay blank
+      } finally {
+        if (!cancelled) setRenderLoading(false);
+      }
     }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+    load();
+    return () => { cancelled = true; };
+  }, [url]);
+
+  // Render current page whenever doc, page, or scale changes
+  useEffect(() => {
+    if (!pdfDoc || !canvasRef.current) return;
+    let cancelled = false;
+
+    async function renderPage() {
+      setRenderLoading(true);
+      // Cancel any in-progress render
+      if (renderTaskRef.current) {
+        try { renderTaskRef.current.cancel(); } catch { /* ignore */ }
+        renderTaskRef.current = null;
+      }
+      try {
+        const page = await pdfDoc!.getPage(currentPage);
+        if (cancelled) return;
+        const viewport = page.getViewport({ scale });
+        const canvas = canvasRef.current!;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d")!;
+        const task = page.render({ canvasContext: ctx, viewport });
+        renderTaskRef.current = task;
+        await task.promise;
+        renderTaskRef.current = null;
+      } catch {
+        // render cancelled or failed — ignore
+      } finally {
+        if (!cancelled) setRenderLoading(false);
+      }
+    }
+
+    renderPage();
+    return () => { cancelled = true; };
+  }, [pdfDoc, currentPage, scale]);
+
+  // Keyboard shortcuts
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        setCurrentPage((p) => {
+          const next = Math.max(1, p - 1);
+          setPageInput(String(next));
+          return next;
+        });
+      }
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        setCurrentPage((p) => {
+          const next = Math.min(totalPages || p, p + 1);
+          setPageInput(String(next));
+          return next;
+        });
+      }
+      if (e.key === "+" || e.key === "=") {
+        setScale((s) => {
+          const idx = ZOOM_LEVELS.indexOf(s);
+          return idx < ZOOM_LEVELS.length - 1 ? ZOOM_LEVELS[idx + 1] : s;
+        });
+      }
+      if (e.key === "-") {
+        setScale((s) => {
+          const idx = ZOOM_LEVELS.indexOf(s);
+          return idx > 0 ? ZOOM_LEVELS[idx - 1] : s;
+        });
+      }
+    },
+    [onClose, totalPages]
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
+  function goToPrev() {
+    setCurrentPage((p) => {
+      const next = Math.max(1, p - 1);
+      setPageInput(String(next));
+      return next;
+    });
+  }
+
+  function goToNext() {
+    setCurrentPage((p) => {
+      const next = Math.min(totalPages || p, p + 1);
+      setPageInput(String(next));
+      return next;
+    });
+  }
+
+  function handlePageInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setPageInput(e.target.value);
+  }
+
+  function handlePageInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      const parsed = parseInt(pageInput, 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= totalPages) {
+        setCurrentPage(parsed);
+      } else {
+        setPageInput(String(currentPage));
+      }
+    }
+  }
+
+  function zoomOut() {
+    setScale((s) => {
+      const idx = ZOOM_LEVELS.indexOf(s);
+      return idx > 0 ? ZOOM_LEVELS[idx - 1] : s;
+    });
+  }
+
+  function zoomIn() {
+    setScale((s) => {
+      const idx = ZOOM_LEVELS.indexOf(s);
+      return idx < ZOOM_LEVELS.length - 1 ? ZOOM_LEVELS[idx + 1] : s;
+    });
+  }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 bg-gray-900 shrink-0">
-        <div className="flex items-center gap-2.5">
+    <div className="fixed inset-0 z-50 bg-gray-950/95 flex flex-col">
+      {/* Top toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-900 shrink-0 gap-4">
+        {/* Left: filename */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <svg className="w-4 h-4 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
           </svg>
-          <span className="text-sm font-medium text-white truncate max-w-md">{name}</span>
+          <span className="text-sm font-medium text-white truncate">{name}</span>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Center: page controls */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={goToPrev}
+            disabled={currentPage <= 1}
+            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Previous page"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="flex items-center gap-1.5 text-sm text-gray-300">
+            <input
+              type="text"
+              value={pageInput}
+              onChange={handlePageInputChange}
+              onKeyDown={handlePageInputKeyDown}
+              className="w-10 text-center bg-gray-800 border border-gray-600 rounded px-1 py-0.5 text-white text-xs focus:outline-none focus:border-gray-400"
+            />
+            <span className="text-gray-500">of</span>
+            <span className="text-gray-300">{totalPages || "—"}</span>
+          </div>
+          <button
+            onClick={goToNext}
+            disabled={currentPage >= totalPages}
+            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Next page"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Right: zoom controls + download + close */}
+        <div className="flex items-center gap-1 shrink-0 flex-1 justify-end">
+          <button
+            onClick={zoomOut}
+            disabled={scale <= ZOOM_LEVELS[0]}
+            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Zoom out"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+            </svg>
+          </button>
+          <select
+            value={scale}
+            onChange={(e) => setScale(parseFloat(e.target.value))}
+            className="bg-gray-800 border border-gray-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-gray-400"
+          >
+            {ZOOM_LEVELS.map((z) => (
+              <option key={z} value={z}>{ZOOM_LABELS[z]}</option>
+            ))}
+          </select>
+          <button
+            onClick={zoomIn}
+            disabled={scale >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Zoom in"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+          <div className="w-px h-5 bg-gray-700 mx-1" />
           <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
             download={name}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-300 border border-gray-600 rounded-md hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-300 border border-gray-600 rounded-md hover:bg-gray-700 transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -151,7 +374,8 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
           </a>
           <button
             onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors"
+            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors ml-1"
+            title="Close (Esc)"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -159,13 +383,24 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
           </button>
         </div>
       </div>
-      {/* PDF iframe */}
-      <div className="flex-1 overflow-hidden">
-        <iframe
-          src={`${url}#toolbar=1&navpanes=1`}
-          className="w-full h-full border-0"
-          title={name}
-        />
+
+      {/* PDF canvas area */}
+      <div className="flex-1 overflow-auto flex items-start justify-center bg-gray-950 py-6 px-4">
+        <div className="relative">
+          {renderLoading && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-gray-950/60 rounded">
+              <svg className="w-8 h-8 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          )}
+          <canvas
+            ref={canvasRef}
+            className="shadow-2xl rounded"
+            style={{ display: "block", maxWidth: "100%" }}
+          />
+        </div>
       </div>
     </div>
   );

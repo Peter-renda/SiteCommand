@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import { Skeleton } from "@/app/components/Skeleton";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -1109,7 +1110,12 @@ export default function DailyLogClient({
         </div>
 
         {loading ? (
-          <p className="text-sm text-gray-400">Loading...</p>
+          <div className="space-y-4">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
         ) : (
           <div className="space-y-5">
             <WeatherSection

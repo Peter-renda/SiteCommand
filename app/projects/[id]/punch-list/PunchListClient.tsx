@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, ChangeEvent } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import EmptyState from "@/app/components/EmptyState";
+import { SkeletonTable } from "@/app/components/Skeleton";
 
 type DirContact = { id: string; name: string; email: string | null };
 type DirectoryContact = {
@@ -434,11 +436,18 @@ export default function PunchListClient({ projectId, role, username, userId }: {
         </div>
 
         {loading ? (
-          <p className="text-sm text-gray-400">Loading...</p>
+          <SkeletonTable rows={5} cols={7} />
         ) : items.length === 0 ? (
-          <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
-            <p className="text-sm text-gray-400">No punch list items yet</p>
-            <p className="text-xs text-gray-300 mt-1">Click Create item to add the first one</p>
+          <div className="bg-white border border-dashed border-gray-200 rounded-xl">
+            <EmptyState
+              icon={
+                <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              }
+              title="No punch list items yet"
+              description="Click Create item to add the first one."
+            />
           </div>
         ) : (
           <div className="bg-white border border-gray-100 rounded-xl overflow-x-auto">
