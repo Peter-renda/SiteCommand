@@ -139,8 +139,16 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
 
-  // Set worker source on mount (client-side only)
+  // Set worker source + polyfill Promise.withResolvers (required by pdfjs-dist v5, missing in some envs)
   useEffect(() => {
+    if (typeof (Promise as any).withResolvers === "undefined") {
+      (Promise as any).withResolvers = function () {
+        let resolve!: (value: unknown) => void;
+        let reject!: (reason?: unknown) => void;
+        const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+        return { promise, resolve, reject };
+      };
+    }
     pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   }, []);
 
