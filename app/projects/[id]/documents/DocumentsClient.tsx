@@ -118,8 +118,86 @@ function buildFolderTree(
 
 // ── PDF Viewer Modal ─────────────────────────────────────────────────────────
 
-function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onClose: () => void }) {
+// Annotation types
+type AnnotationTool = "pen" | "rect" | "circle" | "line" | "text" | "eraser";
+
+type AnnotationStroke = {
+  id: string;
+  tool: "pen" | "rect" | "circle" | "line" | "text";
+  color: string;
+  lineWidth: number;
+  // pen
+  points?: { x: number; y: number }[];
+  // rect / circle
+  x?: number; y?: number; w?: number; h?: number;
+  // line
+  x1?: number; y1?: number; x2?: number; y2?: number;
+  // text
+  text?: string; tx?: number; ty?: number;
+};
+
+type AnnotationSet = {
+  created_by: string;
+  created_by_name: string | null;
+  role: string | null;
+  annotation_data: AnnotationStroke[];
+};
+
+const ANNOTATION_COLORS = [
+  { label: "Red",    value: "#ef4444" },
+  { label: "Blue",   value: "#3b82f6" },
+  { label: "Green",  value: "#22c55e" },
+  { label: "Yellow", value: "#eab308" },
+  { label: "Black",  value: "#111827" },
+];
+
+const ROLE_COLORS: Record<string, string> = {
+  admin: "#3b82f6",
+  member: "#22c55e",
+  external_viewer: "#f97316",
+};
+
+function roleColor(role: string | null): string {
+  return ROLE_COLORS[role ?? ""] ?? "#9ca3af";
+}
+
+function genId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function PdfViewerModal({
+  url,
+  name,
+  onClose,
+  docId,
+  projectId,
+  userRole,
+  userName,
+}: {
+  url: string;
+  name: string;
+  onClose: () => void;
+  docId: string;
+  projectId: string;
+  userRole: string;
+  userName: string;
+}) {
   const [loading, setLoading] = useState(true);
+
+  // ── Annotation state ────────────────────────────────────────────────────────
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [annotationsLoaded, setAnnotationsLoaded] = useState(false);
+  const [activeTool, setActiveTool] = useState<AnnotationTool>("pen");
+  const [activeColor, setActiveColor] = useState("#ef4444");
+  const [strokes, setStrokes] = useState<AnnotationStroke[]>([]);
+  const [allAnnotations, setAllAnnotations] = useState<AnnotationSet[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  // Drawing tracking refs (not state — no re-render needed mid-draw)
+  const isDrawingRef = useRef(false);
+  const currentStrokeRef = useRef<AnnotationStroke | null>(null);
+  const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Keyboard: Esc to close
   useEffect(() => {
@@ -128,10 +206,300 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // ── Load annotations when annotation mode is first enabled ─────────────────
+  useEffect(() => {
+    if (!annotationMode || annotationsLoaded) return;
+    async function fetchAnnotations() {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/documents/${docId}/annotations`);
+        if (!res.ok) return;
+        const data: AnnotationSet[] = await res.json();
+        setAllAnnotations(data);
+        // Pre-populate current user's strokes from their record (if any)
+        // We identify the user's record by checking if any annotation came from "me"
+        // We expose userName and match by name as a fallback (no userId in client)
+        const myRecord = data.find((a) => a.created_by_name === userName);
+        if (myRecord && Array.isArray(myRecord.annotation_data)) {
+          setStrokes(myRecord.annotation_data);
+        }
+      } catch {
+        // silently ignore
+      } finally {
+        setAnnotationsLoaded(true);
+      }
+    }
+    fetchAnnotations();
+  }, [annotationMode, annotationsLoaded, docId, projectId, userName]);
+
+  // ── Render annotations onto canvas whenever strokes/allAnnotations change ──
+  useEffect(() => {
+    if (!annotationMode) return;
+    const canvas = annotationCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    renderAnnotations(ctx, canvas.width, canvas.height);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strokes, allAnnotations, annotationMode]);
+
+  // Keep canvas sized to its container
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!annotationMode) return;
+    function resize() {
+      const canvas = annotationCanvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) renderAnnotations(ctx, canvas.width, canvas.height);
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotationMode]);
+
+  // ── Coordinate helpers (percentage-based so they scale with container) ──────
+  function toRel(canvas: HTMLCanvasElement, clientX: number, clientY: number) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / rect.width,
+      y: (clientY - rect.top) / rect.height,
+    };
+  }
+
+  function toAbs(canvas: HTMLCanvasElement, rx: number, ry: number) {
+    return { x: rx * canvas.width, y: ry * canvas.height };
+  }
+
+  // ── Render all annotations ──────────────────────────────────────────────────
+  function renderAnnotations(ctx: CanvasRenderingContext2D, cw: number, ch: number) {
+    ctx.clearRect(0, 0, cw, ch);
+
+    // Render other users first, then current user on top
+    const othersAnnotations = allAnnotations.filter((a) => a.created_by_name !== userName);
+    for (const set of othersAnnotations) {
+      const color = roleColor(set.role);
+      renderStrokeSet(ctx, cw, ch, set.annotation_data, color, false);
+    }
+    // Current user's strokes — use each stroke's own color
+    renderStrokeSet(ctx, cw, ch, strokes, activeColor, true);
+  }
+
+  function renderStrokeSet(
+    ctx: CanvasRenderingContext2D,
+    cw: number,
+    ch: number,
+    strokeList: AnnotationStroke[],
+    fallbackColor: string,
+    useStrokeColor: boolean
+  ) {
+    for (const stroke of strokeList) {
+      const color = useStrokeColor ? stroke.color : fallbackColor;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = stroke.lineWidth ?? 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      if (stroke.tool === "pen" && stroke.points && stroke.points.length > 1) {
+        ctx.beginPath();
+        const first = toAbs(annotationCanvasRef.current!, stroke.points[0].x, stroke.points[0].y);
+        ctx.moveTo(first.x, first.y);
+        for (let i = 1; i < stroke.points.length; i++) {
+          const pt = toAbs(annotationCanvasRef.current!, stroke.points[i].x, stroke.points[i].y);
+          ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.stroke();
+      } else if (stroke.tool === "rect" && stroke.x !== undefined) {
+        const p = toAbs(annotationCanvasRef.current!, stroke.x!, stroke.y!);
+        ctx.beginPath();
+        ctx.strokeRect(p.x, p.y, stroke.w! * cw, stroke.h! * ch);
+      } else if (stroke.tool === "circle" && stroke.x !== undefined) {
+        const p = toAbs(annotationCanvasRef.current!, stroke.x!, stroke.y!);
+        const rx = (stroke.w! * cw) / 2;
+        const ry = (stroke.h! * ch) / 2;
+        ctx.beginPath();
+        ctx.ellipse(p.x + rx, p.y + ry, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (stroke.tool === "line" && stroke.x1 !== undefined) {
+        const a = toAbs(annotationCanvasRef.current!, stroke.x1!, stroke.y1!);
+        const b = toAbs(annotationCanvasRef.current!, stroke.x2!, stroke.y2!);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      } else if (stroke.tool === "text" && stroke.text && stroke.tx !== undefined) {
+        const p = toAbs(annotationCanvasRef.current!, stroke.tx!, stroke.ty!);
+        ctx.font = `${14 * (stroke.lineWidth ?? 1)}px sans-serif`;
+        ctx.fillText(stroke.text, p.x, p.y);
+      }
+    }
+  }
+
+  // ── Drawing event handlers ──────────────────────────────────────────────────
+  function startDraw(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (userRole === "external_viewer") return;
+    const canvas = annotationCanvasRef.current!;
+    const rel = toRel(canvas, e.clientX, e.clientY);
+
+    if (activeTool === "eraser") {
+      eraseAt(rel.x, rel.y);
+      isDrawingRef.current = true;
+      return;
+    }
+
+    if (activeTool === "text") {
+      const text = window.prompt("Enter annotation text:");
+      if (!text) return;
+      const newStroke: AnnotationStroke = {
+        id: genId(),
+        tool: "text",
+        color: activeColor,
+        lineWidth: 2,
+        text,
+        tx: rel.x,
+        ty: rel.y,
+      };
+      setStrokes((prev) => [...prev, newStroke]);
+      return;
+    }
+
+    isDrawingRef.current = true;
+
+    if (activeTool === "pen") {
+      currentStrokeRef.current = {
+        id: genId(),
+        tool: "pen",
+        color: activeColor,
+        lineWidth: 2,
+        points: [{ x: rel.x, y: rel.y }],
+      };
+    } else if (activeTool === "rect" || activeTool === "circle") {
+      currentStrokeRef.current = {
+        id: genId(),
+        tool: activeTool,
+        color: activeColor,
+        lineWidth: 2,
+        x: rel.x,
+        y: rel.y,
+        w: 0,
+        h: 0,
+      };
+    } else if (activeTool === "line") {
+      currentStrokeRef.current = {
+        id: genId(),
+        tool: "line",
+        color: activeColor,
+        lineWidth: 2,
+        x1: rel.x,
+        y1: rel.y,
+        x2: rel.x,
+        y2: rel.y,
+      };
+    }
+  }
+
+  function draw(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!isDrawingRef.current || !currentStrokeRef.current) return;
+    const canvas = annotationCanvasRef.current!;
+    const rel = toRel(canvas, e.clientX, e.clientY);
+
+    if (activeTool === "eraser") {
+      eraseAt(rel.x, rel.y);
+      return;
+    }
+
+    const stroke = currentStrokeRef.current;
+
+    if (stroke.tool === "pen") {
+      stroke.points = [...(stroke.points ?? []), { x: rel.x, y: rel.y }];
+    } else if (stroke.tool === "rect" || stroke.tool === "circle") {
+      stroke.w = rel.x - (stroke.x ?? 0);
+      stroke.h = rel.y - (stroke.y ?? 0);
+    } else if (stroke.tool === "line") {
+      stroke.x2 = rel.x;
+      stroke.y2 = rel.y;
+    }
+
+    // Live preview — render in-progress stroke with current committed strokes
+    const ctx = canvas.getContext("2d")!;
+    renderAnnotations(ctx, canvas.width, canvas.height);
+    // Draw current stroke on top as a preview
+    renderStrokeSet(ctx, canvas.width, canvas.height, [stroke], activeColor, true);
+  }
+
+  function endDraw() {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+
+    if (activeTool === "eraser") return;
+
+    if (currentStrokeRef.current) {
+      setStrokes((prev) => [...prev, { ...currentStrokeRef.current! }]);
+      currentStrokeRef.current = null;
+    }
+  }
+
+  function eraseAt(rx: number, ry: number) {
+    const THRESHOLD = 0.02; // ~2% of canvas size
+    setStrokes((prev) =>
+      prev.filter((stroke) => {
+        if (stroke.tool === "pen" && stroke.points) {
+          return !stroke.points.some(
+            (p) => Math.abs(p.x - rx) < THRESHOLD && Math.abs(p.y - ry) < THRESHOLD
+          );
+        }
+        if (stroke.tool === "rect" || stroke.tool === "circle") {
+          const cx = (stroke.x ?? 0) + (stroke.w ?? 0) / 2;
+          const cy = (stroke.y ?? 0) + (stroke.h ?? 0) / 2;
+          return Math.abs(cx - rx) > THRESHOLD * 2 || Math.abs(cy - ry) > THRESHOLD * 2;
+        }
+        if (stroke.tool === "line") {
+          const cx = ((stroke.x1 ?? 0) + (stroke.x2 ?? 0)) / 2;
+          const cy = ((stroke.y1 ?? 0) + (stroke.y2 ?? 0)) / 2;
+          return Math.abs(cx - rx) > THRESHOLD * 2 || Math.abs(cy - ry) > THRESHOLD * 2;
+        }
+        if (stroke.tool === "text") {
+          return Math.abs((stroke.tx ?? 0) - rx) > THRESHOLD * 2 || Math.abs((stroke.ty ?? 0) - ry) > THRESHOLD * 2;
+        }
+        return true;
+      })
+    );
+  }
+
+  // ── Save annotations ────────────────────────────────────────────────────────
+  async function saveAnnotations() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/documents/${docId}/annotations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ annotation_data: strokes }),
+      });
+      if (res.ok) {
+        setSaveMsg("Saved");
+        setTimeout(() => setSaveMsg(null), 2000);
+      } else {
+        setSaveMsg("Error saving");
+        setTimeout(() => setSaveMsg(null), 3000);
+      }
+    } catch {
+      setSaveMsg("Error saving");
+      setTimeout(() => setSaveMsg(null), 3000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const canAnnotate = userRole !== "external_viewer";
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gray-950">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-900 shrink-0 gap-4">
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-900 shrink-0 gap-4 flex-wrap">
         {/* Filename */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <svg className="w-4 h-4 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -140,8 +508,95 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
           <span className="text-sm font-medium text-white truncate">{name}</span>
         </div>
 
-        {/* Actions */}
+        {/* Annotation controls (shown when annotationMode is on) */}
+        {annotationMode && (
+          <div className="flex items-center gap-1 flex-wrap shrink-0">
+            {canAnnotate ? (
+              <>
+                {/* Tool buttons */}
+                {(["pen", "rect", "circle", "line", "text", "eraser"] as AnnotationTool[]).map((tool) => {
+                  const labels: Record<AnnotationTool, string> = {
+                    pen: "✏️", rect: "□", circle: "○", line: "/", text: "T", eraser: "⌫",
+                  };
+                  const titles: Record<AnnotationTool, string> = {
+                    pen: "Pen", rect: "Rectangle", circle: "Circle", line: "Line", text: "Text", eraser: "Eraser",
+                  };
+                  return (
+                    <button
+                      key={tool}
+                      onClick={() => setActiveTool(tool)}
+                      title={titles[tool]}
+                      className={`px-2 py-1 text-sm rounded transition-colors ${
+                        activeTool === tool
+                          ? "bg-gray-600 text-white"
+                          : "text-gray-400 hover:text-white hover:bg-gray-700"
+                      }`}
+                    >
+                      {labels[tool]}
+                    </button>
+                  );
+                })}
+
+                <div className="w-px h-5 bg-gray-700 mx-1" />
+
+                {/* Color swatches */}
+                {ANNOTATION_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    title={c.label}
+                    onClick={() => setActiveColor(c.value)}
+                    className={`w-5 h-5 rounded-full border-2 transition-colors ${
+                      activeColor === c.value ? "border-white scale-110" : "border-transparent"
+                    }`}
+                    style={{ backgroundColor: c.value }}
+                  />
+                ))}
+
+                <div className="w-px h-5 bg-gray-700 mx-1" />
+
+                {/* Save */}
+                <button
+                  onClick={saveAnnotations}
+                  disabled={saving}
+                  className="px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : saveMsg ?? "Save"}
+                </button>
+
+                {/* Clear Mine */}
+                <button
+                  onClick={() => setStrokes([])}
+                  className="px-2.5 py-1 text-xs font-medium text-gray-400 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
+                >
+                  Clear Mine
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-gray-400 px-2 py-1 border border-gray-700 rounded">
+                View Only
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Right actions */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Annotate toggle */}
+          <button
+            onClick={() => setAnnotationMode((m) => !m)}
+            title="Toggle Annotations"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+              annotationMode
+                ? "bg-yellow-500 border-yellow-400 text-gray-900"
+                : "text-gray-300 border-gray-600 hover:bg-gray-700"
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            Annotate
+          </button>
+
           <a
             href={url}
             target="_blank"
@@ -166,8 +621,8 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
         </div>
       </div>
 
-      {/* PDF iframe — browser native renderer, works with any URL */}
-      <div className="relative flex-1">
+      {/* PDF iframe with annotation canvas overlay */}
+      <div ref={containerRef} className="relative flex-1">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-950 z-10">
             <svg className="w-8 h-8 text-gray-500 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -182,6 +637,21 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
           onLoad={() => setLoading(false)}
           title={name}
         />
+        {annotationMode && (
+          <canvas
+            ref={annotationCanvasRef}
+            className="absolute inset-0 w-full h-full"
+            style={{
+              cursor: activeTool === "eraser" ? "cell" : canAnnotate ? "crosshair" : "default",
+              zIndex: 10,
+              pointerEvents: canAnnotate ? "auto" : "none",
+            }}
+            onMouseDown={startDraw}
+            onMouseMove={draw}
+            onMouseUp={endDraw}
+            onMouseLeave={endDraw}
+          />
+        )}
       </div>
     </div>
   );
@@ -1332,6 +1802,10 @@ export default function DocumentsClient({
           url={pdfPreview.url}
           name={pdfPreview.name}
           onClose={() => setPdfPreview(null)}
+          docId={pdfPreview.id}
+          projectId={projectId}
+          userRole={role}
+          userName={username}
         />
       )}
     </div>
