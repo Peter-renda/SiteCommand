@@ -5,9 +5,9 @@ import ProjectNav from "@/components/ProjectNav";
 import "@ungap/with-resolvers";
 import * as pdfjsLib from "pdfjs-dist";
 
-// CDN worker — most stable approach for Next.js production
+// Use unpkg CDN worker pinned to exact installed version
 if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 }
 
 type DocItem = {
