@@ -1,14 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, ChangeEvent } from "react";
+// Note: useRef/useCallback used by other parts of this file (folder tree, modals)
 import ProjectNav from "@/components/ProjectNav";
-import "@ungap/with-resolvers";
-import * as pdfjsLib from "pdfjs-dist";
-
-// Use unpkg CDN worker pinned to exact installed version
-if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-}
 
 type DocItem = {
   id: string;
@@ -124,180 +118,21 @@ function buildFolderTree(
 
 // ── PDF Viewer Modal ─────────────────────────────────────────────────────────
 
-const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 2];
-const ZOOM_LABELS: Record<number, string> = {
-  0.5: "50%",
-  0.75: "75%",
-  1: "100%",
-  1.25: "125%",
-  1.5: "150%",
-  2: "200%",
-};
-
 function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onClose: () => void }) {
-  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [scale, setScale] = useState(1.5);
-  const [pageInput, setPageInput] = useState("1");
-  const [renderLoading, setRenderLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load PDF document
+  // Keyboard: Esc to close
   useEffect(() => {
-    let cancelled = false;
-    setLoadError(null);
-    async function load() {
-      setRenderLoading(true);
-      try {
-        const loadingTask = pdfjsLib.getDocument({ url, withCredentials: false });
-        const doc = await loadingTask.promise;
-        if (cancelled) { doc.destroy(); return; }
-        setPdfDoc(doc);
-        setTotalPages(doc.numPages);
-        setCurrentPage(1);
-        setPageInput("1");
-      } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load PDF");
-      } finally {
-        if (!cancelled) setRenderLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [url]);
-
-  // Render current page whenever doc, page, or scale changes
-  useEffect(() => {
-    if (!pdfDoc || !canvasRef.current) return;
-    let cancelled = false;
-
-    async function renderPage() {
-      setRenderLoading(true);
-      // Cancel any in-progress render
-      if (renderTaskRef.current) {
-        try { renderTaskRef.current.cancel(); } catch { /* ignore */ }
-        renderTaskRef.current = null;
-      }
-      try {
-        const page = await pdfDoc!.getPage(currentPage);
-        if (cancelled) return;
-        const viewport = page.getViewport({ scale });
-        const canvas = canvasRef.current!;
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Could not get 2D canvas context");
-        const task = page.render({ canvasContext: ctx, viewport });
-        renderTaskRef.current = task;
-        await task.promise;
-        renderTaskRef.current = null;
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        // Only show error if it's not a deliberate render cancellation
-        if (!cancelled && !msg.includes("cancelled") && !msg.includes("Rendering cancelled")) {
-          setLoadError(`Render error: ${msg}`);
-        }
-      } finally {
-        if (!cancelled) setRenderLoading(false);
-      }
-    }
-
-    renderPage();
-    return () => { cancelled = true; };
-  }, [pdfDoc, currentPage, scale]);
-
-  // Keyboard shortcuts
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") { onClose(); return; }
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-        setCurrentPage((p) => {
-          const next = Math.max(1, p - 1);
-          setPageInput(String(next));
-          return next;
-        });
-      }
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-        setCurrentPage((p) => {
-          const next = Math.min(totalPages || p, p + 1);
-          setPageInput(String(next));
-          return next;
-        });
-      }
-      if (e.key === "+" || e.key === "=") {
-        setScale((s) => {
-          const idx = ZOOM_LEVELS.indexOf(s);
-          return idx < ZOOM_LEVELS.length - 1 ? ZOOM_LEVELS[idx + 1] : s;
-        });
-      }
-      if (e.key === "-") {
-        setScale((s) => {
-          const idx = ZOOM_LEVELS.indexOf(s);
-          return idx > 0 ? ZOOM_LEVELS[idx - 1] : s;
-        });
-      }
-    },
-    [onClose, totalPages]
-  );
-
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
-
-  function goToPrev() {
-    setCurrentPage((p) => {
-      const next = Math.max(1, p - 1);
-      setPageInput(String(next));
-      return next;
-    });
-  }
-
-  function goToNext() {
-    setCurrentPage((p) => {
-      const next = Math.min(totalPages || p, p + 1);
-      setPageInput(String(next));
-      return next;
-    });
-  }
-
-  function handlePageInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setPageInput(e.target.value);
-  }
-
-  function handlePageInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      const parsed = parseInt(pageInput, 10);
-      if (!isNaN(parsed) && parsed >= 1 && parsed <= totalPages) {
-        setCurrentPage(parsed);
-      } else {
-        setPageInput(String(currentPage));
-      }
-    }
-  }
-
-  function zoomOut() {
-    setScale((s) => {
-      const idx = ZOOM_LEVELS.indexOf(s);
-      return idx > 0 ? ZOOM_LEVELS[idx - 1] : s;
-    });
-  }
-
-  function zoomIn() {
-    setScale((s) => {
-      const idx = ZOOM_LEVELS.indexOf(s);
-      return idx < ZOOM_LEVELS.length - 1 ? ZOOM_LEVELS[idx + 1] : s;
-    });
-  }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-950/95 flex flex-col">
-      {/* Top toolbar */}
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-950">
+      {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-900 shrink-0 gap-4">
-        {/* Left: filename */}
+        {/* Filename */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <svg className="w-4 h-4 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
@@ -305,73 +140,8 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
           <span className="text-sm font-medium text-white truncate">{name}</span>
         </div>
 
-        {/* Center: page controls */}
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={goToPrev}
-            disabled={currentPage <= 1}
-            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Previous page"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div className="flex items-center gap-1.5 text-sm text-gray-300">
-            <input
-              type="text"
-              value={pageInput}
-              onChange={handlePageInputChange}
-              onKeyDown={handlePageInputKeyDown}
-              className="w-10 text-center bg-gray-800 border border-gray-600 rounded px-1 py-0.5 text-white text-xs focus:outline-none focus:border-gray-400"
-            />
-            <span className="text-gray-500">of</span>
-            <span className="text-gray-300">{totalPages || "—"}</span>
-          </div>
-          <button
-            onClick={goToNext}
-            disabled={currentPage >= totalPages}
-            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Next page"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Right: zoom controls + download + close */}
-        <div className="flex items-center gap-1 shrink-0 flex-1 justify-end">
-          <button
-            onClick={zoomOut}
-            disabled={scale <= ZOOM_LEVELS[0]}
-            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Zoom out"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
-            </svg>
-          </button>
-          <select
-            value={scale}
-            onChange={(e) => setScale(parseFloat(e.target.value))}
-            className="bg-gray-800 border border-gray-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-gray-400"
-          >
-            {ZOOM_LEVELS.map((z) => (
-              <option key={z} value={z}>{ZOOM_LABELS[z]}</option>
-            ))}
-          </select>
-          <button
-            onClick={zoomIn}
-            disabled={scale >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Zoom in"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-          <div className="w-px h-5 bg-gray-700 mx-1" />
+        {/* Actions */}
+        <div className="flex items-center gap-2 shrink-0">
           <a
             href={url}
             target="_blank"
@@ -386,7 +156,7 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
           </a>
           <button
             onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors ml-1"
+            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors"
             title="Close (Esc)"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -396,34 +166,22 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
         </div>
       </div>
 
-      {/* PDF canvas area */}
-      <div className="flex-1 overflow-auto flex items-start justify-center bg-gray-950 py-6 px-4">
-        {loadError ? (
-          <div className="flex flex-col items-center gap-3 mt-20 text-center">
-            <svg className="w-10 h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      {/* PDF iframe — browser native renderer, works with any URL */}
+      <div className="relative flex-1">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-950 z-10">
+            <svg className="w-8 h-8 text-gray-500 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p className="text-sm text-red-400 font-medium">Failed to load PDF</p>
-            <p className="text-xs text-gray-500 max-w-sm">{loadError}</p>
-            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-blue-400 underline mt-1">Open directly in browser</a>
-          </div>
-        ) : (
-          <div className="relative">
-            {renderLoading && (
-              <div className="absolute inset-0 flex items-center justify-center z-10 bg-gray-950/60 rounded">
-                <svg className="w-8 h-8 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              </div>
-            )}
-            <canvas
-              ref={canvasRef}
-              className="shadow-2xl rounded"
-              style={{ display: "block", maxWidth: "100%" }}
-            />
           </div>
         )}
+        <iframe
+          src={url}
+          className="w-full h-full border-0"
+          onLoad={() => setLoading(false)}
+          title={name}
+        />
       </div>
     </div>
   );
