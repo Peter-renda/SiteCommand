@@ -2,19 +2,12 @@
 
 import React, { useState, useEffect, useRef, useCallback, ChangeEvent } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import "@ungap/with-resolvers";
 import * as pdfjsLib from "pdfjs-dist";
 
-// Run synchronously at module load (client-side only) so pdfjs is ready before any effects fire
+// CDN worker — most stable approach for Next.js production
 if (typeof window !== "undefined") {
-  if (typeof (Promise as any).withResolvers === "undefined") {
-    (Promise as any).withResolvers = function () {
-      let resolve!: (value: unknown) => void;
-      let reject!: (reason?: unknown) => void;
-      const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
-      return { promise, resolve, reject };
-    };
-  }
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
 
 type DocItem = {
@@ -145,7 +138,7 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(1.5);
   const [pageInput, setPageInput] = useState("1");
   const [renderLoading, setRenderLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
