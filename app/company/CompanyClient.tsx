@@ -292,6 +292,41 @@ export default function CompanyClient({
             </div>
           )}
         </div>
+
+        {/* About Site Command */}
+        <div className="bg-white rounded-xl border border-gray-100 px-6 py-5 mt-6">
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">About Site Command</h2>
+          <p className="text-sm font-medium text-gray-700 mb-3">
+            Construction is hard enough. Your software shouldn&apos;t be.
+          </p>
+          <div className="space-y-3 text-sm text-gray-500 leading-relaxed">
+            <p>
+              Site Command was built by people who understand the frustration of bloated, overpriced
+              platforms that promise the world and deliver a headache. We watched contractors spend
+              more time fighting their software than managing their projects — and we decided to
+              build something better.
+            </p>
+            <p>
+              Site Command is a modern construction management platform designed for the way real
+              teams work. From daily logs and RFIs to document control, submittals, and project
+              scheduling, everything you need is in one place — intuitive, fast, and actually useful
+              in the field.
+            </p>
+            <p>
+              We&apos;re not trying to be everything to everyone. We&apos;re focused on giving
+              contractors, project managers, and field teams a tool that respects their time, keeps
+              projects moving, and doesn&apos;t require a three-week onboarding just to get started.
+            </p>
+            <p className="font-medium text-gray-700">
+              Built for the builder. Priced fairly. Designed to last.
+            </p>
+            <p>
+              Whether you&apos;re running a single crew or managing a multi-project portfolio, Site
+              Command gives you the visibility and control you need — without the complexity you
+              don&apos;t.
+            </p>
+          </div>
+        </div>
       </main>
 
       {/* Add User Modal */}

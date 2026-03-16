@@ -3,22 +3,33 @@
 import { useState } from "react";
 import Link from "next/link";
 
-const navItems: { label: string; items?: string[]; sections?: { label: string; items: string[] }[]; href?: string }[] = [
+type NavSubItem = { label: string; href: string };
+const navItems: { label: string; items: NavSubItem[]; href?: string }[] = [
   {
     label: "Solutions",
-    sections: [
-      { label: "Construction", items: ["Project Management", "Quality & Safety", "Schedule", "RFI"] },
-      { label: "Financials", items: ["Budget Management", "Invoice Management", "Project Financials", "Time Tracking"] },
-      { label: "Platform", items: ["Analytics", "Document Management", "Equipment", "Workforce Management"] },
+    items: [
+      { label: "Analytics", href: "#" },
+      { label: "Automation", href: "#" },
+      { label: "Integrations", href: "#" },
+      { label: "Security", href: "#" },
     ],
   },
   {
     label: "About Us",
-    items: ["Company", "Team", "Careers", "Press"],
+    items: [
+      { label: "Company", href: "#" },
+      { label: "Careers", href: "/careers" },
+      { label: "Press", href: "#" },
+    ],
   },
   {
     label: "Resources",
-    items: ["Documentation", "Blog", "Case Studies", "Community"],
+    items: [
+      { label: "Documentation", href: "#" },
+      { label: "Blog", href: "#" },
+      { label: "Case Studies", href: "#" },
+      { label: "Community", href: "#" },
+    ],
   },
   {
     label: "Pricing",
@@ -76,34 +87,15 @@ export default function Navbar() {
                   onMouseEnter={() => setOpen(item.label)}
                   onMouseLeave={() => setOpen(null)}
                 >
-                  {item.sections ? (
-                    <div className="grid grid-cols-3 gap-0 p-4">
-                      {item.sections.map((section) => (
-                        <div key={section.label}>
-                          <p className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">{section.label}</p>
-                          {section.items.map((sub) => (
-                            <a
-                              key={sub}
-                              href="#"
-                              className="block px-2 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded transition-colors"
-                            >
-                              {sub}
-                            </a>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    item.items?.map((sub) => (
-                      <a
-                        key={sub}
-                        href="#"
-                        className="block px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-                      >
-                        {sub}
-                      </a>
-                    ))
-                  )}
+                  {item.items.map((sub) => (
+                    <a
+                      key={sub.label}
+                      href={sub.href}
+                      className="block px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                    >
+                      {sub.label}
+                    </a>
+                  ))}
                 </div>
               )}
             </div>
@@ -161,26 +153,15 @@ export default function Navbar() {
                   </button>
                   {open === item.label && (
                     <div className="pl-4 space-y-1 mb-1">
-                      {item.sections ? (
-                        item.sections.map((section) => (
-                          <div key={section.label}>
-                            <p className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">{section.label}</p>
-                            {section.items.map((sub) => (
-                              <a key={sub} href="#" className="block px-3 py-1.5 text-sm text-gray-500 rounded-md hover:bg-gray-50 transition-colors">{sub}</a>
-                            ))}
-                          </div>
-                        ))
-                      ) : (
-                        item.items?.map((sub) => (
-                          <a
-                            key={sub}
-                            href="#"
-                            className="block px-3 py-1.5 text-sm text-gray-500 rounded-md hover:bg-gray-50 transition-colors"
-                          >
-                            {sub}
-                          </a>
-                        ))
-                      )}
+                      {item.items.map((sub) => (
+                        <a
+                          key={sub.label}
+                          href={sub.href}
+                          className="block px-3 py-1.5 text-sm text-gray-500 rounded-md hover:bg-gray-50 transition-colors"
+                        >
+                          {sub.label}
+                        </a>
+                      ))}
                     </div>
                   )}
                 </div>
