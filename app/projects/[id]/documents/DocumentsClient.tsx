@@ -4,8 +4,6 @@ import React, { useState, useEffect, useRef, useCallback, ChangeEvent } from "re
 import ProjectNav from "@/components/ProjectNav";
 import * as pdfjsLib from "pdfjs-dist";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
-
 type DocItem = {
   id: string;
   name: string;
@@ -137,23 +135,31 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
   const [scale, setScale] = useState(1);
   const [pageInput, setPageInput] = useState("1");
   const [renderLoading, setRenderLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+
+  // Set worker source on mount (client-side only)
+  useEffect(() => {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  }, []);
 
   // Load PDF document
   useEffect(() => {
     let cancelled = false;
+    setLoadError(null);
     async function load() {
       setRenderLoading(true);
       try {
-        const doc = await pdfjsLib.getDocument(url).promise;
+        const loadingTask = pdfjsLib.getDocument({ url, withCredentials: false });
+        const doc = await loadingTask.promise;
         if (cancelled) { doc.destroy(); return; }
         setPdfDoc(doc);
         setTotalPages(doc.numPages);
         setCurrentPage(1);
         setPageInput("1");
-      } catch {
-        // silently fail — canvas will stay blank
+      } catch (err) {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load PDF");
       } finally {
         if (!cancelled) setRenderLoading(false);
       }
@@ -386,21 +392,32 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
 
       {/* PDF canvas area */}
       <div className="flex-1 overflow-auto flex items-start justify-center bg-gray-950 py-6 px-4">
-        <div className="relative">
-          {renderLoading && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 bg-gray-950/60 rounded">
-              <svg className="w-8 h-8 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            </div>
-          )}
-          <canvas
-            ref={canvasRef}
-            className="shadow-2xl rounded"
-            style={{ display: "block", maxWidth: "100%" }}
-          />
-        </div>
+        {loadError ? (
+          <div className="flex flex-col items-center gap-3 mt-20 text-center">
+            <svg className="w-10 h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <p className="text-sm text-red-400 font-medium">Failed to load PDF</p>
+            <p className="text-xs text-gray-500 max-w-sm">{loadError}</p>
+            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-blue-400 underline mt-1">Open directly in browser</a>
+          </div>
+        ) : (
+          <div className="relative">
+            {renderLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10 bg-gray-950/60 rounded">
+                <svg className="w-8 h-8 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              </div>
+            )}
+            <canvas
+              ref={canvasRef}
+              className="shadow-2xl rounded"
+              style={{ display: "block", maxWidth: "100%" }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
