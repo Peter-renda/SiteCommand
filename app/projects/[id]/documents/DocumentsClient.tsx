@@ -4,6 +4,19 @@ import React, { useState, useEffect, useRef, useCallback, ChangeEvent } from "re
 import ProjectNav from "@/components/ProjectNav";
 import * as pdfjsLib from "pdfjs-dist";
 
+// Run synchronously at module load (client-side only) so pdfjs is ready before any effects fire
+if (typeof window !== "undefined") {
+  if (typeof (Promise as any).withResolvers === "undefined") {
+    (Promise as any).withResolvers = function () {
+      let resolve!: (value: unknown) => void;
+      let reject!: (reason?: unknown) => void;
+      const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+      return { promise, resolve, reject };
+    };
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+}
+
 type DocItem = {
   id: string;
   name: string;
@@ -139,19 +152,6 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
 
-  // Set worker source + polyfill Promise.withResolvers (required by pdfjs-dist v5, missing in some envs)
-  useEffect(() => {
-    if (typeof (Promise as any).withResolvers === "undefined") {
-      (Promise as any).withResolvers = function () {
-        let resolve!: (value: unknown) => void;
-        let reject!: (reason?: unknown) => void;
-        const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
-        return { promise, resolve, reject };
-      };
-    }
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-  }, []);
-
   // Load PDF document
   useEffect(() => {
     let cancelled = false;
@@ -195,13 +195,18 @@ function PdfViewerModal({ url, name, onClose }: { url: string; name: string; onC
         const canvas = canvasRef.current!;
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        const ctx = canvas.getContext("2d")!;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Could not get 2D canvas context");
         const task = page.render({ canvasContext: ctx, viewport });
         renderTaskRef.current = task;
         await task.promise;
         renderTaskRef.current = null;
-      } catch {
-        // render cancelled or failed — ignore
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Only show error if it's not a deliberate render cancellation
+        if (!cancelled && !msg.includes("cancelled") && !msg.includes("Rendering cancelled")) {
+          setLoadError(`Render error: ${msg}`);
+        }
       } finally {
         if (!cancelled) setRenderLoading(false);
       }
