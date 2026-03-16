@@ -10,6 +10,19 @@ export default async function DashboardPage() {
   // External users (subcontractors) have their own dedicated portal
   if (session.user_type === "external") redirect("/subcontractor");
 
+  // Demo users bypass subscription check
+  if (session.user_type === "demo") {
+    return (
+      <DashboardClient
+        username={session.username}
+        email={session.email}
+        role={session.role}
+        companyRole={session.company_role ?? null}
+        userType="demo"
+      />
+    );
+  }
+
   if (session.role !== "admin") {
     if (!session.company_id) redirect("/pricing");
 
