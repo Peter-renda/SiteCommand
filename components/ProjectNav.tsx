@@ -36,6 +36,7 @@ const TOOL_SECTIONS = [
       { name: "Prime Contracts", slug: "prime-contracts" },
       { name: "Budget", slug: "budget" },
       { name: "Commitments", slug: "commitments" },
+      { name: "Bid Management", slug: "bid-management" },
       { name: "Change Orders", slug: "change-orders" },
       { name: "Change Events", slug: "change-events" },
     ],
