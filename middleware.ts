@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 
 // API routes that demo accounts are allowed to POST to
-const DEMO_ALLOWED_WRITE_PATHS = ["/api/auth/demo", "/api/auth/logout"];
+const DEMO_ALLOWED_WRITE_PATHS = ["/api/auth/demo", "/api/auth/logout", "/api/auth/login", "/api/auth/signup"];
 
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
