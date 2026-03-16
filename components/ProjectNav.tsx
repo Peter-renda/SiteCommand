@@ -37,6 +37,7 @@ const TOOL_SECTIONS = [
       { name: "Budget", slug: "budget" },
       { name: "Commitments", slug: "commitments" },
       { name: "Bid Management", slug: "bid-management" },
+      { name: "Scope of Work", slug: "scope-of-work" },
       { name: "Change Orders", slug: "change-orders" },
       { name: "Change Events", slug: "change-events" },
     ],
