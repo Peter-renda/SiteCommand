@@ -6,6 +6,92 @@ import { SkeletonCard } from "@/app/components/Skeleton";
 
 type Member = { id: string; username: string; email: string };
 
+type ActivityItem = {
+  id: string;
+  type: "rfi" | "submittal" | "document" | "daily_log" | "task" | "drawing";
+  title: string;
+  project_id: string;
+  project_name: string;
+  created_at: string;
+};
+
+type MyTask = {
+  id: string;
+  title: string;
+  status: string;
+  due_date: string | null;
+  project_id: string;
+  project_name: string;
+};
+
+const ALL_TYPES = ["rfi", "submittal", "document", "daily_log", "task", "drawing"];
+
+const TYPE_LABELS: Record<string, string> = {
+  rfi: "RFIs",
+  submittal: "Submittals",
+  document: "Documents",
+  daily_log: "Daily Logs",
+  task: "Tasks",
+  drawing: "Drawings",
+};
+
+function timeAgo(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
+function ActivityIcon({ type }: { type: ActivityItem["type"] }) {
+  if (type === "rfi") {
+    return (
+      <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+  }
+  if (type === "submittal") {
+    return (
+      <svg className="w-4 h-4 text-purple-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+    );
+  }
+  if (type === "document") {
+    return (
+      <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    );
+  }
+  if (type === "daily_log") {
+    return (
+      <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    );
+  }
+  if (type === "task") {
+    return (
+      <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+  }
+  // drawing
+  return (
+    <svg className="w-4 h-4 text-orange-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
+  );
+}
+
 type Project = {
   id: string;
   name: string;
@@ -124,6 +210,22 @@ export default function DashboardClient({ username, email, role, companyRole, us
   const [showModal, setShowModal] = useState(false);
   const [companyUsers, setCompanyUsers] = useState<Member[]>([]);
 
+  // Recent Activity state
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityFilter, setActivityFilter] = useState<string[]>(() => {
+    if (typeof window === "undefined") return ALL_TYPES;
+    try {
+      const saved = localStorage.getItem("activity_filter");
+      return saved ? JSON.parse(saved) : ALL_TYPES;
+    } catch { return ALL_TYPES; }
+  });
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+
+  // My Tasks state
+  const [myTasks, setMyTasks] = useState<MyTask[]>([]);
+
   // Form state
   const [name, setName] = useState("");
   const [projectNumber, setProjectNumber] = useState("");
@@ -170,7 +272,52 @@ export default function DashboardClient({ username, email, role, companyRole, us
     setCompanyUsers(Array.isArray(data) ? data : []);
   }
 
-  useEffect(() => { loadProjects(); }, []);
+  async function loadActivities() {
+    setActivityLoading(true);
+    try {
+      const res = await fetch("/api/dashboard/activity");
+      if (res.ok) {
+        const data = await res.json();
+        setActivities(Array.isArray(data) ? data : []);
+      }
+    } catch {}
+    setActivityLoading(false);
+  }
+
+  async function loadMyTasks() {
+    try {
+      const res = await fetch("/api/dashboard/my-tasks");
+      if (res.ok) {
+        const data = await res.json();
+        setMyTasks(Array.isArray(data.tasks) ? data.tasks : []);
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    loadProjects();
+    loadActivities();
+    loadMyTasks();
+  }, []);
+
+  // Close filter menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
+        setFilterMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function toggleActivityType(type: string) {
+    setActivityFilter((prev) => {
+      const next = prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type];
+      try { localStorage.setItem("activity_filter", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
 
   function openModal() {
     loadUsers();
@@ -324,6 +471,32 @@ export default function DashboardClient({ username, email, role, companyRole, us
           )}
         </div>
 
+        {/* My Tasks Alert Banner */}
+        {myTasks.length > 0 && (
+          <div className="mb-6 space-y-2">
+            {myTasks.map((task) => (
+              <a
+                key={task.id}
+                href={`/projects/${task.project_id}`}
+                className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+              >
+                <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-amber-900">{task.title}</p>
+                  <p className="text-xs text-amber-600">{task.project_name} · {task.status}</p>
+                </div>
+                {task.due_date && (
+                  <span className="ml-auto text-xs text-amber-700 shrink-0">
+                    Due {new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+        )}
+
         {/* Stat tiles */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           <StatTile label="Portfolio Value" value={`$${totalValue.toLocaleString()}`} sub="across all projects" />
@@ -407,6 +580,87 @@ export default function DashboardClient({ username, email, role, companyRole, us
             ))}
           </div>
         )}
+
+        {/* Recent Activity */}
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-900">Recent Activity</h2>
+            {/* 3-dot filter button */}
+            <div ref={filterMenuRef} className="relative">
+              <button
+                onClick={() => setFilterMenuOpen((v) => !v)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors rounded-md hover:bg-gray-100"
+                title="Filter activity types"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <circle cx="4" cy="10" r="1.5" />
+                  <circle cx="10" cy="10" r="1.5" />
+                  <circle cx="16" cy="10" r="1.5" />
+                </svg>
+              </button>
+              {filterMenuOpen && (
+                <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-100 rounded-lg shadow-lg z-20 py-1">
+                  {ALL_TYPES.map((type) => (
+                    <label
+                      key={type}
+                      className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={activityFilter.includes(type)}
+                        onChange={() => toggleActivityType(type)}
+                        className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                      />
+                      <span className="text-sm text-gray-700">{TYPE_LABELS[type]}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {activityLoading ? (
+            <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+                  <div className="w-4 h-4 bg-gray-200 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 bg-gray-200 rounded w-2/3" />
+                    <div className="h-2.5 bg-gray-100 rounded w-1/3" />
+                  </div>
+                  <div className="h-2.5 bg-gray-100 rounded w-12 shrink-0" />
+                </div>
+              ))}
+            </div>
+          ) : activities.filter((a) => activityFilter.includes(a.type)).length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-200 rounded-xl px-6 py-8 text-center">
+              <p className="text-sm text-gray-400">No recent activity to show.</p>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
+              {activities
+                .filter((a) => activityFilter.includes(a.type))
+                .map((item) => (
+                  <a
+                    key={`${item.type}-${item.id}`}
+                    href={`/projects/${item.project_id}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                  >
+                    <ActivityIcon type={item.type} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-800 truncate">{item.title}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        <span className="font-medium text-gray-500">{TYPE_LABELS[item.type]}</span>
+                        {" · "}
+                        {item.project_name}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-400 shrink-0 ml-2">{timeAgo(item.created_at)}</span>
+                  </a>
+                ))}
+            </div>
+          )}
+        </div>
       </main>
 
       {/* New Project Modal */}

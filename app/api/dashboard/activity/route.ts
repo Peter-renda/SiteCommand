@@ -1,0 +1,203 @@
+import { NextResponse } from "next/server";
+import { getSupabase } from "@/lib/supabase";
+import { getSession } from "@/lib/auth";
+
+export async function GET() {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const supabase = getSupabase();
+
+  // 1. Get accessible project IDs (same logic as GET /api/projects)
+  let projects: { id: string; name: string }[] = [];
+
+  if (session.role === "admin") {
+    const { data } = await supabase.from("projects").select("id, name");
+    projects = data || [];
+  } else if (session.company_id) {
+    const { data } = await supabase
+      .from("projects")
+      .select("id, name")
+      .eq("company_id", session.company_id);
+    projects = data || [];
+  } else {
+    const { data: memberships } = await supabase
+      .from("project_memberships")
+      .select("project_id")
+      .eq("user_id", session.id);
+
+    if (memberships && memberships.length > 0) {
+      const projectIds = memberships.map((m: { project_id: string }) => m.project_id);
+      const { data } = await supabase
+        .from("projects")
+        .select("id, name")
+        .in("id", projectIds);
+      projects = data || [];
+    }
+  }
+
+  if (projects.length === 0) {
+    return NextResponse.json([]);
+  }
+
+  const projectIds = projects.map((p) => p.id);
+  const projectMap = new Map(projects.map((p) => [p.id, p.name]));
+
+  type ActivityItem = {
+    id: string;
+    type: "rfi" | "submittal" | "document" | "daily_log" | "task" | "drawing";
+    title: string;
+    project_id: string;
+    project_name: string;
+    created_at: string;
+  };
+
+  const allItems: ActivityItem[] = [];
+
+  // 2. Query each table for recent items
+  // RFIs
+  try {
+    const { data } = await supabase
+      .from("rfis")
+      .select("id, rfi_number, subject, project_id, created_at")
+      .in("project_id", projectIds)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (data) {
+      for (const row of data) {
+        allItems.push({
+          id: row.id,
+          type: "rfi",
+          title: `RFI #${row.rfi_number}: ${row.subject}`,
+          project_id: row.project_id,
+          project_name: projectMap.get(row.project_id) ?? "",
+          created_at: row.created_at,
+        });
+      }
+    }
+  } catch {}
+
+  // Submittals
+  try {
+    const { data } = await supabase
+      .from("submittals")
+      .select("id, submittal_number, title, project_id, created_at")
+      .in("project_id", projectIds)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (data) {
+      for (const row of data) {
+        allItems.push({
+          id: row.id,
+          type: "submittal",
+          title: `Submittal #${row.submittal_number}: ${row.title}`,
+          project_id: row.project_id,
+          project_name: projectMap.get(row.project_id) ?? "",
+          created_at: row.created_at,
+        });
+      }
+    }
+  } catch {}
+
+  // Documents (type = 'file')
+  try {
+    const { data } = await supabase
+      .from("documents")
+      .select("id, name, project_id, created_at")
+      .in("project_id", projectIds)
+      .eq("type", "file")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (data) {
+      for (const row of data) {
+        allItems.push({
+          id: row.id,
+          type: "document",
+          title: row.name,
+          project_id: row.project_id,
+          project_name: projectMap.get(row.project_id) ?? "",
+          created_at: row.created_at,
+        });
+      }
+    }
+  } catch {}
+
+  // Daily Logs
+  try {
+    const { data } = await supabase
+      .from("daily_logs")
+      .select("id, log_date, project_id, created_at")
+      .in("project_id", projectIds)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (data) {
+      for (const row of data) {
+        allItems.push({
+          id: row.id,
+          type: "daily_log",
+          title: `Daily Log: ${row.log_date}`,
+          project_id: row.project_id,
+          project_name: projectMap.get(row.project_id) ?? "",
+          created_at: row.created_at,
+        });
+      }
+    }
+  } catch {}
+
+  // Tasks
+  try {
+    const { data } = await supabase
+      .from("tasks")
+      .select("id, title, project_id, created_at")
+      .in("project_id", projectIds)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (data) {
+      for (const row of data) {
+        allItems.push({
+          id: row.id,
+          type: "task",
+          title: `Task: ${row.title}`,
+          project_id: row.project_id,
+          project_name: projectMap.get(row.project_id) ?? "",
+          created_at: row.created_at,
+        });
+      }
+    }
+  } catch {}
+
+  // Drawings (skip if table doesn't exist)
+  try {
+    const { data } = await supabase
+      .from("drawings")
+      .select("id, name, project_id, created_at")
+      .in("project_id", projectIds)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (data) {
+      for (const row of data) {
+        allItems.push({
+          id: row.id,
+          type: "drawing",
+          title: `Drawing: ${row.name}`,
+          project_id: row.project_id,
+          project_name: projectMap.get(row.project_id) ?? "",
+          created_at: row.created_at,
+        });
+      }
+    }
+  } catch {}
+
+  // 3. Merge, sort by created_at desc, return top 10
+  allItems.sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  return NextResponse.json(allItems.slice(0, 10));
+}

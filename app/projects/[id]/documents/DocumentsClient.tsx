@@ -119,7 +119,7 @@ function buildFolderTree(
 // ── PDF Viewer Modal ─────────────────────────────────────────────────────────
 
 // Annotation types
-type AnnotationTool = "pen" | "rect" | "circle" | "line" | "text" | "eraser";
+type AnnotationTool = "pen" | "rect" | "circle" | "line" | "text" | "eraser" | "select";
 
 type AnnotationStroke = {
   id: string;
@@ -165,6 +165,26 @@ function genId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function findStrokeNear(strokes: AnnotationStroke[], rx: number, ry: number): string | null {
+  const THRESHOLD = 0.05;
+  for (const stroke of [...strokes].reverse()) {
+    if (stroke.tool === "text") {
+      if (Math.abs((stroke.tx ?? 0) - rx) < THRESHOLD && Math.abs((stroke.ty ?? 0) - ry) < THRESHOLD) return stroke.id;
+    } else if (stroke.tool === "rect" || stroke.tool === "circle") {
+      const cx = (stroke.x ?? 0) + (stroke.w ?? 0) / 2;
+      const cy = (stroke.y ?? 0) + (stroke.h ?? 0) / 2;
+      if (Math.abs(cx - rx) < THRESHOLD && Math.abs(cy - ry) < THRESHOLD) return stroke.id;
+    } else if (stroke.tool === "line") {
+      const cx = ((stroke.x1 ?? 0) + (stroke.x2 ?? 0)) / 2;
+      const cy = ((stroke.y1 ?? 0) + (stroke.y2 ?? 0)) / 2;
+      if (Math.abs(cx - rx) < THRESHOLD && Math.abs(cy - ry) < THRESHOLD) return stroke.id;
+    } else if (stroke.tool === "pen" && stroke.points?.length) {
+      if (Math.abs(stroke.points[0].x - rx) < THRESHOLD && Math.abs(stroke.points[0].y - ry) < THRESHOLD) return stroke.id;
+    }
+  }
+  return null;
+}
+
 function PdfViewerModal({
   url,
   name,
@@ -198,6 +218,8 @@ function PdfViewerModal({
   const isDrawingRef = useRef(false);
   const currentStrokeRef = useRef<AnnotationStroke | null>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
+  const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
 
   // Keyboard: Esc to close
   useEffect(() => {
@@ -345,6 +367,28 @@ function PdfViewerModal({
     const canvas = annotationCanvasRef.current!;
     const rel = toRel(canvas, e.clientX, e.clientY);
 
+    if (activeTool === "select") {
+      const foundId = findStrokeNear(strokes, rel.x, rel.y);
+      if (foundId) {
+        setSelectedStrokeId(foundId);
+        const stroke = strokes.find((s) => s.id === foundId);
+        if (stroke) {
+          let anchorX = 0;
+          let anchorY = 0;
+          if (stroke.tool === "text") { anchorX = stroke.tx ?? 0; anchorY = stroke.ty ?? 0; }
+          else if (stroke.tool === "rect" || stroke.tool === "circle") { anchorX = stroke.x ?? 0; anchorY = stroke.y ?? 0; }
+          else if (stroke.tool === "line") { anchorX = stroke.x1 ?? 0; anchorY = stroke.y1 ?? 0; }
+          else if (stroke.tool === "pen" && stroke.points?.length) { anchorX = stroke.points[0].x; anchorY = stroke.points[0].y; }
+          dragOffsetRef.current = { dx: rel.x - anchorX, dy: rel.y - anchorY };
+        }
+        isDrawingRef.current = true;
+      } else {
+        setSelectedStrokeId(null);
+        dragOffsetRef.current = null;
+      }
+      return;
+    }
+
     if (activeTool === "eraser") {
       eraseAt(rel.x, rel.y);
       isDrawingRef.current = true;
@@ -403,9 +447,36 @@ function PdfViewerModal({
   }
 
   function draw(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (!isDrawingRef.current || !currentStrokeRef.current) return;
+    if (!isDrawingRef.current) return;
     const canvas = annotationCanvasRef.current!;
     const rel = toRel(canvas, e.clientX, e.clientY);
+
+    if (activeTool === "select" && selectedStrokeId && dragOffsetRef.current) {
+      const { dx, dy } = dragOffsetRef.current;
+      const nx = rel.x - dx;
+      const ny = rel.y - dy;
+      setStrokes((prev) =>
+        prev.map((s) => {
+          if (s.id !== selectedStrokeId) return s;
+          if (s.tool === "text") return { ...s, tx: nx, ty: ny };
+          if (s.tool === "rect" || s.tool === "circle") return { ...s, x: nx, y: ny };
+          if (s.tool === "line") {
+            const origDx = (s.x2 ?? 0) - (s.x1 ?? 0);
+            const origDy = (s.y2 ?? 0) - (s.y1 ?? 0);
+            return { ...s, x1: nx, y1: ny, x2: nx + origDx, y2: ny + origDy };
+          }
+          if (s.tool === "pen" && s.points?.length) {
+            const ox = s.points[0].x;
+            const oy = s.points[0].y;
+            return { ...s, points: s.points.map((p) => ({ x: p.x + (nx - ox), y: p.y + (ny - oy) })) };
+          }
+          return s;
+        })
+      );
+      return;
+    }
+
+    if (!currentStrokeRef.current) return;
 
     if (activeTool === "eraser") {
       eraseAt(rel.x, rel.y);
@@ -434,6 +505,11 @@ function PdfViewerModal({
   function endDraw() {
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
+
+    if (activeTool === "select") {
+      dragOffsetRef.current = null;
+      return;
+    }
 
     if (activeTool === "eraser") return;
 
@@ -482,6 +558,27 @@ function PdfViewerModal({
       if (res.ok) {
         setSaveMsg("Saved");
         setTimeout(() => setSaveMsg(null), 2000);
+        // Update allAnnotations to reflect the saved state for the current user
+        setAllAnnotations((prev) => {
+          const exists = prev.some((a) => a.created_by_name === userName);
+          if (exists) {
+            return prev.map((a) =>
+              a.created_by_name === userName
+                ? { ...a, annotation_data: strokes }
+                : a
+            );
+          } else {
+            return [
+              ...prev,
+              {
+                created_by: "",
+                created_by_name: userName,
+                role: userRole,
+                annotation_data: strokes,
+              },
+            ];
+          }
+        });
       } else {
         setSaveMsg("Error saving");
         setTimeout(() => setSaveMsg(null), 3000);
@@ -514,12 +611,12 @@ function PdfViewerModal({
             {canAnnotate ? (
               <>
                 {/* Tool buttons */}
-                {(["pen", "rect", "circle", "line", "text", "eraser"] as AnnotationTool[]).map((tool) => {
+                {(["select", "pen", "rect", "circle", "line", "text", "eraser"] as AnnotationTool[]).map((tool) => {
                   const labels: Record<AnnotationTool, string> = {
-                    pen: "✏️", rect: "□", circle: "○", line: "/", text: "T", eraser: "⌫",
+                    select: "↖", pen: "✏️", rect: "□", circle: "○", line: "/", text: "T", eraser: "⌫",
                   };
                   const titles: Record<AnnotationTool, string> = {
-                    pen: "Pen", rect: "Rectangle", circle: "Circle", line: "Line", text: "Text", eraser: "Eraser",
+                    select: "Select / Move", pen: "Pen", rect: "Rectangle", circle: "Circle", line: "Line", text: "Text", eraser: "Eraser",
                   };
                   return (
                     <button
@@ -565,7 +662,11 @@ function PdfViewerModal({
 
                 {/* Clear Mine */}
                 <button
-                  onClick={() => setStrokes([])}
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to clear all your annotations? This cannot be undone.")) {
+                      setStrokes([]);
+                    }
+                  }}
                   className="px-2.5 py-1 text-xs font-medium text-gray-400 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
                 >
                   Clear Mine
@@ -642,7 +743,7 @@ function PdfViewerModal({
             ref={annotationCanvasRef}
             className="absolute inset-0 w-full h-full"
             style={{
-              cursor: activeTool === "eraser" ? "cell" : canAnnotate ? "crosshair" : "default",
+              cursor: activeTool === "eraser" ? "cell" : activeTool === "select" ? "default" : canAnnotate ? "crosshair" : "default",
               zIndex: 10,
               pointerEvents: canAnnotate ? "auto" : "none",
             }}
