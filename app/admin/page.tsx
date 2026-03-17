@@ -81,7 +81,6 @@ export default function AdminPage() {
   // Add user modal
   const [showAddUser, setShowAddUser] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteCompanyName, setInviteCompanyName] = useState("");
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState("");
@@ -262,7 +261,7 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail, company_name: inviteCompanyName }),
+      body: JSON.stringify({ email: inviteEmail }),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -275,7 +274,6 @@ export default function AdminPage() {
 
     setInviteSuccess(`Invitation sent to ${inviteEmail}`);
     setInviteEmail("");
-    setInviteCompanyName("");
   }
 
   async function openUserProjects(user: User) {
@@ -672,20 +670,6 @@ export default function AdminPage() {
                 placeholder="user@company.com"
                 className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
-              <input
-                type="text"
-                required
-                list="company-list"
-                value={inviteCompanyName}
-                onChange={(e) => setInviteCompanyName(e.target.value)}
-                placeholder="Company name (type existing or create new)"
-                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-              <datalist id="company-list">
-                {companies.map((c) => (
-                  <option key={c.id} value={c.name} />
-                ))}
-              </datalist>
               {inviteError && <p className="text-xs text-red-600">{inviteError}</p>}
               {inviteSuccess && <p className="text-xs text-green-600">{inviteSuccess}</p>}
               <div className="flex gap-2 pt-1">

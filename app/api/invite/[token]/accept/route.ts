@@ -5,13 +5,14 @@ import { createToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const { username, password, existingAccount } = await req.json();
+  const { firstName, lastName, password, existingAccount } = await req.json();
+  const username = `${firstName ?? ""} ${lastName ?? ""}`.trim();
 
   if (!password) {
     return NextResponse.json({ error: "Password is required" }, { status: 400 });
   }
-  if (!existingAccount && !username) {
-    return NextResponse.json({ error: "Username is required" }, { status: 400 });
+  if (!existingAccount && (!firstName || !lastName)) {
+    return NextResponse.json({ error: "First and last name are required" }, { status: 400 });
   }
 
   const supabase = getSupabase();
@@ -139,6 +140,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       .from("users")
       .insert({
         username,
+        first_name: firstName,
+        last_name: lastName,
         email: invite.email,
         password_hash,
         role: "user",
@@ -203,6 +206,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     .from("users")
     .insert({
       username,
+      first_name: firstName,
+      last_name: lastName,
       email: invite.email,
       password_hash,
       company: company.name,
