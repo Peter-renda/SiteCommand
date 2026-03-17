@@ -590,12 +590,14 @@ function PdfViewerModal({
         allAnnotationsRef.current = updated;
         setAllAnnotations(updated);
       } else {
-        setSaveMsg("Error saving");
-        setTimeout(() => setSaveMsg(null), 3000);
+        const errBody = await res.json().catch(() => ({}));
+        const msg = errBody?.error ? String(errBody.error).slice(0, 60) : `Error ${res.status}`;
+        setSaveMsg(msg);
+        setTimeout(() => setSaveMsg(null), 6000);
       }
-    } catch {
-      setSaveMsg("Error saving");
-      setTimeout(() => setSaveMsg(null), 3000);
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message.slice(0, 60) : "Network error");
+      setTimeout(() => setSaveMsg(null), 6000);
     } finally {
       setSaving(false);
     }

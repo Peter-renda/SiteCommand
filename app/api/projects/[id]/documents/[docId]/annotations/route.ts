@@ -4,7 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 
 // GET: fetch all annotations for a document
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string; docId: string }> }
 ) {
   const session = await getSession();
@@ -22,7 +22,7 @@ export async function GET(
   return NextResponse.json(data ?? []);
 }
 
-// POST: upsert annotation record for the current user
+// POST: save (insert or overwrite) annotation record for the current user
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; docId: string }> }
@@ -40,28 +40,47 @@ export async function POST(
 
   const supabase = getSupabase();
 
-  // Determine role from session
-  const role = (session as { company_role?: string; role?: string }).company_role
-    || (session as { role?: string }).role
-    || "member";
+  const role = session.company_role || session.role || "member";
+  const now = new Date().toISOString();
 
-  const { data, error } = await supabase
+  // Check whether a record already exists for this user + document
+  const { data: existing, error: selectError } = await supabase
     .from("document_annotations")
-    .upsert(
-      {
+    .select("id")
+    .eq("document_id", docId)
+    .eq("created_by", session.id)
+    .maybeSingle();
+
+  if (selectError) {
+    return NextResponse.json({ error: selectError.message }, { status: 500 });
+  }
+
+  if (existing) {
+    // Overwrite existing record
+    const { data, error } = await supabase
+      .from("document_annotations")
+      .update({ annotation_data, role, updated_at: now })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  } else {
+    // Insert new record
+    const { data, error } = await supabase
+      .from("document_annotations")
+      .insert({
         document_id: docId,
         project_id: projectId,
         created_by: session.id,
         created_by_name: session.username || "Unknown",
         role,
         annotation_data,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "document_id,created_by" }
-    )
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+        updated_at: now,
+      })
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
 }
