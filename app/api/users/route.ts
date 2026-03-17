@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("users")
-    .select("id, username, email")
+    .select("id, username, first_name, last_name, email")
     .eq("approved", true)
     .order("username");
 

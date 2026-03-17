@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       id,
       role,
       created_at,
-      users ( id, username, email, company_id, user_type )
+      users ( id, username, first_name, last_name, email, company_id, user_type )
     `)
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
