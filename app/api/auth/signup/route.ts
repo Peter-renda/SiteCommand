@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       role: isSystemAdmin ? "admin" : "user",
       company_id: companyId,
       company_role: companyRole,
-      user_type: isSystemAdmin ? null : "internal",
+      user_type: "internal",
     })
     .select("id")
     .single();
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     role: isSystemAdmin ? "admin" : "user",
     company_id: companyId,
     company_role: companyRole,
-    user_type: isSystemAdmin ? null : "internal",
+    user_type: "internal",
   });
 
   // If a plan was provided, create the Stripe checkout session server-side
