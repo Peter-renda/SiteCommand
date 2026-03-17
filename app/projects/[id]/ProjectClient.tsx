@@ -310,7 +310,13 @@ export default function ProjectClient({
         return res.json();
       })
       .then((data) => {
-        if (data) { setProject(data); setLoading(false); }
+        if (data) {
+          if (data.photo_url) {
+            data.photo_url = data.photo_url.split("?")[0] + `?t=${Date.now()}`;
+          }
+          setProject(data);
+          setLoading(false);
+        }
       });
     fetchActivity();
     fetch(`/api/projects/${projectId}/schedule`)
@@ -449,9 +455,18 @@ export default function ProjectClient({
       {project && <ProjectNav projectId={project.id} showBackToProject={false} />}
 
       {rainAlert && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-3 flex items-center gap-3">
-          <span className="text-lg">🌧️</span>
-          <p className="text-sm font-medium text-amber-800">{rainAlert}</p>
+        <div className="bg-red-600 border-b border-red-700 px-4 sm:px-6 py-3 flex items-center gap-3 relative">
+          <button
+            onClick={() => setRainAlert(null)}
+            className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-red-700 hover:bg-red-800 text-white transition-colors shrink-0"
+            aria-label="Dismiss rain alert"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <span className="text-lg ml-8">🌧️</span>
+          <p className="text-sm font-medium text-white">{rainAlert}</p>
         </div>
       )}
 
@@ -600,7 +615,22 @@ export default function ProjectClient({
                 {/* Photo */}
                 <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
                   {project.photo_url ? (
-                    <img src={project.photo_url} alt="Project photo" className="w-full h-48 object-cover" />
+                    <img
+                      src={project.photo_url}
+                      alt="Project photo"
+                      className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.display = "none";
+                        const parent = target.parentElement;
+                        if (parent) {
+                          const fallback = document.createElement("div");
+                          fallback.className = "w-full h-48 bg-gray-100 flex items-center justify-center";
+                          fallback.innerHTML = `<svg class="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a.75.75 0 00.75-.75V6.75A.75.75 0 0019.5 6h-15a.75.75 0 00-.75.75v12c0 .414.336.75.75.75z" /></svg>`;
+                          parent.insertBefore(fallback, target);
+                        }
+                      }}
+                    />
                   ) : (
                     <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
                       <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -764,7 +794,22 @@ export default function ProjectClient({
                 <label className="block text-xs font-medium text-gray-700 mb-2">Project Photo</label>
                 <div className="rounded-lg overflow-hidden border border-gray-200">
                   {project.photo_url ? (
-                    <img src={project.photo_url} alt="Project" className="w-full h-36 object-cover" />
+                    <img
+                      src={project.photo_url}
+                      alt="Project"
+                      className="w-full h-36 object-cover"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.display = "none";
+                        const parent = target.parentElement;
+                        if (parent) {
+                          const fallback = document.createElement("div");
+                          fallback.className = "w-full h-36 bg-gray-100 flex items-center justify-center";
+                          fallback.innerHTML = `<svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a.75.75 0 00.75-.75V6.75A.75.75 0 0019.5 6h-15a.75.75 0 00-.75.75v12c0 .414.336.75.75.75z" /></svg>`;
+                          parent.insertBefore(fallback, target);
+                        }
+                      }}
+                    />
                   ) : (
                     <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
                       <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

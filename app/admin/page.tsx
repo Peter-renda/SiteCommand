@@ -24,6 +24,21 @@ type Project = {
   hasAccess: boolean;
 };
 
+type ProjectMember = {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+};
+
+type ProjectWithUsers = {
+  id: string;
+  name: string;
+  status: string;
+  company_id: string | null;
+  members: ProjectMember[];
+};
+
 type LessonUpload = {
   id: string;
   company_id: string;
@@ -69,6 +84,9 @@ export default function AdminPage() {
   const [savingProjects, setSavingProjects] = useState(false);
 
   const [myCompanyId, setMyCompanyId] = useState<string | null>(null);
+
+  // Projects with users
+  const [projectsWithUsers, setProjectsWithUsers] = useState<ProjectWithUsers[]>([]);
 
   // New Project modal
   type CompanyUser = { id: string; username: string; email: string };
@@ -139,6 +157,7 @@ export default function AdminPage() {
     setNpSaving(false);
     if (!res.ok) { setNpError(data.error || "Failed to create project"); return; }
     setShowNewProject(false);
+    loadProjectsWithUsers();
   }
 
   async function loadUsers() {
@@ -171,10 +190,34 @@ export default function AdminPage() {
     }
   }
 
+  async function loadProjectsWithUsers() {
+    const res = await fetch("/api/projects");
+    if (!res.ok) return;
+    const allProjects: Array<{ id: string; name: string; status: string; company_id: string | null }> = await res.json();
+    // Fetch members for each project in parallel
+    const projectsData = await Promise.all(
+      allProjects.map(async (p) => {
+        const membRes = await fetch(`/api/projects/${p.id}/members`);
+        const memberships = membRes.ok ? await membRes.json() : [];
+        const members: ProjectMember[] = (memberships as Array<{ role: string; users: { id: string; username: string; email: string } | null }>)
+          .filter((m) => m.users)
+          .map((m) => ({
+            id: m.users!.id,
+            username: m.users!.username,
+            email: m.users!.email,
+            role: m.role,
+          }));
+        return { id: p.id, name: p.name, status: p.status, company_id: p.company_id, members };
+      })
+    );
+    setProjectsWithUsers(projectsData);
+  }
+
   useEffect(() => {
     loadUsers();
     loadCompanies();
     loadLessonUploads();
+    loadProjectsWithUsers();
   }, []);
 
   // Optimistic system-role update — reflects in the table immediately
@@ -467,6 +510,64 @@ export default function AdminPage() {
       <p className="mt-6 text-xs text-gray-400">
         Note: users must log out and back in for role changes to take effect on their session.
       </p>
+
+      {/* Projects */}
+      <section className="mt-14">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+              All Projects ({projectsWithUsers.length})
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">Projects and their assigned members.</p>
+          </div>
+        </div>
+        {projectsWithUsers.length === 0 ? (
+          <p className="text-sm text-gray-400">No projects yet.</p>
+        ) : (
+          <div className="border border-gray-100 rounded-lg overflow-hidden">
+            {projectsWithUsers.map((project) => {
+              const company = companies.find((c) => c.id === project.company_id);
+              return (
+                <div key={project.id} className="px-4 py-3 border-b border-gray-100 last:border-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <a
+                          href={`/projects/${project.id}/admin`}
+                          className="text-sm font-medium text-gray-900 hover:text-gray-600 transition-colors"
+                        >
+                          {project.name}
+                        </a>
+                        <span className="text-xs text-gray-400 capitalize">{project.status}</span>
+                      </div>
+                      {company && (
+                        <p className="text-xs text-gray-300 mt-0.5">{company.name}</p>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      {project.members.length === 0 ? (
+                        <p className="text-xs text-gray-300">No members</p>
+                      ) : (
+                        <div className="flex flex-wrap justify-end gap-1 max-w-xs">
+                          {project.members.map((m) => (
+                            <span
+                              key={m.id}
+                              title={`${m.email} (${m.role})`}
+                              className="text-xs bg-gray-100 text-gray-700 rounded-full px-2 py-0.5"
+                            >
+                              {m.username}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* Company Lessons */}
       <section className="mt-14">
