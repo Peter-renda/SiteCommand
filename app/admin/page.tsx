@@ -413,7 +413,9 @@ export default function AdminPage() {
                   {/* User info */}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-gray-900">{displayName(user)}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {[user.first_name, user.last_name].filter(Boolean).join(" ") || user.email}
+                      </p>
                       {user.email === SUPER_ADMIN_EMAIL && (
                         <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-900 text-white rounded">
                           Owner
@@ -464,35 +466,6 @@ export default function AdminPage() {
                           </div>
                         </div>
                       )}
-
-                      {/* System role toggle (User / System Admin) */}
-                      <div>
-                        <p className="text-[10px] text-gray-300 mb-0.5">System</p>
-                        <div className="flex items-center bg-gray-100 rounded-md p-0.5">
-                          <button
-                            onClick={() => handleRoleChange(user.id, "user")}
-                            title="Regular user"
-                            className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                              user.role !== "admin"
-                                ? "bg-white text-gray-900 shadow-sm"
-                                : "text-gray-400 hover:text-gray-600"
-                            }`}
-                          >
-                            User
-                          </button>
-                          <button
-                            onClick={() => handleRoleChange(user.id, "admin")}
-                            title="System admin — full access across all companies"
-                            className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                              user.role === "admin"
-                                ? "bg-white text-gray-900 shadow-sm"
-                                : "text-gray-400 hover:text-gray-600"
-                            }`}
-                          >
-                            Admin
-                          </button>
-                        </div>
-                      </div>
 
                       {/* Projects button — only for users with a company */}
                       {user.company_id && (
