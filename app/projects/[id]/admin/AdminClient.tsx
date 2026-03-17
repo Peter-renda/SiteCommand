@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
 type ProjectAdmin = {
@@ -21,6 +21,20 @@ type ProjectAdmin = {
   projected_finish_date: string | null;
   warranty_start_date: string | null;
   warranty_end_date: string | null;
+};
+
+type ProjectMember = {
+  membership_id: string;
+  user_id: string;
+  username: string;
+  email: string;
+  role: string;
+};
+
+type CompanyUser = {
+  id: string;
+  username: string;
+  email: string;
 };
 
 const STAGES = [
@@ -147,6 +161,14 @@ export default function AdminClient({
   const [projectedFinishDate, setProjectedFinishDate] = useState("");
   const [warrantyStartDate, setWarrantyStartDate] = useState("");
   const [warrantyEndDate, setWarrantyEndDate] = useState("");
+
+  // Members
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberDropdownOpen, setMemberDropdownOpen] = useState(false);
+  const [memberActionError, setMemberActionError] = useState("");
+  const memberDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/admin`)
