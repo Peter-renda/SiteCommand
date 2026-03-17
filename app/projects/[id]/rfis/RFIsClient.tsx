@@ -193,7 +193,7 @@ function CreateRFIModal({
 }) {
   const [subject, setSubject] = useState("");
   const [question, setQuestion] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [status, setStatus] = useState("open");
   const [rfiManagerId, setRfiManagerId] = useState<string | null>(null);
   const [receivedFromId, setReceivedFromId] = useState<string | null>(null);
