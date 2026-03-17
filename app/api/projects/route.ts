@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { dispatchWebhookEvent } from "@/lib/webhook-dispatch";
+import { addUserToDirectory } from "@/lib/directory";
 
 export async function GET() {
   const session = await getSession();
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
 
-  // Add initial members to project_memberships
+  // Add initial members to project_memberships and directory
   if (Array.isArray(memberIds) && memberIds.length > 0) {
     const companyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
     await supabase.from("project_memberships").insert(
@@ -99,6 +100,9 @@ export async function POST(req: NextRequest) {
         role: "member",
         invited_by: session.id,
       }))
+    );
+    await Promise.all(
+      memberIds.map((uid: string) => addUserToDirectory(supabase, project.id, uid))
     );
   }
 

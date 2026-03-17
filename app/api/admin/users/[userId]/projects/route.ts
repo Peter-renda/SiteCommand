@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { addUserToDirectory } from "@/lib/directory";
 
 export async function GET(
   _req: NextRequest,
@@ -84,7 +85,7 @@ export async function PUT(
       .in("project_id", companyProjectIds);
   }
 
-  // Insert new memberships
+  // Insert new memberships and sync to directory
   if (projectIds && projectIds.length > 0) {
     await supabase
       .from("project_memberships")
@@ -96,6 +97,10 @@ export async function PUT(
           role: "member",
         }))
       );
+
+    await Promise.all(
+      projectIds.map((pid: string) => addUserToDirectory(supabase, pid, userId))
+    );
   }
 
   return NextResponse.json({ success: true });

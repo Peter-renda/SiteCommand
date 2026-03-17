@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { getProjectRole } from "@/lib/project-access";
+import { addUserToDirectory } from "@/lib/directory";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -91,6 +92,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
 
   if (error) return NextResponse.json({ error: "Failed to add member" }, { status: 500 });
+
+  await addUserToDirectory(supabase, projectId, userId);
+
   return NextResponse.json({ success: true });
 }
 
