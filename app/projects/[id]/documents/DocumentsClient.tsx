@@ -166,20 +166,32 @@ function genId(): string {
 }
 
 function findStrokeNear(strokes: AnnotationStroke[], rx: number, ry: number): string | null {
-  const THRESHOLD = 0.05;
+  const THRESHOLD = 0.04;
   for (const stroke of [...strokes].reverse()) {
     if (stroke.tool === "text") {
-      if (Math.abs((stroke.tx ?? 0) - rx) < THRESHOLD && Math.abs((stroke.ty ?? 0) - ry) < THRESHOLD) return stroke.id;
+      if (Math.abs((stroke.tx ?? 0) - rx) < THRESHOLD && Math.abs((stroke.ty ?? 0) - ry) < THRESHOLD * 2) return stroke.id;
     } else if (stroke.tool === "rect" || stroke.tool === "circle") {
-      const cx = (stroke.x ?? 0) + (stroke.w ?? 0) / 2;
-      const cy = (stroke.y ?? 0) + (stroke.h ?? 0) / 2;
-      if (Math.abs(cx - rx) < THRESHOLD && Math.abs(cy - ry) < THRESHOLD) return stroke.id;
+      // Hit-test inside the bounding box (with a small padding)
+      const x0 = Math.min(stroke.x ?? 0, (stroke.x ?? 0) + (stroke.w ?? 0)) - THRESHOLD;
+      const x1 = Math.max(stroke.x ?? 0, (stroke.x ?? 0) + (stroke.w ?? 0)) + THRESHOLD;
+      const y0 = Math.min(stroke.y ?? 0, (stroke.y ?? 0) + (stroke.h ?? 0)) - THRESHOLD;
+      const y1 = Math.max(stroke.y ?? 0, (stroke.y ?? 0) + (stroke.h ?? 0)) + THRESHOLD;
+      if (rx >= x0 && rx <= x1 && ry >= y0 && ry <= y1) return stroke.id;
     } else if (stroke.tool === "line") {
-      const cx = ((stroke.x1 ?? 0) + (stroke.x2 ?? 0)) / 2;
-      const cy = ((stroke.y1 ?? 0) + (stroke.y2 ?? 0)) / 2;
-      if (Math.abs(cx - rx) < THRESHOLD && Math.abs(cy - ry) < THRESHOLD) return stroke.id;
+      // Hit-test near any point along the line segment
+      const x1 = stroke.x1 ?? 0, y1 = stroke.y1 ?? 0;
+      const x2 = stroke.x2 ?? 0, y2 = stroke.y2 ?? 0;
+      const dx = x2 - x1, dy = y2 - y1;
+      const lenSq = dx * dx + dy * dy;
+      const t = lenSq > 0 ? Math.max(0, Math.min(1, ((rx - x1) * dx + (ry - y1) * dy) / lenSq)) : 0;
+      const nearX = x1 + t * dx, nearY = y1 + t * dy;
+      if (Math.abs(nearX - rx) < THRESHOLD && Math.abs(nearY - ry) < THRESHOLD) return stroke.id;
     } else if (stroke.tool === "pen" && stroke.points?.length) {
-      if (Math.abs(stroke.points[0].x - rx) < THRESHOLD && Math.abs(stroke.points[0].y - ry) < THRESHOLD) return stroke.id;
+      // Hit-test near any point in the pen stroke
+      const hit = stroke.points.some(
+        (p) => Math.abs(p.x - rx) < THRESHOLD && Math.abs(p.y - ry) < THRESHOLD
+      );
+      if (hit) return stroke.id;
     }
   }
   return null;
@@ -219,6 +231,7 @@ function PdfViewerModal({
   const currentStrokeRef = useRef<AnnotationStroke | null>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
+  const selectedStrokeIdRef = useRef<string | null>(null);
   const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
 
   // Keyboard: Esc to close
@@ -371,6 +384,7 @@ function PdfViewerModal({
       const foundId = findStrokeNear(strokes, rel.x, rel.y);
       if (foundId) {
         setSelectedStrokeId(foundId);
+        selectedStrokeIdRef.current = foundId;
         const stroke = strokes.find((s) => s.id === foundId);
         if (stroke) {
           let anchorX = 0;
@@ -384,6 +398,7 @@ function PdfViewerModal({
         isDrawingRef.current = true;
       } else {
         setSelectedStrokeId(null);
+        selectedStrokeIdRef.current = null;
         dragOffsetRef.current = null;
       }
       return;
@@ -451,13 +466,14 @@ function PdfViewerModal({
     const canvas = annotationCanvasRef.current!;
     const rel = toRel(canvas, e.clientX, e.clientY);
 
-    if (activeTool === "select" && selectedStrokeId && dragOffsetRef.current) {
+    const movingId = selectedStrokeIdRef.current;
+    if (activeTool === "select" && movingId && dragOffsetRef.current) {
       const { dx, dy } = dragOffsetRef.current;
       const nx = rel.x - dx;
       const ny = rel.y - dy;
       setStrokes((prev) =>
         prev.map((s) => {
-          if (s.id !== selectedStrokeId) return s;
+          if (s.id !== movingId) return s;
           if (s.tool === "text") return { ...s, tx: nx, ty: ny };
           if (s.tool === "rect" || s.tool === "circle") return { ...s, x: nx, y: ny };
           if (s.tool === "line") {
@@ -508,6 +524,7 @@ function PdfViewerModal({
 
     if (activeTool === "select") {
       dragOffsetRef.current = null;
+      // keep selectedStrokeIdRef/selectedStrokeId so the selection is visible after drag
       return;
     }
 

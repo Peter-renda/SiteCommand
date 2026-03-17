@@ -7,7 +7,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string; docId: string } }
 ) {
-  const session = await getSession(req);
+  const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = getSupabase();
@@ -26,7 +26,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string; docId: string } }
 ) {
-  const session = await getSession(req);
+  const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
@@ -49,10 +49,8 @@ export async function POST(
       {
         document_id: params.docId,
         project_id: params.id,
-        created_by: session.userId,
-        created_by_name: (session as { name?: string; username?: string }).name
-          || (session as { username?: string }).username
-          || "Unknown",
+        created_by: session.id,
+        created_by_name: session.username || "Unknown",
         role,
         annotation_data,
         updated_at: new Date().toISOString(),
