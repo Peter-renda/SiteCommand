@@ -257,14 +257,32 @@ function MemberPicker({
   );
 }
 
+const PROJECT_ROLES = [
+  "Project Manager",
+  "Executive",
+  "Superintendent",
+  "Project Engineer",
+  "Owner",
+  "Architect/Engineer",
+  "Assistant Superintendent",
+  "HUD",
+  "CDA",
+  "HABC",
+  "Assistant Estimator",
+  "Senior Estimator",
+  "Owner Contact",
+];
+
 export default function ProjectClient({
   projectId,
   role,
   username,
+  companyRole = "",
 }: {
   projectId: string;
   role: string;
   username: string;
+  companyRole?: string;
 }) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -297,10 +315,70 @@ export default function ProjectClient({
   const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addressBoxRef = useRef<HTMLDivElement>(null);
 
+  // Project Roles state
+  const [showRolesEdit, setShowRolesEdit] = useState(false);
+  const [teamMenuOpen, setTeamMenuOpen] = useState(false);
+  const [projectRoleAssignments, setProjectRoleAssignments] = useState<Record<string, Member[]>>({});
+  const [rolesSaving, setRolesSaving] = useState(false);
+  const [rolesError, setRolesError] = useState("");
+  const [projectMembers, setProjectMembers] = useState<Member[]>([]);
+  const teamMenuRef = useRef<HTMLDivElement>(null);
+
   function fetchActivity() {
     fetch(`/api/projects/${projectId}/activity`)
       .then((r) => r.json())
       .then((d) => setActivity(Array.isArray(d) ? d : []));
+  }
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (teamMenuRef.current && !teamMenuRef.current.contains(e.target as Node)) {
+        setTeamMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  async function openRolesEdit() {
+    setTeamMenuOpen(false);
+    const [membersRes, rolesRes] = await Promise.all([
+      fetch(`/api/projects/${projectId}/members`),
+      fetch(`/api/projects/${projectId}/roles`),
+    ]);
+    const membersData = await membersRes.json();
+    const rolesData = await rolesRes.json();
+    const members: Member[] = Array.isArray(membersData)
+      ? membersData.map((m: { users: Member }) => m.users).filter(Boolean)
+      : [];
+    setProjectMembers(members);
+    const resolved: Record<string, Member[]> = {};
+    for (const roleName of PROJECT_ROLES) {
+      const ids: string[] = rolesData[roleName] || [];
+      resolved[roleName] = ids
+        .map((id: string) => members.find((m) => m.id === id))
+        .filter(Boolean) as Member[];
+    }
+    setProjectRoleAssignments(resolved);
+    setRolesError("");
+    setShowRolesEdit(true);
+  }
+
+  async function handleRolesSave() {
+    setRolesSaving(true);
+    setRolesError("");
+    const payload: Record<string, string[]> = {};
+    for (const [r, members] of Object.entries(projectRoleAssignments)) {
+      payload[r] = members.map((m) => m.id);
+    }
+    const res = await fetch(`/api/projects/${projectId}/roles`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setRolesSaving(false);
+    if (!res.ok) { setRolesError("Failed to save roles"); return; }
+    setShowRolesEdit(false);
   }
 
   useEffect(() => {
@@ -488,7 +566,34 @@ export default function ProjectClient({
               {/* Left: Team + Activity */}
               <div className="lg:col-span-2 space-y-6">
                 <div className="bg-white border border-gray-100 rounded-xl p-6">
-                  <h2 className="text-sm font-semibold text-gray-900 mb-4">Project Team</h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-semibold text-gray-900">Project Team</h2>
+                    {(role === "admin" || companyRole === "super_admin" || companyRole === "admin") && (
+                      <div ref={teamMenuRef} className="relative">
+                        <button
+                          onClick={() => setTeamMenuOpen((o) => !o)}
+                          className="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                          aria-label="Team options"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="5" cy="12" r="1.5" />
+                            <circle cx="12" cy="12" r="1.5" />
+                            <circle cx="19" cy="12" r="1.5" />
+                          </svg>
+                        </button>
+                        {teamMenuOpen && (
+                          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-lg shadow-lg z-20 min-w-[100px]">
+                            <button
+                              onClick={openRolesEdit}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {project.members.length === 0 ? (
                     <p className="text-sm text-gray-400">No team members assigned.</p>
                   ) : (
@@ -951,6 +1056,74 @@ export default function ProjectClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Project Roles Modal */}
+      {showRolesEdit && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8">
+          <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl flex flex-col max-h-full">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <h2 className="text-sm font-semibold text-gray-900">Project Roles</h2>
+              <button onClick={() => setShowRolesEdit(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-6 py-4 space-y-0 divide-y divide-gray-100">
+              {/* Header row */}
+              <div className="grid grid-cols-[160px_80px_1fr] gap-4 pb-2">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</span>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</span>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Members</span>
+              </div>
+              {PROJECT_ROLES.map((roleName) => (
+                <div key={roleName} className="grid grid-cols-[160px_80px_1fr] gap-4 py-3 items-start">
+                  <span className="text-sm text-gray-800 pt-1">{roleName}</span>
+                  <span className="text-sm text-gray-400 pt-1">Person</span>
+                  <MemberPicker
+                    users={projectMembers}
+                    selected={projectRoleAssignments[roleName] || []}
+                    onAdd={(u) =>
+                      setProjectRoleAssignments((prev) => ({
+                        ...prev,
+                        [roleName]: [...(prev[roleName] || []), u],
+                      }))
+                    }
+                    onRemove={(id) =>
+                      setProjectRoleAssignments((prev) => ({
+                        ...prev,
+                        [roleName]: (prev[roleName] || []).filter((m) => m.id !== id),
+                      }))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 shrink-0">
+              {rolesError && <p className="text-sm text-red-600 mb-3">{rolesError}</p>}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRolesEdit(false)}
+                  className="flex-1 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRolesSave}
+                  disabled={rolesSaving}
+                  className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+                >
+                  {rolesSaving ? "Saving..." : "Save Roles"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
