@@ -640,6 +640,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
             <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
               {activities
                 .filter((a) => activityFilter.includes(a.type))
+                .slice(0, 4)
                 .map((item) => (
                   <a
                     key={`${item.type}-${item.id}`}

@@ -52,6 +52,7 @@ type WeatherDay = {
   code: number;
   max: number;
   min: number;
+  precip: number; // inches, rounded to nearest 0.1
 };
 
 
@@ -79,7 +80,28 @@ function weatherInfo(code: number): { label: string; icon: string } {
   return { label: "Unknown", icon: "🌡️" };
 }
 
-function WeatherWidget({ zipCode }: { zipCode: string }) {
+function buildRainAlert(days: WeatherDay[]): string | null {
+  const rainy = days.filter((d) => d.precip >= 0.2);
+  if (rainy.length === 0) return null;
+
+  const fmt = (d: WeatherDay) =>
+    new Date(d.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
+
+  // Check if all rainy days are consecutive
+  let consecutive = true;
+  for (let i = 1; i < rainy.length; i++) {
+    const prev = new Date(rainy[i - 1].date).getTime();
+    const curr = new Date(rainy[i].date).getTime();
+    if (curr - prev !== 86400000) { consecutive = false; break; }
+  }
+
+  if (rainy.length === 1) return `Rain expected on ${fmt(rainy[0])}`;
+  if (consecutive) return `Rain expected ${fmt(rainy[0])} through ${fmt(rainy[rainy.length - 1])}`;
+  const names = rainy.map(fmt);
+  return `Rain expected on ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+function WeatherWidget({ zipCode, onDays }: { zipCode: string; onDays?: (days: WeatherDay[]) => void }) {
   const [days, setDays] = useState<WeatherDay[]>([]);
   const [location, setLocation] = useState("");
   const [error, setError] = useState("");
@@ -99,16 +121,20 @@ function WeatherWidget({ zipCode }: { zipCode: string }) {
         setLocation(`${place["place name"]}, ${place["state abbreviation"]}`);
 
         const wxRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=7`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&temperature_unit=fahrenheit&timezone=auto&forecast_days=7`
         );
         const wxData = await wxRes.json();
-        const { time, weathercode, temperature_2m_max, temperature_2m_min } = wxData.daily;
-        setDays(time.map((date: string, i: number) => ({
+        const { time, weathercode, temperature_2m_max, temperature_2m_min, precipitation_sum } = wxData.daily;
+        const loaded: WeatherDay[] = time.map((date: string, i: number) => ({
           date,
           code: weathercode[i],
           max: Math.round(temperature_2m_max[i]),
           min: Math.round(temperature_2m_min[i]),
-        })));
+          // precipitation_sum is in mm; convert to inches and round to nearest 0.1
+          precip: Math.round((precipitation_sum[i] * 0.03937) * 10) / 10,
+        }));
+        setDays(loaded);
+        onDays?.(loaded);
       } catch {
         setError("Failed to load weather");
       } finally {
@@ -135,6 +161,9 @@ function WeatherWidget({ zipCode }: { zipCode: string }) {
               <span className="text-xs font-medium text-gray-600 w-9">{dayName}</span>
               <span className="text-base">{icon}</span>
               <div className="flex items-center gap-2 text-xs">
+                {day.precip > 0 && (
+                  <span className="text-blue-500 font-medium">{day.precip.toFixed(1)}&quot;</span>
+                )}
                 <span className="font-medium text-gray-900">{day.max}°</span>
                 <span className="text-gray-400">{day.min}°</span>
               </div>
@@ -241,6 +270,7 @@ export default function ProjectClient({
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [rainAlert, setRainAlert] = useState<string | null>(null);
   const [scheduleTasks, setScheduleTasks] = useState<ScheduleTask[]>([]);
   const [workTab, setWorkTab] = useState<"ongoing" | "upcoming">("ongoing");
   const [workExpanded, setWorkExpanded] = useState(false);
@@ -417,6 +447,13 @@ export default function ProjectClient({
       </header>
 
       {project && <ProjectNav projectId={project.id} showBackToProject={false} />}
+
+      {rainAlert && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-3 flex items-center gap-3">
+          <span className="text-lg">🌧️</span>
+          <p className="text-sm font-medium text-amber-800">{rainAlert}</p>
+        </div>
+      )}
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {loading ? (
@@ -685,7 +722,10 @@ export default function ProjectClient({
                 {/* Weather */}
                 <div className="bg-white border border-gray-100 rounded-xl p-5">
                   <h2 className="text-sm font-semibold text-gray-900 mb-4">7-Day Forecast</h2>
-                  <WeatherWidget zipCode={project.zip_code ?? ""} />
+                  <WeatherWidget
+                    zipCode={project.zip_code ?? ""}
+                    onDays={(days) => setRainAlert(buildRainAlert(days))}
+                  />
                 </div>
 
                 {/* Edit button */}
