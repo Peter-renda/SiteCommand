@@ -5,6 +5,20 @@ import ProjectNav from "@/components/ProjectNav";
 
 type Member = { id: string; username: string; email: string };
 
+type DirectoryContact = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  company: string | null;
+  job_title: string | null;
+};
+
+function contactName(c: DirectoryContact): string {
+  const full = [c.first_name, c.last_name].filter(Boolean).join(" ");
+  return full || c.email || "Unknown";
+}
+
 type ScheduleTask = {
   uid: number;
   name: string;
@@ -257,6 +271,98 @@ function MemberPicker({
   );
 }
 
+function DirectoryPicker({
+  contacts,
+  selected,
+  onAdd,
+  onRemove,
+}: {
+  contacts: DirectoryContact[];
+  selected: DirectoryContact[];
+  onAdd: (c: DirectoryContact) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const filtered = contacts.filter((c) => {
+    if (selected.find((s) => s.id === c.id)) return false;
+    const q = search.toLowerCase();
+    return (
+      (c.first_name ?? "").toLowerCase().includes(q) ||
+      (c.last_name ?? "").toLowerCase().includes(q) ||
+      (c.email ?? "").toLowerCase().includes(q) ||
+      (c.company ?? "").toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div ref={ref} className="relative">
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {selected.map((c) => (
+            <span key={c.id} className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 bg-blue-50 text-xs text-blue-800 rounded-full border border-blue-100">
+              {contactName(c)}
+              <button type="button" onClick={() => onRemove(c.id)} className="text-blue-400 hover:text-blue-700 ml-0.5">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Start typing to search people..."
+        className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+      />
+      {open && search && filtered.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg max-h-44 overflow-y-auto z-30">
+          {filtered.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onAdd(c); setSearch(""); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2.5"
+            >
+              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600 shrink-0">
+                {contactName(c)[0]?.toUpperCase() ?? "?"}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium text-gray-900 truncate">{contactName(c)}</p>
+                {c.job_title || c.company ? (
+                  <p className="text-xs text-gray-400 truncate">{[c.job_title, c.company].filter(Boolean).join(" · ")}</p>
+                ) : c.email ? (
+                  <p className="text-xs text-gray-400 truncate">{c.email}</p>
+                ) : null}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && search && filtered.length === 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg px-3 py-2 z-30">
+          <p className="text-xs text-gray-400">No matching contacts</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const PROJECT_ROLES = [
   "Project Manager",
   "Executive",
@@ -318,10 +424,10 @@ export default function ProjectClient({
   // Project Roles state
   const [showRolesEdit, setShowRolesEdit] = useState(false);
   const [teamMenuOpen, setTeamMenuOpen] = useState(false);
-  const [projectRoleAssignments, setProjectRoleAssignments] = useState<Record<string, Member[]>>({});
+  const [projectRoleAssignments, setProjectRoleAssignments] = useState<Record<string, DirectoryContact[]>>({});
   const [rolesSaving, setRolesSaving] = useState(false);
   const [rolesError, setRolesError] = useState("");
-  const [projectMembers, setProjectMembers] = useState<Member[]>([]);
+  const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
   const teamMenuRef = useRef<HTMLDivElement>(null);
 
   function fetchActivity() {
@@ -342,22 +448,19 @@ export default function ProjectClient({
 
   async function openRolesEdit() {
     setTeamMenuOpen(false);
-    const [membersRes, rolesRes] = await Promise.all([
-      fetch(`/api/projects/${projectId}/members`),
+    const [dirRes, rolesRes] = await Promise.all([
+      fetch(`/api/projects/${projectId}/directory`),
       fetch(`/api/projects/${projectId}/roles`),
     ]);
-    const membersData = await membersRes.json();
+    const contacts: DirectoryContact[] = await dirRes.json();
     const rolesData = await rolesRes.json();
-    const members: Member[] = Array.isArray(membersData)
-      ? membersData.map((m: { users: Member }) => m.users).filter(Boolean)
-      : [];
-    setProjectMembers(members);
-    const resolved: Record<string, Member[]> = {};
+    setDirectoryContacts(Array.isArray(contacts) ? contacts : []);
+    const resolved: Record<string, DirectoryContact[]> = {};
     for (const roleName of PROJECT_ROLES) {
       const ids: string[] = rolesData[roleName] || [];
       resolved[roleName] = ids
-        .map((id: string) => members.find((m) => m.id === id))
-        .filter(Boolean) as Member[];
+        .map((id: string) => contacts.find((c) => c.id === id))
+        .filter(Boolean) as DirectoryContact[];
     }
     setProjectRoleAssignments(resolved);
     setRolesError("");
@@ -368,8 +471,8 @@ export default function ProjectClient({
     setRolesSaving(true);
     setRolesError("");
     const payload: Record<string, string[]> = {};
-    for (const [r, members] of Object.entries(projectRoleAssignments)) {
-      payload[r] = members.map((m) => m.id);
+    for (const [r, contacts] of Object.entries(projectRoleAssignments)) {
+      payload[r] = contacts.map((c) => c.id);
     }
     const res = await fetch(`/api/projects/${projectId}/roles`, {
       method: "PATCH",
@@ -1084,19 +1187,19 @@ export default function ProjectClient({
                 <div key={roleName} className="grid grid-cols-[160px_80px_1fr] gap-4 py-3 items-start">
                   <span className="text-sm text-gray-800 pt-1">{roleName}</span>
                   <span className="text-sm text-gray-400 pt-1">Person</span>
-                  <MemberPicker
-                    users={projectMembers}
+                  <DirectoryPicker
+                    contacts={directoryContacts}
                     selected={projectRoleAssignments[roleName] || []}
-                    onAdd={(u) =>
+                    onAdd={(c) =>
                       setProjectRoleAssignments((prev) => ({
                         ...prev,
-                        [roleName]: [...(prev[roleName] || []), u],
+                        [roleName]: [...(prev[roleName] || []), c],
                       }))
                     }
                     onRemove={(id) =>
                       setProjectRoleAssignments((prev) => ({
                         ...prev,
-                        [roleName]: (prev[roleName] || []).filter((m) => m.id !== id),
+                        [roleName]: (prev[roleName] || []).filter((c) => c.id !== id),
                       }))
                     }
                   />
