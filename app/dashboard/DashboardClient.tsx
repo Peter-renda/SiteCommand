@@ -481,30 +481,23 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
         {/* My Tasks Alert Banner */}
         {myTasks.filter((t) => !currentProjectId || t.project_id === currentProjectId).length > 0 && (
-          <div className="mb-6 bg-red-600 border border-red-700 rounded-lg px-4 py-2">
-            <h3 className="text-xs font-semibold text-white uppercase tracking-widest mb-1.5">Outstanding Tasks</h3>
-            <div className="space-y-1">
-              {myTasks.filter((t) => !currentProjectId || t.project_id === currentProjectId).map((task) => (
-                <a
-                  key={task.id}
-                  href={`/projects/${task.project_id}`}
-                  className="flex items-center gap-3 px-3 py-1.5 bg-red-700 hover:bg-red-800 rounded transition-colors"
-                >
-                  <svg className="w-4 h-4 text-red-200 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <p className="text-sm font-medium text-white">{task.title}</p>
-                    <p className="text-xs text-red-200">{task.project_name} · {task.status}</p>
-                  </div>
-                  {task.due_date && (
-                    <span className="ml-auto text-xs text-red-200 shrink-0">
-                      Due {new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </span>
-                  )}
-                </a>
-              ))}
-            </div>
+          <div className="mb-6 space-y-1.5">
+            {myTasks.filter((t) => !currentProjectId || t.project_id === currentProjectId).map((task) => (
+              <a
+                key={task.id}
+                href={`/projects/${task.project_id}`}
+                className="flex items-center px-3 py-2 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg transition-colors"
+              >
+                <span className="text-xs text-red-900 min-w-0 truncate">
+                  <span className="font-semibold">{task.project_name}:</span> {task.title}
+                </span>
+                {task.due_date && (
+                  <span className="ml-auto text-xs text-red-500 shrink-0 pl-3">
+                    Due {new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                )}
+              </a>
+            ))}
           </div>
         )}
 
