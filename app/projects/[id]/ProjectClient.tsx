@@ -428,6 +428,7 @@ export default function ProjectClient({
   const [rolesSaving, setRolesSaving] = useState(false);
   const [rolesError, setRolesError] = useState("");
   const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
+  const [teamRoles, setTeamRoles] = useState<{ contact: DirectoryContact; roleName: string }[]>([]);
   const teamMenuRef = useRef<HTMLDivElement>(null);
 
   function fetchActivity() {
@@ -481,6 +482,14 @@ export default function ProjectClient({
     });
     setRolesSaving(false);
     if (!res.ok) { setRolesError("Failed to save roles"); return; }
+    // Rebuild team tile from saved assignments
+    const flat: { contact: DirectoryContact; roleName: string }[] = [];
+    for (const roleName of PROJECT_ROLES) {
+      for (const c of projectRoleAssignments[roleName] || []) {
+        flat.push({ contact: c, roleName });
+      }
+    }
+    setTeamRoles(flat);
     setShowRolesEdit(false);
   }
 
@@ -503,6 +512,23 @@ export default function ProjectClient({
     fetch(`/api/projects/${projectId}/schedule`)
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d.tasks)) setScheduleTasks(d.tasks); });
+
+    // Load team roles for the team tile
+    Promise.all([
+      fetch(`/api/projects/${projectId}/roles`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/directory`).then((r) => r.json()),
+    ]).then(([rolesData, contacts]) => {
+      if (!rolesData || !Array.isArray(contacts)) return;
+      const flat: { contact: DirectoryContact; roleName: string }[] = [];
+      for (const roleName of PROJECT_ROLES) {
+        const ids: string[] = rolesData[roleName] || [];
+        for (const id of ids) {
+          const c = contacts.find((x: DirectoryContact) => x.id === id);
+          if (c) flat.push({ contact: c, roleName });
+        }
+      }
+      setTeamRoles(flat);
+    });
   }, [projectId]);
 
   async function handleLogout() {
@@ -697,18 +723,18 @@ export default function ProjectClient({
                       </div>
                     )}
                   </div>
-                  {project.members.length === 0 ? (
+                  {teamRoles.length === 0 ? (
                     <p className="text-sm text-gray-400">No team members assigned.</p>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {project.members.map((m) => (
-                        <div key={m.id} className="flex items-center gap-3 py-2.5 px-4 bg-gray-50 rounded-lg">
+                      {teamRoles.map(({ contact, roleName }, i) => (
+                        <div key={`${contact.id}-${roleName}-${i}`} className="flex items-center gap-3 py-2.5 px-4 bg-gray-50 rounded-lg">
                           <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-600 shrink-0">
-                            {m.username[0].toUpperCase()}
+                            {contactName(contact)[0]?.toUpperCase() ?? "?"}
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{m.username}</p>
-                            <p className="text-xs text-gray-400">{m.email}</p>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{contactName(contact)}</p>
+                            <p className="text-xs text-gray-400">{roleName}</p>
                           </div>
                         </div>
                       ))}
