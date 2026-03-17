@@ -141,7 +141,7 @@ export async function POST(
 
   const { error: uploadError } = await supabase.storage
     .from("project-schedules")
-    .upload(storagePath, file, { upsert: true });
+    .upload(storagePath, file, { upsert: true, contentType: "text/xml" });
 
   if (uploadError) {
     return NextResponse.json({ error: uploadError.message }, { status: 500 });
