@@ -225,6 +225,7 @@ function PdfViewerModal({
   const [allAnnotations, setAllAnnotations] = useState<AnnotationSet[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Drawing tracking refs (not state — no re-render needed mid-draw)
   const isDrawingRef = useRef(false);
@@ -253,17 +254,20 @@ function PdfViewerModal({
     async function fetchAnnotations() {
       try {
         const res = await fetch(`/api/projects/${projectId}/documents/${docId}/annotations`);
+        console.log("[Annotations] GET status:", res.status);
         if (!res.ok) return;
         const data: AnnotationSet[] = await res.json();
+        console.log("[Annotations] Loaded", data.length, "records, looking for userName:", userName);
         allAnnotationsRef.current = data;
         setAllAnnotations(data);
         const myRecord = data.find((a) => a.created_by_name === userName);
+        console.log("[Annotations] My record:", myRecord ?? "not found");
         if (myRecord && Array.isArray(myRecord.annotation_data)) {
           strokesRef.current = myRecord.annotation_data;
           setStrokes(myRecord.annotation_data);
         }
-      } catch {
-        // silently ignore
+      } catch (err) {
+        console.error("[Annotations] Load error:", err);
       } finally {
         setAnnotationsLoaded(true);
         requestAnimationFrame(() => redrawCanvas());
@@ -570,17 +574,24 @@ function PdfViewerModal({
   // ── Save annotations ────────────────────────────────────────────────────────
   async function saveAnnotations() {
     setSaving(true);
+    setSaveError(null);
     // Always read from the ref — it's always up-to-date even mid-drag
     const toSave = strokesRef.current;
+    const url = `/api/projects/${projectId}/documents/${docId}/annotations`;
+    console.log("[Annotations] Saving", toSave.length, "strokes to", url);
     try {
-      const res = await fetch(`/api/projects/${projectId}/documents/${docId}/annotations`, {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ annotation_data: toSave }),
       });
+      console.log("[Annotations] POST response status:", res.status);
       if (res.ok) {
-        setSaveMsg("Saved");
-        setTimeout(() => setSaveMsg(null), 2000);
+        const saved = await res.json().catch(() => null);
+        console.log("[Annotations] Saved successfully:", saved);
+        setSaveMsg("Saved ✓");
+        setTimeout(() => setSaveMsg(null), 3000);
         // Keep allAnnotationsRef in sync after save
         const updated = allAnnotationsRef.current.some((a) => a.created_by_name === userName)
           ? allAnnotationsRef.current.map((a) =>
@@ -591,13 +602,18 @@ function PdfViewerModal({
         setAllAnnotations(updated);
       } else {
         const errBody = await res.json().catch(() => ({}));
-        const msg = errBody?.error ? String(errBody.error).slice(0, 60) : `Error ${res.status}`;
-        setSaveMsg(msg);
-        setTimeout(() => setSaveMsg(null), 6000);
+        const msg = errBody?.error ? String(errBody.error) : `HTTP ${res.status}`;
+        console.error("[Annotations] Save failed:", res.status, msg, errBody);
+        setSaveError(msg);
+        setSaveMsg("Failed");
+        setTimeout(() => setSaveMsg(null), 3000);
       }
     } catch (err) {
-      setSaveMsg(err instanceof Error ? err.message.slice(0, 60) : "Network error");
-      setTimeout(() => setSaveMsg(null), 6000);
+      const msg = err instanceof Error ? err.message : "Network error";
+      console.error("[Annotations] Save exception:", err);
+      setSaveError(msg);
+      setSaveMsg("Failed");
+      setTimeout(() => setSaveMsg(null), 3000);
     } finally {
       setSaving(false);
     }
@@ -607,6 +623,13 @@ function PdfViewerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gray-950">
+      {/* Save error banner */}
+      {saveError && (
+        <div className="flex items-center justify-between px-4 py-2 bg-red-700 text-white text-sm shrink-0">
+          <span><strong>Save failed:</strong> {saveError}</span>
+          <button onClick={() => setSaveError(null)} className="ml-4 text-white/80 hover:text-white font-bold">✕</button>
+        </div>
+      )}
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-900 shrink-0 gap-4 flex-wrap">
         {/* Filename */}
@@ -667,7 +690,11 @@ function PdfViewerModal({
                 <button
                   onClick={saveAnnotations}
                   disabled={saving}
-                  className="px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  className={`px-2.5 py-1 text-xs font-medium rounded transition-colors disabled:opacity-50 ${
+                    saveMsg === "Failed" ? "bg-red-600 hover:bg-red-700 text-white" :
+                    saveMsg ? "bg-green-600 text-white" :
+                    "bg-blue-600 hover:bg-blue-700 text-white"
+                  }`}
                 >
                   {saving ? "Saving…" : saveMsg ?? "Save"}
                 </button>
