@@ -5,6 +5,8 @@ import { useState, useEffect, useRef } from "react";
 type User = {
   id: string;
   username: string;
+  first_name?: string | null;
+  last_name?: string | null;
   email: string;
   role: string;
   company_id: string | null;
@@ -27,6 +29,8 @@ type Project = {
 type ProjectMember = {
   id: string;
   username: string;
+  first_name?: string | null;
+  last_name?: string | null;
   email: string;
   role: string;
 };
@@ -48,6 +52,11 @@ type LessonUpload = {
   row_count: number;
   columns: string[];
 };
+
+function displayName(u: { first_name?: string | null; last_name?: string | null; username: string }) {
+  const full = [u.first_name, u.last_name].filter(Boolean).join(" ");
+  return full || u.username;
+}
 
 const SUPER_ADMIN_EMAIL = "ptrenda1@gmail.com";
 
@@ -89,7 +98,7 @@ export default function AdminPage() {
   const [projectsWithUsers, setProjectsWithUsers] = useState<ProjectWithUsers[]>([]);
 
   // New Project modal
-  type CompanyUser = { id: string; username: string; email: string };
+  type CompanyUser = { id: string; username: string; first_name?: string | null; last_name?: string | null; email: string };
   const [showNewProject, setShowNewProject] = useState(false);
   const [npCompanyId, setNpCompanyId] = useState("");
   const [npName, setNpName] = useState("");
@@ -199,11 +208,13 @@ export default function AdminPage() {
       allProjects.map(async (p) => {
         const membRes = await fetch(`/api/projects/${p.id}/members`);
         const memberships = membRes.ok ? await membRes.json() : [];
-        const members: ProjectMember[] = (memberships as Array<{ role: string; users: { id: string; username: string; email: string } | null }>)
+        const members: ProjectMember[] = (memberships as Array<{ role: string; users: { id: string; username: string; first_name?: string | null; last_name?: string | null; email: string } | null }>)
           .filter((m) => m.users)
           .map((m) => ({
             id: m.users!.id,
             username: m.users!.username,
+            first_name: m.users!.first_name,
+            last_name: m.users!.last_name,
             email: m.users!.email,
             role: m.role,
           }));
@@ -402,7 +413,7 @@ export default function AdminPage() {
                   {/* User info */}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-gray-900">{user.username}</p>
+                      <p className="text-sm font-medium text-gray-900">{displayName(user)}</p>
                       {user.email === SUPER_ADMIN_EMAIL && (
                         <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-900 text-white rounded">
                           Owner
@@ -555,7 +566,7 @@ export default function AdminPage() {
                               title={`${m.email} (${m.role})`}
                               className="text-xs bg-gray-100 text-gray-700 rounded-full px-2 py-0.5"
                             >
-                              {m.username}
+                              {displayName(m)}
                             </span>
                           ))}
                         </div>
@@ -918,7 +929,7 @@ export default function AdminPage() {
                       <div className="flex flex-wrap gap-1.5 mb-2">
                         {npMembers.map((u) => (
                           <span key={u.id} className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 bg-gray-100 text-xs text-gray-700 rounded-full">
-                            {u.username}
+                            {displayName(u)}
                             <button type="button" onClick={() => setNpMembers((p) => p.filter((m) => m.id !== u.id))} className="text-gray-400 hover:text-gray-700 ml-0.5">
                               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
@@ -938,7 +949,7 @@ export default function AdminPage() {
                     {npMemberOpen && npCompanyId && (() => {
                       const filtered = npCompanyUsers.filter(
                         (u) => !npMembers.find((m) => m.id === u.id) &&
-                          (u.username.toLowerCase().includes(npMemberSearch.toLowerCase()) ||
+                          (displayName(u).toLowerCase().includes(npMemberSearch.toLowerCase()) ||
                            u.email.toLowerCase().includes(npMemberSearch.toLowerCase()))
                       );
                       return filtered.length > 0 ? (
@@ -948,9 +959,9 @@ export default function AdminPage() {
                               onClick={() => { setNpMembers((p) => [...p, u]); setNpMemberSearch(""); }}
                               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2.5">
                               <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600 shrink-0">
-                                {u.username[0].toUpperCase()}
+                                {displayName(u)[0].toUpperCase()}
                               </div>
-                              <span className="font-medium text-gray-900">{u.username}</span>
+                              <span className="font-medium text-gray-900">{displayName(u)}</span>
                               <span className="text-gray-400 text-xs">{u.email}</span>
                             </button>
                           ))}
@@ -987,7 +998,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
                 <h2 className="text-base font-semibold text-gray-900">Project Access</h2>
-                <p className="text-sm text-gray-500">{selectedUser.username}</p>
+                <p className="text-sm text-gray-500">{displayName(selectedUser)}</p>
               </div>
               <button
                 onClick={() => setSelectedUser(null)}
