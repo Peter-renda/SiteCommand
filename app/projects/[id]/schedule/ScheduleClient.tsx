@@ -380,7 +380,7 @@ function UploadZone({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xml"
+              accept=".xml,text/xml,application/xml"
               className="hidden"
               onChange={handleFileInput}
             />
@@ -411,6 +411,7 @@ export default function ScheduleClient({
   const [activeTab, setActiveTab] = useState<"table" | "gantt">("table");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [replaceError, setReplaceError] = useState<string | null>(null);
   const fileReplaceRef = useRef<HTMLInputElement>(null);
 
   const fetchSchedule = useCallback(async () => {
@@ -430,12 +431,22 @@ export default function ScheduleClient({
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    if (!file.name.toLowerCase().endsWith(".xml")) {
+      setReplaceError("Only .xml files are accepted.");
+      return;
+    }
+    setReplaceError(null);
     setUploading(true);
     const fd = new FormData();
     fd.append("file", file);
     const res = await fetch(`/api/projects/${projectId}/schedule`, { method: "POST", body: fd });
     setUploading(false);
-    if (res.ok) fetchSchedule();
+    if (res.ok) {
+      fetchSchedule();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setReplaceError(data.error ?? "Upload failed. Please try again.");
+    }
   }
 
   async function handleLogout() {
@@ -495,20 +506,23 @@ export default function ScheduleClient({
               <span className="text-gray-300">·</span>
               <span className="text-gray-400">{tasks.length} tasks</span>
             </div>
-            <button
-              onClick={() => fileReplaceRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              {uploading ? "Replacing…" : "Replace Schedule"}
-            </button>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={() => { setReplaceError(null); fileReplaceRef.current?.click(); }}
+                disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                {uploading ? "Replacing…" : "Replace Schedule"}
+              </button>
+              {replaceError && <p className="text-xs text-red-600">{replaceError}</p>}
+            </div>
             <input
               ref={fileReplaceRef}
               type="file"
-              accept=".xml"
+              accept=".xml,text/xml,application/xml"
               className="hidden"
               onChange={handleReplaceFile}
             />
