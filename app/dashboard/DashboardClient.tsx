@@ -213,6 +213,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
   // Recent Activity state
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(4);
   const [activityFilter, setActivityFilter] = useState<string[]>(() => {
     if (typeof window === "undefined") return ALL_TYPES;
     try {
@@ -312,6 +313,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
   }, []);
 
   function toggleActivityType(type: string) {
+    setVisibleCount(4);
     setActivityFilter((prev) => {
       const next = prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type];
       try { localStorage.setItem("activity_filter", JSON.stringify(next)); } catch {}
@@ -636,12 +638,13 @@ export default function DashboardClient({ username, email, role, companyRole, us
             <div className="bg-white border border-dashed border-gray-200 rounded-xl px-6 py-8 text-center">
               <p className="text-sm text-gray-400">No recent activity to show.</p>
             </div>
-          ) : (
-            <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
-              {activities
-                .filter((a) => activityFilter.includes(a.type))
-                .slice(0, 4)
-                .map((item) => (
+          ) : (() => {
+            const filtered = activities.filter((a) => activityFilter.includes(a.type));
+            const visible = filtered.slice(0, visibleCount);
+            const hasMore = filtered.length > visibleCount;
+            return (
+              <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
+                {visible.map((item) => (
                   <a
                     key={`${item.type}-${item.id}`}
                     href={`/projects/${item.project_id}`}
@@ -659,8 +662,17 @@ export default function DashboardClient({ username, email, role, companyRole, us
                     <span className="text-xs text-gray-400 shrink-0 ml-2">{timeAgo(item.created_at)}</span>
                   </a>
                 ))}
-            </div>
-          )}
+                {hasMore && (
+                  <button
+                    onClick={() => setVisibleCount((c) => c + 10)}
+                    className="w-full px-4 py-3 text-xs text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors text-center"
+                  >
+                    Load more ({filtered.length - visibleCount} remaining)
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </main>
 

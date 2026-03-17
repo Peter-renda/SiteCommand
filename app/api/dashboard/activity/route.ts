@@ -54,15 +54,18 @@ export async function GET() {
 
   const allItems: ActivityItem[] = [];
 
-  // 2. Query each table for recent items
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // 2. Query each table for items within the last 30 days
   // RFIs
   try {
     const { data } = await supabase
       .from("rfis")
       .select("id, rfi_number, subject, project_id, created_at")
       .in("project_id", projectIds)
+      .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(200);
 
     if (data) {
       for (const row of data) {
@@ -84,8 +87,9 @@ export async function GET() {
       .from("submittals")
       .select("id, submittal_number, title, project_id, created_at")
       .in("project_id", projectIds)
+      .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(200);
 
     if (data) {
       for (const row of data) {
@@ -108,8 +112,9 @@ export async function GET() {
       .select("id, name, project_id, created_at")
       .in("project_id", projectIds)
       .eq("type", "file")
+      .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(200);
 
     if (data) {
       for (const row of data) {
@@ -131,8 +136,9 @@ export async function GET() {
       .from("daily_logs")
       .select("id, log_date, project_id, created_at")
       .in("project_id", projectIds)
+      .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(200);
 
     if (data) {
       for (const row of data) {
@@ -154,8 +160,9 @@ export async function GET() {
       .from("tasks")
       .select("id, title, project_id, created_at")
       .in("project_id", projectIds)
+      .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(200);
 
     if (data) {
       for (const row of data) {
@@ -177,8 +184,9 @@ export async function GET() {
       .from("drawings")
       .select("id, name, project_id, created_at")
       .in("project_id", projectIds)
+      .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(200);
 
     if (data) {
       for (const row of data) {
@@ -194,10 +202,10 @@ export async function GET() {
     }
   } catch {}
 
-  // 3. Merge, sort by created_at desc, return top 10
+  // 3. Merge and sort by created_at desc — return all within 30 days
   allItems.sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
-  return NextResponse.json(allItems.slice(0, 10));
+  return NextResponse.json(allItems);
 }
