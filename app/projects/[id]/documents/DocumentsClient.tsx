@@ -260,7 +260,9 @@ function PdfViewerModal({
         console.log("[Annotations] Loaded", data.length, "records, looking for userName:", userName);
         allAnnotationsRef.current = data;
         setAllAnnotations(data);
-        const myRecord = data.find((a) => a.created_by_name === userName);
+        // Prefer the record with a non-null created_by (fully claimed) over legacy null records
+        const myRecords = data.filter((a) => a.created_by_name === userName);
+        const myRecord = myRecords.find((a) => a.created_by !== null) ?? myRecords[0];
         console.log("[Annotations] My record:", myRecord ?? "not found");
         if (myRecord && Array.isArray(myRecord.annotation_data)) {
           strokesRef.current = myRecord.annotation_data;
