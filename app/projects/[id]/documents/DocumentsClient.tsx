@@ -234,6 +234,12 @@ function PdfViewerModal({
   const selectedStrokeIdRef = useRef<string | null>(null);
   const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
 
+  // Ref mirrors — always up-to-date, used for synchronous canvas drawing
+  const strokesRef = useRef<AnnotationStroke[]>([]);
+  const allAnnotationsRef = useRef<AnnotationSet[]>([]);
+  const activeColorRef = useRef(activeColor);
+  useEffect(() => { activeColorRef.current = activeColor; }, [activeColor]);
+
   // Keyboard: Esc to close
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
@@ -249,33 +255,22 @@ function PdfViewerModal({
         const res = await fetch(`/api/projects/${projectId}/documents/${docId}/annotations`);
         if (!res.ok) return;
         const data: AnnotationSet[] = await res.json();
+        allAnnotationsRef.current = data;
         setAllAnnotations(data);
-        // Pre-populate current user's strokes from their record (if any)
-        // We identify the user's record by checking if any annotation came from "me"
-        // We expose userName and match by name as a fallback (no userId in client)
         const myRecord = data.find((a) => a.created_by_name === userName);
         if (myRecord && Array.isArray(myRecord.annotation_data)) {
+          strokesRef.current = myRecord.annotation_data;
           setStrokes(myRecord.annotation_data);
         }
       } catch {
         // silently ignore
       } finally {
         setAnnotationsLoaded(true);
+        requestAnimationFrame(() => redrawCanvas());
       }
     }
     fetchAnnotations();
   }, [annotationMode, annotationsLoaded, docId, projectId, userName]);
-
-  // ── Render annotations onto canvas whenever strokes/allAnnotations change ──
-  useEffect(() => {
-    if (!annotationMode) return;
-    const canvas = annotationCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    renderAnnotations(ctx, canvas.width, canvas.height);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strokes, allAnnotations, annotationMode]);
 
   // Keep canvas sized to its container
   const containerRef = useRef<HTMLDivElement>(null);
@@ -287,8 +282,7 @@ function PdfViewerModal({
       if (!canvas || !container) return;
       canvas.width = container.clientWidth;
       canvas.height = container.clientHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) renderAnnotations(ctx, canvas.width, canvas.height);
+      redrawCanvas();
     }
     resize();
     window.addEventListener("resize", resize);
@@ -309,18 +303,25 @@ function PdfViewerModal({
     return { x: rx * canvas.width, y: ry * canvas.height };
   }
 
-  // ── Render all annotations ──────────────────────────────────────────────────
-  function renderAnnotations(ctx: CanvasRenderingContext2D, cw: number, ch: number) {
-    ctx.clearRect(0, 0, cw, ch);
+  // ── Render all annotations synchronously from refs ──────────────────────────
+  function redrawCanvas(previewStroke?: AnnotationStroke | null) {
+    const canvas = annotationCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Render other users first, then current user on top
-    const othersAnnotations = allAnnotations.filter((a) => a.created_by_name !== userName);
-    for (const set of othersAnnotations) {
-      const color = roleColor(set.role);
-      renderStrokeSet(ctx, cw, ch, set.annotation_data, color, false);
+    // Other users first, current user on top
+    for (const set of allAnnotationsRef.current) {
+      if (set.created_by_name === userName) continue;
+      renderStrokeSet(ctx, canvas.width, canvas.height, set.annotation_data, roleColor(set.role), false);
     }
-    // Current user's strokes — use each stroke's own color
-    renderStrokeSet(ctx, cw, ch, strokes, activeColor, true);
+    renderStrokeSet(ctx, canvas.width, canvas.height, strokesRef.current, activeColorRef.current, true);
+
+    // In-progress stroke preview
+    if (previewStroke) {
+      renderStrokeSet(ctx, canvas.width, canvas.height, [previewStroke], activeColorRef.current, true);
+    }
   }
 
   function renderStrokeSet(
@@ -381,11 +382,11 @@ function PdfViewerModal({
     const rel = toRel(canvas, e.clientX, e.clientY);
 
     if (activeTool === "select") {
-      const foundId = findStrokeNear(strokes, rel.x, rel.y);
+      const foundId = findStrokeNear(strokesRef.current, rel.x, rel.y);
       if (foundId) {
         setSelectedStrokeId(foundId);
         selectedStrokeIdRef.current = foundId;
-        const stroke = strokes.find((s) => s.id === foundId);
+        const stroke = strokesRef.current.find((s) => s.id === foundId);
         if (stroke) {
           let anchorX = 0;
           let anchorY = 0;
@@ -422,7 +423,9 @@ function PdfViewerModal({
         tx: rel.x,
         ty: rel.y,
       };
-      setStrokes((prev) => [...prev, newStroke]);
+      strokesRef.current = [...strokesRef.current, newStroke];
+      setStrokes(strokesRef.current);
+      redrawCanvas();
       return;
     }
 
@@ -471,24 +474,23 @@ function PdfViewerModal({
       const { dx, dy } = dragOffsetRef.current;
       const nx = rel.x - dx;
       const ny = rel.y - dy;
-      setStrokes((prev) =>
-        prev.map((s) => {
-          if (s.id !== movingId) return s;
-          if (s.tool === "text") return { ...s, tx: nx, ty: ny };
-          if (s.tool === "rect" || s.tool === "circle") return { ...s, x: nx, y: ny };
-          if (s.tool === "line") {
-            const origDx = (s.x2 ?? 0) - (s.x1 ?? 0);
-            const origDy = (s.y2 ?? 0) - (s.y1 ?? 0);
-            return { ...s, x1: nx, y1: ny, x2: nx + origDx, y2: ny + origDy };
-          }
-          if (s.tool === "pen" && s.points?.length) {
-            const ox = s.points[0].x;
-            const oy = s.points[0].y;
-            return { ...s, points: s.points.map((p) => ({ x: p.x + (nx - ox), y: p.y + (ny - oy) })) };
-          }
-          return s;
-        })
-      );
+      strokesRef.current = strokesRef.current.map((s) => {
+        if (s.id !== movingId) return s;
+        if (s.tool === "text") return { ...s, tx: nx, ty: ny };
+        if (s.tool === "rect" || s.tool === "circle") return { ...s, x: nx, y: ny };
+        if (s.tool === "line") {
+          const origDx = (s.x2 ?? 0) - (s.x1 ?? 0);
+          const origDy = (s.y2 ?? 0) - (s.y1 ?? 0);
+          return { ...s, x1: nx, y1: ny, x2: nx + origDx, y2: ny + origDy };
+        }
+        if (s.tool === "pen" && s.points?.length) {
+          const ox = s.points[0].x;
+          const oy = s.points[0].y;
+          return { ...s, points: s.points.map((p) => ({ x: p.x + (nx - ox), y: p.y + (ny - oy) })) };
+        }
+        return s;
+      });
+      redrawCanvas();
       return;
     }
 
@@ -511,11 +513,8 @@ function PdfViewerModal({
       stroke.y2 = rel.y;
     }
 
-    // Live preview — render in-progress stroke with current committed strokes
-    const ctx = canvas.getContext("2d")!;
-    renderAnnotations(ctx, canvas.width, canvas.height);
-    // Draw current stroke on top as a preview
-    renderStrokeSet(ctx, canvas.width, canvas.height, [stroke], activeColor, true);
+    // Live preview — draw all committed strokes + current in-progress stroke
+    redrawCanvas(currentStrokeRef.current);
   }
 
   function endDraw() {
@@ -524,78 +523,72 @@ function PdfViewerModal({
 
     if (activeTool === "select") {
       dragOffsetRef.current = null;
-      // keep selectedStrokeIdRef/selectedStrokeId so the selection is visible after drag
+      // Sync state with ref after drag completes
+      setStrokes([...strokesRef.current]);
       return;
     }
 
     if (activeTool === "eraser") return;
 
     if (currentStrokeRef.current) {
-      setStrokes((prev) => [...prev, { ...currentStrokeRef.current! }]);
+      const finished = { ...currentStrokeRef.current };
       currentStrokeRef.current = null;
+      // Update ref synchronously, redraw immediately, then sync React state
+      strokesRef.current = [...strokesRef.current, finished];
+      redrawCanvas();
+      setStrokes(strokesRef.current);
     }
   }
 
   function eraseAt(rx: number, ry: number) {
-    const THRESHOLD = 0.02; // ~2% of canvas size
-    setStrokes((prev) =>
-      prev.filter((stroke) => {
-        if (stroke.tool === "pen" && stroke.points) {
-          return !stroke.points.some(
-            (p) => Math.abs(p.x - rx) < THRESHOLD && Math.abs(p.y - ry) < THRESHOLD
-          );
-        }
-        if (stroke.tool === "rect" || stroke.tool === "circle") {
-          const cx = (stroke.x ?? 0) + (stroke.w ?? 0) / 2;
-          const cy = (stroke.y ?? 0) + (stroke.h ?? 0) / 2;
-          return Math.abs(cx - rx) > THRESHOLD * 2 || Math.abs(cy - ry) > THRESHOLD * 2;
-        }
-        if (stroke.tool === "line") {
-          const cx = ((stroke.x1 ?? 0) + (stroke.x2 ?? 0)) / 2;
-          const cy = ((stroke.y1 ?? 0) + (stroke.y2 ?? 0)) / 2;
-          return Math.abs(cx - rx) > THRESHOLD * 2 || Math.abs(cy - ry) > THRESHOLD * 2;
-        }
-        if (stroke.tool === "text") {
-          return Math.abs((stroke.tx ?? 0) - rx) > THRESHOLD * 2 || Math.abs((stroke.ty ?? 0) - ry) > THRESHOLD * 2;
-        }
-        return true;
-      })
-    );
+    const THRESHOLD = 0.02;
+    strokesRef.current = strokesRef.current.filter((stroke) => {
+      if (stroke.tool === "pen" && stroke.points) {
+        return !stroke.points.some(
+          (p) => Math.abs(p.x - rx) < THRESHOLD && Math.abs(p.y - ry) < THRESHOLD
+        );
+      }
+      if (stroke.tool === "rect" || stroke.tool === "circle") {
+        const cx = (stroke.x ?? 0) + (stroke.w ?? 0) / 2;
+        const cy = (stroke.y ?? 0) + (stroke.h ?? 0) / 2;
+        return Math.abs(cx - rx) > THRESHOLD * 2 || Math.abs(cy - ry) > THRESHOLD * 2;
+      }
+      if (stroke.tool === "line") {
+        const cx = ((stroke.x1 ?? 0) + (stroke.x2 ?? 0)) / 2;
+        const cy = ((stroke.y1 ?? 0) + (stroke.y2 ?? 0)) / 2;
+        return Math.abs(cx - rx) > THRESHOLD * 2 || Math.abs(cy - ry) > THRESHOLD * 2;
+      }
+      if (stroke.tool === "text") {
+        return Math.abs((stroke.tx ?? 0) - rx) > THRESHOLD * 2 || Math.abs((stroke.ty ?? 0) - ry) > THRESHOLD * 2;
+      }
+      return true;
+    });
+    redrawCanvas();
+    setStrokes(strokesRef.current);
   }
 
   // ── Save annotations ────────────────────────────────────────────────────────
   async function saveAnnotations() {
     setSaving(true);
+    // Always read from the ref — it's always up-to-date even mid-drag
+    const toSave = strokesRef.current;
     try {
       const res = await fetch(`/api/projects/${projectId}/documents/${docId}/annotations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ annotation_data: strokes }),
+        body: JSON.stringify({ annotation_data: toSave }),
       });
       if (res.ok) {
         setSaveMsg("Saved");
         setTimeout(() => setSaveMsg(null), 2000);
-        // Update allAnnotations to reflect the saved state for the current user
-        setAllAnnotations((prev) => {
-          const exists = prev.some((a) => a.created_by_name === userName);
-          if (exists) {
-            return prev.map((a) =>
-              a.created_by_name === userName
-                ? { ...a, annotation_data: strokes }
-                : a
-            );
-          } else {
-            return [
-              ...prev,
-              {
-                created_by: "",
-                created_by_name: userName,
-                role: userRole,
-                annotation_data: strokes,
-              },
-            ];
-          }
-        });
+        // Keep allAnnotationsRef in sync after save
+        const updated = allAnnotationsRef.current.some((a) => a.created_by_name === userName)
+          ? allAnnotationsRef.current.map((a) =>
+              a.created_by_name === userName ? { ...a, annotation_data: toSave } : a
+            )
+          : [...allAnnotationsRef.current, { created_by: "", created_by_name: userName, role: userRole, annotation_data: toSave }];
+        allAnnotationsRef.current = updated;
+        setAllAnnotations(updated);
       } else {
         setSaveMsg("Error saving");
         setTimeout(() => setSaveMsg(null), 3000);
@@ -681,7 +674,9 @@ function PdfViewerModal({
                 <button
                   onClick={() => {
                     if (window.confirm("Are you sure you want to clear all your annotations? This cannot be undone.")) {
+                      strokesRef.current = [];
                       setStrokes([]);
+                      redrawCanvas();
                     }
                   }}
                   className="px-2.5 py-1 text-xs font-medium text-gray-400 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
