@@ -170,6 +170,23 @@ export default function AdminClient({
   const [memberActionError, setMemberActionError] = useState("");
   const memberDropdownRef = useRef<HTMLDivElement>(null);
 
+  const loadMembers = useCallback(async () => {
+    const res = await fetch(`/api/projects/${projectId}/members`);
+    if (!res.ok) return;
+    const data: Array<{ id: string; role: string; users: { id: string; username: string; email: string; company_id: string | null } | null }> = await res.json();
+    setMembers(
+      data
+        .filter((m) => m.users)
+        .map((m) => ({
+          membership_id: m.id,
+          user_id: m.users!.id,
+          username: m.users!.username,
+          email: m.users!.email,
+          role: m.role,
+        }))
+    );
+  }, [projectId]);
+
   useEffect(() => {
     fetch(`/api/projects/${projectId}/admin`)
       .then((r) => r.json())
@@ -193,7 +210,59 @@ export default function AdminClient({
         setWarrantyEndDate(d.warranty_end_date ?? "");
         setLoading(false);
       });
-  }, [projectId]);
+    loadMembers();
+  }, [projectId, loadMembers]);
+
+  // Load company users for autocomplete
+  useEffect(() => {
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((d: CompanyUser[]) => setCompanyUsers(d))
+      .catch(() => {});
+  }, []);
+
+  // Close member dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (memberDropdownRef.current && !memberDropdownRef.current.contains(e.target as Node)) {
+        setMemberDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  async function handleAddMember(userId: string) {
+    setMemberActionError("");
+    const res = await fetch(`/api/projects/${projectId}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, role: "member" }),
+    });
+    if (res.ok) {
+      setMemberSearch("");
+      setMemberDropdownOpen(false);
+      loadMembers();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      setMemberActionError(d.error || "Failed to add member");
+    }
+  }
+
+  async function handleRemoveMember(userId: string) {
+    setMemberActionError("");
+    const res = await fetch(`/api/projects/${projectId}/members`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (res.ok) {
+      loadMembers();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      setMemberActionError(d.error || "Failed to remove member");
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
