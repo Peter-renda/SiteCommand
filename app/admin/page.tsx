@@ -81,6 +81,7 @@ export default function AdminPage() {
   // Add user modal
   const [showAddUser, setShowAddUser] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteCompanyId, setInviteCompanyId] = useState("");
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState("");
@@ -261,7 +262,7 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail }),
+      body: JSON.stringify({ email: inviteEmail, company_id: inviteCompanyId }),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -382,7 +383,7 @@ export default function AdminPage() {
               setInviteError("");
               setInviteSuccess("");
               setInviteEmail("");
-              setInviteCompanyName(companies[0]?.name ?? "");
+              setInviteCompanyId(companies[0]?.id ?? "");
             }}
             className="px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
           >
@@ -670,6 +671,19 @@ export default function AdminPage() {
                 placeholder="user@company.com"
                 className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
+              {companies.length > 1 && (
+                <select
+                  required
+                  value={inviteCompanyId}
+                  onChange={(e) => setInviteCompanyId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                >
+                  <option value="">Select company…</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              )}
               {inviteError && <p className="text-xs text-red-600">{inviteError}</p>}
               {inviteSuccess && <p className="text-xs text-green-600">{inviteSuccess}</p>}
               <div className="flex gap-2 pt-1">
