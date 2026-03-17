@@ -218,6 +218,7 @@ function PdfViewerModal({
 
   // ── Annotation state ────────────────────────────────────────────────────────
   const [annotationMode, setAnnotationMode] = useState(false);
+  const [annotationsVisible, setAnnotationsVisible] = useState(true);
   const [annotationsLoaded, setAnnotationsLoaded] = useState(false);
   const [activeTool, setActiveTool] = useState<AnnotationTool>("pen");
   const [activeColor, setActiveColor] = useState("#ef4444");
@@ -248,9 +249,9 @@ function PdfViewerModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // ── Load annotations when annotation mode is first enabled ─────────────────
+  // ── Load annotations on mount (so they show before entering Annotate mode) ──
   useEffect(() => {
-    if (!annotationMode || annotationsLoaded) return;
+    if (annotationsLoaded) return;
     async function fetchAnnotations() {
       try {
         const res = await fetch(`/api/projects/${projectId}/documents/${docId}/annotations`);
@@ -276,12 +277,12 @@ function PdfViewerModal({
       }
     }
     fetchAnnotations();
-  }, [annotationMode, annotationsLoaded, docId, projectId, userName]);
+  }, [annotationsLoaded, docId, projectId, userName]);
 
   // Keep canvas sized to its container
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!annotationMode) return;
+    if (!annotationsVisible) return;
     function resize() {
       const canvas = annotationCanvasRef.current;
       const container = containerRef.current;
@@ -294,7 +295,7 @@ function PdfViewerModal({
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [annotationMode]);
+  }, [annotationsVisible]);
 
   // ── Coordinate helpers (percentage-based so they scale with container) ──────
   function toRel(canvas: HTMLCanvasElement, clientX: number, clientY: number) {
@@ -725,6 +726,24 @@ function PdfViewerModal({
 
         {/* Right actions */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Annotations visibility toggle */}
+          <button
+            onClick={() => setAnnotationsVisible((v) => !v)}
+            title={annotationsVisible ? "Hide annotations" : "Show annotations"}
+            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors"
+          >
+            {annotationsVisible ? (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+              </svg>
+            )}
+          </button>
+
           {/* Annotate toggle */}
           <button
             onClick={() => setAnnotationMode((m) => !m)}
@@ -781,19 +800,21 @@ function PdfViewerModal({
           onLoad={() => setLoading(false)}
           title={name}
         />
-        {annotationMode && (
+        {annotationsVisible && (
           <canvas
             ref={annotationCanvasRef}
             className="absolute inset-0 w-full h-full"
             style={{
-              cursor: activeTool === "eraser" ? "cell" : activeTool === "select" ? "default" : canAnnotate ? "crosshair" : "default",
+              cursor: annotationMode
+                ? activeTool === "eraser" ? "cell" : activeTool === "select" ? "default" : canAnnotate ? "crosshair" : "default"
+                : "default",
               zIndex: 10,
-              pointerEvents: canAnnotate ? "auto" : "none",
+              pointerEvents: annotationMode && canAnnotate ? "auto" : "none",
             }}
-            onMouseDown={startDraw}
-            onMouseMove={draw}
-            onMouseUp={endDraw}
-            onMouseLeave={endDraw}
+            onMouseDown={annotationMode ? startDraw : undefined}
+            onMouseMove={annotationMode ? draw : undefined}
+            onMouseUp={annotationMode ? endDraw : undefined}
+            onMouseLeave={annotationMode ? endDraw : undefined}
           />
         )}
       </div>
