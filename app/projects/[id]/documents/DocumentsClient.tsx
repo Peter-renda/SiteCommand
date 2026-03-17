@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, ChangeEvent } from "react";
 // Note: useRef/useCallback used by other parts of this file (folder tree, modals)
+import { Hand } from "lucide-react";
 import ProjectNav from "@/components/ProjectNav";
 
 type DocItem = {
@@ -329,6 +330,65 @@ function PdfViewerModal({
     if (previewStroke) {
       renderStrokeSet(ctx, canvas.width, canvas.height, [previewStroke], activeColorRef.current, true);
     }
+
+    // Draw dotted selection border around the selected stroke
+    const selId = selectedStrokeIdRef.current;
+    if (selId) {
+      const selStroke = strokesRef.current.find((s) => s.id === selId);
+      if (selStroke) {
+        drawSelectionBorder(ctx, canvas.width, canvas.height, selStroke);
+      }
+    }
+  }
+
+  function drawSelectionBorder(
+    ctx: CanvasRenderingContext2D,
+    cw: number,
+    ch: number,
+    stroke: AnnotationStroke
+  ) {
+    const PAD = 6; // px padding around selection
+    ctx.save();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.lineDashOffset = 0;
+
+    if (stroke.tool === "text" && stroke.tx !== undefined && stroke.ty !== undefined) {
+      const p = toAbs(annotationCanvasRef.current!, stroke.tx, stroke.ty);
+      // Estimate text width; use a rough heuristic
+      const fontSize = 14 * (stroke.lineWidth ?? 1);
+      const estW = (stroke.text?.length ?? 4) * fontSize * 0.6 + PAD * 2;
+      ctx.strokeRect(p.x - PAD, p.y - fontSize - PAD, estW, fontSize + PAD * 2);
+    } else if ((stroke.tool === "rect" || stroke.tool === "circle") && stroke.x !== undefined) {
+      const p = toAbs(annotationCanvasRef.current!, stroke.x, stroke.y!);
+      const w = (stroke.w ?? 0) * cw;
+      const h = (stroke.h ?? 0) * ch;
+      ctx.strokeRect(
+        p.x - PAD * Math.sign(w || 1),
+        p.y - PAD * Math.sign(h || 1),
+        w + PAD * 2 * Math.sign(w || 1),
+        h + PAD * 2 * Math.sign(h || 1)
+      );
+    } else if (stroke.tool === "line" && stroke.x1 !== undefined) {
+      const a = toAbs(annotationCanvasRef.current!, stroke.x1!, stroke.y1!);
+      const b = toAbs(annotationCanvasRef.current!, stroke.x2!, stroke.y2!);
+      const minX = Math.min(a.x, b.x);
+      const minY = Math.min(a.y, b.y);
+      const maxX = Math.max(a.x, b.x);
+      const maxY = Math.max(a.y, b.y);
+      ctx.strokeRect(minX - PAD, minY - PAD, maxX - minX + PAD * 2, maxY - minY + PAD * 2);
+    } else if (stroke.tool === "pen" && stroke.points?.length) {
+      const xs = stroke.points.map((p) => p.x * cw);
+      const ys = stroke.points.map((p) => p.y * ch);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+      const maxX = Math.max(...xs);
+      const maxY = Math.max(...ys);
+      ctx.strokeRect(minX - PAD, minY - PAD, maxX - minX + PAD * 2, maxY - minY + PAD * 2);
+    }
+
+    ctx.restore();
   }
 
   function renderStrokeSet(
@@ -404,10 +464,12 @@ function PdfViewerModal({
           dragOffsetRef.current = { dx: rel.x - anchorX, dy: rel.y - anchorY };
         }
         isDrawingRef.current = true;
+        redrawCanvas();
       } else {
         setSelectedStrokeId(null);
         selectedStrokeIdRef.current = null;
         dragOffsetRef.current = null;
+        redrawCanvas();
       }
       return;
     }
@@ -532,6 +594,8 @@ function PdfViewerModal({
       dragOffsetRef.current = null;
       // Sync state with ref after drag completes
       setStrokes([...strokesRef.current]);
+      // Redraw to show dotted selection border at the new position
+      redrawCanvas();
       return;
     }
 
@@ -650,24 +714,30 @@ function PdfViewerModal({
               <>
                 {/* Tool buttons */}
                 {(["select", "pen", "rect", "circle", "line", "text", "eraser"] as AnnotationTool[]).map((tool) => {
-                  const labels: Record<AnnotationTool, string> = {
-                    select: "↖", pen: "✏️", rect: "□", circle: "○", line: "/", text: "T", eraser: "⌫",
-                  };
                   const titles: Record<AnnotationTool, string> = {
-                    select: "Select / Move", pen: "Pen", rect: "Rectangle", circle: "Circle", line: "Line", text: "Text", eraser: "Eraser",
+                    select: "Select Tool", pen: "Pen", rect: "Rectangle", circle: "Circle", line: "Line", text: "Text", eraser: "Eraser",
+                  };
+                  const labelContent: Record<AnnotationTool, React.ReactNode> = {
+                    select: <Hand className="w-4 h-4" />,
+                    pen: <span>✏️</span>,
+                    rect: <span>□</span>,
+                    circle: <span>○</span>,
+                    line: <span>/</span>,
+                    text: <span>T</span>,
+                    eraser: <span>⌫</span>,
                   };
                   return (
                     <button
                       key={tool}
                       onClick={() => setActiveTool(tool)}
                       title={titles[tool]}
-                      className={`px-2 py-1 text-sm rounded transition-colors ${
+                      className={`px-2 py-1 text-sm rounded transition-colors flex items-center justify-center ${
                         activeTool === tool
                           ? "bg-gray-600 text-white"
                           : "text-gray-400 hover:text-white hover:bg-gray-700"
                       }`}
                     >
-                      {labels[tool]}
+                      {labelContent[tool]}
                     </button>
                   );
                 })}
@@ -806,7 +876,7 @@ function PdfViewerModal({
             className="absolute inset-0 w-full h-full"
             style={{
               cursor: annotationMode
-                ? activeTool === "eraser" ? "cell" : activeTool === "select" ? "default" : canAnnotate ? "crosshair" : "default"
+                ? activeTool === "eraser" ? "cell" : activeTool === "select" ? (selectedStrokeId ? "grabbing" : "grab") : canAnnotate ? "crosshair" : "default"
                 : "default",
               zIndex: 10,
               pointerEvents: annotationMode && canAnnotate ? "auto" : "none",
