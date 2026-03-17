@@ -100,11 +100,20 @@ export async function GET(
     .download(scheduleRow.storage_path);
 
   if (dlError || !blob) {
-    return NextResponse.json({ error: "Failed to download schedule file" }, { status: 500 });
+    // Storage file is missing or bucket inaccessible — clear the orphaned row
+    // so the client shows the upload zone instead of an infinite error state.
+    await supabase.from("project_schedules").delete().eq("project_id", projectId);
+    return NextResponse.json({ schedule: null, tasks: [] });
   }
 
-  const xmlText = await blob.text();
-  const tasks = parseTasks(xmlText);
+  let tasks: Task[] = [];
+  try {
+    const xmlText = await blob.text();
+    tasks = parseTasks(xmlText);
+  } catch {
+    // Parsing failed — still return the metadata so the UI doesn't break
+    tasks = [];
+  }
 
   return NextResponse.json({
     schedule: {
