@@ -39,11 +39,11 @@ export async function POST(
   }
 
   const supabase = getSupabase();
-
   const role = session.company_role || session.role || "member";
   const now = new Date().toISOString();
+  const username = session.username || "Unknown";
 
-  // Check whether a record already exists for this user + document
+  // 1. Look for an existing record owned by this user's UUID
   const { data: existing, error: selectError } = await supabase
     .from("document_annotations")
     .select("id")
@@ -56,7 +56,7 @@ export async function POST(
   }
 
   if (existing) {
-    // Overwrite existing record
+    // Update the existing record
     const { data, error } = await supabase
       .from("document_annotations")
       .update({ annotation_data, role, updated_at: now })
@@ -65,22 +65,44 @@ export async function POST(
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
-  } else {
-    // Insert new record
+  }
+
+  // 2. No record by UUID — check for a legacy record with created_by = NULL and matching name
+  //    (these were created before the UUID column was populated)
+  const { data: legacy, error: legacyError } = await supabase
+    .from("document_annotations")
+    .select("id")
+    .eq("document_id", docId)
+    .eq("created_by_name", username)
+    .is("created_by", null)
+    .maybeSingle();
+
+  if (!legacyError && legacy) {
+    // Claim the legacy record by writing the UUID into it
     const { data, error } = await supabase
       .from("document_annotations")
-      .insert({
-        document_id: docId,
-        project_id: projectId,
-        created_by: session.id,
-        created_by_name: session.username || "Unknown",
-        role,
-        annotation_data,
-        updated_at: now,
-      })
+      .update({ annotation_data, role, created_by: session.id, updated_at: now })
+      .eq("id", legacy.id)
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
   }
+
+  // 3. Insert a brand-new record
+  const { data, error } = await supabase
+    .from("document_annotations")
+    .insert({
+      document_id: docId,
+      project_id: projectId,
+      created_by: session.id,
+      created_by_name: username,
+      role,
+      annotation_data,
+      updated_at: now,
+    })
+    .select()
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }
