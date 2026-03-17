@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       email,
       password_hash,
       company,
-      role: "admin",
+      role: isSystemAdmin ? "admin" : "user",
       company_id: companyId,
       company_role: companyRole,
       user_type: isSystemAdmin ? null : "internal",
@@ -79,8 +79,9 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !newUser) {
+    console.error("Signup user insert error:", error);
     return NextResponse.json(
-      { error: "Failed to create account" },
+      { error: error?.message ?? "Failed to create account" },
       { status: 500 }
     );
   }
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
     id: newUser.id,
     email,
     username: displayName,
-    role: "admin",
+    role: isSystemAdmin ? "admin" : "user",
     company_id: companyId,
     company_role: companyRole,
     user_type: isSystemAdmin ? null : "internal",
