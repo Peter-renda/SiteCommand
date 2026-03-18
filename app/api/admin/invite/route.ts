@@ -94,6 +94,9 @@ export async function POST(req: NextRequest) {
         company_id,
         email,
         invited_by: session.id,
+        invitation_type: "internal",
+        invited_role: "member",
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       })
       .select("token")
       .single();
