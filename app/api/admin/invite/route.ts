@@ -53,6 +53,8 @@ export async function POST(req: NextRequest) {
     if (!company_id && !bodyCompanyName) {
       return NextResponse.json({ error: "Company is required" }, { status: 400 });
     }
+
+    if (!company_id && bodyCompanyName) {
       // Look up existing company by name (case-insensitive), or create it
       const { data: existing } = await supabase
         .from("companies")
