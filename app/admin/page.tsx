@@ -293,7 +293,6 @@ export default function AdminPage() {
   }
 
   async function openUserProjects(user: User) {
-    if (!user.company_id) return;
     setSelectedUser(user);
     setLoadingProjects(true);
     setProjects([]);
