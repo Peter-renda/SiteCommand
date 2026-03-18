@@ -231,6 +231,13 @@ export default function AdminPage() {
     loadProjectsWithUsers();
   }, []);
 
+  // If companies finish loading while the Add User modal is already open, auto-select the first one
+  useEffect(() => {
+    if (showAddUser && !inviteCompanyId && companies.length > 0) {
+      setInviteCompanyId(companies[0].id);
+    }
+  }, [companies, showAddUser, inviteCompanyId]);
+
   // Optimistic system-role update — reflects in the table immediately
   async function handleRoleChange(id: string, role: string) {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)));
@@ -255,9 +262,15 @@ export default function AdminPage() {
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    setInviting(true);
     setInviteError("");
     setInviteSuccess("");
+
+    if (!inviteCompanyId) {
+      setInviteError("Please select a company.");
+      return;
+    }
+
+    setInviting(true);
 
     const res = await fetch("/api/admin/invite", {
       method: "POST",
