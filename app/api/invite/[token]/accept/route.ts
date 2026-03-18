@@ -81,12 +81,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
     // Grant project access
     if (invite.project_id) {
+      const projectRole = invite.project_role ?? "external_viewer";
       await supabase.from("project_memberships").upsert(
         {
           project_id: invite.project_id,
           user_id: user.id,
           company_id: invite.company_id,
-          role: invite.project_role ?? "external_viewer",
+          role: projectRole,
+          permission: projectRole === "external_viewer" ? "read_only" : "write",
         },
         { onConflict: "project_id,user_id" }
       );
@@ -158,13 +160,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
     // Grant scoped read access to exactly the invited project
     if (invite.project_id) {
+      const projectRole = invite.project_role ?? "external_viewer";
       await supabase.from("project_memberships").insert({
         project_id: invite.project_id,
         user_id: newUser.id,
         company_id: invite.company_id,
-        role: invite.project_role ?? "external_viewer",
+        role: projectRole,
+        permission: projectRole === "external_viewer" ? "read_only" : "write",
         // allowed_sections defaults to NULL = access to all sections
-        // (can be restricted via the project members UI after the fact)
       });
     }
 
@@ -228,6 +231,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     .from("invitations")
     .update({ accepted_at: new Date().toISOString() })
     .eq("id", invite.id);
+
+  // Add to org_members so the new user appears in the normalised table
+  await supabase.from("org_members").insert({
+    user_id: newUser.id,
+    org_id: invite.company_id,
+    role: assignedRole === "admin" ? "admin" : "member",
+  });
 
   const jwtToken = await createToken({
     id: newUser.id,
