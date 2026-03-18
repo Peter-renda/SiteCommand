@@ -92,6 +92,7 @@ export default function AdminPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [savingProjects, setSavingProjects] = useState(false);
+  const [projectAccessError, setProjectAccessError] = useState("");
 
   const [myCompanyId, setMyCompanyId] = useState<string | null>(null);
 
@@ -294,6 +295,7 @@ export default function AdminPage() {
 
   async function openUserProjects(user: User) {
     setSelectedUser(user);
+    setProjectAccessError("");
     setLoadingProjects(true);
     setProjects([]);
     const res = await fetch(`/api/admin/users/${user.id}/projects`);
@@ -313,14 +315,21 @@ export default function AdminPage() {
   async function saveProjectAccess() {
     if (!selectedUser) return;
     setSavingProjects(true);
+    setProjectAccessError("");
     const projectIds = projects.filter((p) => p.hasAccess).map((p) => p.id);
-    await fetch(`/api/admin/users/${selectedUser.id}/projects`, {
+    const res = await fetch(`/api/admin/users/${selectedUser.id}/projects`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ projectIds }),
     });
     setSavingProjects(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setProjectAccessError(data.error || `Save failed (${res.status})`);
+      return;
+    }
     setSelectedUser(null);
+    loadProjectsWithUsers();
   }
 
   async function handleLessonUpload(e: React.FormEvent) {
@@ -1023,6 +1032,9 @@ export default function AdminPage() {
                     </label>
                   ))}
                 </div>
+              )}
+              {projectAccessError && (
+                <p className="text-xs text-red-600 mb-2">{projectAccessError}</p>
               )}
               <div className="flex gap-2">
                 <button
