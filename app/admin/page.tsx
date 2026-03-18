@@ -265,7 +265,7 @@ export default function AdminPage() {
     setInviteError("");
     setInviteSuccess("");
 
-    if (!inviteCompanyId) {
+    if (companies.length > 0 && !inviteCompanyId) {
       setInviteError("Please select a company.");
       return;
     }

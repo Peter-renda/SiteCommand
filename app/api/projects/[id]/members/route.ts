@@ -31,7 +31,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Failed to fetch members", detail: error.message }, { status: 500 });
   return NextResponse.json(data || []);
 }
 
