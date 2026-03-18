@@ -66,7 +66,7 @@ export async function PUT(
 
   // Insert new memberships using each project's own company_id
   if (projectIds && projectIds.length > 0) {
-    await supabase
+    const { error: insertError } = await supabase
       .from("project_memberships")
       .insert(
         projectIds.map((pid: string) => ({
@@ -77,6 +77,14 @@ export async function PUT(
           permission: "write",
         }))
       );
+
+    if (insertError) {
+      console.error("project_memberships insert error:", insertError);
+      return NextResponse.json(
+        { error: `Failed to save project memberships: ${insertError.message}` },
+        { status: 500 }
+      );
+    }
 
     await Promise.all(
       projectIds.map((pid: string) => addUserToDirectory(supabase, pid, userId))
