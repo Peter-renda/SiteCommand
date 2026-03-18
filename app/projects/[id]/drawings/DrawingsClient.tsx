@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, DragEvent } from "react";
+import { Hand } from "lucide-react";
 import ProjectNav from "@/components/ProjectNav";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -180,6 +181,548 @@ async function renderPageFromDoc(
   return canvas.toDataURL();
 }
 
+// ── Annotation types ──────────────────────────────────────────────────────────
+
+type AnnotationTool = "pen" | "rect" | "circle" | "line" | "text" | "eraser" | "select";
+
+type AnnotationStroke = {
+  id: string;
+  tool: "pen" | "rect" | "circle" | "line" | "text";
+  color: string;
+  lineWidth: number;
+  points?: { x: number; y: number }[];
+  x?: number; y?: number; w?: number; h?: number;
+  x1?: number; y1?: number; x2?: number; y2?: number;
+  text?: string; tx?: number; ty?: number;
+};
+
+type AnnotationSet = {
+  created_by: string;
+  created_by_name: string | null;
+  role: string | null;
+  annotation_data: AnnotationStroke[];
+};
+
+const ANNOTATION_COLORS = [
+  { label: "Red",    value: "#ef4444" },
+  { label: "Blue",   value: "#3b82f6" },
+  { label: "Green",  value: "#22c55e" },
+  { label: "Yellow", value: "#eab308" },
+  { label: "Black",  value: "#111827" },
+];
+
+const ROLE_COLORS: Record<string, string> = {
+  admin: "#3b82f6",
+  member: "#22c55e",
+  external_viewer: "#f97316",
+};
+
+function roleColor(role: string | null): string {
+  return ROLE_COLORS[role ?? ""] ?? "#9ca3af";
+}
+
+function genId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function findStrokeNear(strokes: AnnotationStroke[], rx: number, ry: number): string | null {
+  const THRESHOLD = 0.04;
+  for (const stroke of [...strokes].reverse()) {
+    if (stroke.tool === "text") {
+      if (Math.abs((stroke.tx ?? 0) - rx) < THRESHOLD && Math.abs((stroke.ty ?? 0) - ry) < THRESHOLD * 2) return stroke.id;
+    } else if (stroke.tool === "rect" || stroke.tool === "circle") {
+      const x0 = Math.min(stroke.x ?? 0, (stroke.x ?? 0) + (stroke.w ?? 0)) - THRESHOLD;
+      const x1 = Math.max(stroke.x ?? 0, (stroke.x ?? 0) + (stroke.w ?? 0)) + THRESHOLD;
+      const y0 = Math.min(stroke.y ?? 0, (stroke.y ?? 0) + (stroke.h ?? 0)) - THRESHOLD;
+      const y1 = Math.max(stroke.y ?? 0, (stroke.y ?? 0) + (stroke.h ?? 0)) + THRESHOLD;
+      if (rx >= x0 && rx <= x1 && ry >= y0 && ry <= y1) return stroke.id;
+    } else if (stroke.tool === "line") {
+      const x1 = stroke.x1 ?? 0, y1 = stroke.y1 ?? 0;
+      const x2 = stroke.x2 ?? 0, y2 = stroke.y2 ?? 0;
+      const dx = x2 - x1, dy = y2 - y1;
+      const lenSq = dx * dx + dy * dy;
+      const t = lenSq > 0 ? Math.max(0, Math.min(1, ((rx - x1) * dx + (ry - y1) * dy) / lenSq)) : 0;
+      const nearX = x1 + t * dx, nearY = y1 + t * dy;
+      if (Math.abs(nearX - rx) < THRESHOLD && Math.abs(nearY - ry) < THRESHOLD) return stroke.id;
+    } else if (stroke.tool === "pen" && stroke.points?.length) {
+      const hit = stroke.points.some(
+        (p) => Math.abs(p.x - rx) < THRESHOLD && Math.abs(p.y - ry) < THRESHOLD
+      );
+      if (hit) return stroke.id;
+    }
+  }
+  return null;
+}
+
+// ── Drawing PDF Viewer Modal ──────────────────────────────────────────────────
+
+function DrawingPdfViewerModal({
+  drawing,
+  onClose,
+  onEditDetails,
+  projectId,
+  userRole,
+  userName,
+}: {
+  drawing: DrawingPage;
+  onClose: () => void;
+  onEditDetails: () => void;
+  projectId: string;
+  userRole: string;
+  userName: string;
+}) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const pdfUrl = `${supabaseUrl}/storage/v1/object/public/project-drawings/${drawing.storage_path}#page=${drawing.page_number}`;
+  const name = drawingLabel(drawing);
+
+  const [loading, setLoading] = useState(true);
+
+  // ── Annotation state ──────────────────────────────────────────────────────
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [annotationsVisible, setAnnotationsVisible] = useState(true);
+  const [annotationsLoaded, setAnnotationsLoaded] = useState(false);
+  const [activeTool, setActiveTool] = useState<AnnotationTool>("pen");
+  const [activeColor, setActiveColor] = useState("#ef4444");
+  const [strokes, setStrokes] = useState<AnnotationStroke[]>([]);
+  const [allAnnotations, setAllAnnotations] = useState<AnnotationSet[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const isDrawingRef = useRef(false);
+  const currentStrokeRef = useRef<AnnotationStroke | null>(null);
+  const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
+  const selectedStrokeIdRef = useRef<string | null>(null);
+  const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
+
+  const strokesRef = useRef<AnnotationStroke[]>([]);
+  const allAnnotationsRef = useRef<AnnotationSet[]>([]);
+  const activeColorRef = useRef(activeColor);
+  useEffect(() => { activeColorRef.current = activeColor; }, [activeColor]);
+
+  // Keyboard: Esc to close
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Load annotations on mount
+  useEffect(() => {
+    if (annotationsLoaded) return;
+    async function fetchAnnotations() {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/drawings/${drawing.id}/annotations`);
+        if (!res.ok) return;
+        const data: AnnotationSet[] = await res.json();
+        allAnnotationsRef.current = data;
+        setAllAnnotations(data);
+        const myRecords = data.filter((a) => a.created_by_name === userName);
+        const myRecord = myRecords.find((a) => a.created_by !== null) ?? myRecords[0];
+        if (myRecord && Array.isArray(myRecord.annotation_data)) {
+          strokesRef.current = myRecord.annotation_data;
+          setStrokes(myRecord.annotation_data);
+        }
+      } catch (err) {
+        console.error("[DrawingAnnotations] Load error:", err);
+      } finally {
+        setAnnotationsLoaded(true);
+        requestAnimationFrame(() => redrawCanvas());
+      }
+    }
+    fetchAnnotations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotationsLoaded, drawing.id, projectId, userName]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!annotationsVisible) return;
+    function resize() {
+      const canvas = annotationCanvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      redrawCanvas();
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotationsVisible]);
+
+  function toRel(canvas: HTMLCanvasElement, clientX: number, clientY: number) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: (clientX - rect.left) / rect.width, y: (clientY - rect.top) / rect.height };
+  }
+
+  function toAbs(canvas: HTMLCanvasElement, rx: number, ry: number) {
+    return { x: rx * canvas.width, y: ry * canvas.height };
+  }
+
+  function redrawCanvas(previewStroke?: AnnotationStroke | null) {
+    const canvas = annotationCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const set of allAnnotationsRef.current) {
+      if (set.created_by_name === userName) continue;
+      renderStrokeSet(ctx, canvas.width, canvas.height, set.annotation_data, roleColor(set.role), false);
+    }
+    renderStrokeSet(ctx, canvas.width, canvas.height, strokesRef.current, activeColorRef.current, true);
+    if (previewStroke) {
+      renderStrokeSet(ctx, canvas.width, canvas.height, [previewStroke], activeColorRef.current, true);
+    }
+    const selId = selectedStrokeIdRef.current;
+    if (selId) {
+      const selStroke = strokesRef.current.find((s) => s.id === selId);
+      if (selStroke) drawSelectionBorder(ctx, canvas.width, canvas.height, selStroke);
+    }
+  }
+
+  function drawSelectionBorder(ctx: CanvasRenderingContext2D, cw: number, ch: number, stroke: AnnotationStroke) {
+    const PAD = 6;
+    ctx.save();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    if (stroke.tool === "text" && stroke.tx !== undefined && stroke.ty !== undefined) {
+      const p = toAbs(annotationCanvasRef.current!, stroke.tx, stroke.ty);
+      const fontSize = 14 * (stroke.lineWidth ?? 1);
+      const estW = (stroke.text?.length ?? 4) * fontSize * 0.6 + PAD * 2;
+      ctx.strokeRect(p.x - PAD, p.y - fontSize - PAD, estW, fontSize + PAD * 2);
+    } else if ((stroke.tool === "rect" || stroke.tool === "circle") && stroke.x !== undefined) {
+      const p = toAbs(annotationCanvasRef.current!, stroke.x, stroke.y!);
+      const w = (stroke.w ?? 0) * cw;
+      const h = (stroke.h ?? 0) * ch;
+      ctx.strokeRect(p.x - PAD * Math.sign(w || 1), p.y - PAD * Math.sign(h || 1), w + PAD * 2 * Math.sign(w || 1), h + PAD * 2 * Math.sign(h || 1));
+    } else if (stroke.tool === "line" && stroke.x1 !== undefined) {
+      const a = toAbs(annotationCanvasRef.current!, stroke.x1!, stroke.y1!);
+      const b = toAbs(annotationCanvasRef.current!, stroke.x2!, stroke.y2!);
+      ctx.strokeRect(Math.min(a.x, b.x) - PAD, Math.min(a.y, b.y) - PAD, Math.abs(b.x - a.x) + PAD * 2, Math.abs(b.y - a.y) + PAD * 2);
+    } else if (stroke.tool === "pen" && stroke.points?.length) {
+      const xs = stroke.points.map((p) => p.x * cw);
+      const ys = stroke.points.map((p) => p.y * ch);
+      ctx.strokeRect(Math.min(...xs) - PAD, Math.min(...ys) - PAD, Math.max(...xs) - Math.min(...xs) + PAD * 2, Math.max(...ys) - Math.min(...ys) + PAD * 2);
+    }
+    ctx.restore();
+  }
+
+  function renderStrokeSet(ctx: CanvasRenderingContext2D, cw: number, ch: number, strokeList: AnnotationStroke[], fallbackColor: string, useStrokeColor: boolean) {
+    for (const stroke of strokeList) {
+      const color = useStrokeColor ? stroke.color : fallbackColor;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = stroke.lineWidth ?? 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      if (stroke.tool === "pen" && stroke.points && stroke.points.length > 1) {
+        ctx.beginPath();
+        const first = toAbs(annotationCanvasRef.current!, stroke.points[0].x, stroke.points[0].y);
+        ctx.moveTo(first.x, first.y);
+        for (let i = 1; i < stroke.points.length; i++) {
+          const pt = toAbs(annotationCanvasRef.current!, stroke.points[i].x, stroke.points[i].y);
+          ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.stroke();
+      } else if (stroke.tool === "rect" && stroke.x !== undefined) {
+        const p = toAbs(annotationCanvasRef.current!, stroke.x!, stroke.y!);
+        ctx.beginPath();
+        ctx.strokeRect(p.x, p.y, stroke.w! * cw, stroke.h! * ch);
+      } else if (stroke.tool === "circle" && stroke.x !== undefined) {
+        const p = toAbs(annotationCanvasRef.current!, stroke.x!, stroke.y!);
+        const rx = (stroke.w! * cw) / 2;
+        const ry = (stroke.h! * ch) / 2;
+        ctx.beginPath();
+        ctx.ellipse(p.x + rx, p.y + ry, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (stroke.tool === "line" && stroke.x1 !== undefined) {
+        const a = toAbs(annotationCanvasRef.current!, stroke.x1!, stroke.y1!);
+        const b = toAbs(annotationCanvasRef.current!, stroke.x2!, stroke.y2!);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      } else if (stroke.tool === "text" && stroke.text && stroke.tx !== undefined) {
+        const p = toAbs(annotationCanvasRef.current!, stroke.tx!, stroke.ty!);
+        ctx.font = `${14 * (stroke.lineWidth ?? 1)}px sans-serif`;
+        ctx.fillText(stroke.text, p.x, p.y);
+      }
+    }
+  }
+
+  function startDraw(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (userRole === "external_viewer") return;
+    const canvas = annotationCanvasRef.current!;
+    const rel = toRel(canvas, e.clientX, e.clientY);
+    if (activeTool === "select") {
+      const foundId = findStrokeNear(strokesRef.current, rel.x, rel.y);
+      if (foundId) {
+        setSelectedStrokeId(foundId);
+        selectedStrokeIdRef.current = foundId;
+        const stroke = strokesRef.current.find((s) => s.id === foundId);
+        if (stroke) {
+          let anchorX = 0, anchorY = 0;
+          if (stroke.tool === "text") { anchorX = stroke.tx ?? 0; anchorY = stroke.ty ?? 0; }
+          else if (stroke.tool === "rect" || stroke.tool === "circle") { anchorX = stroke.x ?? 0; anchorY = stroke.y ?? 0; }
+          else if (stroke.tool === "line") { anchorX = stroke.x1 ?? 0; anchorY = stroke.y1 ?? 0; }
+          else if (stroke.tool === "pen" && stroke.points?.length) { anchorX = stroke.points[0].x; anchorY = stroke.points[0].y; }
+          dragOffsetRef.current = { dx: rel.x - anchorX, dy: rel.y - anchorY };
+        }
+        isDrawingRef.current = true;
+        redrawCanvas();
+      } else {
+        setSelectedStrokeId(null);
+        selectedStrokeIdRef.current = null;
+        dragOffsetRef.current = null;
+        redrawCanvas();
+      }
+      return;
+    }
+    if (activeTool === "eraser") { eraseAt(rel.x, rel.y); isDrawingRef.current = true; return; }
+    if (activeTool === "text") {
+      const text = window.prompt("Enter annotation text:");
+      if (!text) return;
+      const newStroke: AnnotationStroke = { id: genId(), tool: "text", color: activeColor, lineWidth: 2, text, tx: rel.x, ty: rel.y };
+      strokesRef.current = [...strokesRef.current, newStroke];
+      setStrokes(strokesRef.current);
+      redrawCanvas();
+      return;
+    }
+    isDrawingRef.current = true;
+    if (activeTool === "pen") {
+      currentStrokeRef.current = { id: genId(), tool: "pen", color: activeColor, lineWidth: 2, points: [{ x: rel.x, y: rel.y }] };
+    } else if (activeTool === "rect" || activeTool === "circle") {
+      currentStrokeRef.current = { id: genId(), tool: activeTool, color: activeColor, lineWidth: 2, x: rel.x, y: rel.y, w: 0, h: 0 };
+    } else if (activeTool === "line") {
+      currentStrokeRef.current = { id: genId(), tool: "line", color: activeColor, lineWidth: 2, x1: rel.x, y1: rel.y, x2: rel.x, y2: rel.y };
+    }
+  }
+
+  function draw(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!isDrawingRef.current) return;
+    const canvas = annotationCanvasRef.current!;
+    const rel = toRel(canvas, e.clientX, e.clientY);
+    const movingId = selectedStrokeIdRef.current;
+    if (activeTool === "select" && movingId && dragOffsetRef.current) {
+      const { dx, dy } = dragOffsetRef.current;
+      const nx = rel.x - dx, ny = rel.y - dy;
+      strokesRef.current = strokesRef.current.map((s) => {
+        if (s.id !== movingId) return s;
+        if (s.tool === "text") return { ...s, tx: nx, ty: ny };
+        if (s.tool === "rect" || s.tool === "circle") return { ...s, x: nx, y: ny };
+        if (s.tool === "line") { const odx = (s.x2 ?? 0) - (s.x1 ?? 0), ody = (s.y2 ?? 0) - (s.y1 ?? 0); return { ...s, x1: nx, y1: ny, x2: nx + odx, y2: ny + ody }; }
+        if (s.tool === "pen" && s.points?.length) { const ox = s.points[0].x, oy = s.points[0].y; return { ...s, points: s.points.map((p) => ({ x: p.x + (nx - ox), y: p.y + (ny - oy) })) }; }
+        return s;
+      });
+      redrawCanvas();
+      return;
+    }
+    if (!currentStrokeRef.current) return;
+    if (activeTool === "eraser") { eraseAt(rel.x, rel.y); return; }
+    const stroke = currentStrokeRef.current;
+    if (stroke.tool === "pen") { stroke.points = [...(stroke.points ?? []), { x: rel.x, y: rel.y }]; }
+    else if (stroke.tool === "rect" || stroke.tool === "circle") { stroke.w = rel.x - (stroke.x ?? 0); stroke.h = rel.y - (stroke.y ?? 0); }
+    else if (stroke.tool === "line") { stroke.x2 = rel.x; stroke.y2 = rel.y; }
+    redrawCanvas(currentStrokeRef.current);
+  }
+
+  function endDraw() {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    if (activeTool === "select") { dragOffsetRef.current = null; setStrokes([...strokesRef.current]); redrawCanvas(); return; }
+    if (activeTool === "eraser") return;
+    if (currentStrokeRef.current) {
+      const finished = { ...currentStrokeRef.current };
+      currentStrokeRef.current = null;
+      strokesRef.current = [...strokesRef.current, finished];
+      redrawCanvas();
+      setStrokes(strokesRef.current);
+    }
+  }
+
+  function eraseAt(rx: number, ry: number) {
+    const THRESHOLD = 0.02;
+    strokesRef.current = strokesRef.current.filter((stroke) => {
+      if (stroke.tool === "pen" && stroke.points) return !stroke.points.some((p) => Math.abs(p.x - rx) < THRESHOLD && Math.abs(p.y - ry) < THRESHOLD);
+      if (stroke.tool === "rect" || stroke.tool === "circle") { const cx = (stroke.x ?? 0) + (stroke.w ?? 0) / 2, cy = (stroke.y ?? 0) + (stroke.h ?? 0) / 2; return Math.abs(cx - rx) > THRESHOLD * 2 || Math.abs(cy - ry) > THRESHOLD * 2; }
+      if (stroke.tool === "line") { const cx = ((stroke.x1 ?? 0) + (stroke.x2 ?? 0)) / 2, cy = ((stroke.y1 ?? 0) + (stroke.y2 ?? 0)) / 2; return Math.abs(cx - rx) > THRESHOLD * 2 || Math.abs(cy - ry) > THRESHOLD * 2; }
+      if (stroke.tool === "text") return Math.abs((stroke.tx ?? 0) - rx) > THRESHOLD * 2 || Math.abs((stroke.ty ?? 0) - ry) > THRESHOLD * 2;
+      return true;
+    });
+    redrawCanvas();
+    setStrokes(strokesRef.current);
+  }
+
+  async function saveAnnotations() {
+    setSaving(true);
+    setSaveError(null);
+    const toSave = strokesRef.current;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/drawings/${drawing.id}/annotations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ annotation_data: toSave }),
+      });
+      if (res.ok) {
+        setSaveMsg("Saved ✓");
+        setTimeout(() => setSaveMsg(null), 3000);
+        const updated = allAnnotationsRef.current.some((a) => a.created_by_name === userName)
+          ? allAnnotationsRef.current.map((a) => a.created_by_name === userName ? { ...a, annotation_data: toSave } : a)
+          : [...allAnnotationsRef.current, { created_by: "", created_by_name: userName, role: userRole, annotation_data: toSave }];
+        allAnnotationsRef.current = updated;
+        setAllAnnotations(updated);
+      } else {
+        const errBody = await res.json().catch(() => ({}));
+        const msg = errBody?.error ? String(errBody.error) : `HTTP ${res.status}`;
+        setSaveError(msg);
+        setSaveMsg("Failed");
+        setTimeout(() => setSaveMsg(null), 3000);
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Network error");
+      setSaveMsg("Failed");
+      setTimeout(() => setSaveMsg(null), 3000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const canAnnotate = userRole !== "external_viewer";
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-950">
+      {saveError && (
+        <div className="flex items-center justify-between px-4 py-2 bg-red-700 text-white text-sm shrink-0">
+          <span><strong>Save failed:</strong> {saveError}</span>
+          <button onClick={() => setSaveError(null)} className="ml-4 text-white/80 hover:text-white font-bold">✕</button>
+        </div>
+      )}
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-900 shrink-0 gap-4 flex-wrap">
+        {/* Drawing name */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="text-sm font-medium text-white truncate">{name}</span>
+        </div>
+
+        {/* Annotation controls */}
+        {annotationMode && (
+          <div className="flex items-center gap-1 flex-wrap shrink-0">
+            {canAnnotate ? (
+              <>
+                {(["select", "pen", "rect", "circle", "line", "text", "eraser"] as AnnotationTool[]).map((tool) => {
+                  const titles: Record<AnnotationTool, string> = { select: "Select Tool", pen: "Pen", rect: "Rectangle", circle: "Circle", line: "Line", text: "Text", eraser: "Eraser" };
+                  const labelContent: Record<AnnotationTool, React.ReactNode> = { select: <Hand className="w-4 h-4" />, pen: <span>✏️</span>, rect: <span>□</span>, circle: <span>○</span>, line: <span>/</span>, text: <span>T</span>, eraser: <span>⌫</span> };
+                  return (
+                    <button key={tool} onClick={() => setActiveTool(tool)} title={titles[tool]}
+                      className={`px-2 py-1 text-sm rounded transition-colors flex items-center justify-center ${activeTool === tool ? "bg-gray-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}>
+                      {labelContent[tool]}
+                    </button>
+                  );
+                })}
+                <div className="w-px h-5 bg-gray-700 mx-1" />
+                {ANNOTATION_COLORS.map((c) => (
+                  <button key={c.value} title={c.label} onClick={() => setActiveColor(c.value)}
+                    className={`w-5 h-5 rounded-full border-2 transition-colors ${activeColor === c.value ? "border-white scale-110" : "border-transparent"}`}
+                    style={{ backgroundColor: c.value }} />
+                ))}
+                <div className="w-px h-5 bg-gray-700 mx-1" />
+                <button onClick={saveAnnotations} disabled={saving}
+                  className={`px-2.5 py-1 text-xs font-medium rounded transition-colors disabled:opacity-50 ${saveMsg === "Failed" ? "bg-red-600 hover:bg-red-700 text-white" : saveMsg ? "bg-green-600 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
+                  {saving ? "Saving…" : saveMsg ?? "Save"}
+                </button>
+                <button onClick={() => { if (window.confirm("Clear all your annotations? This cannot be undone.")) { strokesRef.current = []; setStrokes([]); redrawCanvas(); } }}
+                  className="px-2.5 py-1 text-xs font-medium text-gray-400 border border-gray-600 rounded hover:bg-gray-700 transition-colors">
+                  Clear Mine
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-gray-400 px-2 py-1 border border-gray-700 rounded">View Only</span>
+            )}
+          </div>
+        )}
+
+        {/* Right actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={onEditDetails} title="Edit drawing details"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-300 border border-gray-600 rounded-md hover:bg-gray-700 transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit Details
+          </button>
+          <button onClick={() => setAnnotationsVisible((v) => !v)} title={annotationsVisible ? "Hide annotations" : "Show annotations"}
+            className="p-1.5 text-gray-400 hover:text-white rounded transition-colors">
+            {annotationsVisible ? (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+              </svg>
+            )}
+          </button>
+          <button onClick={() => setAnnotationMode((m) => !m)} title="Toggle Annotations"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors ${annotationMode ? "bg-yellow-500 border-yellow-400 text-gray-900" : "text-gray-300 border-gray-600 hover:bg-gray-700"}`}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            Annotate
+          </button>
+          <a href={pdfUrl} target="_blank" rel="noopener noreferrer" download={name}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-300 border border-gray-600 rounded-md hover:bg-gray-700 transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download
+          </a>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white rounded transition-colors" title="Close (Esc)">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* PDF iframe with annotation canvas overlay */}
+      <div ref={containerRef} className="relative flex-1">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-950 z-10">
+            <svg className="w-8 h-8 text-gray-500 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+        )}
+        <iframe src={pdfUrl} className="w-full h-full border-0" onLoad={() => setLoading(false)} title={name} />
+        {annotationsVisible && (
+          <canvas
+            ref={annotationCanvasRef}
+            className="absolute inset-0 w-full h-full"
+            style={{
+              cursor: annotationMode ? (activeTool === "eraser" ? "cell" : activeTool === "select" ? (selectedStrokeId ? "grabbing" : "grab") : canAnnotate ? "crosshair" : "default") : "default",
+              zIndex: 10,
+              pointerEvents: annotationMode && canAnnotate ? "auto" : "none",
+            }}
+            onMouseDown={annotationMode ? startDraw : undefined}
+            onMouseMove={annotationMode ? draw : undefined}
+            onMouseUp={annotationMode ? endDraw : undefined}
+            onMouseLeave={annotationMode ? endDraw : undefined}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function DrawingsClient({
@@ -194,6 +737,7 @@ export default function DrawingsClient({
   const [drawings, setDrawings] = useState<DrawingPage[]>([]);
   const [uploads, setUploads] = useState<DrawingUpload[]>([]);
   const [selected, setSelected] = useState<DrawingPage | null>(null);
+  const [viewingDrawing, setViewingDrawing] = useState<DrawingPage | null>(null);
   const [activeView, setActiveView] = useState<"grid" | "table">("grid");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -552,6 +1096,18 @@ export default function DrawingsClient({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* PDF Viewer Modal */}
+      {viewingDrawing && (
+        <DrawingPdfViewerModal
+          drawing={viewingDrawing}
+          onClose={() => setViewingDrawing(null)}
+          onEditDetails={() => { setSelected(viewingDrawing); setViewingDrawing(null); }}
+          projectId={projectId}
+          userRole={role}
+          userName={username}
+        />
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between shrink-0">
         <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
@@ -707,10 +1263,8 @@ export default function DrawingsClient({
                 {filteredDrawings.map((d) => (
                   <button
                     key={d.id}
-                    onClick={() => setSelected(d)}
-                    className={`group relative aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden border-2 transition-all text-left focus:outline-none ${
-                      selected?.id === d.id ? "border-blue-500" : "border-transparent hover:border-blue-300"
-                    }`}
+                    onClick={() => setViewingDrawing(d)}
+                    className="group relative aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden border-2 border-transparent hover:border-blue-300 transition-all text-left focus:outline-none"
                   >
                     <Thumb drawing={d} />
                     {/* Overlay */}
@@ -727,6 +1281,16 @@ export default function DrawingsClient({
                         </span>
                       )}
                     </div>
+                    {/* Edit icon */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelected(d); }}
+                      title="Edit details"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 bg-black/50 rounded text-white hover:bg-black/70 transition-all"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
                   </button>
                 ))}
               </div>
@@ -742,16 +1306,15 @@ export default function DrawingsClient({
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Drawing Date</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Received Date</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Source</th>
+                      <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody>
                     {filteredDrawings.map((d) => (
                       <tr
                         key={d.id}
-                        onClick={() => setSelected(d)}
-                        className={`border-b border-gray-50 cursor-pointer transition-colors ${
-                          selected?.id === d.id ? "bg-blue-50" : "hover:bg-gray-50"
-                        }`}
+                        onClick={() => setViewingDrawing(d)}
+                        className="border-b border-gray-50 cursor-pointer transition-colors hover:bg-gray-50"
                       >
                         <td className="px-4 py-3 font-medium text-gray-900">{d.drawing_no ?? <span className="text-gray-300">—</span>}</td>
                         <td className="px-4 py-3 text-gray-700">{d.title ?? <span className="text-gray-300">Page {d.page_number}</span>}</td>
@@ -767,6 +1330,17 @@ export default function DrawingsClient({
                         <td className="px-4 py-3 text-gray-600">{d.drawing_date ? formatDate(d.drawing_date) : <span className="text-gray-300">—</span>}</td>
                         <td className="px-4 py-3 text-gray-600">{d.received_date ? formatDate(d.received_date) : <span className="text-gray-300">—</span>}</td>
                         <td className="px-4 py-3 text-gray-400 text-xs truncate max-w-[160px]">{d.filename}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setSelected(d); }}
+                            title="Edit details"
+                            className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
