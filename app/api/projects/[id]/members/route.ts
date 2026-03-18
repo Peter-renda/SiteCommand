@@ -20,19 +20,26 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!role) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const supabase = getSupabase();
-  const { data, error } = await supabase
+
+  const { data: memberships, error } = await supabase
     .from("project_memberships")
-    .select(`
-      id,
-      role,
-      created_at,
-      users ( id, username, first_name, last_name, email, company_id, user_type )
-    `)
+    .select("id, role, created_at, user_id")
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: "Failed to fetch members", detail: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+  if (!memberships?.length) return NextResponse.json([]);
+
+  const userIds = memberships.map((m) => m.user_id).filter(Boolean);
+  const { data: users } = await supabase
+    .from("users")
+    .select("id, username, first_name, last_name, email, company_id, user_type")
+    .in("id", userIds);
+
+  const usersById = Object.fromEntries((users || []).map((u) => [u.id, u]));
+  const data = memberships.map((m) => ({ ...m, users: usersById[m.user_id] ?? null }));
+
+  return NextResponse.json(data);
 }
 
 /**
