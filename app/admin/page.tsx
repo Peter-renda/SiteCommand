@@ -265,17 +265,14 @@ export default function AdminPage() {
     setInviteError("");
     setInviteSuccess("");
 
-    if (companies.length > 0 && !inviteCompanyId) {
-      setInviteError("Please select a company.");
-      return;
-    }
+    const resolvedCompanyId = inviteCompanyId || companies[0]?.id || "";
 
     setInviting(true);
 
     const res = await fetch("/api/admin/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail, company_id: inviteCompanyId }),
+      body: JSON.stringify({ email: inviteEmail, company_id: resolvedCompanyId }),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -691,7 +688,6 @@ export default function AdminPage() {
                   onChange={(e) => setInviteCompanyId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
                 >
-                  <option value="">Select company…</option>
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
