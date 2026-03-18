@@ -19,8 +19,11 @@ export async function GET() {
     return NextResponse.json(data || []);
   }
 
-  // Internal company user: every project owned by their company
-  if (session.company_id) {
+  // Org-level admins see all projects under their company
+  const isOrgAdmin =
+    session.company_role === "super_admin" || session.company_role === "admin";
+
+  if (session.company_id && isOrgAdmin) {
     const { data } = await supabase
       .from("projects")
       .select("*")
@@ -29,8 +32,7 @@ export async function GET() {
     return NextResponse.json(data || []);
   }
 
-  // External collaborator (no company): only projects they were explicitly
-  // invited to via project_memberships
+  // Standard members and external collaborators: only projects explicitly assigned
   const { data: memberships } = await supabase
     .from("project_memberships")
     .select("project_id")
