@@ -34,13 +34,25 @@ export async function POST(req: NextRequest) {
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
-    if (!bodyCompanyName && !bodyCompanyId && !session.company_id) {
-      return NextResponse.json({ error: "Company name is required" }, { status: 400 });
-    }
 
     const supabase = getSupabase();
 
     let company_id: string = bodyCompanyId || session.company_id || "";
+
+    // JWT company_id may be stale (issued before the field existed).
+    // If still empty, fetch the admin's current company_id from the DB.
+    if (!company_id && !bodyCompanyName) {
+      const { data: adminUser } = await supabase
+        .from("users")
+        .select("company_id")
+        .eq("id", session.id)
+        .single();
+      company_id = adminUser?.company_id ?? "";
+    }
+
+    if (!company_id && !bodyCompanyName) {
+      return NextResponse.json({ error: "Company is required" }, { status: 400 });
+    }
 
     if (!company_id && bodyCompanyName) {
       // Look up existing company by name (case-insensitive), or create it
