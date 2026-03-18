@@ -15,20 +15,10 @@ export async function GET(
   const { userId } = await params;
   const supabase = getSupabase();
 
-  const { data: user } = await supabase
-    .from("users")
-    .select("company_id")
-    .eq("id", userId)
-    .single();
-
-  if (!user?.company_id) {
-    return NextResponse.json({ projects: [] });
-  }
-
+  // Fetch ALL projects (system admin can assign any project to any user)
   const { data: projects } = await supabase
     .from("projects")
     .select("id, name, status")
-    .eq("company_id", user.company_id)
     .order("created_at", { ascending: false });
 
   const { data: memberships } = await supabase
@@ -59,33 +49,22 @@ export async function PUT(
   const { projectIds } = await req.json();
   const supabase = getSupabase();
 
-  const { data: user } = await supabase
-    .from("users")
-    .select("company_id")
-    .eq("id", userId)
-    .single();
-
-  if (!user?.company_id) {
-    return NextResponse.json({ error: "User has no company" }, { status: 400 });
-  }
-
-  const { data: companyProjects } = await supabase
+  // Fetch all projects so we can look up each project's company_id
+  const { data: allProjects } = await supabase
     .from("projects")
-    .select("id")
-    .eq("company_id", user.company_id);
+    .select("id, company_id");
 
-  const companyProjectIds = (companyProjects || []).map((p: { id: string }) => p.id);
+  const projectCompanyMap = Object.fromEntries(
+    (allProjects || []).map((p: { id: string; company_id: string | null }) => [p.id, p.company_id])
+  );
 
-  // Clear existing memberships for company projects
-  if (companyProjectIds.length > 0) {
-    await supabase
-      .from("project_memberships")
-      .delete()
-      .eq("user_id", userId)
-      .in("project_id", companyProjectIds);
-  }
+  // Clear ALL existing project memberships for this user (full replacement)
+  await supabase
+    .from("project_memberships")
+    .delete()
+    .eq("user_id", userId);
 
-  // Insert new memberships and sync to directory
+  // Insert new memberships using each project's own company_id
   if (projectIds && projectIds.length > 0) {
     await supabase
       .from("project_memberships")
@@ -93,8 +72,9 @@ export async function PUT(
         projectIds.map((pid: string) => ({
           project_id: pid,
           user_id: userId,
-          company_id: user.company_id,
+          company_id: projectCompanyMap[pid] ?? null,
           role: "member",
+          permission: "write",
         }))
       );
 
