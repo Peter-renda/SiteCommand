@@ -52,7 +52,10 @@ export async function POST(req: NextRequest) {
   const session = await getSession();
   // External collaborators (no company) may never create projects.
   // Only system admins and internal company admins can.
-  const canCreate = session?.role === "admin" || session?.company_role === "admin";
+  const canCreate =
+    session?.role === "admin" ||
+    session?.company_role === "admin" ||
+    session?.company_role === "super_admin";
   if (!session || !canCreate || (!session.company_id && session.role !== "admin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -98,6 +101,7 @@ export async function POST(req: NextRequest) {
         user_id: uid,
         company_id: companyId,
         role: "member",
+        permission: "write",
         invited_by: session.id,
       }))
     );

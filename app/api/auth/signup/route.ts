@@ -86,12 +86,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Record the billing owner on the company record
+  // Record the billing owner on the company record and create the
+  // normalised org_members entry for this super_admin.
   if (companyId) {
     await supabase
       .from("companies")
       .update({ billing_owner_id: newUser.id })
       .eq("id", companyId);
+
+    await supabase.from("org_members").insert({
+      user_id: newUser.id,
+      org_id: companyId,
+      role: "super_admin",
+    });
   }
 
   const token = await createToken({
