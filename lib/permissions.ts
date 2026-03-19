@@ -1,6 +1,22 @@
 import { getSupabase } from "@/lib/supabase";
+import { isCompanyAdmin } from "@/lib/project-access";
 
 export type ProjectPermission = "write" | "read_only";
+
+/**
+ * Resolves a membership row's effective permission.
+ * Prefers the explicit `permission` column; falls back to deriving it from
+ * the legacy `role` column for rows created before migration 047.
+ */
+export function resolvePermission(row: {
+  permission?: string | null;
+  role?: string | null;
+}): ProjectPermission {
+  return (
+    (row.permission as ProjectPermission | null) ??
+    (row.role === "external_viewer" ? "read_only" : "write")
+  );
+}
 
 export type ProjectAccessResult = {
   granted: true;
@@ -70,8 +86,8 @@ export async function checkProjectAccess(
   }
 
   // 3. Org-level admins bypass all project-level checks → always write
-  if (orgRole === "super_admin" || orgRole === "admin") {
-    return { granted: true, permission: "write", orgRole };
+  if (isCompanyAdmin(orgRole)) {
+    return { granted: true, permission: "write", orgRole: orgRole! };
   }
 
   // 4. Standard member → check their explicit project-level permission
@@ -86,11 +102,5 @@ export async function checkProjectAccess(
     throw new Error("Access Denied: You have not been added to this project.");
   }
 
-  // Prefer the explicit permission column; fall back to legacy role for rows
-  // created before migration 047 added the permission column.
-  const permission: ProjectPermission =
-    (membership.permission as ProjectPermission | null) ??
-    (membership.role === "external_viewer" ? "read_only" : "write");
-
-  return { granted: true, permission, orgRole: orgRole! };
+  return { granted: true, permission: resolvePermission(membership), orgRole: orgRole! };
 }
