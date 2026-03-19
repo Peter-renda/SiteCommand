@@ -84,14 +84,6 @@ async function ensurePdfJs() {
   pdfJsLoaded = true;
 }
 
-async function countPages(file: File): Promise<number> {
-  await ensurePdfJs();
-  const { getDocument } = await import("pdfjs-dist");
-  const buf = await file.arrayBuffer();
-  const pdf = await getDocument({ data: buf }).promise;
-  return pdf.numPages;
-}
-
 // ── Title-block text extraction ───────────────────────────────────────────────
 
 type ExtractedMeta = {
@@ -881,21 +873,10 @@ export default function DrawingsClient({
     }
 
     setUploading(true);
-    setUploadStatus("Detecting pages…");
-
-    let pageCount = 1;
-    try {
-      pageCount = await countPages(file);
-    } catch (err) {
-      console.error("PDF page count failed:", err);
-      alert(`Warning: Could not detect page count (${err instanceof Error ? err.message : "PDF.js error"}). Upload will proceed as 1 page — please re-upload if this is a multi-page PDF.`);
-    }
-
-    setUploadStatus(`Uploading ${pageCount} page${pageCount !== 1 ? "s" : ""}…`);
+    setUploadStatus("Uploading…");
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("pageCount", String(pageCount));
 
     const res = await fetch(`/api/projects/${projectId}/drawings`, {
       method: "POST",
@@ -907,7 +888,9 @@ export default function DrawingsClient({
 
     if (res.ok) {
       const data = await res.json();
-      // Prepend new drawings and upload
+      const pageCount: number = (data.drawings ?? []).length;
+      setUploadStatus(`Added ${pageCount} page${pageCount !== 1 ? "s" : ""}`);
+      setTimeout(() => setUploadStatus(""), 3000);
       const newDrawings = (data.drawings ?? []).map((d: DrawingPage) => ({
         ...d,
         storage_path: data.upload.storage_path,
