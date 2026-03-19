@@ -70,6 +70,15 @@ let pdfJsLoaded = false;
 
 async function ensurePdfJs() {
   if (pdfJsLoaded) return;
+  // pdfjs-dist v5 uses Promise.withResolvers internally (ES2024); polyfill for older browsers
+  if (typeof (Promise as { withResolvers?: unknown }).withResolvers !== "function") {
+    (Promise as { withResolvers?: unknown }).withResolvers = function <T>() {
+      let resolve!: (value: T | PromiseLike<T>) => void;
+      let reject!: (reason?: unknown) => void;
+      const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+      return { promise, resolve, reject };
+    };
+  }
   const { GlobalWorkerOptions } = await import("pdfjs-dist");
   GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
   pdfJsLoaded = true;
