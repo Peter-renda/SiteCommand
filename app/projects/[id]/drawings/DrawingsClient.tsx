@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, DragEvent } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, DragEvent } from "react";
 import { Hand } from "lucide-react";
 import ProjectNav from "@/components/ProjectNav";
 
@@ -48,6 +48,20 @@ function drawingLabel(d: DrawingPage) {
     return `${d.drawing_no ?? ""}${d.drawing_no && d.title ? " — " : ""}${d.title ?? ""}`.trim();
   }
   return `Page ${d.page_number} of ${d.filename}`;
+}
+
+function inferDiscipline(drawingNo: string | null): string {
+  if (!drawingNo) return "General";
+  const m = drawingNo.match(/^([A-Za-z]+)[-\d]/);
+  if (!m) return "General";
+  const prefix = m[1].toUpperCase();
+  const map: Record<string, string> = {
+    A: "Architectural", C: "Civil", E: "Electrical",
+    M: "Mechanical", P: "Plumbing", S: "Structural",
+    L: "Landscape", G: "General", T: "Telecommunications",
+    FP: "Fire Protection",
+  };
+  return map[prefix] ?? "General";
 }
 
 // ── PDF.js lazy loader ────────────────────────────────────────────────────────
@@ -738,7 +752,12 @@ export default function DrawingsClient({
   const [uploads, setUploads] = useState<DrawingUpload[]>([]);
   const [selected, setSelected] = useState<DrawingPage | null>(null);
   const [viewingDrawing, setViewingDrawing] = useState<DrawingPage | null>(null);
-  const [activeView, setActiveView] = useState<"grid" | "table">("grid");
+  const [activeView, setActiveView] = useState<"grid" | "table">("table");
+  const [activeTab, setActiveTab] = useState<"current" | "sets" | "recycle">("current");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [disciplineFilter, setDisciplineFilter] = useState("");
+  const [setFilter, setSetFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>("");
@@ -998,15 +1017,33 @@ export default function DrawingsClient({
   // ── Filter ───────────────────────────────────────────────────────────────────
 
   const filteredDrawings = drawings.filter((d) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      (d.drawing_no ?? "").toLowerCase().includes(q) ||
-      (d.title ?? "").toLowerCase().includes(q) ||
-      (d.revision ?? "").toLowerCase().includes(q) ||
-      d.filename.toLowerCase().includes(q)
-    );
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (
+        !(d.drawing_no ?? "").toLowerCase().includes(q) &&
+        !(d.title ?? "").toLowerCase().includes(q) &&
+        !(d.revision ?? "").toLowerCase().includes(q) &&
+        !d.filename.toLowerCase().includes(q)
+      ) return false;
+    }
+    if (disciplineFilter && inferDiscipline(d.drawing_no) !== disciplineFilter) return false;
+    if (setFilter && d.upload_id !== setFilter) return false;
+    return true;
   });
+
+  const disciplineGroups = useMemo(() => {
+    const map = new Map<string, DrawingPage[]>();
+    for (const d of filteredDrawings) {
+      const disc = inferDiscipline(d.drawing_no);
+      const group = map.get(disc) ?? [];
+      group.push(d);
+      map.set(disc, group);
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([discipline, drawings]) => ({ discipline, drawings }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawings, searchQuery, disciplineFilter, setFilter]);
 
   // ── Thumbnail helper ─────────────────────────────────────────────────────────
 
@@ -1108,12 +1145,47 @@ export default function DrawingsClient({
         />
       )}
 
-      {/* Header */}
+      {/* Global header */}
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between shrink-0">
         <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
           SiteCommand
         </a>
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-2">
+          {uploading && (
+            <span className="text-xs text-blue-600 flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              {uploadStatus}
+            </span>
+          )}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="px-4 py-1.5 bg-orange-500 text-white text-sm font-medium rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50"
+          >
+            Upload
+          </button>
+          <button className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-200 text-gray-600 rounded-md hover:bg-gray-50 transition-colors">
+            Reports
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <button className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-200 text-gray-600 rounded-md hover:bg-gray-50 transition-colors">
+            View Locations
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <button className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-200 text-gray-600 rounded-md hover:bg-gray-50 transition-colors">
+            Export
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div className="w-px h-5 bg-gray-200 mx-1" />
           {role === "admin" && (
             <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">Admin</a>
           )}
@@ -1121,133 +1193,110 @@ export default function DrawingsClient({
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button>
         </div>
       </header>
+      <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFileInput} />
 
       <ProjectNav projectId={projectId} />
 
+      {/* Page title */}
+      <div className="bg-white border-b border-gray-100 px-6 py-3 shrink-0">
+        <h1 className="text-lg font-semibold text-gray-900">Drawings</h1>
+        <p className="text-sm text-gray-500">View, manage, and upload all of your drawings from the Drawings log.</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-100 px-6 shrink-0">
+        <nav className="flex">
+          {(["current", "sets", "recycle"] as const).map((tab) => {
+            const labels = { current: "Current Drawings", sets: "Drawing Sets", recycle: "Recycle Bin" };
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  activeTab === tab
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {labels[tab]}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Filter bar */}
+      <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-3 shrink-0">
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+          />
+        </div>
+        <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          Filters
+        </button>
+        <select
+          value={disciplineFilter}
+          onChange={(e) => setDisciplineFilter(e.target.value)}
+          className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Discipline</option>
+          {[...new Set(drawings.map((d) => inferDiscipline(d.drawing_no)))].sort().map((disc) => (
+            <option key={disc} value={disc}>{disc}</option>
+          ))}
+        </select>
+        <select
+          value={setFilter}
+          onChange={(e) => setSetFilter(e.target.value)}
+          className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Set</option>
+          {uploads.map((u) => (
+            <option key={u.id} value={u.id}>{u.filename}</option>
+          ))}
+        </select>
+        <div className="flex-1" />
+        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setActiveView("table")}
+            title="List view"
+            className={`p-2 transition-colors ${activeView === "table" ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"}`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setActiveView("grid")}
+            title="Grid view"
+            className={`p-2 transition-colors ${activeView === "grid" ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"}`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Main content area */}
       <div
         className="flex flex-1 overflow-hidden"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        {/* Main content */}
         <div className={`flex-1 flex flex-col overflow-hidden ${isDragging ? "ring-2 ring-blue-400 ring-inset" : ""}`}>
-          {/* Toolbar */}
-          <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between shrink-0 flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              {/* Upload PDF button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {uploading ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                    </svg>
-                    {uploadStatus || "Uploading…"}
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    Upload PDF
-                  </>
-                )}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={handleFileInput}
-              />
-
-              {/* Search */}
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search drawings…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
-                />
-              </div>
-
-              {/* Uploads panel */}
-              <div ref={uploadsPanelRef} className="relative">
-                <button
-                  onClick={() => setShowUploadsPanel((v) => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg transition-colors ${
-                    showUploadsPanel ? "bg-gray-100 border-gray-300 text-gray-900" : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                  Uploads ({uploads.length})
-                </button>
-                {showUploadsPanel && (
-                  <div className="absolute left-0 top-full mt-1 w-72 bg-white border border-gray-100 rounded-xl shadow-xl z-30 p-2">
-                    {uploads.length === 0 ? (
-                      <p className="text-sm text-gray-400 px-3 py-2">No uploads</p>
-                    ) : (
-                      <ul className="space-y-0.5">
-                        {uploads.map((u) => (
-                          <li key={u.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 group">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-800 truncate">{u.filename}</p>
-                              <p className="text-xs text-gray-400">{u.page_count} page{u.page_count !== 1 ? "s" : ""} · {formatDate(u.uploaded_at)}</p>
-                            </div>
-                            <button
-                              onClick={() => deleteUpload(u.id)}
-                              className="opacity-0 group-hover:opacity-100 ml-2 p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
-                              title="Delete this upload"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* View toggle */}
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setActiveView("grid")}
-                title="Grid view"
-                className={`p-1.5 rounded-md transition-colors ${activeView === "grid" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setActiveView("table")}
-                title="Table view"
-                className={`p-1.5 rounded-md transition-colors ${activeView === "table" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center h-48 text-gray-400 text-sm">Loading…</div>
             ) : filteredDrawings.length === 0 ? (
@@ -1259,7 +1308,7 @@ export default function DrawingsClient({
               </div>
             ) : activeView === "grid" ? (
               // ── Grid ──
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filteredDrawings.map((d) => (
                   <button
                     key={d.id}
@@ -1267,21 +1316,13 @@ export default function DrawingsClient({
                     className="group relative aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden border-2 border-transparent hover:border-blue-300 transition-all text-left focus:outline-none"
                   >
                     <Thumb drawing={d} />
-                    {/* Overlay */}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent px-3 py-2">
-                      {d.drawing_no && (
-                        <p className="text-white text-xs font-bold truncate">{d.drawing_no}</p>
-                      )}
-                      <p className="text-white/80 text-xs truncate">
-                        {d.title ?? `Page ${d.page_number} of ${d.filename}`}
-                      </p>
+                      {d.drawing_no && <p className="text-white text-xs font-bold truncate">{d.drawing_no}</p>}
+                      <p className="text-white/80 text-xs truncate">{d.title ?? `Page ${d.page_number} of ${d.filename}`}</p>
                       {d.revision && (
-                        <span className="inline-block mt-1 px-1.5 py-0.5 bg-white/20 rounded text-white text-[10px] font-medium">
-                          Rev {d.revision}
-                        </span>
+                        <span className="inline-block mt-1 px-1.5 py-0.5 bg-white/20 rounded text-white text-[10px] font-medium">Rev {d.revision}</span>
                       )}
                     </div>
-                    {/* Edit icon */}
                     <button
                       onClick={(e) => { e.stopPropagation(); setSelected(d); }}
                       title="Edit details"
@@ -1295,53 +1336,114 @@ export default function DrawingsClient({
                 ))}
               </div>
             ) : (
-              // ── Table ──
-              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <table className="w-full text-sm">
+              // ── Table (discipline-grouped) ──
+              <div className="bg-white">
+                <table className="w-full text-sm border-collapse">
                   <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Drawing No.</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Title</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Revision</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Drawing Date</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Received Date</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Source</th>
-                      <th className="px-4 py-3" />
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="w-10 px-3 py-3" />
+                      <th className="w-8 px-2 py-3">
+                        <input type="checkbox" className="rounded border-gray-300" />
+                      </th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-600 w-36">Drawing No.</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-600">Drawing Title</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-600 w-36">Revision</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-600 w-36">Drawing Date</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-600 w-36">Received Date</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-600 w-44">Set</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-600 w-28">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDrawings.map((d) => (
-                      <tr
-                        key={d.id}
-                        onClick={() => setViewingDrawing(d)}
-                        className="border-b border-gray-50 cursor-pointer transition-colors hover:bg-gray-50"
-                      >
-                        <td className="px-4 py-3 font-medium text-gray-900">{d.drawing_no ?? <span className="text-gray-300">—</span>}</td>
-                        <td className="px-4 py-3 text-gray-700">{d.title ?? <span className="text-gray-300">Page {d.page_number}</span>}</td>
-                        <td className="px-4 py-3">
-                          {d.revision ? (
-                            <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700">
-                              Rev {d.revision}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">{d.drawing_date ? formatDate(d.drawing_date) : <span className="text-gray-300">—</span>}</td>
-                        <td className="px-4 py-3 text-gray-600">{d.received_date ? formatDate(d.received_date) : <span className="text-gray-300">—</span>}</td>
-                        <td className="px-4 py-3 text-gray-400 text-xs truncate max-w-[160px]">{d.filename}</td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setSelected(d); }}
-                            title="Edit details"
-                            className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                        </td>
-                      </tr>
+                    {disciplineGroups.map(({ discipline, drawings: groupDrawings }) => (
+                      <>
+                        {/* Group header row */}
+                        <tr key={`group-${discipline}`} className="bg-blue-50 border-b border-gray-200">
+                          <td className="px-3 py-2.5 text-center">
+                            <button
+                              onClick={() => setCollapsedGroups((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(discipline)) next.delete(discipline);
+                                else next.add(discipline);
+                                return next;
+                              })}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              {collapsedGroups.has(discipline) ? (
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                              ) : (
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                              )}
+                            </button>
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <input type="checkbox" className="rounded border-gray-300" />
+                          </td>
+                          <td colSpan={7} className="px-3 py-2.5 text-sm font-semibold text-gray-700">
+                            {discipline} ({groupDrawings.length})
+                          </td>
+                        </tr>
+                        {/* Data rows */}
+                        {!collapsedGroups.has(discipline) && groupDrawings.map((d) => (
+                          <tr key={d.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td className="px-3 py-3" />
+                            <td className="px-2 py-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(d.id)}
+                                onChange={(e) => setSelectedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(d.id); else next.delete(d.id);
+                                  return next;
+                                })}
+                                className="rounded border-gray-300"
+                              />
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setSelected(d); }}
+                                  title="Edit details"
+                                  className="text-gray-400 hover:text-gray-600 shrink-0"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => setViewingDrawing(d)}
+                                  className="text-blue-600 hover:text-blue-800 font-medium hover:underline text-xs"
+                                >
+                                  {d.drawing_no ?? `P.${d.page_number}`}
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-gray-700 text-xs">{d.title ?? <span className="text-gray-400">—</span>}</td>
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-700 text-xs">{d.revision ?? "0"}</span>
+                                <button className="px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">See All</button>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-gray-600 text-xs">{d.drawing_date ? formatDate(d.drawing_date) : <span className="text-gray-400">—</span>}</td>
+                            <td className="px-3 py-3 text-gray-600 text-xs">{d.received_date ? formatDate(d.received_date) : <span className="text-gray-400">—</span>}</td>
+                            <td className="px-3 py-3">
+                              <button onClick={() => setViewingDrawing(d)} className="text-blue-600 hover:underline text-xs truncate max-w-[150px] block">
+                                {d.filename}
+                              </button>
+                            </td>
+                            <td className="px-3 py-3">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">
+                                Published
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </>
                     ))}
                   </tbody>
                 </table>
@@ -1353,7 +1455,6 @@ export default function DrawingsClient({
         {/* Detail panel */}
         {selected && (
           <div className="w-80 shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-hidden">
-            {/* Panel header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <h3 className="text-sm font-semibold text-gray-800 truncate pr-2">
                 {selected.drawing_no ?? `Page ${selected.page_number}`}
@@ -1369,12 +1470,10 @@ export default function DrawingsClient({
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Thumbnail */}
               <div className="w-full">
                 <Thumb drawing={selected} size="panel" />
               </div>
 
-              {/* Source info */}
               <div className="text-xs text-gray-500 space-y-0.5">
                 <p className="font-medium text-gray-700 truncate">{selected.filename} — page {selected.page_number}</p>
                 <p>Uploaded by {selected.uploaded_by_name} · {formatDate(selected.uploaded_at)}</p>
@@ -1407,66 +1506,33 @@ export default function DrawingsClient({
               </div>
 
               <div className="space-y-3">
-                {/* Drawing No. */}
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Drawing No.</label>
-                  <input
-                    type="text"
-                    value={editNo}
-                    onChange={(e) => setEditNo(e.target.value)}
-                    placeholder="e.g. A-101"
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <input type="text" value={editNo} onChange={(e) => setEditNo(e.target.value)} placeholder="e.g. A-101"
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-
-                {/* Title */}
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="e.g. Floor Plan"
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="e.g. Floor Plan"
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-
-                {/* Revision */}
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Revision</label>
-                  <input
-                    type="text"
-                    value={editRevision}
-                    onChange={(e) => setEditRevision(e.target.value)}
-                    placeholder="e.g. 2"
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <input type="text" value={editRevision} onChange={(e) => setEditRevision(e.target.value)} placeholder="e.g. 2"
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-
-                {/* Drawing Date */}
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Drawing Date</label>
-                  <input
-                    type="date"
-                    value={editDrawingDate}
-                    onChange={(e) => setEditDrawingDate(e.target.value)}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <input type="date" value={editDrawingDate} onChange={(e) => setEditDrawingDate(e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-
-                {/* Received Date */}
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Received Date</label>
-                  <input
-                    type="date"
-                    value={editReceivedDate}
-                    onChange={(e) => setEditReceivedDate(e.target.value)}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <input type="date" value={editReceivedDate} onChange={(e) => setEditReceivedDate(e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="space-y-2 pt-1">
                 <button
                   onClick={saveDetail}
@@ -1478,24 +1544,15 @@ export default function DrawingsClient({
 
                 {deleteConfirm ? (
                   <div className="flex gap-2">
-                    <button
-                      onClick={deleteDrawing}
-                      className="flex-1 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
-                    >
+                    <button onClick={deleteDrawing} className="flex-1 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors">
                       Confirm Delete
                     </button>
-                    <button
-                      onClick={() => setDeleteConfirm(false)}
-                      className="flex-1 py-2 border border-gray-200 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
+                    <button onClick={() => setDeleteConfirm(false)} className="flex-1 py-2 border border-gray-200 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
                       Cancel
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setDeleteConfirm(true)}
-                    className="w-full py-2 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors"
-                  >
+                  <button onClick={() => setDeleteConfirm(true)} className="w-full py-2 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors">
                     Delete Drawing
                   </button>
                 )}
