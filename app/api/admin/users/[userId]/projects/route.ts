@@ -49,15 +49,6 @@ export async function PUT(
   const { projectIds } = await req.json();
   const supabase = getSupabase();
 
-  // Fetch all projects so we can look up each project's company_id
-  const { data: allProjects } = await supabase
-    .from("projects")
-    .select("id, company_id");
-
-  const projectCompanyMap = Object.fromEntries(
-    (allProjects || []).map((p: { id: string; company_id: string | null }) => [p.id, p.company_id])
-  );
-
   // Clear ALL existing project memberships for this user (full replacement)
   await supabase
     .from("project_memberships")
@@ -66,6 +57,16 @@ export async function PUT(
 
   // Insert new memberships using each project's own company_id
   if (projectIds && projectIds.length > 0) {
+    // Fetch only the projects being assigned to resolve their company_id
+    const { data: assignedProjects } = await supabase
+      .from("projects")
+      .select("id, company_id")
+      .in("id", projectIds);
+
+    const projectCompanyMap = Object.fromEntries(
+      (assignedProjects || []).map((p: { id: string; company_id: string | null }) => [p.id, p.company_id])
+    );
+
     const { error: insertError } = await supabase
       .from("project_memberships")
       .insert(
