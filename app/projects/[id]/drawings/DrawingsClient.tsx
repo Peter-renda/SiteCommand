@@ -877,8 +877,9 @@ export default function DrawingsClient({
     let pageCount = 1;
     try {
       pageCount = await countPages(file);
-    } catch {
-      // fallback to 1
+    } catch (err) {
+      console.error("PDF page count failed:", err);
+      alert(`Warning: Could not detect page count (${err instanceof Error ? err.message : "PDF.js error"}). Upload will proceed as 1 page — please re-upload if this is a multi-page PDF.`);
     }
 
     setUploadStatus(`Uploading ${pageCount} page${pageCount !== 1 ? "s" : ""}…`);
