@@ -18,6 +18,9 @@ import Pricing from "./views/Pricing";
 import Reporting from "./views/Reporting";
 import Insights from "./views/Insights";
 import Budget from "./views/Budget";
+import PrimeContracts from "./views/PrimeContracts";
+import CreatePrimeContract from "./views/CreatePrimeContract";
+import ChangeOrders from "./views/ChangeOrders";
 export default function App() {
   return (
     <Router>
@@ -41,6 +44,9 @@ export default function App() {
         <Route path="/projects/:id/reporting" element={<Reporting />} />
         <Route path="/projects/:id/insights" element={<Insights />} />
         <Route path="/projects/:id/budget" element={<Budget />} />
+        <Route path="/projects/:id/prime-contracts" element={<PrimeContracts />} />
+        <Route path="/projects/:id/prime-contracts/new" element={<CreatePrimeContract />} />
+        <Route path="/projects/:id/change-orders" element={<ChangeOrders />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
