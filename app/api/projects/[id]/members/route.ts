@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { data: memberships, error } = await supabase
     .from("project_memberships")
-    .select("id, role, created_at, user_id")
+    .select("id, role, permission, created_at, user_id")
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
 
@@ -59,13 +59,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Only project admins may manage members" }, { status: 403 });
   }
 
-  const { userId, role = "member" } = await req.json();
+  const { userId, role = "member", permission = "write" } = await req.json();
   if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
 
   // Prevent elevating external viewers via this endpoint
   const allowedRoles = ["project_admin", "member"];
   if (!allowedRoles.includes(role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+  }
+
+  if (!["write", "read_only"].includes(permission)) {
+    return NextResponse.json({ error: "permission must be 'write' or 'read_only'" }, { status: 400 });
   }
 
   const supabase = getSupabase();
@@ -94,7 +98,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { error } = await supabase
     .from("project_memberships")
     .upsert(
-      { project_id: projectId, user_id: userId, company_id: project.company_id, role, invited_by: session.id },
+      { project_id: projectId, user_id: userId, company_id: project.company_id, role, permission, invited_by: session.id },
       { onConflict: "project_id,user_id" }
     );
 

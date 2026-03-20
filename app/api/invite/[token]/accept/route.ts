@@ -236,8 +236,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   await supabase.from("org_members").insert({
     user_id: newUser.id,
     org_id: invite.company_id,
-    role: assignedRole === "admin" ? "admin" : "member",
+    role: ["super_admin", "admin"].includes(assignedRole) ? assignedRole : "member",
   });
+
+  // If the invitation was scoped to a specific project, add the user to it.
+  // Admins bypass project-level checks, so only members need an explicit row.
+  if (invite.project_id && assignedRole === "member") {
+    await supabase.from("project_memberships").upsert(
+      {
+        project_id: invite.project_id,
+        user_id: newUser.id,
+        company_id: invite.company_id,
+        role: "member",
+        permission: "write",
+        invited_by: null,
+      },
+      { onConflict: "project_id,user_id" }
+    );
+  }
 
   const jwtToken = await createToken({
     id: newUser.id,
