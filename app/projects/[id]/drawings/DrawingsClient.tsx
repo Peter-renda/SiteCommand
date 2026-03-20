@@ -1168,6 +1168,25 @@ export default function DrawingsClient({
           SiteCommand
         </a>
         <div className="flex items-center gap-2">
+          <div className="w-px h-5 bg-gray-200 mx-1" />
+          {role === "admin" && (
+            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">Admin</a>
+          )}
+          <span className="text-sm text-gray-400">{username}</span>
+          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button>
+        </div>
+      </header>
+      <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFileInput} />
+
+      <ProjectNav projectId={projectId} />
+
+      {/* Page title */}
+      <div className="bg-white border-b border-gray-100 px-6 py-3 shrink-0 flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900">Drawings</h1>
+          <p className="text-sm text-gray-500">View, manage, and upload all of your drawings from the Drawings log.</p>
+        </div>
+        <div className="flex items-center gap-2">
           {uploading && (
             <span className="text-xs text-blue-600 flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1202,22 +1221,7 @@ export default function DrawingsClient({
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          <div className="w-px h-5 bg-gray-200 mx-1" />
-          {role === "admin" && (
-            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">Admin</a>
-          )}
-          <span className="text-sm text-gray-400">{username}</span>
-          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button>
         </div>
-      </header>
-      <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFileInput} />
-
-      <ProjectNav projectId={projectId} />
-
-      {/* Page title */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3 shrink-0">
-        <h1 className="text-lg font-semibold text-gray-900">Drawings</h1>
-        <p className="text-sm text-gray-500">View, manage, and upload all of your drawings from the Drawings log.</p>
       </div>
 
       {/* Tabs */}
