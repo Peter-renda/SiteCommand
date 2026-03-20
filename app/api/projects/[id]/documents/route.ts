@@ -12,17 +12,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const allFolders = sp.get("all_folders") === "true";
   const supabase = getSupabase();
 
-  const isExternal = session.user_type === "external";
-
   if (allFolders) {
-    let foldersQuery = supabase
+    const { data } = await supabase
       .from("documents")
       .select("id, name, parent_id")
       .eq("project_id", projectId)
       .eq("type", "folder")
+      .or(`is_private.eq.false,created_by.eq.${session.id}`)
       .order("name");
-    if (isExternal) foldersQuery = foldersQuery.eq("is_private", false);
-    const { data } = await foldersQuery;
     return NextResponse.json(data || []);
   }
 
@@ -30,10 +27,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .from("documents")
     .select("*, creator:users!created_by(first_name, last_name)")
     .eq("project_id", projectId)
+    .or(`is_private.eq.false,created_by.eq.${session.id}`)
     .order("type", { ascending: false })
     .order("name", { ascending: true });
-
-  if (isExternal) query = query.eq("is_private", false);
 
   if (parentId) {
     query = query.eq("parent_id", parentId);
