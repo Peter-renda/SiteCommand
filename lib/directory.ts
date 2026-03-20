@@ -11,7 +11,7 @@ export async function addUserToDirectory(
 ) {
   const { data: user } = await supabase
     .from("users")
-    .select("first_name, last_name, email")
+    .select("first_name, last_name, email, company_id")
     .eq("id", userId)
     .single();
 
@@ -27,6 +27,16 @@ export async function addUserToDirectory(
 
   if (existing) return;
 
+  let companyName: string | null = null;
+  if (user.company_id) {
+    const { data: company } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", user.company_id)
+      .single();
+    companyName = company?.name ?? null;
+  }
+
   await supabase.from("directory_contacts").insert({
     project_id: projectId,
     type: "user",
@@ -34,5 +44,6 @@ export async function addUserToDirectory(
     last_name: user.last_name || null,
     email: user.email,
     permission: "Company Employee",
+    company: companyName,
   });
 }
