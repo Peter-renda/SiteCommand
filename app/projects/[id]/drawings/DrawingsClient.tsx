@@ -72,13 +72,19 @@ let pdfJsLoaded = false;
 
 async function ensurePdfJs() {
   if (pdfJsLoaded) return;
-  // pdfjs-dist v5 uses Promise.withResolvers internally (ES2024); polyfill for older browsers
+  // pdfjs-dist v5 uses Promise.withResolvers (ES2024) — polyfill for Chrome < 119
   if (typeof (Promise as { withResolvers?: unknown }).withResolvers !== "function") {
     (Promise as { withResolvers?: unknown }).withResolvers = function <T>() {
       let resolve!: (value: T | PromiseLike<T>) => void;
       let reject!: (reason?: unknown) => void;
       const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
       return { promise, resolve, reject };
+    };
+  }
+  // pdfjs-dist v5 uses URL.parse (Chrome 120+) — polyfill for older browsers
+  if (typeof URL.parse !== "function") {
+    (URL as unknown as { parse: (url: string, base?: string) => URL | null }).parse = (url, base) => {
+      try { return new URL(url, base); } catch { return null; }
     };
   }
   const { GlobalWorkerOptions } = await import("pdfjs-dist");
@@ -893,13 +899,8 @@ export default function DrawingsClient({
       const pageCount: number = (data.drawings ?? []).length;
       setUploadStatus(`Added ${pageCount} page${pageCount !== 1 ? "s" : ""}`);
       setTimeout(() => setUploadStatus(""), 3000);
-      const newDrawings = (data.drawings ?? []).map((d: DrawingPage) => ({
-        ...d,
-        storage_path: data.upload.storage_path,
-        filename: data.upload.filename,
-        uploaded_by_name: data.upload.uploaded_by_name,
-        uploaded_at: data.upload.uploaded_at,
-      }));
+      // drawings already contain per-page storage_path and viewer_page from the API
+      const newDrawings = (data.drawings ?? []) as DrawingPage[];
       setDrawings((prev) => [...newDrawings, ...prev]);
       setUploads((prev) => [data.upload, ...prev]);
     } else {
