@@ -112,20 +112,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Always add the company super admin to the new project's directory
+  // Always add the company super admin(s) and site-level admins to the new project's directory
   const projectCompanyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
+
+  const autoAddIds = new Set<string>();
+
   if (projectCompanyId) {
     const { data: superAdmins } = await supabase
       .from("users")
       .select("id")
       .eq("company_id", projectCompanyId)
       .eq("company_role", "super_admin");
+    (superAdmins ?? []).forEach((u: { id: string }) => autoAddIds.add(u.id));
+  }
 
-    if (superAdmins?.length) {
-      await Promise.all(
-        superAdmins.map((u: { id: string }) => addUserToDirectory(supabase, project.id, u.id))
-      );
-    }
+  // Site-level admins (e.g. the SiteCommand account owner) belong to every directory
+  const { data: siteAdmins } = await supabase
+    .from("users")
+    .select("id")
+    .eq("role", "admin");
+  (siteAdmins ?? []).forEach((u: { id: string }) => autoAddIds.add(u.id));
+
+  if (autoAddIds.size > 0) {
+    await Promise.all(
+      [...autoAddIds].map((uid) => addUserToDirectory(supabase, project.id, uid))
+    );
   }
 
   const companyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
