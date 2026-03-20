@@ -72,13 +72,19 @@ let pdfJsLoaded = false;
 
 async function ensurePdfJs() {
   if (pdfJsLoaded) return;
-  // pdfjs-dist v5 uses Promise.withResolvers internally (ES2024); polyfill for older browsers
+  // pdfjs-dist v5 uses Promise.withResolvers (ES2024) — polyfill for Chrome < 119
   if (typeof (Promise as { withResolvers?: unknown }).withResolvers !== "function") {
     (Promise as { withResolvers?: unknown }).withResolvers = function <T>() {
       let resolve!: (value: T | PromiseLike<T>) => void;
       let reject!: (reason?: unknown) => void;
       const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
       return { promise, resolve, reject };
+    };
+  }
+  // pdfjs-dist v5 uses URL.parse (Chrome 120+) — polyfill for older browsers
+  if (typeof URL.parse !== "function") {
+    (URL as unknown as { parse: (url: string, base?: string) => URL | null }).parse = (url, base) => {
+      try { return new URL(url, base); } catch { return null; }
     };
   }
   const { GlobalWorkerOptions } = await import("pdfjs-dist");
@@ -875,36 +881,52 @@ export default function DrawingsClient({
     }
 
     setUploading(true);
-    setUploadStatus("Uploading…");
+    try {
+      // Step 1: get a signed upload URL (no file data sent to Vercel)
+      setUploadStatus("Preparing…");
+      const urlRes = await fetch(
+        `/api/projects/${projectId}/drawings/upload-url?filename=${encodeURIComponent(file.name)}`
+      );
+      if (!urlRes.ok) {
+        const err = await urlRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Could not get upload URL");
+      }
+      const { signedUrl, storagePath } = await urlRes.json();
 
-    const formData = new FormData();
-    formData.append("file", file);
+      // Step 2: upload directly to Supabase Storage (bypasses Vercel's 4.5 MB limit)
+      setUploadStatus("Uploading…");
+      const putRes = await fetch(signedUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": "application/pdf" },
+      });
+      if (!putRes.ok) throw new Error(`Storage upload failed (${putRes.status})`);
 
-    const res = await fetch(`/api/projects/${projectId}/drawings`, {
-      method: "POST",
-      body: formData,
-    });
+      // Step 3: tell the API to split the pages and create drawing rows
+      setUploadStatus("Processing pages…");
+      const processRes = await fetch(`/api/projects/${projectId}/drawings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storagePath, filename: file.name }),
+      });
 
-    setUploading(false);
-    setUploadStatus("");
+      if (!processRes.ok) {
+        const err = await processRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Processing failed");
+      }
 
-    if (res.ok) {
-      const data = await res.json();
+      const data = await processRes.json();
       const pageCount: number = (data.drawings ?? []).length;
       setUploadStatus(`Added ${pageCount} page${pageCount !== 1 ? "s" : ""}`);
       setTimeout(() => setUploadStatus(""), 3000);
-      const newDrawings = (data.drawings ?? []).map((d: DrawingPage) => ({
-        ...d,
-        storage_path: data.upload.storage_path,
-        filename: data.upload.filename,
-        uploaded_by_name: data.upload.uploaded_by_name,
-        uploaded_at: data.upload.uploaded_at,
-      }));
+      const newDrawings = (data.drawings ?? []) as DrawingPage[];
       setDrawings((prev) => [...newDrawings, ...prev]);
       setUploads((prev) => [data.upload, ...prev]);
-    } else {
-      const err = await res.json();
-      alert(err.error ?? "Upload failed");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload failed");
+      setUploadStatus("");
+    } finally {
+      setUploading(false);
     }
   }
 

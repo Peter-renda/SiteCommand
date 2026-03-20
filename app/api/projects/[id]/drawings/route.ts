@@ -65,15 +65,27 @@ export async function POST(
   const { id: projectId } = await params;
   const supabase = getSupabase();
 
-  const formData = await req.formData();
-  const file = formData.get("file") as File | null;
+  // Accept JSON: the client already uploaded the file directly to Supabase
+  // using a signed URL (bypassing Vercel's 4.5 MB body limit).
+  const { storagePath, filename } = await req.json() as { storagePath: string; filename: string };
 
-  if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  if (!file.name.toLowerCase().endsWith(".pdf")) {
+  if (!storagePath || !filename) {
+    return NextResponse.json({ error: "storagePath and filename are required" }, { status: 400 });
+  }
+  if (!filename.toLowerCase().endsWith(".pdf")) {
     return NextResponse.json({ error: "Only PDF files are accepted" }, { status: 400 });
   }
 
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  // Download the file from Supabase Storage (internal — no Vercel body limit)
+  const { data: fileBlob, error: downloadError } = await supabase.storage
+    .from("project-drawings")
+    .download(storagePath);
+
+  if (downloadError || !fileBlob) {
+    return NextResponse.json({ error: downloadError?.message ?? "Download failed" }, { status: 500 });
+  }
+
+  const fileBuffer = Buffer.from(await fileBlob.arrayBuffer());
 
   // Load the PDF and count pages
   let srcPdf: PDFDocument;
@@ -85,17 +97,18 @@ export async function POST(
   }
 
   const pageCount = srcPdf.getPageCount();
-  const timestamp = Date.now();
-  const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
   const baseName = safeFilename.replace(/\.pdf$/i, "");
+  // Derive timestamp from the storagePath the client already uploaded to
+  const timestamp = storagePath.split("/")[1]?.split("-")[0] ?? String(Date.now());
 
   // Create one drawing_uploads row to represent the original file
   const { data: uploadRow, error: insertUploadError } = await supabase
     .from("drawing_uploads")
     .insert({
       project_id: projectId,
-      storage_path: `${projectId}/${timestamp}-${safeFilename}`, // original (not stored separately)
-      filename: file.name,
+      storage_path: storagePath,
+      filename,
       page_count: pageCount,
       uploaded_by_name: session.username,
     })
