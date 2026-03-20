@@ -43,18 +43,18 @@ export async function DELETE(
   const { drawingId } = await params;
   const supabase = getSupabase();
 
-  // Get the drawing to find its upload_id
+  // Get the drawing to find its upload_id and per-page storage path
   const { data: drawing, error: fetchError } = await supabase
     .from("project_drawings")
-    .select("upload_id")
+    .select("upload_id, storage_path")
     .eq("id", drawingId)
     .single();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
 
-  const uploadId = drawing.upload_id;
+  const { upload_id: uploadId, storage_path: pageStoragePath } = drawing;
 
-  // Delete the drawing page
+  // Delete the drawing page row
   const { error: deleteError } = await supabase
     .from("project_drawings")
     .delete()
@@ -62,21 +62,25 @@ export async function DELETE(
 
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
-  // Check if this was the last page for the upload
+  // Remove the per-page PDF from storage (if it has its own file)
+  if (pageStoragePath) {
+    await supabase.storage.from("project-drawings").remove([pageStoragePath]);
+  }
+
+  // If this was the last page, clean up the upload record too
   const { count } = await supabase
     .from("project_drawings")
     .select("id", { count: "exact", head: true })
     .eq("upload_id", uploadId);
 
   if (count === 0) {
-    // Get storage path and delete upload + file
     const { data: upload } = await supabase
       .from("drawing_uploads")
       .select("storage_path")
       .eq("id", uploadId)
       .single();
 
-    if (upload) {
+    if (upload?.storage_path) {
       await supabase.storage.from("project-drawings").remove([upload.storage_path]);
     }
 

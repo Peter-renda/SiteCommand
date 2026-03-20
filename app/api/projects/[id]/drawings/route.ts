@@ -1,24 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { PDFDocument } from "pdf-lib";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
-
-// Count PDF pages by scanning the binary for the Pages tree /Count entry.
-// This runs server-side in Node.js — no web worker or browser API needed.
-function countPdfPages(buf: Buffer): number {
-  const text = buf.toString("latin1");
-  // The root Pages dictionary has the highest /Count value
-  const rx = /\/Count\s+(\d+)/g;
-  let m: RegExpExecArray | null;
-  let max = 0;
-  while ((m = rx.exec(text)) !== null) {
-    const n = parseInt(m[1], 10);
-    if (n > max) max = n;
-  }
-  if (max > 0) return max;
-  // Fallback: count /Type /Page objects (excludes /Pages parent nodes)
-  const pages = text.match(/\/Type\s*\/Page[^s]/g);
-  return pages ? pages.length : 1;
-}
 
 export async function GET(
   _req: NextRequest,
@@ -50,14 +33,19 @@ export async function GET(
   if (drawingsRes.error) return NextResponse.json({ error: drawingsRes.error.message }, { status: 500 });
   if (uploadsRes.error) return NextResponse.json({ error: uploadsRes.error.message }, { status: 500 });
 
-  // Flatten joined fields
   const drawings = (drawingsRes.data ?? []).map((d: Record<string, unknown>) => {
     const upload = d.drawing_uploads as Record<string, unknown>;
     const { drawing_uploads: _, ...rest } = d;
     void _;
+    // Per-page storage_path (new) takes priority; fall back to upload's shared PDF (legacy)
+    const storagePath = (rest.storage_path as string | null) ?? (upload.storage_path as string);
+    // viewer_page: extracted pages are single-page PDFs (always page 1);
+    // legacy rows reference a multi-page PDF and need the real page number.
+    const viewerPage = (rest.storage_path as string | null) ? 1 : (rest.page_number as number);
     return {
       ...rest,
-      storage_path: upload.storage_path,
+      storage_path: storagePath,
+      viewer_page: viewerPage,
       filename: upload.filename,
       uploaded_by_name: upload.uploaded_by_name,
       uploaded_at: upload.uploaded_at,
@@ -85,25 +73,28 @@ export async function POST(
     return NextResponse.json({ error: "Only PDF files are accepted" }, { status: 400 });
   }
 
-  // Read file buffer once — used for both page counting and storage upload
   const fileBuffer = Buffer.from(await file.arrayBuffer());
-  const pageCount = countPdfPages(fileBuffer);
 
+  // Load the PDF and count pages
+  let srcPdf: PDFDocument;
+  try {
+    srcPdf = await PDFDocument.load(fileBuffer);
+  } catch (err) {
+    console.error("pdf-lib failed to load PDF:", err);
+    return NextResponse.json({ error: "Could not parse PDF file." }, { status: 400 });
+  }
+
+  const pageCount = srcPdf.getPageCount();
   const timestamp = Date.now();
   const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const storagePath = `${projectId}/${timestamp}-${safeFilename}`;
+  const baseName = safeFilename.replace(/\.pdf$/i, "");
 
-  const { error: uploadError } = await supabase.storage
-    .from("project-drawings")
-    .upload(storagePath, fileBuffer, { contentType: "application/pdf", upsert: false });
-
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
-
+  // Create one drawing_uploads row to represent the original file
   const { data: uploadRow, error: insertUploadError } = await supabase
     .from("drawing_uploads")
     .insert({
       project_id: projectId,
-      storage_path: storagePath,
+      storage_path: `${projectId}/${timestamp}-${safeFilename}`, // original (not stored separately)
       filename: file.name,
       page_count: pageCount,
       uploaded_by_name: session.username,
@@ -113,18 +104,63 @@ export async function POST(
 
   if (insertUploadError) return NextResponse.json({ error: insertUploadError.message }, { status: 500 });
 
-  const drawingRows = Array.from({ length: pageCount }, (_, i) => ({
-    project_id: projectId,
-    upload_id: uploadRow.id,
-    page_number: i + 1,
-  }));
+  // Extract each page into its own PDF, upload, and create a drawing row
+  const drawingRows: Record<string, unknown>[] = [];
 
-  const { data: drawings, error: insertDrawingsError } = await supabase
-    .from("project_drawings")
-    .insert(drawingRows)
-    .select();
+  for (let i = 0; i < pageCount; i++) {
+    try {
+      // Build a single-page PDF for page i
+      const pagePdf = await PDFDocument.create();
+      const [copiedPage] = await pagePdf.copyPages(srcPdf, [i]);
+      pagePdf.addPage(copiedPage);
+      const pageBytes = await pagePdf.save();
 
-  if (insertDrawingsError) return NextResponse.json({ error: insertDrawingsError.message }, { status: 500 });
+      // Upload to storage: e.g. projectId/1234567-Drawings-p1.pdf
+      const pagePath = `${projectId}/${timestamp}-${baseName}-p${i + 1}.pdf`;
+      const { error: storageError } = await supabase.storage
+        .from("project-drawings")
+        .upload(pagePath, pageBytes, { contentType: "application/pdf", upsert: false });
 
-  return NextResponse.json({ upload: uploadRow, drawings: drawings ?? [] });
+      if (storageError) {
+        console.error(`Storage upload failed for page ${i + 1}:`, storageError.message);
+        continue; // skip this page rather than failing the whole upload
+      }
+
+      // Insert project_drawings row with its own storage_path
+      const { data: drawing, error: drawingError } = await supabase
+        .from("project_drawings")
+        .insert({
+          project_id: projectId,
+          upload_id: uploadRow.id,
+          page_number: i + 1,
+          storage_path: pagePath,
+        })
+        .select()
+        .single();
+
+      if (drawingError) {
+        console.error(`DB insert failed for page ${i + 1}:`, drawingError.message);
+        continue;
+      }
+
+      drawingRows.push({
+        ...drawing,
+        storage_path: pagePath,
+        viewer_page: 1,
+        filename: file.name,
+        uploaded_by_name: session.username,
+        uploaded_at: uploadRow.uploaded_at,
+      });
+    } catch (err) {
+      console.error(`Failed to extract page ${i + 1}:`, err);
+    }
+  }
+
+  // Update page_count to reflect how many were actually saved
+  await supabase
+    .from("drawing_uploads")
+    .update({ page_count: drawingRows.length })
+    .eq("id", uploadRow.id);
+
+  return NextResponse.json({ upload: uploadRow, drawings: drawingRows });
 }

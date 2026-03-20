@@ -12,16 +12,19 @@ export async function DELETE(
   const { uploadId } = await params;
   const supabase = getSupabase();
 
-  // Get storage path before deleting
-  const { data: upload, error: fetchError } = await supabase
+  // Collect all per-page storage paths before deleting rows
+  const { data: pages } = await supabase
+    .from("project_drawings")
+    .select("storage_path")
+    .eq("upload_id", uploadId);
+
+  const { data: upload } = await supabase
     .from("drawing_uploads")
     .select("storage_path")
     .eq("id", uploadId)
     .single();
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
-
-  // Delete upload row (cascade deletes drawing pages)
+  // Delete upload row (cascade deletes drawing rows)
   const { error: deleteError } = await supabase
     .from("drawing_uploads")
     .delete()
@@ -29,9 +32,16 @@ export async function DELETE(
 
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
-  // Delete storage file
-  if (upload?.storage_path) {
-    await supabase.storage.from("project-drawings").remove([upload.storage_path]);
+  // Remove all per-page PDFs from storage
+  const pathsToRemove: string[] = [];
+  for (const page of pages ?? []) {
+    if (page.storage_path) pathsToRemove.push(page.storage_path);
+  }
+  // Also remove the upload's own storage path (original PDF reference)
+  if (upload?.storage_path) pathsToRemove.push(upload.storage_path);
+
+  if (pathsToRemove.length > 0) {
+    await supabase.storage.from("project-drawings").remove(pathsToRemove);
   }
 
   return NextResponse.json({ ok: true });

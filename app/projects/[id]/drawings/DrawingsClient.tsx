@@ -25,8 +25,10 @@ type DrawingPage = {
   drawing_date: string | null;
   received_date: string | null;
   updated_at: string;
-  // joined from drawing_uploads
+  // resolved by API: per-page extracted PDF path (new) or shared upload path (legacy)
   storage_path: string;
+  // which page of storage_path to show: 1 for extracted pages, page_number for legacy
+  viewer_page: number;
   filename: string;
   uploaded_by_name: string;
   uploaded_at: string;
@@ -287,7 +289,7 @@ function DrawingPdfViewerModal({
   userName: string;
 }) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const pdfUrl = `${supabaseUrl}/storage/v1/object/public/project-drawings/${drawing.storage_path}#page=${drawing.page_number}`;
+  const pdfUrl = `${supabaseUrl}/storage/v1/object/public/project-drawings/${drawing.storage_path}#page=${drawing.viewer_page}`;
   const name = drawingLabel(drawing);
 
   const [loading, setLoading] = useState(true);
