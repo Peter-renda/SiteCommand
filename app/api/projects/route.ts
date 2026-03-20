@@ -112,6 +112,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Always add the company super admin to the new project's directory
+  const projectCompanyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
+  if (projectCompanyId) {
+    const { data: superAdmins } = await supabase
+      .from("users")
+      .select("id")
+      .eq("company_id", projectCompanyId)
+      .eq("company_role", "super_admin");
+
+    if (superAdmins?.length) {
+      await Promise.all(
+        superAdmins.map((u: { id: string }) => addUserToDirectory(supabase, project.id, u.id))
+      );
+    }
+  }
+
   const companyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
   if (companyId) {
     dispatchWebhookEvent(companyId, "project.created", {
