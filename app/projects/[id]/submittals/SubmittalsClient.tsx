@@ -45,22 +45,42 @@ type Submittal = {
 
 
 const SUBMITTAL_TYPES = ["Shop Drawing", "Product Data", "Sample", "O&M Manual", "Warranty", "Certificate", "Other"];
-const STATUSES = ["draft", "pending_review", "approved", "rejected", "revise_and_resubmit", "closed"];
+const STATUSES = [
+  "closed", "draft", "open", "approved", "approved_as_noted", "for_the_record",
+  "make_corrections", "no_exceptions_taken", "not_reviewed", "note_markings",
+  "rejected", "resubmitted", "revise_and_resubmit", "revise_and_resubmit_2",
+];
 const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  pending_review: "Pending Review",
-  approved: "Approved",
-  rejected: "Rejected",
-  revise_and_resubmit: "Revise & Resubmit",
   closed: "Closed",
+  draft: "Draft",
+  open: "Open",
+  approved: "Approved",
+  approved_as_noted: "Approved as noted",
+  for_the_record: "For the Record",
+  make_corrections: "Make corrections",
+  no_exceptions_taken: "No exceptions taken",
+  not_reviewed: "Not Reviewed/No Action Taken",
+  note_markings: "Note Markings",
+  rejected: "Rejected",
+  resubmitted: "Resubmitted",
+  revise_and_resubmit: "Revise & Resubmit",
+  revise_and_resubmit_2: "Revise and Resubmit",
 };
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-amber-50 text-amber-700",
-  pending_review: "bg-blue-50 text-blue-700",
-  approved: "bg-green-50 text-green-700",
-  rejected: "bg-red-50 text-red-700",
-  revise_and_resubmit: "bg-orange-50 text-orange-700",
   closed: "bg-gray-100 text-gray-600",
+  draft: "bg-amber-50 text-amber-700",
+  open: "bg-blue-50 text-blue-700",
+  approved: "bg-green-50 text-green-700",
+  approved_as_noted: "bg-green-50 text-green-700",
+  for_the_record: "bg-gray-50 text-gray-600",
+  make_corrections: "bg-orange-50 text-orange-700",
+  no_exceptions_taken: "bg-green-50 text-green-700",
+  not_reviewed: "bg-gray-50 text-gray-500",
+  note_markings: "bg-yellow-50 text-yellow-700",
+  rejected: "bg-red-50 text-red-700",
+  resubmitted: "bg-blue-50 text-blue-700",
+  revise_and_resubmit: "bg-orange-50 text-orange-700",
+  revise_and_resubmit_2: "bg-orange-50 text-orange-700",
 };
 function contactDisplayName(c: DirectoryContact): string {
   if (c.type === "company") return c.company ?? "Unnamed Company";
@@ -145,6 +165,158 @@ function MultiContactPicker({
   );
 }
 
+function SpecificationPicker({
+  projectId, specifications, selectedId, onChange, onSpecCreated,
+}: {
+  projectId: string;
+  specifications: Specification[];
+  selectedId: string | null;
+  onChange: (id: string | null) => void;
+  onSpecCreated: (spec: Specification) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newCode, setNewCode] = useState("");
+  const [saving, setSaving] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setShowCreate(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const selected = specifications.find((s) => s.id === selectedId) ?? null;
+  const filtered = specifications.filter((s) => {
+    const q = search.toLowerCase();
+    return s.name.toLowerCase().includes(q) || (s.code ?? "").toLowerCase().includes(q);
+  });
+
+  function specLabel(s: Specification) {
+    return s.code ? `${s.code} - ${s.name}` : s.name;
+  }
+
+  async function handleCreateSpec() {
+    if (!newName.trim()) return;
+    setSaving(true);
+    const res = await fetch(`/api/projects/${projectId}/specifications`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName.trim(), code: newCode.trim() || null }),
+    });
+    if (res.ok) {
+      const spec: Specification = await res.json();
+      onSpecCreated(spec);
+      onChange(spec.id);
+      setNewName("");
+      setNewCode("");
+      setShowCreate(false);
+      setOpen(false);
+      setSearch("");
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen((v) => !v); setShowCreate(false); }}
+        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 flex items-center justify-between"
+      >
+        <span className={selected ? "text-gray-900" : "text-gray-400"}>
+          {selected ? specLabel(selected) : "Select specification..."}
+        </span>
+        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-30">
+          {/* Search */}
+          <div className="p-2 border-b border-gray-100">
+            <div className="relative">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search"
+                autoFocus
+                className="w-full pl-3 pr-8 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+              <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" /></svg>
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.length === 0 && (
+              <p className="px-3 py-2 text-xs text-gray-400">No specifications found</p>
+            )}
+            {filtered.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { onChange(s.id); setOpen(false); setSearch(""); }}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${selectedId === s.id ? "font-medium text-gray-900" : "text-gray-700"}`}
+              >
+                {specLabel(s)}
+              </button>
+            ))}
+          </div>
+
+          {/* Create new */}
+          {showCreate ? (
+            <div className="border-t border-gray-100 p-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={newCode}
+                  onChange={(e) => setNewCode(e.target.value)}
+                  placeholder="Code (e.g. 02-530)"
+                  className="px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Name (required)"
+                  className="px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button type="button" onClick={() => setShowCreate(false)} className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50">Cancel</button>
+                <button type="button" onClick={handleCreateSpec} disabled={saving || !newName.trim()} className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 disabled:opacity-50">
+                  {saving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="border-t border-gray-100 p-2">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setShowCreate(true)}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                Create New Specification
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SingleContactPicker({
   directory, selectedId, onChange, placeholder = "Select...", filterType,
 }: {
@@ -165,13 +337,15 @@ function SingleContactPicker({
 }
 
 function CreateSubmittalModal({
-  nextNumber, directory, specifications, onConfirm, onCancel,
+  projectId, nextNumber, directory, specifications, onConfirm, onCancel, onSpecCreated,
 }: {
+  projectId: string;
   nextNumber: number;
   directory: DirectoryContact[];
   specifications: Specification[];
   onConfirm: (data: Record<string, unknown>, sendEmails: boolean) => void;
   onCancel: () => void;
+  onSpecCreated: (spec: Specification) => void;
 }) {
   const today = new Date().toISOString().split("T")[0];
   const [title, setTitle] = useState("");
@@ -196,7 +370,36 @@ function CreateSubmittalModal({
   const [description, setDescription] = useState("");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  // Additional Submittal Fields
+  const [approverNameId, setApproverNameId] = useState<string | null>(null);
+  const [ownersManual, setOwnersManual] = useState("");
+  const [packageNotes, setPackageNotes] = useState("");
+  // Delivery Information
+  const [deliveryOpen, setDeliveryOpen] = useState(true);
+  const [confirmedDeliveryDate, setConfirmedDeliveryDate] = useState("");
+  const [actualDeliveryDate, setActualDeliveryDate] = useState("");
+  // Submittal Workflow
+  const [workflowOpen, setWorkflowOpen] = useState(true);
+  type WorkflowStep = { id: string; personId: string | null; role: string; dueDate: string };
+  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
+    { id: crypto.randomUUID(), personId: null, role: "Approver", dueDate: "" },
+  ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [budgetCostCodes, setBudgetCostCodes] = useState<{ code: string; description: string }[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/budget`)
+      .then((r) => r.json())
+      .then((data: { cost_code: string; description: string }[]) => {
+        if (!Array.isArray(data)) return;
+        const seen = new Set<string>();
+        const unique = data
+          .filter((item) => item.cost_code && !seen.has(item.cost_code) && seen.add(item.cost_code))
+          .map((item) => ({ code: item.cost_code, description: item.description }));
+        setBudgetCostCodes(unique);
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   function buildData() {
     return {
@@ -209,6 +412,9 @@ function CreateSubmittalModal({
       ball_in_court_id: ballInCourtId, lead_time: leadTime ? Number(leadTime) : null,
       required_on_site_date: requiredOnSiteDate || null, private: isPrivate,
       description: description || null, attachmentFile, attachments: [],
+      approver_name_id: approverNameId, owners_manual: ownersManual || null, package_notes: packageNotes || null,
+      confirmed_delivery_date: confirmedDeliveryDate || null, actual_delivery_date: actualDeliveryDate || null,
+      workflow_steps: workflowSteps.map((s, i) => ({ step: i + 1, person_id: s.personId, role: s.role, due_date: s.dueDate || null })),
     };
   }
 
@@ -251,10 +457,13 @@ function CreateSubmittalModal({
           {/* Specification */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Specification</label>
-            <select value={specificationId ?? ""} onChange={(e) => setSpecificationId(e.target.value || null)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
-              <option value="">Select specification...</option>
-              {specifications.map((s) => <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ""}</option>)}
-            </select>
+            <SpecificationPicker
+              projectId={projectId}
+              specifications={specifications}
+              selectedId={specificationId}
+              onChange={setSpecificationId}
+              onSpecCreated={onSpecCreated}
+            />
           </div>
 
           {/* Status / Submittal Manager */}
@@ -311,7 +520,18 @@ function CreateSubmittalModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Cost Code</label>
-              <input type="text" value={costCode} onChange={(e) => setCostCode(e.target.value)} placeholder="Cost code" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+              {budgetCostCodes.length > 0 ? (
+                <select value={costCode} onChange={(e) => setCostCode(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option value="">Select cost code...</option>
+                  {budgetCostCodes.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code}{item.description ? ` – ${item.description}` : ""}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input type="text" value={costCode} onChange={(e) => setCostCode(e.target.value)} placeholder="Cost code" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Linked Drawings</label>
@@ -372,6 +592,112 @@ function CreateSubmittalModal({
                 <p className="text-sm text-gray-500">Drag and drop a file or click to attach</p>
               )}
             </div>
+          </div>
+
+          {/* Additional Submittal Fields */}
+          <div className="pt-2">
+            <p className="text-xs font-semibold text-gray-700 mb-3">Additional Submittal Fields</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Approver Name</label>
+                <SingleContactPicker directory={directory} selectedId={approverNameId} onChange={setApproverNameId} placeholder="Select..." />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Owner&apos;s Manual</label>
+                <select value={ownersManual} onChange={(e) => setOwnersManual(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option value=""></option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                  <option value="N/A">N/A</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Package Notes</label>
+                <select value={packageNotes} onChange={(e) => setPackageNotes(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option value=""></option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                  <option value="N/A">N/A</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Information */}
+          <div className="border border-gray-100 rounded-lg">
+            <button type="button" onClick={() => setDeliveryOpen((o) => !o)} className="w-full flex items-center gap-2 px-4 py-3 text-left">
+              <svg className={`w-4 h-4 text-gray-500 transition-transform ${deliveryOpen ? "rotate-0" : "-rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              <span className="text-sm font-semibold text-gray-800">Delivery Information</span>
+            </button>
+            {deliveryOpen && (
+              <div className="px-4 pb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Confirmed Delivery Date</label>
+                  <input type="date" value={confirmedDeliveryDate} onChange={(e) => setConfirmedDeliveryDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Actual Delivery Date</label>
+                  <input type="date" value={actualDeliveryDate} onChange={(e) => setActualDeliveryDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Submittal Workflow */}
+          <div className="border border-gray-100 rounded-lg">
+            <button type="button" onClick={() => setWorkflowOpen((o) => !o)} className="w-full flex items-center gap-2 px-4 py-3 text-left">
+              <svg className={`w-4 h-4 text-gray-500 transition-transform ${workflowOpen ? "rotate-0" : "-rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              <span className="text-sm font-semibold text-gray-800">Submittal Workflow</span>
+            </button>
+            {workflowOpen && (
+              <div className="px-4 pb-4 space-y-3">
+                <p className="text-xs text-gray-500">Select from a predefined template or build from scratch</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-500">
+                        <th className="w-8 px-2 py-2 text-left font-medium">Step</th>
+                        <th className="px-2 py-2 text-left font-medium">Name</th>
+                        <th className="px-2 py-2 text-left font-medium">Role</th>
+                        <th className="px-2 py-2 text-left font-medium">Due Date</th>
+                        <th className="w-8"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {workflowSteps.map((step, idx) => (
+                        <tr key={step.id}>
+                          <td className="px-2 py-2 text-gray-500 text-center">{idx + 1}</td>
+                          <td className="px-2 py-2">
+                            <SingleContactPicker directory={directory} selectedId={step.personId} onChange={(id) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, personId: id } : s))} placeholder="Select a Person" />
+                          </td>
+                          <td className="px-2 py-2">
+                            <select value={step.role} onChange={(e) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, role: e.target.value } : s))} className="w-full px-2 py-1.5 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                              <option>Approver</option>
+                              <option>Reviewer</option>
+                              <option>Submitter</option>
+                              <option>CC</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <input type="date" value={step.dueDate} onChange={(e) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, dueDate: e.target.value } : s))} className="w-full px-2 py-1.5 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
+                          </td>
+                          <td className="px-2 py-2">
+                            {workflowSteps.length > 1 && (
+                              <button type="button" onClick={() => setWorkflowSteps((prev) => prev.filter((s) => s.id !== step.id))} className="text-gray-400 hover:text-red-500 transition-colors">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button type="button" onClick={() => setWorkflowSteps((prev) => [...prev, { id: crypto.randomUUID(), personId: null, role: "Approver", dueDate: "" }])} className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
+                  Add Step
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -558,11 +884,13 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
 
       {showCreate && (
         <CreateSubmittalModal
+          projectId={projectId}
           nextNumber={nextNumber}
           directory={directory}
           specifications={specifications}
           onConfirm={handleCreate}
           onCancel={() => setShowCreate(false)}
+          onSpecCreated={(spec) => setSpecifications((prev) => [...prev, spec].sort((a, b) => a.name.localeCompare(b.name)))}
         />
       )}
     </div>
