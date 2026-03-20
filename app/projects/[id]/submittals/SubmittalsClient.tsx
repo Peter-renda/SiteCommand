@@ -45,22 +45,42 @@ type Submittal = {
 
 
 const SUBMITTAL_TYPES = ["Shop Drawing", "Product Data", "Sample", "O&M Manual", "Warranty", "Certificate", "Other"];
-const STATUSES = ["draft", "pending_review", "approved", "rejected", "revise_and_resubmit", "closed"];
+const STATUSES = [
+  "closed", "draft", "open", "approved", "approved_as_noted", "for_the_record",
+  "make_corrections", "no_exceptions_taken", "not_reviewed", "note_markings",
+  "rejected", "resubmitted", "revise_and_resubmit", "revise_and_resubmit_2",
+];
 const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  pending_review: "Pending Review",
-  approved: "Approved",
-  rejected: "Rejected",
-  revise_and_resubmit: "Revise & Resubmit",
   closed: "Closed",
+  draft: "Draft",
+  open: "Open",
+  approved: "Approved",
+  approved_as_noted: "Approved as noted",
+  for_the_record: "For the Record",
+  make_corrections: "Make corrections",
+  no_exceptions_taken: "No exceptions taken",
+  not_reviewed: "Not Reviewed/No Action Taken",
+  note_markings: "Note Markings",
+  rejected: "Rejected",
+  resubmitted: "Resubmitted",
+  revise_and_resubmit: "Revise & Resubmit",
+  revise_and_resubmit_2: "Revise and Resubmit",
 };
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-amber-50 text-amber-700",
-  pending_review: "bg-blue-50 text-blue-700",
-  approved: "bg-green-50 text-green-700",
-  rejected: "bg-red-50 text-red-700",
-  revise_and_resubmit: "bg-orange-50 text-orange-700",
   closed: "bg-gray-100 text-gray-600",
+  draft: "bg-amber-50 text-amber-700",
+  open: "bg-blue-50 text-blue-700",
+  approved: "bg-green-50 text-green-700",
+  approved_as_noted: "bg-green-50 text-green-700",
+  for_the_record: "bg-gray-50 text-gray-600",
+  make_corrections: "bg-orange-50 text-orange-700",
+  no_exceptions_taken: "bg-green-50 text-green-700",
+  not_reviewed: "bg-gray-50 text-gray-500",
+  note_markings: "bg-yellow-50 text-yellow-700",
+  rejected: "bg-red-50 text-red-700",
+  resubmitted: "bg-blue-50 text-blue-700",
+  revise_and_resubmit: "bg-orange-50 text-orange-700",
+  revise_and_resubmit_2: "bg-orange-50 text-orange-700",
 };
 function contactDisplayName(c: DirectoryContact): string {
   if (c.type === "company") return c.company ?? "Unnamed Company";
