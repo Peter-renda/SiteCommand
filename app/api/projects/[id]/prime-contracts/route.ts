@@ -34,35 +34,45 @@ export async function POST(
   const supabase = getSupabase();
   const body = await req.json();
 
-  // Get next contract number
-  const { data: existing } = await supabase
-    .from("prime_contracts")
-    .select("contract_number")
-    .eq("project_id", projectId)
-    .order("contract_number", { ascending: false })
-    .limit(1);
-
-  const nextNumber = existing && existing.length > 0 ? existing[0].contract_number + 1 : 1;
+  // Use provided contract_number or auto-assign
+  let contractNumber: number;
+  if (body.contract_number && !isNaN(Number(body.contract_number))) {
+    contractNumber = Number(body.contract_number);
+  } else {
+    const { data: existing } = await supabase
+      .from("prime_contracts")
+      .select("contract_number")
+      .eq("project_id", projectId)
+      .order("contract_number", { ascending: false })
+      .limit(1);
+    contractNumber = existing && existing.length > 0 ? existing[0].contract_number + 1 : 1;
+  }
 
   const { data, error } = await supabase
     .from("prime_contracts")
     .insert({
       project_id: projectId,
-      contract_number: nextNumber,
+      contract_number: contractNumber,
       title: body.title || "",
       owner_client: body.owner_client || "",
       contractor: body.contractor || "",
+      architect_engineer: body.architect_engineer || "",
       status: body.status || "Draft",
-      erp_status: body.erp_status || null,
       executed: body.executed ?? false,
-      original_contract_amount: body.original_contract_amount ?? 0,
-      approved_change_orders: body.approved_change_orders ?? 0,
-      pending_change_orders: body.pending_change_orders ?? 0,
-      draft_change_orders: body.draft_change_orders ?? 0,
-      invoiced: body.invoiced ?? 0,
-      payments_received: body.payments_received ?? 0,
-      is_private: body.is_private ?? false,
+      default_retainage: body.default_retainage ? Number(body.default_retainage) : 0,
       description: body.description || "",
+      inclusions: body.inclusions || "",
+      exclusions: body.exclusions || "",
+      start_date: body.start_date || null,
+      estimated_completion_date: body.estimated_completion_date || null,
+      actual_completion_date: body.actual_completion_date || null,
+      signed_contract_received_date: body.signed_contract_received_date || null,
+      contract_termination_date: body.contract_termination_date || null,
+      is_private: body.is_private ?? true,
+      sov_view_allowed: body.allow_non_admin_sov_view ?? false,
+      original_contract_amount: 0,
+      approved_change_orders: 0,
+      pending_change_orders: 0,
     })
     .select()
     .single();
