@@ -881,31 +881,52 @@ export default function DrawingsClient({
     }
 
     setUploading(true);
-    setUploadStatus("Uploading…");
+    try {
+      // Step 1: get a signed upload URL (no file data sent to Vercel)
+      setUploadStatus("Preparing…");
+      const urlRes = await fetch(
+        `/api/projects/${projectId}/drawings/upload-url?filename=${encodeURIComponent(file.name)}`
+      );
+      if (!urlRes.ok) {
+        const err = await urlRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Could not get upload URL");
+      }
+      const { signedUrl, storagePath } = await urlRes.json();
 
-    const formData = new FormData();
-    formData.append("file", file);
+      // Step 2: upload directly to Supabase Storage (bypasses Vercel's 4.5 MB limit)
+      setUploadStatus("Uploading…");
+      const putRes = await fetch(signedUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": "application/pdf" },
+      });
+      if (!putRes.ok) throw new Error(`Storage upload failed (${putRes.status})`);
 
-    const res = await fetch(`/api/projects/${projectId}/drawings`, {
-      method: "POST",
-      body: formData,
-    });
+      // Step 3: tell the API to split the pages and create drawing rows
+      setUploadStatus("Processing pages…");
+      const processRes = await fetch(`/api/projects/${projectId}/drawings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storagePath, filename: file.name }),
+      });
 
-    setUploading(false);
-    setUploadStatus("");
+      if (!processRes.ok) {
+        const err = await processRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Processing failed");
+      }
 
-    if (res.ok) {
-      const data = await res.json();
+      const data = await processRes.json();
       const pageCount: number = (data.drawings ?? []).length;
       setUploadStatus(`Added ${pageCount} page${pageCount !== 1 ? "s" : ""}`);
       setTimeout(() => setUploadStatus(""), 3000);
-      // drawings already contain per-page storage_path and viewer_page from the API
       const newDrawings = (data.drawings ?? []) as DrawingPage[];
       setDrawings((prev) => [...newDrawings, ...prev]);
       setUploads((prev) => [data.upload, ...prev]);
-    } else {
-      const err = await res.json();
-      alert(err.error ?? "Upload failed");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload failed");
+      setUploadStatus("");
+    } finally {
+      setUploading(false);
     }
   }
 
