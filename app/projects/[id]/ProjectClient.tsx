@@ -384,17 +384,20 @@ export default function ProjectClient({
   role,
   username,
   companyRole = "",
+  userId,
 }: {
   projectId: string;
   role: string;
   username: string;
   companyRole?: string;
+  userId?: string;
 }) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [rainAlert, setRainAlert] = useState<string | null>(null);
+  const [openTaskAlerts, setOpenTaskAlerts] = useState<{ id: string; title: string }[]>([]);
   const [scheduleTasks, setScheduleTasks] = useState<ScheduleTask[]>([]);
   const [workTab, setWorkTab] = useState<"ongoing" | "upcoming">("ongoing");
   const [workExpanded, setWorkExpanded] = useState(false);
@@ -512,6 +515,18 @@ export default function ProjectClient({
     fetch(`/api/projects/${projectId}/schedule`)
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d.tasks)) setScheduleTasks(d.tasks); });
+
+    if (userId) {
+      fetch(`/api/projects/${projectId}/tasks`)
+        .then((r) => r.json())
+        .then((tasks: { id: string; title: string; status: string; assignees?: { id: string }[] }[]) => {
+          if (!Array.isArray(tasks)) return;
+          const alerts = tasks.filter(
+            (t) => t.status === "open" && Array.isArray(t.assignees) && t.assignees.some((a) => a.id === userId)
+          ).map((t) => ({ id: t.id, title: t.title }));
+          setOpenTaskAlerts(alerts);
+        });
+    }
 
     // Load team roles for the team tile
     Promise.all([
@@ -676,6 +691,20 @@ export default function ProjectClient({
           <p className="text-sm font-medium text-white">{rainAlert}</p>
         </div>
       )}
+
+      {openTaskAlerts.map((task) => (
+        <div key={task.id} className="bg-yellow-50 border-b border-yellow-200 px-4 sm:px-6 py-3 flex items-center gap-3">
+          <svg className="w-4 h-4 text-yellow-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <p className="text-sm font-medium text-yellow-800">
+            Open task assigned to you:{" "}
+            <a href={`/projects/${projectId}/tasks/${task.id}`} className="underline hover:text-yellow-900">
+              {task.title}
+            </a>
+          </p>
+        </div>
+      ))}
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {loading ? (

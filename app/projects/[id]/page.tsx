@@ -8,5 +8,5 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   const { id } = await params;
 
-  return <ProjectClient projectId={id} role={session.role} username={session.username} companyRole={session.company_role ?? ""} />;
+  return <ProjectClient projectId={id} role={session.role} username={session.username} companyRole={session.company_role ?? ""} userId={session.id} />;
 }
