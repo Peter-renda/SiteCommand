@@ -7,7 +7,8 @@ export async function GET(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const session = await getSession();
-  if (!session || session.company_role !== "admin") {
+  const isOrgAdmin = session.company_role === "super_admin" || session.company_role === "admin";
+  if (!session || !isOrgAdmin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,7 +22,7 @@ export async function GET(
     .order("created_at", { ascending: false });
 
   const { data: memberProjects } = await supabase
-    .from("project_members")
+    .from("project_memberships")
     .select("project_id")
     .eq("user_id", userId);
 
@@ -40,7 +41,8 @@ export async function PUT(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const session = await getSession();
-  if (!session || session.company_role !== "admin") {
+  const isOrgAdmin = session?.company_role === "super_admin" || session?.company_role === "admin";
+  if (!session || !isOrgAdmin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -67,7 +69,7 @@ export async function PUT(
 
   if (companyProjectIds.length > 0) {
     await supabase
-      .from("project_members")
+      .from("project_memberships")
       .delete()
       .eq("user_id", userId)
       .in("project_id", companyProjectIds);
@@ -75,8 +77,17 @@ export async function PUT(
 
   if (projectIds && projectIds.length > 0) {
     await supabase
-      .from("project_members")
-      .insert(projectIds.map((pid: string) => ({ project_id: pid, user_id: userId })));
+      .from("project_memberships")
+      .insert(
+        projectIds.map((pid: string) => ({
+          project_id: pid,
+          user_id: userId,
+          company_id: session.company_id,
+          role: "member",
+          permission: "write",
+          invited_by: session.id,
+        }))
+      );
   }
 
   return NextResponse.json({ success: true });
