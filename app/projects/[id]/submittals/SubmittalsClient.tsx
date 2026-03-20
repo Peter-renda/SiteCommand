@@ -370,6 +370,20 @@ function CreateSubmittalModal({
   const [description, setDescription] = useState("");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  // Additional Submittal Fields
+  const [approverNameId, setApproverNameId] = useState<string | null>(null);
+  const [ownersManual, setOwnersManual] = useState("");
+  const [packageNotes, setPackageNotes] = useState("");
+  // Delivery Information
+  const [deliveryOpen, setDeliveryOpen] = useState(true);
+  const [confirmedDeliveryDate, setConfirmedDeliveryDate] = useState("");
+  const [actualDeliveryDate, setActualDeliveryDate] = useState("");
+  // Submittal Workflow
+  const [workflowOpen, setWorkflowOpen] = useState(true);
+  type WorkflowStep = { id: string; personId: string | null; role: string; dueDate: string };
+  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
+    { id: crypto.randomUUID(), personId: null, role: "Approver", dueDate: "" },
+  ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [budgetCostCodes, setBudgetCostCodes] = useState<{ code: string; description: string }[]>([]);
 
@@ -398,6 +412,9 @@ function CreateSubmittalModal({
       ball_in_court_id: ballInCourtId, lead_time: leadTime ? Number(leadTime) : null,
       required_on_site_date: requiredOnSiteDate || null, private: isPrivate,
       description: description || null, attachmentFile, attachments: [],
+      approver_name_id: approverNameId, owners_manual: ownersManual || null, package_notes: packageNotes || null,
+      confirmed_delivery_date: confirmedDeliveryDate || null, actual_delivery_date: actualDeliveryDate || null,
+      workflow_steps: workflowSteps.map((s, i) => ({ step: i + 1, person_id: s.personId, role: s.role, due_date: s.dueDate || null })),
     };
   }
 
@@ -575,6 +592,112 @@ function CreateSubmittalModal({
                 <p className="text-sm text-gray-500">Drag and drop a file or click to attach</p>
               )}
             </div>
+          </div>
+
+          {/* Additional Submittal Fields */}
+          <div className="pt-2">
+            <p className="text-xs font-semibold text-gray-700 mb-3">Additional Submittal Fields</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Approver Name</label>
+                <SingleContactPicker directory={directory} selectedId={approverNameId} onChange={setApproverNameId} placeholder="Select..." />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Owner&apos;s Manual</label>
+                <select value={ownersManual} onChange={(e) => setOwnersManual(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option value=""></option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                  <option value="N/A">N/A</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Package Notes</label>
+                <select value={packageNotes} onChange={(e) => setPackageNotes(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option value=""></option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                  <option value="N/A">N/A</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Information */}
+          <div className="border border-gray-100 rounded-lg">
+            <button type="button" onClick={() => setDeliveryOpen((o) => !o)} className="w-full flex items-center gap-2 px-4 py-3 text-left">
+              <svg className={`w-4 h-4 text-gray-500 transition-transform ${deliveryOpen ? "rotate-0" : "-rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              <span className="text-sm font-semibold text-gray-800">Delivery Information</span>
+            </button>
+            {deliveryOpen && (
+              <div className="px-4 pb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Confirmed Delivery Date</label>
+                  <input type="date" value={confirmedDeliveryDate} onChange={(e) => setConfirmedDeliveryDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Actual Delivery Date</label>
+                  <input type="date" value={actualDeliveryDate} onChange={(e) => setActualDeliveryDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Submittal Workflow */}
+          <div className="border border-gray-100 rounded-lg">
+            <button type="button" onClick={() => setWorkflowOpen((o) => !o)} className="w-full flex items-center gap-2 px-4 py-3 text-left">
+              <svg className={`w-4 h-4 text-gray-500 transition-transform ${workflowOpen ? "rotate-0" : "-rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              <span className="text-sm font-semibold text-gray-800">Submittal Workflow</span>
+            </button>
+            {workflowOpen && (
+              <div className="px-4 pb-4 space-y-3">
+                <p className="text-xs text-gray-500">Select from a predefined template or build from scratch</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-500">
+                        <th className="w-8 px-2 py-2 text-left font-medium">Step</th>
+                        <th className="px-2 py-2 text-left font-medium">Name</th>
+                        <th className="px-2 py-2 text-left font-medium">Role</th>
+                        <th className="px-2 py-2 text-left font-medium">Due Date</th>
+                        <th className="w-8"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {workflowSteps.map((step, idx) => (
+                        <tr key={step.id}>
+                          <td className="px-2 py-2 text-gray-500 text-center">{idx + 1}</td>
+                          <td className="px-2 py-2">
+                            <SingleContactPicker directory={directory} selectedId={step.personId} onChange={(id) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, personId: id } : s))} placeholder="Select a Person" />
+                          </td>
+                          <td className="px-2 py-2">
+                            <select value={step.role} onChange={(e) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, role: e.target.value } : s))} className="w-full px-2 py-1.5 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                              <option>Approver</option>
+                              <option>Reviewer</option>
+                              <option>Submitter</option>
+                              <option>CC</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <input type="date" value={step.dueDate} onChange={(e) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, dueDate: e.target.value } : s))} className="w-full px-2 py-1.5 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
+                          </td>
+                          <td className="px-2 py-2">
+                            {workflowSteps.length > 1 && (
+                              <button type="button" onClick={() => setWorkflowSteps((prev) => prev.filter((s) => s.id !== step.id))} className="text-gray-400 hover:text-red-500 transition-colors">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button type="button" onClick={() => setWorkflowSteps((prev) => [...prev, { id: crypto.randomUUID(), personId: null, role: "Approver", dueDate: "" }])} className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
+                  Add Step
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
