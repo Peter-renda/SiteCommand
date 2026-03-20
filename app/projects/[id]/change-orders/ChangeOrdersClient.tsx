@@ -1,0 +1,247 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import ProjectNav from "@/components/ProjectNav";
+import { Settings, ChevronDown, FileText, Lock, XCircle } from "lucide-react";
+
+type ChangeOrder = {
+  id: string;
+  contract_name: string;
+  number: string;
+  revision: number;
+  title: string;
+  date_initiated: string | null;
+  contract_company: string | null;
+  designated_reviewer: string | null;
+  due_date: string | null;
+  review_date: string | null;
+  status: string;
+  amount: number;
+  has_attachments: boolean;
+  is_locked: boolean;
+};
+
+function fmt(val: number) {
+  return val.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+}
+
+function fmtDate(d: string | null) {
+  if (!d) return "";
+  const dt = new Date(d);
+  return `${(dt.getMonth() + 1).toString().padStart(2, "0")}/${dt.getDate().toString().padStart(2, "0")}/${dt.getFullYear().toString().slice(2)}`;
+}
+
+type Tab = "prime" | "commitments";
+
+export default function ChangeOrdersClient({
+  projectId,
+  role,
+  username,
+}: {
+  projectId: string;
+  role: string;
+  username: string;
+}) {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<Tab>("prime");
+  const [orders, setOrders] = useState<ChangeOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/projects/${projectId}/change-orders?type=${activeTab}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setOrders(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [projectId, activeTab]);
+
+  const total = orders.reduce((s, o) => s + (o.amount ?? 0), 0);
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col">
+      <ProjectNav projectId={projectId} />
+
+      {/* Page header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4 text-orange-500" />
+            <h1 className="text-sm font-semibold text-gray-900">Change Orders</h1>
+          </div>
+          {/* Tabs */}
+          <div className="flex items-center ml-2">
+            <button
+              onClick={() => setActiveTab("prime")}
+              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "prime"
+                  ? "border-gray-900 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Prime Contract
+            </button>
+            <button
+              onClick={() => setActiveTab("commitments")}
+              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "commitments"
+                  ? "border-gray-900 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Commitments
+            </button>
+          </div>
+        </div>
+
+        {/* Top-right buttons */}
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
+            Export <ChevronDown className="w-3 h-3" />
+          </button>
+          <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
+            Reports <ChevronDown className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* Filter bar */}
+      <div className="px-4 py-2 border-b border-gray-100 bg-white shrink-0">
+        <div className="relative inline-block">
+          <button
+            onClick={() => setFilterOpen((v) => !v)}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Add Filter <ChevronDown className="w-3 h-3" />
+          </button>
+          {filterOpen && (
+            <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 w-48 py-1">
+              {["Contract", "Status", "Designated Reviewer", "Date Initiated"].map((f) => (
+                <button
+                  key={f}
+                  className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  onClick={() => setFilterOpen(false)}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-x-auto">
+        {loading ? (
+          <div className="text-center py-20 text-gray-400 text-sm">Loading change orders...</div>
+        ) : (
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-t border-gray-200 bg-white">
+                <th className="px-3 py-2.5 w-16" />
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600">Contract</th>
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600">#</th>
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600">Revision</th>
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600">Title</th>
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
+                  Date<br />Initiated
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
+                  Contract<br />Company
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
+                  Designated<br />Reviewer
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
+                  Due<br />Date
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
+                  Review<br />Date
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-gray-600">Status</th>
+                <th className="px-3 py-2.5 text-right font-medium text-gray-600">Amount</th>
+                <th className="px-3 py-2.5 w-20" />
+              </tr>
+            </thead>
+            <tbody>
+              {orders.length === 0 ? (
+                <tr>
+                  <td colSpan={13} className="text-center py-20 text-gray-400">
+                    No change orders found.
+                  </td>
+                </tr>
+              ) : (
+                orders.map((order) => (
+                  <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="px-3 py-2">
+                      <button
+                        onClick={() => router.push(`/projects/${projectId}/change-orders/${order.id}`)}
+                        className="px-2.5 py-0.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        View
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
+                      {order.contract_name}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">{order.number}</td>
+                    <td className="px-3 py-2 text-gray-700">{order.revision}</td>
+                    <td className="px-3 py-2 text-blue-600 hover:underline cursor-pointer max-w-xs">
+                      <button
+                        onClick={() => router.push(`/projects/${projectId}/change-orders/${order.id}`)}
+                        className="text-left"
+                      >
+                        {order.title}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.date_initiated)}</td>
+                    <td className="px-3 py-2 text-gray-700">{order.contract_company ?? ""}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {order.designated_reviewer ?? <span className="text-gray-400">Unassigned</span>}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.due_date)}</td>
+                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.review_date)}</td>
+                    <td className="px-3 py-2 text-gray-700">{order.status}</td>
+                    <td className="px-3 py-2 text-right text-gray-700 whitespace-nowrap">{fmt(order.amount)}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1">
+                        <button className="text-gray-400 hover:text-gray-600 transition-colors" title="Documents">
+                          <FileText className="w-3.5 h-3.5" />
+                        </button>
+                        {order.is_locked && (
+                          <button className="text-gray-400 hover:text-gray-600 transition-colors" title="Locked">
+                            <Lock className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button className="text-gray-300 hover:text-red-400 transition-colors" title="Void">
+                          <XCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+            {orders.length > 0 && (
+              <tfoot>
+                <tr className="border-t border-gray-200 bg-white">
+                  <td colSpan={11} className="px-3 py-2 text-right text-xs font-semibold text-gray-700">
+                    Total:
+                  </td>
+                  <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900 whitespace-nowrap">
+                    {fmt(total)}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
