@@ -32,6 +32,7 @@ type RFI = {
   attachments: { name: string; url: string }[];
   created_by: string | null;
   created_at: string;
+  ball_in_court_id: string | null;
 };
 
 type RFIResponse = {
@@ -83,6 +84,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [notFound, setNotFound] = useState(false);
   const [responseBody, setResponseBody] = useState("");
   const [submittingResponse, setSubmittingResponse] = useState(false);
+  const [returningCourt, setReturningCourt] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -124,6 +126,24 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       setResponseBody("");
     }
     setSubmittingResponse(false);
+  }
+
+  async function handleReturnCourt() {
+    if (!rfi) return;
+    setReturningCourt(true);
+    // Determine who to pass the ball to
+    const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
+    const newBallInCourtId = ballIsWithAssignee ? rfi.rfi_manager_id : (rfi.assignees[0]?.id ?? null);
+    const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ball_in_court_id: newBallInCourtId }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setRfi(updated);
+    }
+    setReturningCourt(false);
   }
 
   async function handleLogout() {
@@ -269,9 +289,33 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                 <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Created</dt>
                 <dd className="mt-0.5 text-gray-900">{formatDate(rfi.created_at)}</dd>
               </div>
+              <div>
+                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Ball In Court</dt>
+                <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.ball_in_court_id)}</dd>
+              </div>
             </dl>
           </Section>
         </div>
+
+        {/* Return to court button */}
+        {rfi.status !== "closed" && (() => {
+          const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
+          const rfiManagerName = getContactNameById(directory, rfi.rfi_manager_id);
+          const firstAssigneeName = rfi.assignees[0]?.name ?? "Assignee";
+          const targetName = ballIsWithAssignee ? rfiManagerName : firstAssigneeName;
+          const label = `Return to ${targetName}'s Court`;
+          return (
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={handleReturnCourt}
+                disabled={returningCourt}
+                className="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {returningCourt ? "Updating..." : label}
+              </button>
+            </div>
+          );
+        })()}
       </main>
     </div>
   );
