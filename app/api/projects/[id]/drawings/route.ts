@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 
+// Count PDF pages by scanning the binary for the Pages tree /Count entry.
+// This runs server-side in Node.js — no web worker or browser API needed.
+function countPdfPages(buf: Buffer): number {
+  const text = buf.toString("latin1");
+  // The root Pages dictionary has the highest /Count value
+  const rx = /\/Count\s+(\d+)/g;
+  let m: RegExpExecArray | null;
+  let max = 0;
+  while ((m = rx.exec(text)) !== null) {
+    const n = parseInt(m[1], 10);
+    if (n > max) max = n;
+  }
+  if (max > 0) return max;
+  // Fallback: count /Type /Page objects (excludes /Pages parent nodes)
+  const pages = text.match(/\/Type\s*\/Page[^s]/g);
+  return pages ? pages.length : 1;
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -61,21 +79,23 @@ export async function POST(
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
-  const pageCountRaw = formData.get("pageCount");
 
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
   if (!file.name.toLowerCase().endsWith(".pdf")) {
     return NextResponse.json({ error: "Only PDF files are accepted" }, { status: 400 });
   }
 
-  const pageCount = parseInt(String(pageCountRaw ?? "1"), 10) || 1;
+  // Read file buffer once — used for both page counting and storage upload
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  const pageCount = countPdfPages(fileBuffer);
+
   const timestamp = Date.now();
   const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const storagePath = `${projectId}/${timestamp}-${safeFilename}`;
 
   const { error: uploadError } = await supabase.storage
     .from("project-drawings")
-    .upload(storagePath, file, { upsert: false });
+    .upload(storagePath, fileBuffer, { contentType: "application/pdf", upsert: false });
 
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
