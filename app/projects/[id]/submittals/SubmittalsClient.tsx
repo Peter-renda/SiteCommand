@@ -371,6 +371,21 @@ function CreateSubmittalModal({
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [budgetCostCodes, setBudgetCostCodes] = useState<{ code: string; description: string }[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/budget`)
+      .then((r) => r.json())
+      .then((data: { cost_code: string; description: string }[]) => {
+        if (!Array.isArray(data)) return;
+        const seen = new Set<string>();
+        const unique = data
+          .filter((item) => item.cost_code && !seen.has(item.cost_code) && seen.add(item.cost_code))
+          .map((item) => ({ code: item.cost_code, description: item.description }));
+        setBudgetCostCodes(unique);
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   function buildData() {
     return {
@@ -488,7 +503,18 @@ function CreateSubmittalModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Cost Code</label>
-              <input type="text" value={costCode} onChange={(e) => setCostCode(e.target.value)} placeholder="Cost code" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+              {budgetCostCodes.length > 0 ? (
+                <select value={costCode} onChange={(e) => setCostCode(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option value="">Select cost code...</option>
+                  {budgetCostCodes.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code}{item.description ? ` – ${item.description}` : ""}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input type="text" value={costCode} onChange={(e) => setCostCode(e.target.value)} placeholder="Cost code" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Linked Drawings</label>
