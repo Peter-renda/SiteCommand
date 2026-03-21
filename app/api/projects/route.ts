@@ -41,11 +41,19 @@ export async function GET() {
   if (!memberships || memberships.length === 0) return NextResponse.json([]);
 
   const projectIds = memberships.map((m: { project_id: string }) => m.project_id);
-  const { data } = await supabase
+  let projectQuery = supabase
     .from("projects")
     .select("*")
     .in("id", projectIds)
     .order("created_at", { ascending: false });
+
+  // Internal users with a company_id should only see projects from their company
+  // (guards against stale/erroneous cross-company memberships)
+  if (session.company_id) {
+    projectQuery = projectQuery.eq("company_id", session.company_id);
+  }
+
+  const { data } = await projectQuery;
 
   return NextResponse.json(data || []);
 }
