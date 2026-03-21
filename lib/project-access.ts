@@ -94,7 +94,6 @@ export async function getAllowedSections(
   session: Session
 ): Promise<string[] | null> {
   if (session.role === "admin") return null;
-  if (isCompanyAdmin(session.company_role)) return null;
 
   const supabase = getSupabase();
 
@@ -115,6 +114,9 @@ export async function getAllowedSections(
     .eq("user_id", session.id)
     .maybeSingle();
 
+  // No membership → no access to any section
+  if (!membership) return [];
+
   // null means unrestricted; an empty/populated array means restricted
-  return membership?.allowed_sections ?? null;
+  return membership.allowed_sections ?? null;
 }
