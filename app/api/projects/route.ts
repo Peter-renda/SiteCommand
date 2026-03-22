@@ -10,12 +10,13 @@ export async function GET() {
 
   const supabase = getSupabase();
 
-  // System admin: all projects across all tenants
+  // System admin: all projects across all tenants, but respect company filter if one is selected
   if (session.role === "admin") {
-    const { data } = await supabase
-      .from("projects")
-      .select("*")
-      .order("created_at", { ascending: false });
+    let query = supabase.from("projects").select("*").order("created_at", { ascending: false });
+    if (session.company_id) {
+      query = query.eq("company_id", session.company_id);
+    }
+    const { data } = await query;
     return NextResponse.json(data || []);
   }
 
