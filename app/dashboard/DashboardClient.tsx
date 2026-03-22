@@ -204,7 +204,9 @@ function MemberPicker({
   );
 }
 
-export default function DashboardClient({ username, email, role, companyRole, userType }: { username: string; email: string; role: string; companyRole: string | null; userType: string }) {
+type CompanyOption = { id: string; name: string; role: string; isCurrent: boolean };
+
+export default function DashboardClient({ username, email, role, companyRole, userType, companyId }: { username: string; email: string; role: string; companyRole: string | null; userType: string; companyId: string | null }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -249,6 +251,11 @@ export default function DashboardClient({ username, email, role, companyRole, us
   const [warrantyEndDate, setWarrantyEndDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+
+  // Company switcher state
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
+  const companyMenuRef = useRef<HTMLDivElement>(null);
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
@@ -296,10 +303,31 @@ export default function DashboardClient({ username, email, role, companyRole, us
     } catch {}
   }
 
+  async function loadCompanies() {
+    try {
+      const res = await fetch("/api/user/companies");
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(Array.isArray(data) ? data : []);
+      }
+    } catch {}
+  }
+
+  async function switchCompany(id: string) {
+    setCompanyMenuOpen(false);
+    const res = await fetch("/api/auth/switch-company", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company_id: id }),
+    });
+    if (res.ok) window.location.reload();
+  }
+
   useEffect(() => {
     loadProjects();
     loadActivities();
     loadMyTasks();
+    loadCompanies();
     // Read last-visited project from localStorage to scope task alerts
     try {
       const stored = localStorage.getItem("current_project_id");
@@ -312,6 +340,9 @@ export default function DashboardClient({ username, email, role, companyRole, us
     function handleClick(e: MouseEvent) {
       if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
         setFilterMenuOpen(false);
+      }
+      if (companyMenuRef.current && !companyMenuRef.current.contains(e.target as Node)) {
+        setCompanyMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -429,7 +460,42 @@ export default function DashboardClient({ username, email, role, companyRole, us
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-900 shrink-0">SiteCommand</span>
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
+          {companies.length > 1 && (
+            <div ref={companyMenuRef} className="relative">
+              <button
+                onClick={() => setCompanyMenuOpen((o) => !o)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-gray-200 text-xs font-medium text-gray-700 hover:border-gray-400 hover:text-gray-900 transition-colors"
+              >
+                <span className="max-w-[120px] truncate">
+                  {companies.find((c) => c.isCurrent)?.name ?? "Switch Company"}
+                </span>
+                <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {companyMenuOpen && (
+                <div className="absolute top-full left-0 mt-1 w-52 bg-white border border-gray-100 rounded-lg shadow-lg z-50 py-1">
+                  {companies.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => switchCompany(c.id)}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 transition-colors ${c.isCurrent ? "text-gray-900 font-medium" : "text-gray-600"}`}
+                    >
+                      <span className="truncate">{c.name}</span>
+                      {c.isCurrent && (
+                        <svg className="w-3.5 h-3.5 text-gray-900 shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
           {role === "admin" && (
             <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">
