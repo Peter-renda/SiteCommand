@@ -94,6 +94,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       );
     }
 
+    // For internal invites: ensure the user is in org_members for the invited company
+    if (!isExternal) {
+      const assignedRole = invite.invited_role ?? "member";
+      await supabase.from("org_members").upsert(
+        {
+          user_id: user.id,
+          org_id: invite.company_id,
+          role: ["super_admin", "admin"].includes(assignedRole) ? assignedRole : "member",
+        },
+        { onConflict: "user_id,org_id" }
+      );
+    }
+
     await supabase.from("invitations").update({ accepted_at: new Date().toISOString() }).eq("id", invite.id);
 
     const jwtToken = await createToken({

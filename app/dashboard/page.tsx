@@ -19,6 +19,7 @@ export default async function DashboardPage() {
         role={session.role}
         companyRole={session.company_role ?? null}
         userType="demo"
+        companyId={session.company_id ?? null}
       />
     );
   }
@@ -45,6 +46,7 @@ export default async function DashboardPage() {
       role={session.role}
       companyRole={session.company_role ?? null}
       userType={session.user_type ?? "internal"}
+      companyId={session.company_id ?? null}
     />
   );
 }
