@@ -462,21 +462,21 @@ export default function DashboardClient({ username, email, role, companyRole, us
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
-          {companies.length > 1 && (
+          {companies.length > 0 && (
             <div ref={companyMenuRef} className="relative">
               <button
                 onClick={() => setCompanyMenuOpen((o) => !o)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-gray-200 text-xs font-medium text-gray-700 hover:border-gray-400 hover:text-gray-900 transition-colors"
               >
-                <span className="max-w-[120px] truncate">
-                  {companies.find((c) => c.isCurrent)?.name ?? "Switch Company"}
+                <span className="max-w-[140px] truncate">
+                  {companies.find((c) => c.isCurrent)?.name ?? "Select company"}
                 </span>
                 <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
               {companyMenuOpen && (
-                <div className="absolute top-full left-0 mt-1 w-52 bg-white border border-gray-100 rounded-lg shadow-lg z-50 py-1">
+                <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-100 rounded-lg shadow-lg z-50 py-1">
                   {companies.map((c) => (
                     <button
                       key={c.id}
