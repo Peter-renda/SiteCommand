@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { addUserToDirectory } from "@/lib/directory";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -8,6 +9,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id: projectId } = await params;
   const supabase = getSupabase();
+
+  // Sync any project members not yet in directory_contacts
+  const { data: memberships } = await supabase
+    .from("project_memberships")
+    .select("user_id")
+    .eq("project_id", projectId);
+
+  if (memberships?.length) {
+    await Promise.all(
+      memberships.map((m) => addUserToDirectory(supabase, projectId, m.user_id))
+    );
+  }
 
   const { data, error } = await supabase
     .from("directory_contacts")
