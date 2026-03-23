@@ -133,9 +133,9 @@ export default function AdminClient({
   role: string;
   username: string;
 }) {
-  const [data, setData] = useState<ProjectAdmin | null>(null);
   const isAdmin = role === "admin" || role === "super_admin";
 
+  const [data, setData] = useState<ProjectAdmin | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -318,7 +318,7 @@ export default function AdminClient({
           SiteCommand
         </a>
         <div className="flex items-center gap-5">
-          <span className="text-sm text-gray-400">{username}</span>
+<span className="text-sm text-gray-400">{username}</span>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button>
         </div>
       </header>
@@ -334,7 +334,26 @@ export default function AdminClient({
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
+                {!isAdmin && (
+                  <p className="text-xs text-gray-400 mt-0.5">View only — contact a project administrator to make changes</p>
+                )}
               </div>
+              {isAdmin && (
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+                >
+                  {saved ? (
+                    <>
+                      <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Saved
+                    </>
+                  ) : saving ? "Saving..." : "Save Changes"}
+                </button>
+              )}
             </div>
 
             <div className="space-y-6">
@@ -343,24 +362,59 @@ export default function AdminClient({
               <Section title="General Information">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                   <Field label="Stage of Construction">
-                    <ReadonlyValue value={data?.status} />
+                    {isAdmin ? (
+                      <select
+                        value={stage}
+                        onChange={(e) => setStage(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                      >
+                        <option value="">Select stage...</option>
+                        {STAGES.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <ReadonlyValue value={data?.status} />
+                    )}
                   </Field>
 
                   <Field label="Project Number">
-                    <ReadonlyValue value={data?.project_number} />
+                    {isAdmin ? (
+                      <TextInput value={projectNumber} onChange={setProjectNumber} placeholder="e.g. 2024-001" />
+                    ) : (
+                      <ReadonlyValue value={data?.project_number} />
+                    )}
                   </Field>
 
                   <Field label="Project Name">
-                    <ReadonlyValue value={data?.name} />
+                    {isAdmin ? (
+                      <TextInput value={name} onChange={setName} placeholder="Project name" />
+                    ) : (
+                      <ReadonlyValue value={data?.name} />
+                    )}
                   </Field>
 
                   <Field label="Project Sector">
-                    <ReadonlyValue value={data?.sector} />
+                    {isAdmin ? (
+                      <TextInput value={sector} onChange={setSector} placeholder="e.g. Commercial, Healthcare" />
+                    ) : (
+                      <ReadonlyValue value={data?.sector} />
+                    )}
                   </Field>
 
                   <div className="col-span-2">
                     <Field label="Description">
-                      <ReadonlyValue value={data?.description} />
+                      {isAdmin ? (
+                        <textarea
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          rows={3}
+                          placeholder="Project description..."
+                          className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                        />
+                      ) : (
+                        <ReadonlyValue value={data?.description} />
+                      )}
                     </Field>
                   </div>
                 </div>
@@ -371,24 +425,44 @@ export default function AdminClient({
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                   <div className="col-span-2">
                     <Field label="Address">
-                      <ReadonlyValue value={data?.address} />
+                      {isAdmin ? (
+                        <TextInput value={address} onChange={setAddress} placeholder="Street address" />
+                      ) : (
+                        <ReadonlyValue value={data?.address} />
+                      )}
                     </Field>
                   </div>
 
                   <Field label="City">
-                    <ReadonlyValue value={data?.city} />
+                    {isAdmin ? (
+                      <TextInput value={city} onChange={setCity} placeholder="City" />
+                    ) : (
+                      <ReadonlyValue value={data?.city} />
+                    )}
                   </Field>
 
                   <Field label="State">
-                    <ReadonlyValue value={data?.state} />
+                    {isAdmin ? (
+                      <TextInput value={stateVal} onChange={setStateVal} placeholder="State" />
+                    ) : (
+                      <ReadonlyValue value={data?.state} />
+                    )}
                   </Field>
 
                   <Field label="Zip Code">
-                    <ReadonlyValue value={data?.zip_code} />
+                    {isAdmin ? (
+                      <TextInput value={zipCode} onChange={setZipCode} placeholder="Zip code" />
+                    ) : (
+                      <ReadonlyValue value={data?.zip_code} />
+                    )}
                   </Field>
 
                   <Field label="County">
-                    <ReadonlyValue value={data?.county} />
+                    {isAdmin ? (
+                      <TextInput value={county} onChange={setCounty} placeholder="County" />
+                    ) : (
+                      <ReadonlyValue value={data?.county} />
+                    )}
                   </Field>
                 </div>
               </Section>
@@ -397,27 +471,51 @@ export default function AdminClient({
               <Section title="Dates">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                   <Field label="Start Date">
-                    <ReadonlyValue value={formatDate(data?.start_date ?? null) || null} />
+                    {isAdmin ? (
+                      <DateInput value={startDate} onChange={setStartDate} />
+                    ) : (
+                      <ReadonlyValue value={formatDate(data?.start_date ?? null) || null} />
+                    )}
                   </Field>
 
                   <Field label="Actual Start Date">
-                    <ReadonlyValue value={formatDate(data?.actual_start_date ?? null) || null} />
+                    {isAdmin ? (
+                      <DateInput value={actualStartDate} onChange={setActualStartDate} />
+                    ) : (
+                      <ReadonlyValue value={formatDate(data?.actual_start_date ?? null) || null} />
+                    )}
                   </Field>
 
                   <Field label="Completion Date">
-                    <ReadonlyValue value={formatDate(data?.completion_date ?? null) || null} />
+                    {isAdmin ? (
+                      <DateInput value={completionDate} onChange={setCompletionDate} />
+                    ) : (
+                      <ReadonlyValue value={formatDate(data?.completion_date ?? null) || null} />
+                    )}
                   </Field>
 
                   <Field label="Projected Finish Date">
-                    <ReadonlyValue value={formatDate(data?.projected_finish_date ?? null) || null} />
+                    {isAdmin ? (
+                      <DateInput value={projectedFinishDate} onChange={setProjectedFinishDate} />
+                    ) : (
+                      <ReadonlyValue value={formatDate(data?.projected_finish_date ?? null) || null} />
+                    )}
                   </Field>
 
                   <Field label="Warranty Start Date">
-                    <ReadonlyValue value={formatDate(data?.warranty_start_date ?? null) || null} />
+                    {isAdmin ? (
+                      <DateInput value={warrantyStartDate} onChange={setWarrantyStartDate} />
+                    ) : (
+                      <ReadonlyValue value={formatDate(data?.warranty_start_date ?? null) || null} />
+                    )}
                   </Field>
 
                   <Field label="Warranty End Date">
-                    <ReadonlyValue value={formatDate(data?.warranty_end_date ?? null) || null} />
+                    {isAdmin ? (
+                      <DateInput value={warrantyEndDate} onChange={setWarrantyEndDate} />
+                    ) : (
+                      <ReadonlyValue value={formatDate(data?.warranty_end_date ?? null) || null} />
+                    )}
                   </Field>
                 </div>
               </Section>
@@ -443,6 +541,18 @@ export default function AdminClient({
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-xs text-gray-400 capitalize">{m.role.replace("_", " ")}</span>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMember(m.user_id)}
+                                className="text-gray-300 hover:text-red-500 transition-colors ml-1"
+                                title="Remove member"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
