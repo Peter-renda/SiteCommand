@@ -53,5 +53,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     .update({ company_id: null, company_role: null })
     .eq("id", userId);
 
+  // Also remove from org_members so the user no longer appears in the team list
+  await supabase
+    .from("org_members")
+    .delete()
+    .eq("user_id", userId)
+    .eq("org_id", session.company_id);
+
   return NextResponse.json({ success: true });
 }
