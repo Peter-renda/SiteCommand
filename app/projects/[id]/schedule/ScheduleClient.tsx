@@ -66,7 +66,17 @@ function getMonthColumns(startDate: Date, endDate: Date): { label: string; start
 
 // ── Table View ────────────────────────────────────────────────────────────────
 
-function TableView({ tasks }: { tasks: Task[] }) {
+type EditingCell = { uid: number; field: "start" | "finish" };
+
+function TableView({
+  tasks,
+  onUpdateTask,
+}: {
+  tasks: Task[];
+  onUpdateTask: (uid: number, field: "start" | "finish", value: string) => void;
+}) {
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+
   if (tasks.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-sm text-gray-400">
@@ -77,6 +87,42 @@ function TableView({ tasks }: { tasks: Task[] }) {
 
   // Build a UID → task ID map so predecessor column shows task IDs (not UIDs)
   const uidToId = new Map<number, number>(tasks.map((t) => [t.uid, t.id]));
+
+  function commitEdit(uid: number, field: "start" | "finish", value: string) {
+    if (value) onUpdateTask(uid, field, value);
+    setEditingCell(null);
+  }
+
+  function DateCell({ task, field }: { task: Task; field: "start" | "finish" }) {
+    const isEditing = editingCell?.uid === task.uid && editingCell?.field === field;
+    const value = task[field];
+
+    if (isEditing) {
+      return (
+        <input
+          type="date"
+          autoFocus
+          defaultValue={value}
+          className="border border-blue-400 rounded px-1.5 py-0.5 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          onBlur={(e) => commitEdit(task.uid, field, e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitEdit(task.uid, field, e.currentTarget.value);
+            if (e.key === "Escape") setEditingCell(null);
+          }}
+        />
+      );
+    }
+
+    return (
+      <span
+        className="cursor-default hover:bg-blue-50 hover:text-blue-700 rounded px-1 -mx-1 transition-colors"
+        title="Double-click to edit"
+        onDoubleClick={() => setEditingCell({ uid: task.uid, field })}
+      >
+        {value || "—"}
+      </span>
+    );
+  }
 
   return (
     <div className="overflow-auto">
@@ -113,8 +159,12 @@ function TableView({ tasks }: { tasks: Task[] }) {
                     {task.name}
                   </span>
                 </td>
-                <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{task.start || "—"}</td>
-                <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{task.finish || "—"}</td>
+                <td className="px-4 py-2 text-gray-500 whitespace-nowrap">
+                  <DateCell task={task} field="start" />
+                </td>
+                <td className="px-4 py-2 text-gray-500 whitespace-nowrap">
+                  <DateCell task={task} field="finish" />
+                </td>
                 <td className="px-4 py-2 text-gray-500">{task.isMilestone ? "—" : duration}</td>
                 <td className="px-4 py-2 text-gray-500">{predecessorIds || "—"}</td>
                 <td className="px-4 py-2">
@@ -435,6 +485,10 @@ export default function ScheduleClient({
 
   useEffect(() => { fetchSchedule(); }, [fetchSchedule]);
 
+  function handleUpdateTask(uid: number, field: "start" | "finish", value: string) {
+    setTasks((prev) => prev.map((t) => t.uid === uid ? { ...t, [field]: value } : t));
+  }
+
   async function handleReplaceFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -552,7 +606,7 @@ export default function ScheduleClient({
           <div className="flex-1 overflow-hidden">
             {activeTab === "table" ? (
               <div className="h-full overflow-auto">
-                <TableView tasks={tasks} />
+                <TableView tasks={tasks} onUpdateTask={handleUpdateTask} />
               </div>
             ) : (
               <div className="h-full flex flex-col">
