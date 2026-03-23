@@ -13,11 +13,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Only the Super Admin (billing owner) or system admin may initiate a checkout.
+  // Only the Super Admin (billing owner) may initiate a checkout.
   // Regular admins and members do not have billing access.
-  const isSuperAdmin = session.company_role === "super_admin";
-  const isSystemAdmin = session.role === "admin";
-  if (!isSuperAdmin && !isSystemAdmin) {
+  if (session.company_role !== "super_admin") {
     return NextResponse.json(
       { error: "Only the account owner can manage billing" },
       { status: 403 }

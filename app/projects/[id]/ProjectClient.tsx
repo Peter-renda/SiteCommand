@@ -666,9 +666,6 @@ export default function ProjectClient({
           SiteCommand
         </a>
         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
-          {role === "admin" && (
-            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">Admin</a>
-          )}
           <span className="hidden sm:block text-sm text-gray-400 truncate max-w-[120px]">{username}</span>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors shrink-0">Logout</button>
         </div>
@@ -726,7 +723,7 @@ export default function ProjectClient({
                 <div className="bg-white border border-gray-100 rounded-xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-semibold text-gray-900">Project Team</h2>
-                    {(role === "admin" || companyRole === "super_admin" || companyRole === "admin") && (
+                    {(companyRole === "super_admin" || companyRole === "admin") && (
                       <div ref={teamMenuRef} className="relative">
                         <button
                           onClick={() => setTeamMenuOpen((o) => !o)}
@@ -901,18 +898,6 @@ export default function ProjectClient({
                       </svg>
                     </div>
                   )}
-                  {role === "admin" && (
-                    <div className="px-4 py-3 border-t border-gray-100">
-                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="w-full py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
-                      >
-                        {uploading ? "Uploading..." : project.photo_url ? "Change Photo" : "Add Photo"}
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 {/* Project Info Card */}
@@ -1022,14 +1007,6 @@ export default function ProjectClient({
                 </div>
 
                 {/* Edit button */}
-                {role === "admin" && (
-                  <button
-                    onClick={openEdit}
-                    className="w-full py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    Edit Project
-                  </button>
-                )}
 
               </div>
             </div>

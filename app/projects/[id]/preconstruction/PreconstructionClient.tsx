@@ -629,11 +629,6 @@ export default function PreconstructionClient({
           SiteCommand
         </a>
         <div className="flex items-center gap-5">
-          {role === "admin" && (
-            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">
-              Admin
-            </a>
-          )}
           <span className="text-sm text-gray-400">{username}</span>
           <button
             onClick={handleLogout}

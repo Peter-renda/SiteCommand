@@ -11,10 +11,7 @@ export async function GET() {
   // 1. Get accessible project IDs (same logic as GET /api/projects)
   let projects: { id: string; name: string }[] = [];
 
-  if (session.role === "admin") {
-    const { data } = await supabase.from("projects").select("id, name");
-    projects = data || [];
-  } else if (session.company_id) {
+  if (session.company_id) {
     const { data } = await supabase
       .from("projects")
       .select("id, name")

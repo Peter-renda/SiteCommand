@@ -15,9 +15,7 @@ export async function GET(req: NextRequest) {
     .eq("approved", true)
     .order("username");
 
-  if (companyId && session.role === "admin") {
-    query = query.eq("company_id", companyId);
-  } else if (!companyId && session.company_id) {
+  if (session.company_id) {
     query = query.eq("company_id", session.company_id);
   }
 

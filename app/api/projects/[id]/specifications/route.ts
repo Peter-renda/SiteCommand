@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
-  const canEdit = session?.role === "admin" || session?.company_role === "admin";
+  const canEdit = session?.company_role === "admin" || session?.company_role === "super_admin";
   if (!session || !canEdit) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId } = await params;

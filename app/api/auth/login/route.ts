@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   if (user.role === "contractor") {
     redirect = "/teammate";
-  } else if (user.role !== "admin") {
+  } else {
     if (!user.company_id) {
       redirect = "/pricing";
     } else if (isCompanyAdmin(orgRole)) {

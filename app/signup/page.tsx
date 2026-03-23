@@ -10,7 +10,6 @@ export default async function SignupPage() {
   // admin) lands on /signup, creates a new account, and ends up with a
   // mismatched session cookie.
   if (session) {
-    if (session.role === "admin") redirect("/admin");
     redirect("/dashboard");
   }
 
