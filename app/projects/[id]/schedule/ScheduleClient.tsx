@@ -25,6 +25,16 @@ type ScheduleMeta = {
   uploaded_at: string;
 };
 
+type ChangeEntry = {
+  taskId: number;
+  taskName: string;
+  field: "start" | "finish";
+  oldValue: string;
+  newValue: string;
+  delta: number; // positive = pushed out, negative = pulled in
+  timestamp: string;
+};
+
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
 
@@ -489,6 +499,8 @@ export default function ScheduleClient({
   const [uploading, setUploading] = useState(false);
   const [replaceError, setReplaceError] = useState<string | null>(null);
   const fileReplaceRef = useRef<HTMLInputElement>(null);
+  const [changeHistory, setChangeHistory] = useState<ChangeEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const fetchSchedule = useCallback(async () => {
     setLoading(true);
@@ -504,6 +516,25 @@ export default function ScheduleClient({
   useEffect(() => { fetchSchedule(); }, [fetchSchedule]);
 
   function handleUpdateTask(uid: number, field: "start" | "finish", value: string) {
+    const task = tasks.find((t) => t.uid === uid);
+    if (task) {
+      const oldValue = task[field];
+      if (oldValue && value && oldValue !== value) {
+        const delta = daysBetween(oldValue, value);
+        setChangeHistory((prev) => [
+          {
+            taskId: task.id,
+            taskName: task.name,
+            field,
+            oldValue,
+            newValue: value,
+            delta,
+            timestamp: new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+          },
+          ...prev,
+        ]);
+      }
+    }
     setTasks((prev) => prev.map((t) => t.uid === uid ? { ...t, [field]: value } : t));
   }
 
@@ -604,21 +635,88 @@ export default function ScheduleClient({
           </div>
 
           {/* Tab bar */}
-          <div className="bg-white border-b border-gray-100 px-6 flex items-center gap-1 shrink-0">
-            {(["table", "gantt"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${
-                  activeTab === tab
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {tab === "table" ? "Table" : "Gantt Chart"}
-              </button>
-            ))}
+          <div className="bg-white border-b border-gray-100 px-6 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-1">
+              {(["table", "gantt"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {tab === "table" ? "Table" : "Gantt Chart"}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowHistory((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                showHistory
+                  ? "bg-gray-100 text-gray-800"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Change History
+              {changeHistory.length > 0 && (
+                <span className="ml-0.5 bg-blue-100 text-blue-700 text-xs font-semibold px-1.5 py-0.5 rounded-full leading-none">
+                  {changeHistory.length}
+                </span>
+              )}
+            </button>
           </div>
+
+          {/* Change history panel */}
+          {showHistory && (
+            <div className="bg-white border-b border-gray-200 shrink-0">
+              <div className="px-6 py-2 flex items-center justify-between border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Change History</span>
+                {changeHistory.length > 0 && (
+                  <button
+                    onClick={() => setChangeHistory([])}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              <div className="max-h-44 overflow-y-auto divide-y divide-gray-50">
+                {changeHistory.length === 0 ? (
+                  <p className="px-6 py-4 text-sm text-gray-400 italic">No changes recorded yet. Edit start or finish dates in the Table view to track changes.</p>
+                ) : (
+                  changeHistory.map((entry, i) => {
+                    const direction =
+                      entry.delta > 0
+                        ? `pushed ${entry.delta} day${entry.delta === 1 ? "" : "s"} out`
+                        : entry.delta < 0
+                        ? `pulled ${Math.abs(entry.delta)} day${Math.abs(entry.delta) === 1 ? "" : "s"} in`
+                        : "date changed (same day count)";
+                    return (
+                      <div key={i} className="px-6 py-2.5 flex items-baseline justify-between gap-4">
+                        <span className="text-sm text-gray-700">
+                          <span className="font-medium text-gray-900">Task {entry.taskId}</span>
+                          <span className="text-gray-400 mx-1">–</span>
+                          <span className="text-gray-600">{entry.taskName}</span>
+                          <span className="text-gray-400 mx-1">–</span>
+                          <span>{entry.field} date </span>
+                          <span className={entry.delta > 0 ? "text-amber-600 font-medium" : entry.delta < 0 ? "text-green-600 font-medium" : "text-gray-500"}>
+                            {direction}
+                          </span>
+                          <span className="text-gray-400 ml-1.5">({formatDate(entry.oldValue)} → {formatDate(entry.newValue)})</span>
+                        </span>
+                        <span className="text-xs text-gray-400 shrink-0">{entry.timestamp}</span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Content */}
           <div className="flex-1 overflow-hidden">
