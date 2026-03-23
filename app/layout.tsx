@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Barlow } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import DemoProvider from "@/components/DemoProvider";
 import "./globals.css";
 
 const barlow = Barlow({
@@ -30,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={barlow.variable}>
       <body className="antialiased">
+        <DemoProvider />
         {children}
         <Analytics />
       </body>

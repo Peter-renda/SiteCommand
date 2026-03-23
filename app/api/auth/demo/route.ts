@@ -28,6 +28,14 @@ export async function POST(req: NextRequest) {
     maxAge: 60 * 60 * 24 * 7,
     path: "/",
   });
+  // Non-httpOnly cookie so the client-side fetch interceptor can detect demo mode
+  res.cookies.set("demo_mode", "1", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
 
   return res;
 }
