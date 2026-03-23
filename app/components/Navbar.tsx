@@ -100,11 +100,14 @@ export default function Navbar() {
         {/* Desktop nav items */}
         <div className="hidden md:flex items-center gap-1">
           {navItems.map((item) => (
-            <div key={item.label} className="relative">
+            <div
+              key={item.label}
+              className="relative"
+              onMouseEnter={() => setOpen(item.label)}
+              onMouseLeave={() => setOpen(null)}
+            >
               <button
                 className="flex items-center gap-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-all duration-150"
-                onMouseEnter={() => setOpen(item.label)}
-                onMouseLeave={() => setOpen(null)}
                 onClick={() =>
                   item.items.length === 0 && item.label !== "Solutions"
                     ? (window.location.href = item.href ?? "#")
@@ -130,8 +133,6 @@ export default function Navbar() {
                 <div
                   className="fixed left-0 right-0 mt-1 bg-white border-t border-gray-200 shadow-xl"
                   style={{ top: "64px" }}
-                  onMouseEnter={() => setOpen("Solutions")}
-                  onMouseLeave={() => setOpen(null)}
                 >
                   <div className="max-w-7xl mx-auto px-6 py-8">
                     {/* Products section */}
@@ -177,8 +178,6 @@ export default function Navbar() {
               {item.label !== "Solutions" && item.items.length > 0 && open === item.label && (
                 <div
                   className={`absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg py-1 ${item.sections ? "w-[580px]" : "w-44"}`}
-                  onMouseEnter={() => setOpen(item.label)}
-                  onMouseLeave={() => setOpen(null)}
                 >
                   {item.items.map((sub) => (
                     <a
