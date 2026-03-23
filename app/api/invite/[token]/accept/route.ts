@@ -95,16 +95,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     }
 
     // For internal invites: ensure the user is in org_members for the invited company
+    let effectiveCompanyId = user.company_id;
+    let effectiveCompanyRole = user.company_role;
     if (!isExternal) {
       const assignedRole = invite.invited_role ?? "member";
+      const normalizedRole = ["super_admin", "admin"].includes(assignedRole) ? assignedRole : "member";
       await supabase.from("org_members").upsert(
-        {
-          user_id: user.id,
-          org_id: invite.company_id,
-          role: ["super_admin", "admin"].includes(assignedRole) ? assignedRole : "member",
-        },
+        { user_id: user.id, org_id: invite.company_id, role: normalizedRole },
         { onConflict: "user_id,org_id" }
       );
+      // If the user had no company yet, bind them to this company in the users table
+      if (!user.company_id) {
+        await supabase
+          .from("users")
+          .update({ company_id: invite.company_id, company_role: normalizedRole, company: company.name })
+          .eq("id", user.id);
+      }
+      effectiveCompanyId = invite.company_id;
+      effectiveCompanyRole = normalizedRole;
     }
 
     await supabase.from("invitations").update({ accepted_at: new Date().toISOString() }).eq("id", invite.id);
@@ -114,8 +122,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       email: user.email,
       username: user.username,
       role: user.role,
-      company_id: user.company_id,
-      company_role: user.company_role,
+      company_id: effectiveCompanyId,
+      company_role: effectiveCompanyRole,
       user_type: user.user_type,
     });
 
