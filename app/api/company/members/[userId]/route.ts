@@ -3,6 +3,47 @@ import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { isCompanyAdmin } from "@/lib/project-access";
 
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const session = await getSession();
+  if (!session || session.company_role !== "super_admin") {
+    return NextResponse.json({ error: "Only the Super Admin can change roles" }, { status: 403 });
+  }
+
+  const { userId } = await params;
+  if (userId === session.id) {
+    return NextResponse.json({ error: "Cannot change your own role" }, { status: 400 });
+  }
+
+  const { role } = await req.json();
+  if (role !== "admin" && role !== "member") {
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+  }
+
+  const supabase = getSupabase();
+
+  const { data: target } = await supabase
+    .from("users")
+    .select("id, company_id, company_role")
+    .eq("id", userId)
+    .single();
+
+  if (!target || target.company_id !== session.company_id) {
+    return NextResponse.json({ error: "User not found in your company" }, { status: 404 });
+  }
+  if (target.company_role === "super_admin") {
+    return NextResponse.json({ error: "Cannot change the Super Admin's role" }, { status: 403 });
+  }
+
+  await supabase.from("users").update({ company_role: role }).eq("id", userId);
+  await supabase
+    .from("org_members")
+    .update({ role })
+    .eq("user_id", userId)
+    .eq("org_id", session.company_id);
+
+  return NextResponse.json({ success: true });
+}
+
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
   const session = await getSession();
   if (!session || !isCompanyAdmin(session.company_role)) {
