@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { redirect } from "next/navigation";
+import { isCompanyAdmin } from "@/lib/project-access";
 import DashboardClient from "./DashboardClient";
 
 export default async function DashboardPage() {
@@ -33,8 +34,12 @@ export default async function DashboardPage() {
     .eq("id", session.company_id)
     .single();
 
-  if (!company || (company.stripe_subscription_id && company.subscription_status !== "active")) {
-    redirect("/pricing");
+  // Only block admins/owners for billing issues — members can't fix billing
+  const ACTIVE_STATUSES = ["active", "trialing"];
+  if (isCompanyAdmin(session.company_role)) {
+    if (!company || (company.stripe_subscription_id && !ACTIVE_STATUSES.includes(company.subscription_status))) {
+      redirect("/pricing");
+    }
   }
 
   return (

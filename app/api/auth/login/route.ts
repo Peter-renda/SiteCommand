@@ -79,15 +79,16 @@ export async function POST(req: NextRequest) {
       redirect = "/pricing";
     } else if (isCompanyAdmin(orgRole)) {
       // Company owner / admin — verify active subscription
+      const ACTIVE_STATUSES = ["active", "trialing"];
       if (
         !company ||
         (company.stripe_subscription_id &&
-          company.subscription_status !== "active")
+          !ACTIVE_STATUSES.includes(company.subscription_status ?? ""))
       ) {
         redirect = "/pricing";
       }
     }
-    // Invited members always go to /dashboard
+    // Regular members always go to /dashboard regardless of billing status
   }
 
   // ── Build rich user/org/project payload ─────────────────────────────────────
