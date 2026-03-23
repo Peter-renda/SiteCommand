@@ -74,6 +74,14 @@ export default function CompanyClient({
   // Revoke invite confirmation
   const [revokeConfirmId, setRevokeConfirmId] = useState<string | null>(null);
 
+  // Remove member confirmation
+  const [removeConfirmMember, setRemoveConfirmMember] = useState<Member | null>(null);
+
+  // Role change confirmation
+  type RoleChange = { member: Member; newRole: "admin" | "member" };
+  const [roleChangeConfirm, setRoleChangeConfirm] = useState<RoleChange | null>(null);
+  const [changingRole, setChangingRole] = useState(false);
+
   // Project access modal
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -118,6 +126,23 @@ export default function CompanyClient({
       setMembers((prev) => prev.filter((m) => m.id !== userId));
       if (selectedMember?.id === userId) setSelectedMember(null);
     }
+    setRemoveConfirmMember(null);
+  }
+
+  async function handleRoleChange(member: Member, newRole: "admin" | "member") {
+    setChangingRole(true);
+    const res = await fetch(`/api/company/members/${member.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: newRole }),
+    });
+    if (res.ok) {
+      setMembers((prev) =>
+        prev.map((m) => (m.id === member.id ? { ...m, company_role: newRole } : m))
+      );
+    }
+    setChangingRole(false);
+    setRoleChangeConfirm(null);
   }
 
   async function openMemberProjects(member: Member) {
@@ -251,11 +276,12 @@ export default function CompanyClient({
               {members.map((member) => {
                 const isOwner = member.company_role === "super_admin";
                 const isCurrentUser = member.id === currentUserId;
-                // Can remove: super_admin can remove admins/members; admin can only remove members
                 const canRemove =
                   !isCurrentUser &&
                   !isOwner &&
                   (isSuperAdmin || member.company_role === "member");
+                const canToggleRole = isSuperAdmin && !isOwner && !isCurrentUser;
+                const newRole = member.company_role === "admin" ? "member" : "admin";
 
                 return (
                   <div
@@ -273,11 +299,22 @@ export default function CompanyClient({
                       <p className="text-xs text-gray-400">{member.email}</p>
                     </div>
                     <div className="flex items-center gap-3">
+                      {canToggleRole && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRoleChangeConfirm({ member, newRole });
+                          }}
+                          className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
+                        >
+                          Make {newRole === "admin" ? "Admin" : "Member"}
+                        </button>
+                      )}
                       {canRemove && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleRemoveMember(member.id);
+                            setRemoveConfirmMember(member);
                           }}
                           className="text-xs text-red-500 hover:text-red-700 transition-colors"
                         >
@@ -438,6 +475,71 @@ export default function CompanyClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Member Confirmation Modal */}
+      {removeConfirmMember && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Remove member?</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              <span className="font-medium text-gray-700">{removeConfirmMember.username}</span> will
+              lose access to all projects and be removed from the team. This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setRemoveConfirmMember(null)}
+                className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRemoveMember(removeConfirmMember.id)}
+                className="flex-1 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Change Confirmation Modal */}
+      {roleChangeConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Change role?</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Change{" "}
+              <span className="font-medium text-gray-700">{roleChangeConfirm.member.username}</span>{" "}
+              from{" "}
+              <span className="font-medium text-gray-700">
+                {roleLabel(roleChangeConfirm.member.company_role)}
+              </span>{" "}
+              to{" "}
+              <span className="font-medium text-gray-700">
+                {roleLabel(roleChangeConfirm.newRole)}
+              </span>
+              ?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setRoleChangeConfirm(null)}
+                disabled={changingRole}
+                className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRoleChange(roleChangeConfirm.member, roleChangeConfirm.newRole)}
+                disabled={changingRole}
+                className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                {changingRole ? "Saving..." : "Confirm"}
+              </button>
+            </div>
           </div>
         </div>
       )}
