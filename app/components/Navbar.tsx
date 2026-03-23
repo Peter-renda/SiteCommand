@@ -102,7 +102,7 @@ export default function Navbar() {
           {navItems.map((item) => (
             <div key={item.label} className="relative">
               <button
-                className="flex items-center gap-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-all duration-150"
                 onMouseEnter={() => setOpen(item.label)}
                 onMouseLeave={() => setOpen(null)}
                 onClick={() =>
@@ -135,7 +135,7 @@ export default function Navbar() {
                 >
                   <div className="max-w-7xl mx-auto px-6 py-8">
                     {/* Products section */}
-                    <p className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-5">Products</p>
+                    <p className="text-xs font-semibold tracking-wide text-gray-400 mb-5">Products</p>
                     <div className="grid grid-cols-3 gap-6 mb-10">
                       {solutionsProducts.map((product) => (
                         <a key={product.label} href={product.href} className="group flex flex-col gap-1 p-4 rounded-lg hover:bg-gray-50 transition-colors">
@@ -148,7 +148,7 @@ export default function Navbar() {
                     </div>
 
                     {/* Featured Capabilities section */}
-                    <p className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-5">Featured Capabilities</p>
+                    <p className="text-xs font-semibold tracking-wide text-gray-400 mb-5">Featured capabilities</p>
                     <div className="grid grid-cols-4 gap-6 mb-6">
                       {solutionsCapabilities.map((col) => (
                         <div key={col.heading}>
@@ -199,7 +199,7 @@ export default function Navbar() {
           {/* Login — always visible */}
           <Link
             href="/login"
-            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-white bg-gray-950 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
           >
             Login
           </Link>
