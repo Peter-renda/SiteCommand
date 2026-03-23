@@ -43,25 +43,13 @@ function daysBetween(a: string, b: string): number {
 
 // ── Gantt Helpers ─────────────────────────────────────────────────────────────
 
-function getMonthColumns(startDate: Date, endDate: Date): { label: string; startDay: number; days: number }[] {
-  const columns: { label: string; startDay: number; days: number }[] = [];
-  const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const projectStart = new Date(startDate);
-  projectStart.setHours(0, 0, 0, 0);
+const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 
-  while (cur <= endDate) {
-    const monthEnd = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
-    const colStart = Math.max(0, Math.round((cur.getTime() - projectStart.getTime()) / msPerDay));
-    const colEnd = Math.round((monthEnd.getTime() - projectStart.getTime()) / msPerDay) + 1;
-    columns.push({
-      label: cur.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-      startDay: colStart,
-      days: colEnd - colStart,
-    });
-    cur.setMonth(cur.getMonth() + 1);
-  }
-  return columns;
+function weekLabel(sundayDate: Date): string {
+  const month = sundayDate.toLocaleDateString("en-US", { month: "short" });
+  const day = sundayDate.getDate();
+  const yr = String(sundayDate.getFullYear()).slice(2);
+  return `${month} ${day}, '${yr}`;
 }
 
 // ── Table View ────────────────────────────────────────────────────────────────
@@ -201,20 +189,31 @@ function GanttView({ tasks }: { tasks: Task[] }) {
     );
   }
 
-  // Derive project date range
   const allStarts = validTasks.map((t) => new Date(t.start).getTime());
   const allFinishes = validTasks.map((t) => new Date(t.finish).getTime());
   const projectStartDate = new Date(Math.min(...allStarts));
   const projectEndDate = new Date(Math.max(...allFinishes));
-  // Expand to full months
-  const rangeStart = new Date(projectStartDate.getFullYear(), projectStartDate.getMonth(), 1);
-  const rangeEnd = new Date(projectEndDate.getFullYear(), projectEndDate.getMonth() + 1, 0);
 
-  const totalDays = daysBetween(rangeStart.toISOString().split("T")[0], rangeEnd.toISOString().split("T")[0]) + 1;
-  const monthCols = getMonthColumns(rangeStart, rangeEnd);
+  // Snap range to week boundaries: start on Sunday, end on Saturday
+  const rangeStart = new Date(projectStartDate);
+  rangeStart.setDate(rangeStart.getDate() - rangeStart.getDay());
+  rangeStart.setHours(0, 0, 0, 0);
 
+  const rangeEnd = new Date(projectEndDate);
+  rangeEnd.setDate(rangeEnd.getDate() + (6 - rangeEnd.getDay()));
+  rangeEnd.setHours(0, 0, 0, 0);
+
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const totalDays = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / msPerDay) + 1;
+  const numWeeks = Math.ceil(totalDays / 7);
+
+  const DAY_W = 20; // px per day column
+  const WEEK_ROW_H = 24;
+  const DAY_ROW_H = 20;
+  const HEADER_H = WEEK_ROW_H + DAY_ROW_H;
   const ROW_HEIGHT = 36;
   const LEFT_PANE_W = 280;
+  const totalW = totalDays * DAY_W;
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -223,10 +222,9 @@ function GanttView({ tasks }: { tasks: Task[] }) {
         style={{ width: `${LEFT_PANE_W}px`, minWidth: `${LEFT_PANE_W}px` }}
         className="bg-white border-r border-gray-200 flex flex-col overflow-hidden shrink-0"
       >
-        {/* Header placeholder aligned with month header */}
         <div
-          style={{ height: `${ROW_HEIGHT}px` }}
-          className="border-b border-gray-200 bg-gray-50 shrink-0 px-3 flex items-center"
+          style={{ height: `${HEADER_H}px` }}
+          className="border-b border-gray-200 bg-gray-50 shrink-0 px-3 flex items-end pb-1"
         >
           <span className="text-xs font-medium text-gray-500">Task Name</span>
         </div>
@@ -252,31 +250,54 @@ function GanttView({ tasks }: { tasks: Task[] }) {
 
       {/* Right pane — timeline */}
       <div className="flex-1 overflow-x-auto overflow-y-auto flex flex-col">
-        {/* Month header */}
-        <div
-          style={{ height: `${ROW_HEIGHT}px`, minWidth: `${totalDays * 4}px` }}
-          className="flex border-b border-gray-200 bg-gray-50 shrink-0 sticky top-0 z-10"
-        >
-          {monthCols.map((col) => (
-            <div
-              key={col.label}
-              style={{ width: `${col.days * 4}px`, minWidth: `${col.days * 4}px` }}
-              className="flex items-center justify-center text-xs font-medium text-gray-500 border-r border-gray-200"
-            >
-              {col.label}
-            </div>
-          ))}
+        {/* Two-row header: week labels + day letters */}
+        <div style={{ minWidth: `${totalW}px` }} className="shrink-0 sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
+          {/* Row 1 — week start dates */}
+          <div style={{ height: `${WEEK_ROW_H}px` }} className="flex border-b border-gray-100">
+            {Array.from({ length: numWeeks }, (_, w) => {
+              const sunday = new Date(rangeStart.getTime() + w * 7 * msPerDay);
+              return (
+                <div
+                  key={w}
+                  style={{ width: `${7 * DAY_W}px`, minWidth: `${7 * DAY_W}px` }}
+                  className="border-r border-gray-200 flex items-center px-1.5 overflow-hidden"
+                >
+                  <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
+                    {weekLabel(sunday)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {/* Row 2 — day letters */}
+          <div style={{ height: `${DAY_ROW_H}px` }} className="flex">
+            {Array.from({ length: totalDays }, (_, i) => {
+              const dow = (rangeStart.getDay() + i) % 7;
+              const isWeekend = dow === 0 || dow === 6;
+              const isWeekBoundary = dow === 0 && i > 0;
+              return (
+                <div
+                  key={i}
+                  style={{ width: `${DAY_W}px`, minWidth: `${DAY_W}px` }}
+                  className={`flex items-center justify-center text-xs border-r ${
+                    isWeekBoundary ? "border-gray-200" : "border-gray-100"
+                  } ${isWeekend ? "text-gray-400 bg-gray-100/60" : "text-gray-500"}`}
+                >
+                  {DAY_LETTERS[dow]}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Task rows */}
-        <div style={{ minWidth: `${totalDays * 4}px` }}>
+        <div style={{ minWidth: `${totalW}px` }}>
           {tasks.map((task) => {
             const hasDate = task.start && task.finish;
             const taskStartMs = hasDate ? new Date(task.start).getTime() : 0;
             const taskFinishMs = hasDate ? new Date(task.finish).getTime() : 0;
             const rangeStartMs = rangeStart.getTime();
 
-            const msPerDay = 1000 * 60 * 60 * 24;
             const leftDays = hasDate ? Math.max(0, (taskStartMs - rangeStartMs) / msPerDay) : 0;
             const widthDays = hasDate ? Math.max(0, (taskFinishMs - taskStartMs) / msPerDay) : 0;
 
@@ -289,14 +310,14 @@ function GanttView({ tasks }: { tasks: Task[] }) {
                 style={{ height: `${ROW_HEIGHT}px` }}
                 className={`relative border-b border-gray-100 flex items-center ${task.isSummary ? "bg-gray-50" : ""}`}
               >
-                {/* Month column gridlines */}
-                {monthCols.map((col, i) => (
+                {/* Weekly gridlines */}
+                {Array.from({ length: numWeeks }, (_, w) => (
                   <div
-                    key={i}
+                    key={w}
                     style={{
                       position: "absolute",
-                      left: `${(col.startDay / totalDays) * 100}%`,
-                      width: `${(col.days / totalDays) * 100}%`,
+                      left: `${(w * 7 / totalDays) * 100}%`,
+                      width: `${(7 / totalDays) * 100}%`,
                       top: 0,
                       bottom: 0,
                       borderRight: "1px solid #f0f0f0",
@@ -306,7 +327,6 @@ function GanttView({ tasks }: { tasks: Task[] }) {
 
                 {hasDate && (
                   task.isMilestone ? (
-                    // Diamond milestone marker
                     <div
                       style={{
                         position: "absolute",
@@ -319,7 +339,6 @@ function GanttView({ tasks }: { tasks: Task[] }) {
                       title={`${task.name}\n${task.start}`}
                     />
                   ) : (
-                    // Bar
                     <div
                       style={{
                         position: "absolute",
@@ -332,7 +351,6 @@ function GanttView({ tasks }: { tasks: Task[] }) {
                       }}
                       title={`${task.name}\n${task.start} → ${task.finish}\n${task.percentComplete}% complete`}
                     >
-                      {/* Progress fill */}
                       {task.percentComplete > 0 && (
                         <div
                           style={{
