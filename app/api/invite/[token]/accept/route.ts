@@ -173,7 +173,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         company_id: null,
         company_role: null,
         user_type: "external",
-        approved: true,
       })
       .select("id")
       .single();
@@ -243,7 +242,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       company_id: invite.company_id,
       company_role: assignedRole,
       user_type: "internal",
-      approved: true,
     })
     .select("id")
     .single();
