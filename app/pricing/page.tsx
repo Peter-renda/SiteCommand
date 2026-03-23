@@ -8,7 +8,7 @@ const plans = [
     size: "1–10 employees",
     price: "$99",
     period: "/ month",
-    description: "Perfect for small crews and single-project teams.",
+    description: "For small crews managing a single active project.",
     cta: "Get started",
     plan: "starter" as const,
     ctaHref: null,
@@ -27,7 +27,7 @@ const plans = [
     size: "11–99 employees",
     price: "$199",
     period: "/ month",
-    description: "Built for growing contractors managing multiple projects.",
+    description: "For growing contractors running multiple projects at once.",
     cta: "Get started",
     plan: "pro" as const,
     ctaHref: null,
@@ -46,7 +46,7 @@ const plans = [
     size: "100+ employees",
     price: "Contact sales",
     period: "",
-    description: "Custom solutions for large organizations and enterprises.",
+    description: "Custom pricing and configuration for large organizations.",
     cta: "Contact us",
     plan: null,
     ctaHref: "mailto:sales@sitecommand.com",
@@ -68,62 +68,67 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-dvh bg-white">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-6 pt-32 pb-20">
-        <div className="text-center mb-14">
-          <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
+      <main id="main-content" className="max-w-5xl mx-auto px-6 pt-32 pb-24">
+        <div className="mb-14">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-950" style={{ letterSpacing: "-0.02em" }}>
             Simple, transparent pricing
           </h1>
           <p className="mt-4 text-lg text-gray-500">
-            Choose the plan that fits your team. No hidden fees.
+            Choose the plan that fits your team. No hidden fees, no surprises.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {plans.map((plan) => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 rounded-2xl border border-gray-200 overflow-hidden">
+          {plans.map((plan, idx) => (
             <div
               key={plan.name}
-              className={`relative flex flex-col rounded-2xl border p-8 ${
+              className={`relative flex flex-col p-8 ${
                 plan.highlight
-                  ? "border-gray-900 bg-gray-900 text-white shadow-xl"
-                  : "border-gray-200 bg-white text-gray-900"
-              }`}
+                  ? "bg-gray-950 text-white"
+                  : "bg-white text-gray-900"
+              } ${idx < plans.length - 1 ? "md:border-r border-b md:border-b-0 border-gray-200" : ""}`}
             >
               {plan.highlight && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                  <span className="px-3 py-1 text-xs font-semibold bg-white text-gray-900 rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
+                <div className="absolute top-6 right-6">
+                  <span className="px-2.5 py-1 text-xs font-semibold bg-orange-500 text-white rounded">
                     Most popular
                   </span>
                 </div>
               )}
 
-              <div className="mb-6">
-                <p className={`text-xs font-semibold uppercase tracking-widest mb-1 ${plan.highlight ? "text-gray-400" : "text-gray-400"}`}>
+              {/* Plan header — fixed height so feature lists align */}
+              <div className="mb-8 min-h-[160px]">
+                <p className={`text-xs font-medium tracking-wide mb-1 ${plan.highlight ? "text-gray-400" : "text-gray-400"}`}>
                   {plan.size}
                 </p>
                 <h2 className="text-xl font-semibold">{plan.name}</h2>
                 <div className="mt-4 flex items-end gap-1">
-                  <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
+                  <span className="text-4xl font-bold tabular-nums" style={{ letterSpacing: "-0.02em" }}>
+                    {plan.price}
+                  </span>
                   {plan.period && (
-                    <span className={`text-sm mb-1 ${plan.highlight ? "text-gray-400" : "text-gray-400"}`}>
+                    <span className={`text-sm mb-1 ${plan.highlight ? "text-gray-400" : "text-gray-500"}`}>
                       {plan.period}
                     </span>
                   )}
                 </div>
-                <p className={`mt-3 text-sm ${plan.highlight ? "text-gray-400" : "text-gray-500"}`}>
+                <p className={`mt-3 text-sm leading-relaxed ${plan.highlight ? "text-gray-400" : "text-gray-500"}`}>
                   {plan.description}
                 </p>
               </div>
 
+              {/* CTA — pinned above features */}
               {plan.ctaHref ? (
                 <a
                   href={plan.ctaHref}
-                  className={`block text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 ${
+                  className={`block text-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-150 mb-8 active:scale-[0.98] ${
                     plan.highlight
-                      ? "bg-white text-gray-900 hover:bg-gray-100"
-                      : "bg-gray-900 text-white hover:bg-gray-700"
+                      ? "bg-white text-gray-950 hover:bg-gray-100"
+                      : "bg-gray-950 text-white hover:bg-gray-800"
                   }`}
                 >
                   {plan.cta}
@@ -131,21 +136,22 @@ export default function PricingPage() {
               ) : (
                 <button
                   onClick={() => handleSelectPlan(plan.plan!)}
-                  className={`block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium transition-colors mb-8 ${
+                  className={`block w-full text-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-150 mb-8 active:scale-[0.98] ${
                     plan.highlight
-                      ? "bg-white text-gray-900 hover:bg-gray-100"
-                      : "bg-gray-900 text-white hover:bg-gray-700"
+                      ? "bg-white text-gray-950 hover:bg-gray-100"
+                      : "bg-gray-950 text-white hover:bg-gray-800"
                   }`}
                 >
                   {plan.cta}
                 </button>
               )}
 
-              <ul className="space-y-3 mt-auto">
+              {/* Feature list — starts at same vertical position across all cards */}
+              <ul className="space-y-3 border-t border-gray-100/20 pt-8 mt-auto">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-sm">
                     <svg
-                      className={`w-4 h-4 shrink-0 mt-0.5 ${plan.highlight ? "text-gray-400" : "text-gray-400"}`}
+                      className={`w-4 h-4 shrink-0 mt-0.5 ${plan.highlight ? "text-orange-400" : "text-gray-400"}`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -160,7 +166,25 @@ export default function PricingPage() {
             </div>
           ))}
         </div>
+
+        <p className="mt-8 text-center text-sm text-gray-400">
+          All plans include a 14-day free trial. No credit card required.
+        </p>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-100 bg-white py-10 px-6 sm:px-10">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
+          <div className="flex flex-wrap gap-6 text-xs text-gray-400">
+            <a href="/" className="hover:text-gray-700 transition-colors">Home</a>
+            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
+            <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
+            <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
+          </div>
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} SiteCommand</p>
+        </div>
+      </footer>
     </div>
   );
 }
