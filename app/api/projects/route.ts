@@ -10,16 +10,6 @@ export async function GET() {
 
   const supabase = getSupabase();
 
-  // System admin: all projects across all tenants, but respect company filter if one is selected
-  if (session.role === "admin") {
-    let query = supabase.from("projects").select("*").order("created_at", { ascending: false });
-    if (session.company_id) {
-      query = query.eq("company_id", session.company_id);
-    }
-    const { data } = await query;
-    return NextResponse.json(data || []);
-  }
-
   // Org-level admins see all projects under their company
   const isOrgAdmin =
     session.company_role === "super_admin" || session.company_role === "admin";
@@ -64,10 +54,9 @@ export async function POST(req: NextRequest) {
   // External collaborators (no company) may never create projects.
   // Only system admins and internal company admins can.
   const canCreate =
-    session?.role === "admin" ||
     session?.company_role === "admin" ||
     session?.company_role === "super_admin";
-  if (!session || !canCreate || (!session.company_id && session.role !== "admin")) {
+  if (!session || !canCreate || !session.company_id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -96,7 +85,7 @@ export async function POST(req: NextRequest) {
       projected_finish_date: projected_finish_date || null,
       warranty_start_date: warranty_start_date || null,
       warranty_end_date: warranty_end_date || null,
-      company_id: session.role === "admin" ? (bodyCompanyId || null) : session.company_id,
+      company_id: session.company_id,
     })
     .select()
     .single();
@@ -105,7 +94,7 @@ export async function POST(req: NextRequest) {
 
   // Add initial members to project_memberships and directory
   if (Array.isArray(memberIds) && memberIds.length > 0) {
-    const companyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
+    const companyId = session.company_id;
     await supabase.from("project_memberships").insert(
       memberIds.map((uid: string) => ({
         project_id: project.id,
@@ -121,34 +110,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Always add the company super admin(s) and site-level admins to the new project's directory
-  const projectCompanyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
-
-  const autoAddIds = new Set<string>();
-
-  if (projectCompanyId) {
+  // Always add the company super admin(s) to the new project's directory
+  if (session.company_id) {
     const { data: superAdmins } = await supabase
       .from("users")
       .select("id")
-      .eq("company_id", projectCompanyId)
+      .eq("company_id", session.company_id)
       .eq("company_role", "super_admin");
-    (superAdmins ?? []).forEach((u: { id: string }) => autoAddIds.add(u.id));
-  }
-
-  // Site-level admins (e.g. the SiteCommand account owner) belong to every directory
-  const { data: siteAdmins } = await supabase
-    .from("users")
-    .select("id")
-    .eq("role", "admin");
-  (siteAdmins ?? []).forEach((u: { id: string }) => autoAddIds.add(u.id));
-
-  if (autoAddIds.size > 0) {
     await Promise.all(
-      [...autoAddIds].map((uid) => addUserToDirectory(supabase, project.id, uid))
+      (superAdmins ?? []).map((u: { id: string }) => addUserToDirectory(supabase, project.id, u.id))
     );
   }
 
-  const companyId = session.role === "admin" ? (bodyCompanyId || null) : session.company_id;
+  const companyId = session.company_id;
   if (companyId) {
     dispatchWebhookEvent(companyId, "project.created", {
       id: project.id,

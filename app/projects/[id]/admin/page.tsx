@@ -7,5 +7,5 @@ export default async function AdminPage({ params }: { params: Promise<{ id: stri
   if (!session) redirect("/login");
 
   const { id } = await params;
-  return <AdminClient projectId={id} role={session.role} username={session.username} />;
+  return <AdminClient projectId={id} role={session.company_role ?? "member"} username={session.username} />;
 }

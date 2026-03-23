@@ -451,7 +451,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
     closeModal();
   }
 
-  const canManageProjects = role === "admin" || companyRole === "super_admin" || companyRole === "admin";
+  const canManageProjects = companyRole === "super_admin" || companyRole === "admin";
   const totalValue = projects.reduce((sum, p) => sum + (p.value || 0), 0);
   const activeCount = projects.filter((p) => p.status === "course of construction").length;
   const completedCount = projects.filter((p) => p.status === "post-construction" || p.status === "warranty").length;
@@ -497,11 +497,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
           )}
         </div>
         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
-          {role === "admin" && (
-            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">
-              Admin
-            </a>
-          )}
           {(companyRole === "super_admin" || companyRole === "admin") && (
             <a href="/company" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">
               Team

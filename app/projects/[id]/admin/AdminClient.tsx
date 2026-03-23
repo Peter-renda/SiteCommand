@@ -133,7 +133,7 @@ export default function AdminClient({
   role: string;
   username: string;
 }) {
-  const isAdmin = role === "admin";
+  const isAdmin = role === "admin" || role === "super_admin";
 
   const [data, setData] = useState<ProjectAdmin | null>(null);
   const [loading, setLoading] = useState(true);
@@ -318,10 +318,7 @@ export default function AdminClient({
           SiteCommand
         </a>
         <div className="flex items-center gap-5">
-          {role === "admin" && (
-            <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">Admin</a>
-          )}
-          <span className="text-sm text-gray-400">{username}</span>
+<span className="text-sm text-gray-400">{username}</span>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button>
         </div>
       </header>

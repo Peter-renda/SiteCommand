@@ -31,7 +31,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { id: projectId } = await params;
 
   const isAdmin =
-    session.role === "admin" ||
     session.company_role === "super_admin" ||
     session.company_role === "admin";
   if (!isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

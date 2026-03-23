@@ -75,7 +75,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function RFIDetailClient({ projectId, rfiId, role, username, userId, userEmail }: { projectId: string; rfiId: string; role: string; username: string; userId: string; userEmail: string }) {
-  const isAdmin = role === "admin";
   const [rfi, setRfi] = useState<RFI | null>(null);
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
   const [specifications, setSpecifications] = useState<Specification[]>([]);
@@ -108,8 +107,8 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     });
   }, [projectId, rfiId]);
 
-  const canEdit = rfi && (isAdmin || rfi.created_by === userId);
-  const canRespond = isAdmin || (rfi?.assignees ?? []).some((a) => a.email && a.email.toLowerCase() === (userEmail || "").toLowerCase());
+  const canEdit = rfi && rfi.created_by === userId;
+  const canRespond = (rfi?.assignees ?? []).some((a) => a.email && a.email.toLowerCase() === (userEmail || "").toLowerCase());
   const showRespondNote = !canRespond && (rfi?.assignees ?? []).length > 0;
 
   async function handleSubmitResponse() {
@@ -179,7 +178,6 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
         <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">SiteCommand</a>
         <div className="flex items-center gap-5">
-          {role === "admin" && <a href="/admin" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">Admin</a>}
           <span className="text-sm text-gray-400">{username}</span>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button>
         </div>

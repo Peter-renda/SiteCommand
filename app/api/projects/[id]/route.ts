@@ -5,7 +5,7 @@ import { logActivity } from "@/lib/activity";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
-  const canEdit = session?.role === "admin" || session?.company_role === "admin";
+  const canEdit = session?.company_role === "admin" || session?.company_role === "super_admin";
   if (!session || !canEdit) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -49,10 +49,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error || !data) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
-  if (session.role !== "admin") {
-    if (data.company_id !== session.company_id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (data.company_id !== session.company_id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   return NextResponse.json({ ...data, members: [] });

@@ -8,9 +8,6 @@ export default async function CompanyPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  // System admin has no company — send them to /admin
-  if (session.role === "admin") redirect("/admin");
-
   // Both super_admin and admin can access the team management page
   if (!isCompanyAdmin(session.company_role)) redirect("/dashboard");
 
@@ -24,11 +21,16 @@ export default async function CompanyPage() {
     .eq("id", session.company_id)
     .single();
 
-  const { data: members } = await supabase
-    .from("users")
-    .select("id, username, email, company_role, created_at")
-    .eq("company_id", session.company_id)
+  const { data: memberRows } = await supabase
+    .from("org_members")
+    .select("role, users(id, username, email, created_at)")
+    .eq("org_id", session.company_id)
     .order("created_at", { ascending: true });
+
+  const members = (memberRows ?? []).map((row: any) => {
+    const u = row.users as { id: string; username: string; email: string; created_at: string } | null;
+    return { id: u?.id, username: u?.username, email: u?.email, created_at: u?.created_at, company_role: row.role };
+  }).filter((m: any) => m.id);
 
   const { data: invites } = await supabase
     .from("invitations")
