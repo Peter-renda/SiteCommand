@@ -61,7 +61,7 @@ const navItems: { label: string; items: NavSubItem[]; href?: string }[] = [
   {
     label: "About Us",
     items: [
-      { label: "Company", href: "#" },
+      { label: "Company", href: "/about" },
       { label: "Careers", href: "/careers" },
       { label: "Press", href: "#" },
     ],
