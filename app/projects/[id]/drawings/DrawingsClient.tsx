@@ -1450,7 +1450,7 @@ export default function DrawingsClient({
                             onClick={() => setViewingDrawing(d)}
                             className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
                           >
-                            <td className="px-3 py-3" onClick={(e) => e.stopPropagation()} />
+                            <td className="px-3 py-3" />
                             <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
                               <input
                                 type="checkbox"
@@ -1463,7 +1463,7 @@ export default function DrawingsClient({
                                 className="rounded border-gray-300"
                               />
                             </td>
-                            <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-3 py-3">
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setSelected(d); }}
@@ -1480,10 +1480,10 @@ export default function DrawingsClient({
                               </div>
                             </td>
                             <td className="px-3 py-3 text-gray-700 text-xs">{d.title ?? <span className="text-gray-400">—</span>}</td>
-                            <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-3 py-3">
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-700 text-xs">{d.revision ?? "0"}</span>
-                                <button className="px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">See All</button>
+                                <button onClick={(e) => e.stopPropagation()} className="px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">See All</button>
                               </div>
                             </td>
                             <td className="px-3 py-3 text-gray-600 text-xs">{d.drawing_date ? formatDate(d.drawing_date) : <span className="text-gray-400">—</span>}</td>
