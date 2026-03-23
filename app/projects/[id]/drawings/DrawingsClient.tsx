@@ -281,14 +281,18 @@ function findStrokeNear(strokes: AnnotationStroke[], rx: number, ry: number): st
 
 function DrawingPdfViewerModal({
   drawing,
+  allDrawings,
   onClose,
+  onNavigate,
   onEditDetails,
   projectId,
   userRole,
   userName,
 }: {
   drawing: DrawingPage;
+  allDrawings: DrawingPage[];
   onClose: () => void;
+  onNavigate: (d: DrawingPage) => void;
   onEditDetails: () => void;
   projectId: string;
   userRole: string;
@@ -324,12 +328,17 @@ function DrawingPdfViewerModal({
   const activeColorRef = useRef(activeColor);
   useEffect(() => { activeColorRef.current = activeColor; }, [activeColor]);
 
-  // Keyboard: Esc to close
+  // Keyboard: Esc to close, ArrowLeft/ArrowRight to navigate
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { onClose(); return; }
+      const idx = allDrawings.findIndex((d) => d.id === drawing.id);
+      if (e.key === "ArrowLeft" && idx > 0) onNavigate(allDrawings[idx - 1]);
+      if (e.key === "ArrowRight" && idx < allDrawings.length - 1) onNavigate(allDrawings[idx + 1]);
+    }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, onNavigate, drawing.id, allDrawings]);
 
   // Load annotations on mount
   useEffect(() => {
@@ -626,8 +635,37 @@ function DrawingPdfViewerModal({
       )}
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-900 shrink-0 gap-4 flex-wrap">
-        {/* Drawing name */}
+        {/* Drawing name + navigation */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
+          {(() => {
+            const idx = allDrawings.findIndex((d) => d.id === drawing.id);
+            return (
+              <>
+                <button
+                  onClick={() => idx > 0 && onNavigate(allDrawings[idx - 1])}
+                  disabled={idx <= 0}
+                  title="Previous drawing (←)"
+                  className="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => idx < allDrawings.length - 1 && onNavigate(allDrawings[idx + 1])}
+                  disabled={idx >= allDrawings.length - 1}
+                  title="Next drawing (→)"
+                  className="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                <span className="text-xs text-gray-500 shrink-0">{idx + 1} / {allDrawings.length}</span>
+                <div className="w-px h-4 bg-gray-700 shrink-0" />
+              </>
+            );
+          })()}
           <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
@@ -1150,8 +1188,11 @@ export default function DrawingsClient({
       {/* PDF Viewer Modal */}
       {viewingDrawing && (
         <DrawingPdfViewerModal
+          key={viewingDrawing.id}
           drawing={viewingDrawing}
+          allDrawings={filteredDrawings}
           onClose={() => setViewingDrawing(null)}
+          onNavigate={setViewingDrawing}
           onEditDetails={() => { setSelected(viewingDrawing); setViewingDrawing(null); }}
           projectId={projectId}
           userRole={role}
@@ -1404,9 +1445,13 @@ export default function DrawingsClient({
                         </tr>
                         {/* Data rows */}
                         {!collapsedGroups.has(discipline) && groupDrawings.map((d) => (
-                          <tr key={d.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                            <td className="px-3 py-3" />
-                            <td className="px-2 py-3">
+                          <tr
+                            key={d.id}
+                            onClick={() => setViewingDrawing(d)}
+                            className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                          >
+                            <td className="px-3 py-3" onClick={(e) => e.stopPropagation()} />
+                            <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
                               <input
                                 type="checkbox"
                                 checked={selectedIds.has(d.id)}
@@ -1418,7 +1463,7 @@ export default function DrawingsClient({
                                 className="rounded border-gray-300"
                               />
                             </td>
-                            <td className="px-3 py-3">
+                            <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setSelected(d); }}
@@ -1429,16 +1474,13 @@ export default function DrawingsClient({
                                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                                   </svg>
                                 </button>
-                                <button
-                                  onClick={() => setViewingDrawing(d)}
-                                  className="text-blue-600 hover:text-blue-800 font-medium hover:underline text-xs"
-                                >
+                                <span className="text-blue-600 font-medium text-xs">
                                   {d.drawing_no ?? `P.${d.page_number}`}
-                                </button>
+                                </span>
                               </div>
                             </td>
                             <td className="px-3 py-3 text-gray-700 text-xs">{d.title ?? <span className="text-gray-400">—</span>}</td>
-                            <td className="px-3 py-3">
+                            <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-700 text-xs">{d.revision ?? "0"}</span>
                                 <button className="px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">See All</button>
@@ -1446,10 +1488,8 @@ export default function DrawingsClient({
                             </td>
                             <td className="px-3 py-3 text-gray-600 text-xs">{d.drawing_date ? formatDate(d.drawing_date) : <span className="text-gray-400">—</span>}</td>
                             <td className="px-3 py-3 text-gray-600 text-xs">{d.received_date ? formatDate(d.received_date) : <span className="text-gray-400">—</span>}</td>
-                            <td className="px-3 py-3">
-                              <button onClick={() => setViewingDrawing(d)} className="text-blue-600 hover:underline text-xs truncate max-w-[150px] block">
-                                {d.filename}
-                              </button>
+                            <td className="px-3 py-3 text-gray-600 text-xs truncate max-w-[150px]">
+                              {d.filename}
                             </td>
                             <td className="px-3 py-3">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">
