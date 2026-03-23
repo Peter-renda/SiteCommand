@@ -75,6 +75,9 @@ function TableView({ tasks }: { tasks: Task[] }) {
     );
   }
 
+  // Build a UID → task ID map so predecessor column shows task IDs (not UIDs)
+  const uidToId = new Map<number, number>(tasks.map((t) => [t.uid, t.id]));
+
   return (
     <div className="overflow-auto">
       <table className="w-full text-sm border-collapse">
@@ -85,12 +88,16 @@ function TableView({ tasks }: { tasks: Task[] }) {
             <th className="text-left px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap">Start</th>
             <th className="text-left px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap">Finish</th>
             <th className="text-left px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap">Duration (days)</th>
+            <th className="text-left px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap">Predecessors</th>
             <th className="text-left px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap">% Complete</th>
           </tr>
         </thead>
         <tbody>
           {tasks.map((task) => {
             const duration = task.start && task.finish ? daysBetween(task.start, task.finish) : 0;
+            const predecessorIds = task.predecessorUids
+              .map((uid) => uidToId.get(uid) ?? uid)
+              .join(", ");
             return (
               <tr
                 key={task.uid}
@@ -109,6 +116,7 @@ function TableView({ tasks }: { tasks: Task[] }) {
                 <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{task.start || "—"}</td>
                 <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{task.finish || "—"}</td>
                 <td className="px-4 py-2 text-gray-500">{task.isMilestone ? "—" : duration}</td>
+                <td className="px-4 py-2 text-gray-500">{predecessorIds || "—"}</td>
                 <td className="px-4 py-2">
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
