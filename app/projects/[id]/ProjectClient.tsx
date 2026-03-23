@@ -874,28 +874,40 @@ export default function ProjectClient({
 
                 {/* Photo */}
                 <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                   {project.photo_url ? (
-                    <img
-                      src={project.photo_url}
-                      alt="Project photo"
-                      className="w-full h-48 object-cover"
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        target.style.display = "none";
-                        const parent = target.parentElement;
-                        if (parent) {
-                          const fallback = document.createElement("div");
-                          fallback.className = "w-full h-48 bg-gray-100 flex items-center justify-center";
-                          fallback.innerHTML = `<svg class="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a.75.75 0 00.75-.75V6.75A.75.75 0 0019.5 6h-15a.75.75 0 00-.75.75v12c0 .414.336.75.75.75z" /></svg>`;
-                          parent.insertBefore(fallback, target);
-                        }
-                      }}
-                    />
+                    <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                      <img
+                        src={project.photo_url}
+                        alt="Project photo"
+                        className="w-full h-48 object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = "none";
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const fallback = document.createElement("div");
+                            fallback.className = "w-full h-48 bg-gray-100 flex items-center justify-center";
+                            fallback.innerHTML = `<svg class="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a.75.75 0 00.75-.75V6.75A.75.75 0 0019.5 6h-15a.75.75 0 00-.75.75v12c0 .414.336.75.75.75z" /></svg>`;
+                            parent.insertBefore(fallback, target);
+                          }
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-xs font-medium">{uploading ? "Uploading…" : "Change Photo"}</span>
+                      </div>
+                    </div>
                   ) : (
-                    <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
-                      <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <div
+                      className="w-full h-48 bg-gray-100 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-150 transition-colors group"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <svg className="w-10 h-10 text-gray-300 group-hover:text-gray-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a.75.75 0 00.75-.75V6.75A.75.75 0 0019.5 6h-15a.75.75 0 00-.75.75v12c0 .414.336.75.75.75z" />
                       </svg>
+                      <span className="text-xs text-gray-400 group-hover:text-gray-500 transition-colors">
+                        {uploading ? "Uploading…" : "Click to add photo"}
+                      </span>
                     </div>
                   )}
                 </div>
