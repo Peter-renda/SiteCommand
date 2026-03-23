@@ -29,8 +29,8 @@ const solutionsCapabilities: SolutionsCapabilityColumn[] = [
     items: [
       { label: "Project Management", href: "/solutions/project-management" },
       { label: "Quality & Safety", href: "/solutions/quality-and-safety" },
-      { label: "Schedule", href: "#" },
-      { label: "RFI", href: "#" },
+      { label: "Schedule", href: "/solutions/schedule" },
+      { label: "RFI", href: "/solutions/rfi" },
     ],
   },
   {
@@ -61,7 +61,7 @@ const navItems: { label: string; items: NavSubItem[]; href?: string }[] = [
   {
     label: "About Us",
     items: [
-      { label: "Company", href: "#" },
+      { label: "Company", href: "/about" },
       { label: "Careers", href: "/careers" },
       { label: "Press", href: "#" },
     ],
