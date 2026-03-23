@@ -74,7 +74,7 @@ function SecretRevealBox({ value, label }: { value: string; label: string }) {
 
 // ─── API Keys Tab ─────────────────────────────────────────────────────────────
 
-function ApiKeysTab() {
+export function ApiKeysTab() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -242,7 +242,7 @@ function ApiKeysTab() {
 
 // ─── Webhooks Tab ─────────────────────────────────────────────────────────────
 
-function WebhooksTab() {
+export function WebhooksTab() {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -494,7 +494,7 @@ function WebhooksTab() {
 
 // ─── Documentation Tab ────────────────────────────────────────────────────────
 
-function DocumentationTab() {
+export function DocumentationTab() {
   return (
     <div className="space-y-8">
       {/* Authentication */}

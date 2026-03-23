@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ApiKeysTab, WebhooksTab, DocumentationTab } from "@/app/settings/developer/DeveloperSettingsClient";
 
 type Member = {
   id: string;
@@ -59,6 +60,7 @@ export default function CompanyClient({
   currentUserId: string;
   isSuperAdmin: boolean;
 }) {
+  const [activeTab, setActiveTab] = useState<"team" | "developer">("team");
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
 
@@ -189,6 +191,39 @@ export default function CompanyClient({
           )}
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 mb-6">
+          {(["team", "developer"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors mr-1 capitalize ${
+                activeTab === tab
+                  ? "border-orange-500 text-gray-900"
+                  : "border-transparent text-gray-400 hover:text-gray-700"
+              }`}
+            >
+              {tab === "team" ? "Team" : "Developer"}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "developer" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <ApiKeysTab />
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <WebhooksTab />
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <DocumentationTab />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "team" && <>
+
         {/* User Management */}
         <div className="bg-white rounded-xl border border-gray-100 px-6 py-5">
           <div className="flex items-center justify-between mb-4">
@@ -294,7 +329,7 @@ export default function CompanyClient({
         </div>
 
         {/* About Site Command */}
-        <div className="bg-white rounded-xl border border-gray-100 px-6 py-5 mt-6">
+        <div className="bg-white rounded-xl border border-gray-100 px-6 py-5 mt-6 last:mb-0">
           <h2 className="text-sm font-semibold text-gray-900 mb-3">About Site Command</h2>
           <p className="text-sm font-medium text-gray-700 mb-3">
             Construction is hard enough. Your software shouldn&apos;t be.
@@ -327,6 +362,9 @@ export default function CompanyClient({
             </p>
           </div>
         </div>
+
+        </>}
+
       </main>
 
       {/* Add User Modal */}
