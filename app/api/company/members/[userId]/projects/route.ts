@@ -50,13 +50,16 @@ export async function PUT(
   const { projectIds } = await req.json();
   const supabase = getSupabase();
 
-  const { data: user } = await supabase
-    .from("users")
-    .select("company_id")
-    .eq("id", userId)
-    .single();
+  // Verify the target user is a member of the admin's company (check org_members,
+  // not users.company_id, because invited users keep their primary company_id)
+  const { data: membership } = await supabase
+    .from("org_members")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("org_id", session.company_id)
+    .maybeSingle();
 
-  if (!user || user.company_id !== session.company_id) {
+  if (!membership) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
