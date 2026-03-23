@@ -71,6 +71,9 @@ export default function CompanyClient({
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState("");
 
+  // Revoke invite confirmation
+  const [revokeConfirmId, setRevokeConfirmId] = useState<string | null>(null);
+
   // Project access modal
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -315,12 +318,30 @@ export default function CompanyClient({
                         })}
                       </p>
                     </div>
-                    <button
-                      onClick={() => handleRevokeInvite(invite.id)}
-                      className="text-xs text-red-400 hover:text-red-600 transition-colors"
-                    >
-                      Revoke
-                    </button>
+                    {revokeConfirmId === invite.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Revoke invite?</span>
+                        <button
+                          onClick={() => { handleRevokeInvite(invite.id); setRevokeConfirmId(null); }}
+                          className="text-xs text-red-500 font-medium hover:text-red-700 transition-colors"
+                        >
+                          Yes, revoke
+                        </button>
+                        <button
+                          onClick={() => setRevokeConfirmId(null)}
+                          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setRevokeConfirmId(invite.id)}
+                        className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                      >
+                        Revoke
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
