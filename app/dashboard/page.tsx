@@ -37,7 +37,7 @@ export default async function DashboardPage() {
   // Only block admins/owners for billing issues — members can't fix billing
   const ACTIVE_STATUSES = ["active", "trialing"];
   if (isCompanyAdmin(session.company_role)) {
-    if (!company || (company.stripe_subscription_id && !ACTIVE_STATUSES.includes(company.subscription_status))) {
+    if (!company || (company.stripe_subscription_id && company.subscription_status !== null && !ACTIVE_STATUSES.includes(company.subscription_status))) {
       redirect("/pricing");
     }
   }

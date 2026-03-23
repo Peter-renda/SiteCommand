@@ -83,7 +83,8 @@ export async function POST(req: NextRequest) {
       if (
         !company ||
         (company.stripe_subscription_id &&
-          !ACTIVE_STATUSES.includes(company.subscription_status ?? ""))
+          company.subscription_status !== null &&
+          !ACTIVE_STATUSES.includes(company.subscription_status))
       ) {
         redirect = "/pricing";
       }
