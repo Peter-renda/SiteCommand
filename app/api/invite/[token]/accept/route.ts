@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getSupabase } from "@/lib/supabase";
 import { createToken } from "@/lib/auth";
+import { addUserToDirectory } from "@/lib/directory";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         },
         { onConflict: "project_id,user_id" }
       );
+      await addUserToDirectory(supabase, invite.project_id, user.id);
     }
 
     // For internal invites: ensure the user is in org_members for the invited company
@@ -190,6 +192,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         permission: projectRole === "external_viewer" ? "read_only" : "write",
         // allowed_sections defaults to NULL = access to all sections
       });
+      await addUserToDirectory(supabase, invite.project_id, newUser.id);
     }
 
     await supabase
@@ -274,6 +277,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       },
       { onConflict: "project_id,user_id" }
     );
+    await addUserToDirectory(supabase, invite.project_id, newUser.id);
   }
 
   const jwtToken = await createToken({
