@@ -27,7 +27,7 @@ const solutionsCapabilities: SolutionsCapabilityColumn[] = [
   {
     heading: "Construction",
     items: [
-      { label: "Project Management", href: "#" },
+      { label: "Project Management", href: "/solutions/project-management" },
       { label: "Quality & Safety", href: "#" },
       { label: "Schedule", href: "#" },
       { label: "RFI", href: "#" },
