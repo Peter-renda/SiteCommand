@@ -278,23 +278,23 @@ function CreateRFIModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">RFI Manager</label>
-              <SingleContactPicker directory={directory} selectedId={rfiManagerId} onChange={setRfiManagerId} placeholder="Select user..." />
+              <SingleContactPicker directory={directory} selectedId={rfiManagerId} onChange={setRfiManagerId} filterType="user" placeholder="Select user..." />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Received From</label>
-            <SingleContactPicker directory={directory} selectedId={receivedFromId} onChange={setReceivedFromId} placeholder="Select user..." />
+            <SingleContactPicker directory={directory} selectedId={receivedFromId} onChange={setReceivedFromId} filterType="user" placeholder="Select user..." />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Assignees</label>
-            <MultiContactPicker directory={directory} selected={assignees} onChange={setAssignees} placeholder="Select users..." />
+            <MultiContactPicker directory={directory} selected={assignees} onChange={setAssignees} filterType="user" placeholder="Select users..." />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Distribution List</label>
-            <MultiContactPicker directory={directory} selected={distributionList} onChange={setDistributionList} placeholder="Select users..." />
+            <MultiContactPicker directory={directory} selected={distributionList} onChange={setDistributionList} filterType="user" placeholder="Select users..." />
           </div>
 
           <div>
