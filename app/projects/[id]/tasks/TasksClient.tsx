@@ -239,6 +239,7 @@ function DistributionPicker({
   const selectedIds = new Set(selected.map((s) => s.id));
   const filtered = directory.filter(
     (c) =>
+      c.type === "user" &&
       !selectedIds.has(c.id) &&
       (contactDisplayName(c).toLowerCase().includes(search.toLowerCase()) ||
         (c.email ?? "").toLowerCase().includes(search.toLowerCase()))
@@ -330,7 +331,11 @@ function NewTaskModal({
   const [description, setDescription] = useState("");
   const [distribution, setDistribution] = useState<DistributionContact[]>([]);
   const [assignees, setAssignees] = useState<DistributionContact[]>([]);
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split("T")[0];
+  });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
