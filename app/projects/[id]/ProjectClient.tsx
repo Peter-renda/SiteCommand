@@ -175,11 +175,11 @@ function WeatherWidget({ zipCode, onDays }: { zipCode: string; onDays?: (days: W
               <span className="text-xs font-medium text-gray-600 w-9">{dayName}</span>
               <span className="text-base">{icon}</span>
               <div className="flex items-center gap-2 text-xs">
-                {day.precip > 0 && (
-                  <span className="text-blue-500 font-medium">{day.precip.toFixed(1)}&quot;</span>
-                )}
-                <span className="font-medium text-gray-900">{day.max}°</span>
-                <span className="text-gray-400">{day.min}°</span>
+                <span className="w-10 text-right text-blue-500 font-medium">
+                  {day.precip > 0 ? `${day.precip.toFixed(1)}"` : ""}
+                </span>
+                <span className="font-medium text-gray-900 w-8 text-right">{day.max}°</span>
+                <span className="text-gray-400 w-6 text-right">{day.min}°</span>
               </div>
             </div>
           );
