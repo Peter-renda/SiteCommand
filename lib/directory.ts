@@ -11,7 +11,7 @@ export async function addUserToDirectory(
 ) {
   const { data: user } = await supabase
     .from("users")
-    .select("first_name, last_name, email, company_id")
+    .select("first_name, last_name, email")
     .eq("id", userId)
     .single();
 
@@ -25,16 +25,33 @@ export async function addUserToDirectory(
     .eq("email", user.email)
     .maybeSingle();
 
-  if (existing) return;
-
+  // Use the project's owning company, not the user's primary company_id.
+  // A user can belong to multiple companies (via org_members), so we must
+  // show the company that owns this specific project as the directory context.
   let companyName: string | null = null;
-  if (user.company_id) {
+  const { data: project } = await supabase
+    .from("projects")
+    .select("company_id")
+    .eq("id", projectId)
+    .single();
+
+  if (project?.company_id) {
     const { data: company } = await supabase
       .from("companies")
       .select("name")
-      .eq("id", user.company_id)
+      .eq("id", project.company_id)
       .single();
     companyName = company?.name ?? null;
+  }
+
+  if (existing) {
+    // Update the company in case it was previously stored incorrectly
+    // (e.g. user was a member of a different company at insertion time)
+    await supabase
+      .from("directory_contacts")
+      .update({ company: companyName })
+      .eq("id", existing.id);
+    return;
   }
 
   await supabase.from("directory_contacts").insert({
