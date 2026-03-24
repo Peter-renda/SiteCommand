@@ -681,6 +681,7 @@ export default function DirectoryClient({
                           setOpenMenuId(id);
                         }}
                         onMenuClose={() => { setOpenMenuId(null); setMenuPos(null); }}
+                        onEdit={(contact) => setEditTarget(contact)}
                         indent
                       />
                     )) : []),
@@ -720,6 +721,7 @@ export default function DirectoryClient({
                           setOpenMenuId(id);
                         }}
                         onMenuClose={() => { setOpenMenuId(null); setMenuPos(null); }}
+                        onEdit={(contact) => setEditTarget(contact)}
                         indent={false}
                       />
                     ))}
@@ -834,6 +836,7 @@ function PersonRow({
   onInvite,
   onMenuOpen,
   onMenuClose,
+  onEdit,
   indent,
 }: {
   c: Contact;
@@ -844,6 +847,7 @@ function PersonRow({
   onInvite: (c: Contact) => void;
   onMenuOpen: (id: string, rect: DOMRect) => void;
   onMenuClose: () => void;
+  onEdit: (c: Contact) => void;
   indent: boolean;
 }) {
   const alreadyInvited = invitedIds.has(c.id);
@@ -864,7 +868,7 @@ function PersonRow({
         <div className={`flex items-center gap-2.5 ${indent ? "pl-4" : ""}`}>
           {/* Edit button */}
           <button
-            onClick={() => { /* handled by parent via menu */ }}
+            onClick={() => onEdit(c)}
             className="shrink-0 px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Edit
