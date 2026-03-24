@@ -22,6 +22,7 @@ import PrimeContracts from "./views/PrimeContracts";
 import CreatePrimeContract from "./views/CreatePrimeContract";
 import ChangeOrders from "./views/ChangeOrders";
 import BidManagement from "./views/BidManagement";
+import ProjectBidManagement from "./views/ProjectBidManagement";
 import BIM from "./views/BIM";
 import Estimating from "./views/Estimating";
 import Prequalification from "./views/Prequalification";
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/projects/:id/prime-contracts" element={<PrimeContracts />} />
         <Route path="/projects/:id/prime-contracts/new" element={<CreatePrimeContract />} />
         <Route path="/projects/:id/change-orders" element={<ChangeOrders />} />
+        <Route path="/projects/:id/bid-management" element={<ProjectBidManagement />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
