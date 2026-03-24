@@ -15,6 +15,7 @@ const TOOL_SECTIONS = [
   {
     label: "Project Tools",
     items: [
+      { name: "Bid Management", slug: "bid-management" },
       { name: "Budget", slug: "budget" },
       { name: "Insights", slug: "insights" },
       { name: "RFIs", slug: "rfis" },
