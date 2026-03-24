@@ -18,7 +18,7 @@ const solutionsCapabilities: SolutionsCapabilityColumn[] = [
   {
     heading: "Preconstruction",
     items: [
-      { label: "Bid Management", href: "#" },
+      { label: "Bid Management", href: "/bid-management" },
       { label: "BIM", href: "#" },
       { label: "Estimating", href: "#" },
       { label: "Prequalification", href: "#" },
@@ -101,7 +101,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
         {/* Logo */}
         <a
-          href="https://site-command-orpin.vercel.app/"
+          href="https://sitecommand.xyz"
           className="text-lg font-semibold tracking-tight text-gray-900 hover:opacity-80 transition-opacity shrink-0"
         >
           SiteCommand
