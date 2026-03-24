@@ -299,7 +299,7 @@ function CreateRFIModal({
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Responsible Contractor</label>
-            <SingleContactPicker directory={directory} selectedId={responsibleContractorId} onChange={setResponsibleContractorId} filterType="company" placeholder="Select company..." />
+            <SingleContactPicker directory={directory} selectedId={responsibleContractorId} onChange={setResponsibleContractorId} placeholder="Select company..." />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

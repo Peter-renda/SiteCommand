@@ -31,14 +31,15 @@ type DirectoryContact = {
   email: string | null;
 };
 
-const STATUSES = ["open", "in progress", "completed", "closed"];
+const STATUSES = ["initiated", "in progress", "ready for review", "closed", "void"];
 const CATEGORIES = ["Administrative", "Closeout", "Contract", "Design", "Miscellaneous", "Construction"];
 
 const STATUS_COLORS: Record<string, string> = {
-  open: "bg-blue-50 text-blue-700",
+  initiated: "bg-blue-50 text-blue-700",
   "in progress": "bg-amber-50 text-amber-700",
-  completed: "bg-green-50 text-green-700",
-  closed: "bg-gray-100 text-gray-500",
+  "ready for review": "bg-purple-50 text-purple-700",
+  closed: "bg-green-50 text-green-700",
+  void: "bg-gray-100 text-gray-500",
 };
 
 
@@ -326,7 +327,7 @@ function NewTaskModal({
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState("open");
+  const [status, setStatus] = useState("initiated");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [distribution, setDistribution] = useState<DistributionContact[]>([]);
@@ -727,6 +728,7 @@ export default function TasksClient({
   const [showNew, setShowNew] = useState(false);
   const [creating, setCreating] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [sendingTaskId, setSendingTaskId] = useState<string | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
   // Click-outside for export menu
@@ -749,7 +751,8 @@ export default function TasksClient({
     });
   }, [projectId]);
 
-  const nextNumber = tasks.length > 0 ? Math.max(...tasks.map((t) => t.task_number)) + 1 : 1;
+  const validNums = tasks.map((t) => Number(t.task_number)).filter((n) => Number.isFinite(n));
+  const nextNumber = validNums.length > 0 ? Math.max(...validNums) + 1 : 1;
 
   async function handleCreate(data: {
     title: string;
@@ -801,6 +804,12 @@ export default function TasksClient({
     }
 
     setCreating(false);
+  }
+
+  async function handleSendTask(taskId: string) {
+    setSendingTaskId(taskId);
+    await fetch(`/api/projects/${projectId}/tasks/${taskId}/send`, { method: "POST" });
+    setSendingTaskId(null);
   }
 
   async function handleLogout() {
@@ -908,6 +917,7 @@ export default function TasksClient({
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Distribution</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Due Date</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
+                  <th className="px-4 py-3 w-28" />
                 </tr>
               </thead>
               <tbody>
@@ -949,6 +959,15 @@ export default function TasksClient({
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                       {new Date(task.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleSendTask(task.id)}
+                        disabled={sendingTaskId === task.id}
+                        className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {sendingTaskId === task.id ? "Sending..." : "Send Task"}
+                      </button>
                     </td>
                   </tr>
                 ))}
