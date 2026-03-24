@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
 type DirContact = { id: string; name: string; email: string | null };
@@ -39,6 +39,7 @@ type RFIResponse = {
   id: string;
   body: string;
   created_by: string | null;
+  created_by_name: string | null;
   created_at: string;
 };
 
@@ -65,10 +66,18 @@ function formatDate(d: string | null): string {
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function formatDateTime(d: string | null): string {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl p-6">
-      <h2 className="text-sm font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">{title}</h2>
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+        {action}
+      </div>
       {children}
     </div>
   );
@@ -84,6 +93,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [responseBody, setResponseBody] = useState("");
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [returningCourt, setReturningCourt] = useState(false);
+  const [showResponseForm, setShowResponseForm] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -108,8 +118,6 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   }, [projectId, rfiId]);
 
   const canEdit = rfi && rfi.created_by === userId;
-  const canRespond = (rfi?.assignees ?? []).some((a) => a.email && a.email.toLowerCase() === (userEmail || "").toLowerCase());
-  const showRespondNote = !canRespond && (rfi?.assignees ?? []).length > 0;
 
   async function handleSubmitResponse() {
     if (!responseBody.trim()) return;
@@ -123,6 +131,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       const newResp = await res.json();
       setResponses((prev) => [...prev, newResp]);
       setResponseBody("");
+      setShowResponseForm(false);
     }
     setSubmittingResponse(false);
   }
@@ -223,24 +232,44 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
             )}
           </Section>
 
-          <Section title="Responses">
-            {responses.length === 0 && !canRespond && !showRespondNote && <p className="text-sm text-gray-400">No responses yet.</p>}
-            {showRespondNote && <p className="text-sm text-amber-600 mb-4">You can respond when you are assigned to this RFI or when the ball is in your court. (Coming later.)</p>}
+          <Section
+            title="Responses"
+            action={
+              <button
+                onClick={() => setShowResponseForm((v) => !v)}
+                className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+                title="Add response"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            }
+          >
+            {responses.length === 0 && !showResponseForm && <p className="text-sm text-gray-400">No responses yet.</p>}
             <div className="space-y-4">
               {responses.map((resp) => (
                 <div key={resp.id} className="pl-4 border-l-2 border-gray-200">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{resp.body}</p>
-                  <p className="text-xs text-gray-400 mt-2">{formatDate(resp.created_at)}</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    {resp.created_by_name && <span className="font-medium text-gray-500">{resp.created_by_name} &middot; </span>}
+                    {formatDateTime(resp.created_at)}
+                  </p>
                 </div>
               ))}
             </div>
-            {canRespond && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
+            {showResponseForm && (
+              <div className={`${responses.length > 0 ? "mt-4 pt-4 border-t border-gray-100" : ""}`}>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Add response</label>
                 <textarea value={responseBody} onChange={(e) => setResponseBody(e.target.value)} rows={3} placeholder="Write your response..." className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
-                <button onClick={handleSubmitResponse} disabled={submittingResponse || !responseBody.trim()} className="mt-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  {submittingResponse ? "Sending..." : "Send response"}
-                </button>
+                <div className="flex items-center gap-2 mt-2">
+                  <button onClick={handleSubmitResponse} disabled={submittingResponse || !responseBody.trim()} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {submittingResponse ? "Sending..." : "Send response"}
+                  </button>
+                  <button onClick={() => { setShowResponseForm(false); setResponseBody(""); }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                    Cancel
+                  </button>
+                </div>
               </div>
             )}
           </Section>
