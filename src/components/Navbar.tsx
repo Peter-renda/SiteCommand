@@ -63,9 +63,9 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-        <Link to="/" className="text-lg font-semibold tracking-tight text-gray-900 hover:opacity-80 transition-opacity shrink-0">
+        <a href="https://sitecommand.xyz" className="text-lg font-semibold tracking-tight text-gray-900 hover:opacity-80 transition-opacity shrink-0">
           SiteCommand
-        </Link>
+        </a>
         <div className="hidden md:flex items-center gap-1">
           {navItems.map((item) => (
             <div
