@@ -1,18 +1,61 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-const navItems: { label: string; items?: string[]; sections?: { label: string; items: string[] }[]; href?: string }[] = [
+
+type SectionItem = { label: string; href: string };
+type NavItemType = {
+  label: string;
+  href?: string;
+  items?: string[];
+  sections?: { label: string; items: SectionItem[] }[];
+};
+
+const navItems: NavItemType[] = [
   {
     label: "Solutions",
     sections: [
-      { label: "Construction", items: ["Project Management", "Quality & Safety", "Schedule", "RFI"] },
-      { label: "Financials", items: ["Budget Management", "Invoice Management", "Project Financials", "Time Tracking"] },
-      { label: "Platform", items: ["Analytics", "Document Management", "Equipment", "Workforce Management"] },
+      {
+        label: "Preconstruction",
+        items: [
+          { label: "Bid Management", href: "/bid-management" },
+          { label: "BIM", href: "/bim" },
+          { label: "Estimating", href: "/estimating" },
+          { label: "Prequalification", href: "/prequalification" },
+        ],
+      },
+      {
+        label: "Construction",
+        items: [
+          { label: "Project Management", href: "#" },
+          { label: "Quality & Safety", href: "#" },
+          { label: "Schedule", href: "#" },
+          { label: "RFI", href: "#" },
+        ],
+      },
+      {
+        label: "Financials",
+        items: [
+          { label: "Budget Management", href: "#" },
+          { label: "Invoice Management", href: "#" },
+          { label: "Project Financials", href: "#" },
+          { label: "Time Tracking", href: "#" },
+        ],
+      },
+      {
+        label: "Platform",
+        items: [
+          { label: "Analytics", href: "#" },
+          { label: "Document Management", href: "#" },
+          { label: "Equipment", href: "#" },
+          { label: "Workforce Management", href: "#" },
+        ],
+      },
     ],
   },
   { label: "About Us", items: ["Company", "Team", "Careers", "Press"] },
   { label: "Resources", items: ["Documentation", "Blog", "Case Studies", "Community"] },
   { label: "Pricing", items: [], href: "/pricing" },
 ];
+
 export default function Navbar() {
   const [open, setOpen] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -43,14 +86,14 @@ export default function Navbar() {
                 )}
               </button>
               {((item.items?.length ?? 0) > 0 || (item.sections?.length ?? 0) > 0) && open === item.label && (
-                <div className={`absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg py-1 ${item.sections ? "w-[580px]" : "w-44"}`}>
+                <div className={`absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg py-1 ${item.sections ? "w-[760px]" : "w-44"}`}>
                   {item.sections ? (
-                    <div className="grid grid-cols-3 gap-0 p-4">
+                    <div className="grid grid-cols-4 gap-0 p-4">
                       {item.sections.map((section) => (
                         <div key={section.label}>
                           <p className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">{section.label}</p>
                           {section.items.map((sub) => (
-                            <a key={sub} href="#" className="block px-2 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded transition-colors">{sub}</a>
+                            <Link key={sub.label} to={sub.href} className="block px-2 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded transition-colors">{sub.label}</Link>
                           ))}
                         </div>
                       ))}

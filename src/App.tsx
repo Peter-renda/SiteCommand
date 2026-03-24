@@ -21,6 +21,10 @@ import Budget from "./views/Budget";
 import PrimeContracts from "./views/PrimeContracts";
 import CreatePrimeContract from "./views/CreatePrimeContract";
 import ChangeOrders from "./views/ChangeOrders";
+import BidManagement from "./views/BidManagement";
+import BIM from "./views/BIM";
+import Estimating from "./views/Estimating";
+import Prequalification from "./views/Prequalification";
 export default function App() {
   return (
     <Router>
@@ -29,6 +33,10 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/bid-management" element={<BidManagement />} />
+        <Route path="/bim" element={<BIM />} />
+        <Route path="/estimating" element={<Estimating />} />
+        <Route path="/prequalification" element={<Prequalification />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
