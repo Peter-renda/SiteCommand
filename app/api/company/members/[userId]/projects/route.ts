@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { addUserToDirectory } from "@/lib/directory";
 
 export async function GET(
   _req: NextRequest,
@@ -91,6 +92,11 @@ export async function PUT(
           invited_by: session.id,
         }))
       );
+
+    // Sync the user into each project's directory so they appear immediately
+    await Promise.all(
+      projectIds.map((pid: string) => addUserToDirectory(supabase, pid, userId))
+    );
   }
 
   return NextResponse.json({ success: true });
