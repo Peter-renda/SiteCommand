@@ -19,9 +19,9 @@ const solutionsCapabilities: SolutionsCapabilityColumn[] = [
     heading: "Preconstruction",
     items: [
       { label: "Bid Management", href: "/bid-management" },
-      { label: "BIM", href: "#" },
-      { label: "Estimating", href: "#" },
-      { label: "Prequalification", href: "#" },
+      { label: "BIM", href: "/bim" },
+      { label: "Estimating", href: "/estimating" },
+      { label: "Prequalification", href: "/prequalification" },
     ],
   },
   {
