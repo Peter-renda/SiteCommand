@@ -70,29 +70,29 @@ const steps = [
 
 const faqs = [
   {
-    question: "What is construction estimating software?",
+    question: "Who uses preconstruction estimating software?",
     answer:
-      "Construction estimating software helps contractors calculate the cost to complete a project. It replaces manual spreadsheets with digital takeoff tools, cost databases, and automated calculations — producing faster, more accurate estimates that protect margins.",
+      "For estimators who struggle with maintaining accurate and efficient project cost estimation, SiteCommand Estimating is an all-in-one solution that streamlines the estimation process, minimizes errors, and connects preconstruction data seamlessly to the construction phase.",
   },
   {
-    question: "What is a digital takeoff?",
+    question: "What are the features and benefits of estimating software?",
     answer:
-      "A digital takeoff is the process of measuring quantities from electronic drawings or BIM models rather than printed plans. Estimators click or trace elements on screen to capture lengths, areas, and counts that feed directly into the estimate — eliminating manual measurement error.",
+      "Key benefits include more accurate estimates (eliminating manual spreadsheet errors), an all-in-one workflow (takeoff, estimate, and budget in one solution), winning more work quickly (multiple takeoff methods including 3D, automated area, and linear), and faster project handoff (seamless transition from estimating to construction without switching applications).",
+  },
+  {
+    question: "Can SiteCommand Estimating integrate with other tools?",
+    answer:
+      "Yes. SiteCommand's platform is designed to connect everyone in construction on one platform, including connections to BIM tools, accounting systems, and other construction software. Open API access is available for custom integrations.",
+  },
+  {
+    question: "What are the steps in construction estimating?",
+    answer:
+      "Construction cost estimating typically follows eight key steps: reviewing the bid package, performing a site visit, conducting digital takeoff, applying unit costs from a cost catalog, pricing labor and equipment, adding subcontractor quotes, layering in overhead and general conditions, and finally accounting for profit margin and contingency.",
   },
   {
     question: "How does estimating connect to the project budget?",
     answer:
-      "SiteCommand links the estimating and budget modules. When you win a project, your estimate converts to a project budget in one step. Cost codes, quantities, and line items carry over so you start construction with a clean, accurate baseline.",
-  },
-  {
-    question: "Can multiple estimators work on the same estimate?",
-    answer:
-      "Yes. SiteCommand's cloud-based estimating lets multiple team members work on different sections of the same estimate simultaneously. Role-based permissions control who can edit versus review, and all changes are logged with a full audit trail.",
-  },
-  {
-    question: "Does SiteCommand estimating integrate with BIM?",
-    answer:
-      "Yes. You can extract quantities directly from connected BIM models, which eliminates redundant data entry and keeps your estimate in sync with the latest design. When the model is updated, affected quantities flag automatically for re-check.",
+      "SiteCommand links estimating and budgeting. When you win a project, your estimate converts to a project budget in one step — cost codes, quantities, and line items carry over so you start construction with a clean, accurate baseline without any re-entry.",
   },
 ];
 

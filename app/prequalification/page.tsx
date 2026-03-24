@@ -76,24 +76,24 @@ const stats = [
 
 const faqs = [
   {
-    question: "What is subcontractor prequalification?",
+    question: "Who uses prequalification software?",
     answer:
-      "Subcontractor prequalification is the process of evaluating a subcontractor's financial stability, safety record, experience, and insurance coverage before they're invited to bid on a project. It protects the general contractor from awarding work to subs who lack the capacity or qualifications to perform safely and successfully.",
+      "Any business that hires vendors to deliver goods or services can utilize and benefit from a prequalification software solution. General contractors, construction managers, and owners use it to vet subcontractors and suppliers before inviting them onto projects.",
   },
   {
-    question: "What information should a prequalification form collect?",
+    question: "How does managing prequalification data in one platform increase efficiency?",
     answer:
-      "A thorough prequalification form covers: company background and ownership, financial statements (bonding capacity, credit), safety data (EMR, OSHA recordable rate, incident history), insurance certificates, relevant project experience and references, licenses, and key personnel qualifications.",
+      "SiteCommand's prequalification tools give you a centrally connected hub to manage your entire qualification process — from creating and sending forms, to reviewing information, to approving or declining submissions. Maintaining a full record in one central location lets project teams quickly see which contractors are currently approved for a given scope of work, then seamlessly invite them to bid through the connected bidding tool.",
   },
   {
-    question: "How often should subcontractors be requalified?",
+    question: "Can each company configure prequalification for their specific needs?",
     answer:
-      "Most GCs requalify subcontractors annually, though some require requalification at the start of each major project. Insurance certificates typically expire annually and should be tracked continuously. SiteCommand's automated renewal management handles this automatically.",
+      "Yes. SiteCommand's prequalification tools offer flexible configurations where you can customize the information collected during the qualification process. The data you deem necessary is associated with each vendor's record in your directory, giving all relevant stakeholders a complete picture at a glance.",
   },
   {
-    question: "Is prequalification required by owners?",
+    question: "What are the risks of a poor prequalification process?",
     answer:
-      "Many public owners and large private owners require GCs to document subcontractor prequalification processes. On federally funded projects, certain prequalification standards may be mandated. Even when not required, a documented prequalification process is a best practice that reduces project risk.",
+      "Beyond efficiency loss, businesses without proper prequalification tools have increased exposure to significant liabilities. Failure to run a robust qualification process can result in hiring a contractor without the proper experience, financial capacity, or insurance to deliver the work — leading to project delays, cost overruns, safety incidents, and legal exposure.",
   },
   {
     question: "How does prequalification connect to bid management?",
@@ -116,10 +116,13 @@ export default function PrequalificationPage() {
             Preconstruction
           </span>
           <h1 className="text-5xl font-bold tracking-tight text-gray-900 mb-6">
-            Subcontractor prequalification software
+            Construction prequalification software
           </h1>
-          <p className="text-xl text-gray-500 mb-10 leading-relaxed">
-            Know who you're working with before you award the work. Qualify, vet, and manage your subcontractor roster with a digital process that replaces spreadsheets and email threads.
+          <p className="text-xl text-gray-500 mb-4 leading-relaxed font-medium">
+            Reduce risk by hiring qualified contractors
+          </p>
+          <p className="text-lg text-gray-400 mb-10 leading-relaxed">
+            Streamline the prequalification process with a single platform for assessing a company's risk, putting together a plan, and inviting them onto your projects.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link
