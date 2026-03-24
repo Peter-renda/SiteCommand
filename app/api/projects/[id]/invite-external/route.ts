@@ -87,6 +87,14 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
+  // Remove any existing pending invitation for this email + project so we can re-invite
+  await supabase
+    .from("invitations")
+    .delete()
+    .eq("email", email)
+    .eq("project_id", projectId)
+    .eq("invitation_type", "external");
+
   // Create the external invitation
   const { data: invite, error } = await supabase
     .from("invitations")

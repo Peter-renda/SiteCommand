@@ -46,6 +46,41 @@ export async function sendTaskCreatedEmail(
   if (error) throw new Error(error.message);
 }
 
+export async function sendTaskEmail(
+  to: string,
+  projectName: string,
+  taskNumber: number,
+  taskTitle: string,
+  taskUrl: string,
+  description: string | null,
+  dueDate: string | null,
+  assignees: string[],
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY is not set in environment variables");
+
+  const resend = new Resend(apiKey);
+  const dueLine = dueDate ? `<p style="color:#555;font-size:13px;"><strong>Due:</strong> ${new Date(dueDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>` : "";
+  const descLine = description ? `<p style="color:#555;font-size:13px;">${description}</p>` : "";
+  const assigneeLine = assignees.length > 0 ? `<p style="color:#555;font-size:13px;"><strong>Assigned to:</strong> ${assignees.join(", ")}</p>` : "";
+
+  const { error } = await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `Task #${taskNumber}: ${taskTitle} — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">You have been notified about a task on <strong>${projectName}</strong>.</p>
+      <p style="font-size:16px;font-weight:600;">Task #${taskNumber}: ${taskTitle}</p>
+      ${assigneeLine}
+      ${descLine}
+      ${dueLine}
+      <p><a href="${taskUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View Task</a></p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are assigned to or on the distribution list for this task.</p>
+    `,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function sendWebhookEventEmail(
   to: string,
   event: string,

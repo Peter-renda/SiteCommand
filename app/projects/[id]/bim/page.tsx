@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import BIMClient from "./BIMClient";
 
 export default async function BIMViewerPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BIMPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
 

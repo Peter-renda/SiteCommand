@@ -32,13 +32,21 @@ const TOOL_SECTIONS = [
     ],
   },
   {
+    label: "Preconstruction",
+    items: [
+      { name: "Preconstruction", slug: "preconstruction" },
+      { name: "Bid Management", slug: "bid-management" },
+      { name: "BIM", slug: "bim" },
+      { name: "Estimating", slug: "estimating" },
+      { name: "Prequalification", slug: "prequalification" },
+    ],
+  },
+  {
     label: "Financial Management",
     items: [
       { name: "Prime Contracts", slug: "prime-contracts" },
       { name: "Budget", slug: "budget" },
       { name: "Commitments", slug: "commitments" },
-      { name: "Estimating", slug: "estimating" },
-      { name: "Bid Management", slug: "bid-management" },
       { name: "Scope of Work", slug: "scope-of-work" },
       { name: "Change Orders", slug: "change-orders" },
       { name: "Change Events", slug: "change-events" },
@@ -214,8 +222,8 @@ export default function ProjectNav({
             </svg>
           </button>
           {open && (
-            <div className="absolute left-0 top-full mt-1 w-[580px] bg-white border border-gray-100 rounded-xl shadow-xl z-[9999] p-5">
-              <div className="grid grid-cols-3 gap-6">
+            <div className="absolute left-0 top-full mt-1 w-[760px] bg-white border border-gray-100 rounded-xl shadow-xl z-[9999] p-5">
+              <div className="grid grid-cols-4 gap-6">
                 {TOOL_SECTIONS.map((section) => (
                   <div key={section.label}>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
