@@ -14,6 +14,7 @@ type Task = {
   description: string | null;
   photo_url: string | null;
   distribution_list: DistributionContact[];
+  assignees: DistributionContact[];
   due_date: string | null;
   created_at: string;
 };
@@ -28,14 +29,15 @@ type DirectoryContact = {
   email: string | null;
 };
 
-const STATUSES = ["open", "in progress", "completed", "closed"];
+const STATUSES = ["initiated", "in progress", "ready for review", "closed", "void"];
 const CATEGORIES = ["Administrative", "Closeout", "Contract", "Design", "Miscellaneous", "Construction"];
 
 const STATUS_COLORS: Record<string, string> = {
-  open: "bg-blue-50 text-blue-700",
+  initiated: "bg-blue-50 text-blue-700",
   "in progress": "bg-amber-50 text-amber-700",
-  completed: "bg-green-50 text-green-700",
-  closed: "bg-gray-100 text-gray-500",
+  "ready for review": "bg-purple-50 text-purple-700",
+  closed: "bg-green-50 text-green-700",
+  void: "bg-gray-100 text-gray-500",
 };
 
 
@@ -321,6 +323,16 @@ export default function TaskDetailClient({
                         {status}
                       </span>
                     </div>
+                    {(task.assignees ?? []).length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-gray-400">Assignees</span>
+                        <div className="flex flex-wrap gap-1">
+                          {task.assignees.map((a) => (
+                            <span key={a.id} className="px-2 py-0.5 bg-gray-100 text-xs text-gray-700 rounded-full">{a.name}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {task.due_date && (
                       <div className="flex justify-between">
                         <span className="text-gray-400">Due</span>
