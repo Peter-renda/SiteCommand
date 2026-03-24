@@ -27,6 +27,7 @@ const TOOL_SECTIONS = [
       { name: "Daily Log", slug: "daily-log" },
       { name: "Photos", slug: "photos" },
       { name: "Drawings", slug: "drawings" },
+      { name: "BIM Viewer", slug: "bim" },
       { name: "Specifications", slug: "specifications" },
     ],
   },
