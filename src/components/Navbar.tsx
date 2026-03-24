@@ -25,11 +25,14 @@ export default function Navbar() {
         </Link>
         <div className="hidden md:flex items-center gap-1">
           {navItems.map((item) => (
-            <div key={item.label} className="relative">
+            <div
+              key={item.label}
+              className="relative"
+              onMouseEnter={() => ((item.items?.length ?? 0) > 0 || (item.sections?.length ?? 0) > 0) && setOpen(item.label)}
+              onMouseLeave={() => setOpen(null)}
+            >
               <button
                 className="flex items-center gap-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 transition-colors"
-                onMouseEnter={() => ((item.items?.length ?? 0) > 0 || (item.sections?.length ?? 0) > 0) && setOpen(item.label)}
-                onMouseLeave={() => setOpen(null)}
                 onClick={() => (item.items?.length ?? 0) === 0 && (item.sections?.length ?? 0) === 0 ? navigate(item.href || "#") : setOpen(open === item.label ? null : item.label)}
               >
                 {item.label}
@@ -40,7 +43,7 @@ export default function Navbar() {
                 )}
               </button>
               {((item.items?.length ?? 0) > 0 || (item.sections?.length ?? 0) > 0) && open === item.label && (
-                <div className={`absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg py-1 ${item.sections ? "w-[580px]" : "w-44"}`} onMouseEnter={() => setOpen(item.label)} onMouseLeave={() => setOpen(null)}>
+                <div className={`absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg py-1 ${item.sections ? "w-[580px]" : "w-44"}`}>
                   {item.sections ? (
                     <div className="grid grid-cols-3 gap-0 p-4">
                       {item.sections.map((section) => (
