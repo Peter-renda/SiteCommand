@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 const TOOL_SECTIONS = [
   {
@@ -62,6 +63,11 @@ export default function ProjectNav({
 }) {
   const [open, setOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // null = not loaded yet, undefined = no restrictions (all enabled)
+  const [enabledFeatures, setEnabledFeatures] = useState<string[] | null | undefined>(null);
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
@@ -97,6 +103,31 @@ export default function ProjectNav({
       })
       .catch(() => setFavoritesLoaded(true));
   }, []);
+
+  // Fetch enabled features for this project's company
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/features`)
+      .then((r) => r.json())
+      .then((d) => {
+        // null means no restrictions; array means explicit allowlist
+        setEnabledFeatures(d.enabled_features ?? undefined);
+      })
+      .catch(() => setEnabledFeatures(undefined));
+  }, [projectId]);
+
+  // Redirect if the current page's tool has been disabled for this company
+  useEffect(() => {
+    if (enabledFeatures === null || enabledFeatures === undefined) return;
+    // Extract the tool slug from the URL: /projects/[id]/[slug]
+    const match = pathname.match(/\/projects\/[^/]+\/([^/]+)/);
+    const currentSlug = match?.[1] ?? "";
+    if (!currentSlug) return; // project home is always accessible
+    // Only gate slugs that appear in TOOL_SECTIONS (never gate "admin", "insights", etc. that aren't in the feature list)
+    const allFeatureSlugs = TOOL_SECTIONS.flatMap((s) => s.items.map((i) => i.slug)).filter(Boolean);
+    if (allFeatureSlugs.includes(currentSlug) && !enabledFeatures.includes(currentSlug)) {
+      router.replace(`/projects/${projectId}`);
+    }
+  }, [enabledFeatures, pathname, projectId, router]);
 
   async function openSettings() {
     setSettingsError("");
@@ -170,7 +201,15 @@ export default function ProjectNav({
     );
   }
 
-  const allToolItems = TOOL_SECTIONS.flatMap((s) => s.items).filter((i) => i.slug);
+  // Filter sections by enabled features (null/undefined = no restrictions)
+  const visibleSections = TOOL_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter(
+      (item) => !item.slug || !enabledFeatures || enabledFeatures.includes(item.slug)
+    ),
+  })).filter((section) => section.items.length > 0);
+
+  const allToolItems = visibleSections.flatMap((s) => s.items).filter((i) => i.slug);
   const favoritedItems = favoritesLoaded
     ? allToolItems.filter((i) => favorites.includes(i.slug))
     : [];
@@ -223,7 +262,7 @@ export default function ProjectNav({
           {open && (
             <div className="absolute left-0 top-full mt-1 w-[760px] bg-white border border-gray-100 rounded-xl shadow-xl z-[9999] p-5">
               <div className="grid grid-cols-4 gap-6">
-                {TOOL_SECTIONS.map((section) => (
+                {visibleSections.map((section) => (
                   <div key={section.label}>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
                       {section.label}
@@ -390,7 +429,7 @@ export default function ProjectNav({
               {settingsTab === "favorites" && (
                 <div className="space-y-4">
                   <p className="text-xs text-gray-400">Select pages to pin in your project navigation bar.</p>
-                  {TOOL_SECTIONS.map((section) => (
+                  {visibleSections.map((section) => (
                     <div key={section.label}>
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
                         {section.label}
