@@ -7,7 +7,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
   const { data: invite } = await supabase
     .from("invitations")
-    .select("id, email, accepted_at, expires_at, invitation_type, project_id, companies(name)")
+    .select("id, email, accepted_at, expires_at, invitation_type, project_id, contact_company, companies(name)")
     .eq("token", token)
     .single();
 
@@ -43,9 +43,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     .eq("email", invite.email)
     .maybeSingle();
 
+  // For external invites: show the contact's own company (e.g. "Smith & Jennings")
+  // rather than the inviting company (e.g. "Hamel") in the Company field.
+  const displayCompanyName =
+    invite.invitation_type === "external" && invite.contact_company
+      ? invite.contact_company
+      : (company?.name ?? "");
+
   return NextResponse.json({
     email: invite.email,
-    companyName: company?.name ?? "",
+    companyName: displayCompanyName,
+    invitingCompanyName: company?.name ?? "",
     invitationType: invite.invitation_type ?? "internal",
     projectName,
     hasAccount: !!existingUser,

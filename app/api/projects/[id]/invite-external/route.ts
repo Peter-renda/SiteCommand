@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  const { email, allowed_sections, contact_name } = await req.json();
+  const { email, allowed_sections, contact_name, contact_company } = await req.json();
   if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
 
   // Validate allowed_sections if provided
@@ -105,6 +105,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       project_id: projectId,
       invitation_type: "external",
       project_role: "external_viewer",
+      contact_company: contact_company ?? null,
     })
     .select("token")
     .single();

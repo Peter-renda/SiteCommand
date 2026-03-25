@@ -363,7 +363,7 @@ export default function DirectoryClient({
         await fetch(`/api/projects/${projectId}/invite-external`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: data.email, contact_name: contactName }),
+          body: JSON.stringify({ email: data.email, contact_name: contactName, contact_company: data.company ?? null }),
         });
         setInvitedIds((prev) => new Set(prev).add(c.id));
       }
@@ -409,7 +409,7 @@ export default function DirectoryClient({
     const res = await fetch(`/api/projects/${projectId}/invite-external`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: c.email, contact_name: displayName(c) }),
+      body: JSON.stringify({ email: c.email, contact_name: displayName(c), contact_company: c.company ?? null }),
     });
     setInvitingId(null);
     if (res.ok) setInvitedIds((prev) => new Set(prev).add(c.id));
