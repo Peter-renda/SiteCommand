@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type Company = {
   id: string;
@@ -105,7 +106,9 @@ export default function AdminSubscriptionsPage() {
                             onChange={(e) => setEditValues((v) => ({ ...v, name: e.target.value }))}
                           />
                         ) : (
-                          <span className="text-white font-medium">{c.name}</span>
+                          <Link href={`/admin/companies/${c.id}`} className="text-white font-medium hover:text-indigo-300 transition-colors">
+                            {c.name}
+                          </Link>
                         )}
                       </td>
                       <td className="px-4 py-3">
