@@ -83,9 +83,8 @@ async function uploadToOss(
     const text = await s3Res.text();
     throw new Error(`Failed to upload to S3: ${text}`);
   }
-  const eTag = s3Res.headers.get("ETag") ?? "";
 
-  // Step 3: complete the upload
+  // Step 3: complete the upload — only uploadKey is needed for single-part uploads
   const completeRes = await fetch(
     `${APS_BASE}/oss/v2/buckets/${bucketKey}/objects/${encodedKey}/signeds3upload`,
     {
@@ -94,7 +93,7 @@ async function uploadToOss(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ uploadKey, parts: [{ partNumber: 1, eTag }] }),
+      body: JSON.stringify({ uploadKey }),
     }
   );
   if (!completeRes.ok) {
