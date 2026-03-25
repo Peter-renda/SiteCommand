@@ -13,3 +13,5 @@ CREATE TABLE IF NOT EXISTS bim_models (
 );
 
 CREATE INDEX IF NOT EXISTS bim_models_project_id_idx ON bim_models(project_id);
+
+ALTER TABLE bim_models DISABLE ROW LEVEL SECURITY;
