@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { checkProjectAccess } from "@/lib/permissions";
+import { getApsCredentials, getPlatformSetting } from "@/lib/platform-settings";
 
 const APS_BASE = "https://developer.api.autodesk.com";
 
-async function getApsToken(scope: string): Promise<string> {
-  const clientId = process.env.APS_CLIENT_ID!;
-  const clientSecret = process.env.APS_CLIENT_SECRET!;
+async function getApsToken(clientId: string, clientSecret: string, scope: string): Promise<string> {
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
   const res = await fetch(`${APS_BASE}/authentication/v2/token`, {
@@ -110,7 +109,8 @@ export async function POST(
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!process.env.APS_CLIENT_ID || !process.env.APS_CLIENT_SECRET) {
+  const { clientId: apsClientId, clientSecret: apsClientSecret } = await getApsCredentials();
+  if (!apsClientId || !apsClientSecret) {
     return NextResponse.json(
       { error: "APS credentials not configured. Set APS_CLIENT_ID and APS_CLIENT_SECRET." },
       { status: 503 }
@@ -142,14 +142,14 @@ export async function POST(
   }
 
   try {
+    const apsBucketKey = await getPlatformSetting("APS_BUCKET_KEY");
     const bucketKey =
-      process.env.APS_BUCKET_KEY ??
-      `sitecommand-bim-${process.env.APS_CLIENT_ID!.toLowerCase().slice(0, 20)}`;
+      apsBucketKey ?? `sitecommand-bim-${apsClientId.toLowerCase().slice(0, 20)}`;
 
     const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const objectKey = `${projectId}/${Date.now()}-${safeFilename}`;
 
-    const token = await getApsToken("data:read data:write data:create bucket:read bucket:create");
+    const token = await getApsToken(apsClientId, apsClientSecret, "data:read data:write data:create bucket:read bucket:create");
 
     await ensureBucket(token, bucketKey);
 
