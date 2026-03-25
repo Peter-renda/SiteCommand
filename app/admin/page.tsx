@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type Company = {
   id: string;
@@ -110,7 +111,11 @@ export default function AdminOverviewPage() {
               <tbody>
                 {companies.map((c) => (
                   <tr key={c.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                    <td className="px-4 py-3 text-white font-medium">{c.name}</td>
+                    <td className="px-4 py-3">
+                        <Link href={`/admin/companies/${c.id}`} className="text-white font-medium hover:text-indigo-300 transition-colors">
+                          {c.name}
+                        </Link>
+                      </td>
                     <td className="px-4 py-3">{planBadge(c.subscription_plan)}</td>
                     <td className="px-4 py-3">{statusBadge(c.subscription_status)}</td>
                     <td className="px-4 py-3 text-gray-300">{c.user_count}</td>
