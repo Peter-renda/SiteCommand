@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("users")
     .select(
-      "id, email, username, first_name, last_name, role, company_id, company_role, user_type, created_at, companies(id, name, subscription_plan, subscription_status)",
+      "id, email, username, first_name, last_name, role, company_id, company_role, user_type, created_at, companies!company_id(id, name, subscription_plan, subscription_status)",
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
