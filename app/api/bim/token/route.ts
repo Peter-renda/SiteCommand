@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { getApsCredentials } from "@/lib/platform-settings";
 
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const clientId = process.env.APS_CLIENT_ID;
-  const clientSecret = process.env.APS_CLIENT_SECRET;
-
+  const { clientId, clientSecret } = await getApsCredentials();
   if (!clientId || !clientSecret) {
     return NextResponse.json(
       { error: "APS credentials not configured. Set APS_CLIENT_ID and APS_CLIENT_SECRET." },

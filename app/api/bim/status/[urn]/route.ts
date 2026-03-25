@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { getApsCredentials } from "@/lib/platform-settings";
 
-async function getApsToken(): Promise<string> {
-  const clientId = process.env.APS_CLIENT_ID!;
-  const clientSecret = process.env.APS_CLIENT_SECRET!;
+async function getApsToken(clientId: string, clientSecret: string): Promise<string> {
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
   const res = await fetch("https://developer.api.autodesk.com/authentication/v2/token", {
@@ -29,13 +28,14 @@ export async function GET(
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!process.env.APS_CLIENT_ID || !process.env.APS_CLIENT_SECRET) {
+  const { clientId, clientSecret } = await getApsCredentials();
+  if (!clientId || !clientSecret) {
     return NextResponse.json({ error: "APS not configured" }, { status: 503 });
   }
 
   const { urn } = await params;
 
-  const token = await getApsToken();
+  const token = await getApsToken(clientId, clientSecret);
   const res = await fetch(
     `https://developer.api.autodesk.com/modelderivative/v2/designdata/${urn}/manifest`,
     { headers: { Authorization: `Bearer ${token}` } }
