@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ApiKeysTab, WebhooksTab, DocumentationTab } from "@/app/settings/developer/DeveloperSettingsClient";
 
 type Member = {
@@ -28,12 +29,6 @@ type Company = {
   billing_owner_id: string | null;
 } | null;
 
-type Project = {
-  id: string;
-  name: string;
-  status: string;
-  hasAccess: boolean;
-};
 
 function roleBadgeClass(role: string) {
   if (role === "super_admin") return "bg-amber-50 text-amber-700";
@@ -60,6 +55,7 @@ export default function CompanyClient({
   currentUserId: string;
   isSuperAdmin: boolean;
 }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"team" | "developer">("team");
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
@@ -82,11 +78,6 @@ export default function CompanyClient({
   const [roleChangeConfirm, setRoleChangeConfirm] = useState<RoleChange | null>(null);
   const [changingRole, setChangingRole] = useState(false);
 
-  // Project access modal
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loadingProjects, setLoadingProjects] = useState(false);
-  const [savingProjects, setSavingProjects] = useState(false);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -124,7 +115,6 @@ export default function CompanyClient({
     const res = await fetch(`/api/company/members/${userId}`, { method: "DELETE" });
     if (res.ok) {
       setMembers((prev) => prev.filter((m) => m.id !== userId));
-      if (selectedMember?.id === userId) setSelectedMember(null);
     }
     setRemoveConfirmMember(null);
   }
@@ -145,38 +135,7 @@ export default function CompanyClient({
     setRoleChangeConfirm(null);
   }
 
-  async function openMemberProjects(member: Member) {
-    setSelectedMember(member);
-    setLoadingProjects(true);
-    setProjects([]);
-    const res = await fetch(`/api/company/members/${member.id}/projects`);
-    if (res.ok) {
-      const data = await res.json();
-      setProjects(data.projects || []);
-    }
-    setLoadingProjects(false);
-  }
-
-  function toggleProject(projectId: string) {
-    setProjects((prev) =>
-      prev.map((p) => (p.id === projectId ? { ...p, hasAccess: !p.hasAccess } : p))
-    );
-  }
-
-  async function saveProjectAccess() {
-    if (!selectedMember) return;
-    setSavingProjects(true);
-    const projectIds = projects.filter((p) => p.hasAccess).map((p) => p.id);
-    await fetch(`/api/company/members/${selectedMember.id}/projects`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectIds }),
-    });
-    setSavingProjects(false);
-    setSelectedMember(null);
-  }
-
-  const seatCount = members.length;
+const seatCount = members.length;
   const seatLimit = company?.seat_limit ?? 0;
 
   return (
@@ -287,7 +246,7 @@ export default function CompanyClient({
                   <div
                     key={member.id}
                     className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => openMemberProjects(member)}
+                    onClick={() => router.push(`/company/members/${member.id}`)}
                   >
                     <div>
                       <div className="flex items-center gap-2">
@@ -544,53 +503,6 @@ export default function CompanyClient({
         </div>
       )}
 
-      {/* Project Access Modal */}
-      {selectedMember && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-0.5">Project Access</h2>
-            <p className="text-sm text-gray-500 mb-4">{selectedMember.username}</p>
-            {loadingProjects ? (
-              <p className="text-sm text-gray-400 py-4 text-center">Loading projects...</p>
-            ) : projects.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">No projects yet.</p>
-            ) : (
-              <div className="space-y-1 max-h-60 overflow-y-auto mb-4">
-                {projects.map((project) => (
-                  <label
-                    key={project.id}
-                    className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={project.hasAccess}
-                      onChange={() => toggleProject(project.id)}
-                      className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-                    />
-                    <span className="text-sm text-gray-900">{project.name}</span>
-                    <span className="text-xs text-gray-400 ml-auto capitalize">{project.status}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSelectedMember(null)}
-                className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveProjectAccess}
-                disabled={savingProjects || loadingProjects}
-                className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
-              >
-                {savingProjects ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
