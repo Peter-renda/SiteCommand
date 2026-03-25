@@ -2,57 +2,16 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { TOOL_SECTIONS } from "@/lib/tool-sections";
 
-const TOOL_SECTIONS = [
-  {
-    label: "Core Tools",
-    items: [
-      { name: "Home", slug: "" },
-      { name: "Reporting", slug: "reporting" },
-      { name: "Documents", slug: "documents" },
-      { name: "Directory", slug: "directory" },
-      { name: "Tasks", slug: "tasks" },
-      { name: "Admin", slug: "admin" },
-    ],
-  },
-  {
-    label: "Project Tools",
-    items: [
-      { name: "Insights", slug: "insights" },
-      { name: "RFIs", slug: "rfis" },
-      { name: "Submittals", slug: "submittals" },
-      { name: "Transmittals", slug: "transmittals" },
-      { name: "Punch List", slug: "punch-list" },
-      { name: "Meetings", slug: "meetings" },
-      { name: "Schedule", slug: "schedule" },
-      { name: "Daily Log", slug: "daily-log" },
-      { name: "Photos", slug: "photos" },
-      { name: "Drawings", slug: "drawings" },
-      { name: "BIM Viewer", slug: "bim" },
-      { name: "Specifications", slug: "specifications" },
-    ],
-  },
-  {
-    label: "Preconstruction",
-    items: [
-      { name: "Preconstruction", slug: "preconstruction" },
-      { name: "Bid Management", slug: "bid-management" },
-      { name: "Estimating", slug: "estimating" },
-      { name: "Prequalification", slug: "prequalification" },
-    ],
-  },
-  {
-    label: "Financial Management",
-    items: [
-      { name: "Prime Contracts", slug: "prime-contracts" },
-      { name: "Budget", slug: "budget" },
-      { name: "Commitments", slug: "commitments" },
-      { name: "Scope of Work", slug: "scope-of-work" },
-      { name: "Change Orders", slug: "change-orders" },
-      { name: "Change Events", slug: "change-events" },
-    ],
-  },
-];
+// ProjectNav uses slug "" for Home; remap from the shared "home" slug
+const NAV_TOOL_SECTIONS = TOOL_SECTIONS.map((section) => ({
+  ...section,
+  items: section.items.map((item) => ({
+    ...item,
+    slug: item.slug === "home" ? "" : item.slug,
+  })),
+}));
 
 export default function ProjectNav({
   projectId,
@@ -123,7 +82,7 @@ export default function ProjectNav({
     const currentSlug = match?.[1] ?? "";
     if (!currentSlug) return; // project home is always accessible
     // Only gate slugs that appear in TOOL_SECTIONS (never gate "admin", "insights", etc. that aren't in the feature list)
-    const allFeatureSlugs = TOOL_SECTIONS.flatMap((s) => s.items.map((i) => i.slug)).filter(Boolean);
+    const allFeatureSlugs = NAV_TOOL_SECTIONS.flatMap((s) => s.items.map((i) => i.slug)).filter(Boolean);
     if (allFeatureSlugs.includes(currentSlug) && !enabledFeatures.includes(currentSlug)) {
       router.replace(`/projects/${projectId}`);
     }
@@ -202,7 +161,7 @@ export default function ProjectNav({
   }
 
   // Filter sections by enabled features (null/undefined = no restrictions)
-  const visibleSections = TOOL_SECTIONS.map((section) => ({
+  const visibleSections = NAV_TOOL_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter(
       (item) => !item.slug || !enabledFeatures || enabledFeatures.includes(item.slug)
