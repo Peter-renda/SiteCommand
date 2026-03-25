@@ -221,6 +221,11 @@ export default function BIMClient({
         return;
       }
 
+      if (!saveData.model) {
+        setUploadError("Upload succeeded but model record was not returned. Check that the bim_models table migration has been applied.");
+        return;
+      }
+
       setModels((prev) => [saveData.model, ...prev]);
     } catch {
       setUploadError("An unexpected error occurred");
