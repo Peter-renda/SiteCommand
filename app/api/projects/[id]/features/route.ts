@@ -30,13 +30,39 @@ export async function GET(
     return NextResponse.json({ enabled_features: null });
   }
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("enabled_features")
-    .eq("id", project.company_id)
-    .single();
+  // Fetch company-level enabled_features and user's allowed_tools in parallel
+  const [{ data: company }, { data: membership }] = await Promise.all([
+    supabase
+      .from("companies")
+      .select("enabled_features")
+      .eq("id", project.company_id)
+      .single(),
+    supabase
+      .from("org_members")
+      .select("allowed_tools")
+      .eq("user_id", session.id)
+      .eq("org_id", project.company_id)
+      .maybeSingle(),
+  ]);
 
-  return NextResponse.json({
-    enabled_features: company?.enabled_features ?? null,
-  });
+  const companyFeatures: string[] | null = company?.enabled_features ?? null;
+  const userAllowed: string[] | null = membership?.allowed_tools ?? null;
+
+  // Compute effective features:
+  //   null + null → null (all enabled)
+  //   null + array → user's list
+  //   array + null → company's list
+  //   array + array → intersection
+  let effective: string[] | null;
+  if (companyFeatures === null && userAllowed === null) {
+    effective = null;
+  } else if (companyFeatures === null) {
+    effective = userAllowed;
+  } else if (userAllowed === null) {
+    effective = companyFeatures;
+  } else {
+    effective = companyFeatures.filter((f) => userAllowed.includes(f));
+  }
+
+  return NextResponse.json({ enabled_features: effective });
 }
