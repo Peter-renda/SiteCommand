@@ -32,7 +32,7 @@ type ChangeEntry = {
   oldValue: string;
   newValue: string;
   delta: number; // positive = pushed out, negative = pulled in
-  timestamp: string;
+  timestamp: string; // ISO string
 };
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
@@ -509,6 +509,7 @@ export default function ScheduleClient({
       const data = await res.json();
       setSchedule(data.schedule ?? null);
       setTasks(data.tasks ?? []);
+      setChangeHistory(data.changeHistory ?? []);
     }
     setLoading(false);
   }, [projectId]);
@@ -521,23 +522,21 @@ export default function ScheduleClient({
       const oldValue = task[field];
       if (oldValue && value && oldValue !== value) {
         const delta = daysBetween(oldValue, value);
-        setChangeHistory((prev) => [
-          {
-            taskId: task.id,
-            taskName: task.name,
-            field,
-            oldValue,
-            newValue: value,
-            delta,
-            timestamp: new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
-          },
-          ...prev,
-        ]);
-        // Auto-save the date change to the server
+        const entry: ChangeEntry = {
+          taskId: task.id,
+          taskName: task.name,
+          field,
+          oldValue,
+          newValue: value,
+          delta,
+          timestamp: new Date().toISOString(),
+        };
+        setChangeHistory((prev) => [entry, ...prev]);
+        // Auto-save the date change and history entry to the server
         fetch(`/api/projects/${projectId}/schedule`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid, field, value }),
+          body: JSON.stringify({ uid, field, value, changeEntry: entry }),
         });
       }
     }
@@ -684,7 +683,14 @@ export default function ScheduleClient({
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Change History</span>
                 {changeHistory.length > 0 && (
                   <button
-                    onClick={() => setChangeHistory([])}
+                    onClick={() => {
+                      setChangeHistory([]);
+                      fetch(`/api/projects/${projectId}/schedule`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ clearHistory: true }),
+                      });
+                    }}
                     className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     Clear all
@@ -715,7 +721,10 @@ export default function ScheduleClient({
                           </span>
                           <span className="text-gray-400 ml-1.5">({formatDate(entry.oldValue)} → {formatDate(entry.newValue)})</span>
                         </span>
-                        <span className="text-xs text-gray-400 shrink-0">{entry.timestamp}</span>
+                        <span className="text-xs text-gray-400 shrink-0">
+                          {new Date(entry.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
+                          {new Date(entry.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        </span>
                       </div>
                     );
                   })

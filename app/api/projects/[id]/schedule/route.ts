@@ -135,6 +135,7 @@ export async function GET(
       uploaded_at: scheduleRow.uploaded_at,
     },
     tasks,
+    changeHistory: scheduleRow.change_history ?? [],
   });
 }
 
@@ -187,8 +188,19 @@ export async function POST(
 }
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
-// Body: { uid: number; field: "start" | "finish"; value: string }
-// Merges the change into the task_overrides JSONB column.
+// Two modes:
+//   Date change: { uid, field, value, changeEntry }
+//   Clear history: { clearHistory: true }
+
+type ChangeEntry = {
+  taskId: number;
+  taskName: string;
+  field: "start" | "finish";
+  oldValue: string;
+  newValue: string;
+  delta: number;
+  timestamp: string; // ISO string
+};
 
 export async function PATCH(
   req: NextRequest,
@@ -200,28 +212,44 @@ export async function PATCH(
   const { id: projectId } = await params;
   const supabase = getSupabase();
 
-  const body = await req.json() as { uid: number; field: "start" | "finish"; value: string };
-  if (!body.uid || !body.field || !body.value) {
-    return NextResponse.json({ error: "uid, field, and value are required" }, { status: 400 });
-  }
+  const body = await req.json() as
+    | { uid: number; field: "start" | "finish"; value: string; changeEntry: ChangeEntry }
+    | { clearHistory: true };
 
-  // Load current overrides
   const { data: row, error: fetchError } = await supabase
     .from("project_schedules")
-    .select("id, task_overrides")
+    .select("id, task_overrides, change_history")
     .eq("project_id", projectId)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
   if (!row) return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
 
+  // Clear history mode
+  if ("clearHistory" in body && body.clearHistory) {
+    const { error } = await supabase
+      .from("project_schedules")
+      .update({ change_history: [] })
+      .eq("id", row.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  // Date change mode
+  if (!body.uid || !body.field || !body.value) {
+    return NextResponse.json({ error: "uid, field, and value are required" }, { status: 400 });
+  }
+
   const overrides = (row.task_overrides ?? {}) as Record<string, Record<string, string>>;
   const key = String(body.uid);
   overrides[key] = { ...(overrides[key] ?? {}), [body.field]: body.value };
 
+  const history = (row.change_history ?? []) as ChangeEntry[];
+  const updatedHistory = [body.changeEntry, ...history];
+
   const { error: updateError } = await supabase
     .from("project_schedules")
-    .update({ task_overrides: overrides })
+    .update({ task_overrides: overrides, change_history: updatedHistory })
     .eq("id", row.id);
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
