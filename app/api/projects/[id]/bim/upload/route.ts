@@ -17,7 +17,10 @@ async function getApsToken(clientId: string, clientSecret: string, scope: string
     body: new URLSearchParams({ grant_type: "client_credentials", scope }),
   });
 
-  if (!res.ok) throw new Error("Failed to obtain APS token");
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to obtain APS token: ${text}`);
+  }
   const data = await res.json();
   return data.access_token;
 }
@@ -56,26 +59,50 @@ async function uploadToOss(
   fileBuffer: ArrayBuffer,
   contentType: string
 ): Promise<string> {
-  const res = await fetch(
-    `${APS_BASE}/oss/v2/buckets/${bucketKey}/objects/${encodeURIComponent(objectKey)}`,
+  const encodedKey = encodeURIComponent(objectKey);
+
+  // Step 1: obtain a signed S3 upload URL
+  const signRes = await fetch(
+    `${APS_BASE}/oss/v2/buckets/${bucketKey}/objects/${encodedKey}/signeds3upload?minutesExpiration=60`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!signRes.ok) {
+    const text = await signRes.text();
+    throw new Error(`Failed to get signed upload URL: ${text}`);
+  }
+  const { uploadKey, urls } = await signRes.json();
+  const s3Url = urls[0];
+
+  // Step 2: upload directly to S3 (no Authorization header)
+  const s3Res = await fetch(s3Url, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body: fileBuffer,
+  });
+  if (!s3Res.ok) {
+    const text = await s3Res.text();
+    throw new Error(`Failed to upload to S3: ${text}`);
+  }
+  const eTag = s3Res.headers.get("ETag") ?? "";
+
+  // Step 3: complete the upload
+  const completeRes = await fetch(
+    `${APS_BASE}/oss/v2/buckets/${bucketKey}/objects/${encodedKey}/signeds3upload`,
     {
-      method: "PUT",
+      method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": contentType,
-        "Content-Length": String(fileBuffer.byteLength),
+        "Content-Type": "application/json",
       },
-      body: fileBuffer,
+      body: JSON.stringify({ uploadKey, parts: [{ partNumber: 1, eTag }] }),
     }
   );
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to upload to APS OSS: ${text}`);
+  if (!completeRes.ok) {
+    const text = await completeRes.text();
+    throw new Error(`Failed to complete APS upload: ${text}`);
   }
 
-  const data = await res.json();
-  // URN is base64url encoded version of "urn:adsk.objects:os.object:{bucket}/{objectKey}"
+  // URN is base64url of "urn:adsk.objects:os.object:{bucket}/{objectKey}"
   const rawUrn = `urn:adsk.objects:os.object:${bucketKey}/${objectKey}`;
   return Buffer.from(rawUrn).toString("base64url");
 }

@@ -10,14 +10,18 @@ import { getSupabase } from "@/lib/supabase";
  * env-var approach for self-hosted / CI environments.
  */
 export async function getPlatformSetting(key: string): Promise<string | null> {
-  const supabase = getSupabase();
-  const { data } = await supabase
-    .from("platform_settings")
-    .select("value")
-    .eq("key", key)
-    .maybeSingle();
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", key)
+      .maybeSingle();
 
-  if (data?.value) return data.value;
+    if (data?.value) return data.value;
+  } catch {
+    // Table may not exist yet (migration pending) – fall through to env var
+  }
 
   // Fall back to environment variable
   return process.env[key] ?? null;
