@@ -36,7 +36,6 @@ const TOOL_SECTIONS = [
     items: [
       { name: "Preconstruction", slug: "preconstruction" },
       { name: "Bid Management", slug: "bid-management" },
-      { name: "BIM", slug: "bim" },
       { name: "Estimating", slug: "estimating" },
       { name: "Prequalification", slug: "prequalification" },
     ],
