@@ -17,7 +17,10 @@ async function getApsToken(clientId: string, clientSecret: string, scope: string
     body: new URLSearchParams({ grant_type: "client_credentials", scope }),
   });
 
-  if (!res.ok) throw new Error("Failed to obtain APS token");
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to obtain APS token: ${text}`);
+  }
   const data = await res.json();
   return data.access_token;
 }
