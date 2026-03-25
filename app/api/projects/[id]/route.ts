@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
+import { canAccessProject } from "@/lib/project-access";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -49,8 +50,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error || !data) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
-  if (data.company_id !== session.company_id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const hasAccess = await canAccessProject(id, session);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
   return NextResponse.json({ ...data, members: [] });
