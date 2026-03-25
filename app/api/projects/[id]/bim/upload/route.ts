@@ -101,8 +101,11 @@ async function uploadToOss(
     throw new Error(`Failed to complete APS upload: ${text}`);
   }
 
-  // URN is base64url of "urn:adsk.objects:os.object:{bucket}/{objectKey}"
-  const rawUrn = `urn:adsk.objects:os.object:${bucketKey}/${objectKey}`;
+  // Use the objectId returned by APS (e.g. "urn:adsk.objects:os.object:{bucket}/{key}")
+  // so the URN we pass to the translation job exactly matches APS's internal reference.
+  const completeData = await completeRes.json();
+  const rawUrn: string =
+    completeData.objectId ?? `urn:adsk.objects:os.object:${bucketKey}/${objectKey}`;
   return Buffer.from(rawUrn).toString("base64url");
 }
 
