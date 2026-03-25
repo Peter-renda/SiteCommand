@@ -533,6 +533,12 @@ export default function ScheduleClient({
           },
           ...prev,
         ]);
+        // Auto-save the date change to the server
+        fetch(`/api/projects/${projectId}/schedule`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid, field, value }),
+        });
       }
     }
     setTasks((prev) => prev.map((t) => t.uid === uid ? { ...t, [field]: value } : t));
