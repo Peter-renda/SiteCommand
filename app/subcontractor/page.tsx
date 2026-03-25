@@ -51,6 +51,7 @@ export default async function SubcontractorPage() {
       address: project?.address ?? null,
       status: project?.status ?? "",
       value: project?.value ?? 0,
+      companyId: project?.company_id ?? "",
       companyName,
       role: m.role as string,
       allowedSections: (m.allowed_sections as string[] | null) ?? null,
