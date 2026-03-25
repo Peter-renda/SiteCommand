@@ -111,6 +111,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .single();
 
   if (error || !invite) {
+    console.error("[invite-external] Supabase insert error:", error);
     return NextResponse.json({ error: "Failed to create invitation" }, { status: 500 });
   }
 
