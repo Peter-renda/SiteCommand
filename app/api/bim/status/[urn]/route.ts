@@ -53,5 +53,19 @@ export async function GET(
   const status = manifest.status ?? "pending";
   const progress = manifest.progress ?? "0%";
 
-  return NextResponse.json({ status, progress });
+  // Collect failure messages from derivatives when status is "failed"
+  let failureMessages: string[] = [];
+  if (status === "failed" && Array.isArray(manifest.derivatives)) {
+    for (const derivative of manifest.derivatives) {
+      if (Array.isArray(derivative.messages)) {
+        for (const msg of derivative.messages) {
+          if (msg.type === "error" || msg.type === "warning") {
+            failureMessages.push(msg.message ?? JSON.stringify(msg));
+          }
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({ status, progress, failureMessages });
 }

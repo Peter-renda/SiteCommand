@@ -155,6 +155,10 @@ export default function BIMClient({
         const res = await fetch(`/api/bim/status/${encodeURIComponent(model.urn)}`);
         const data = await res.json();
 
+        if (data.status === "failed" && data.failureMessages?.length) {
+          console.error(`[BIM] Translation failed for ${model.filename}:`, data.failureMessages);
+        }
+
         if (data.status && data.status !== model.translation_status) {
           const newStatus = data.status as TranslationStatus;
 
