@@ -340,8 +340,11 @@ export default function BIMClient({
               <p className="text-xs text-red-700">{uploadError}</p>
               {!apsConfigured && (
                 <p className="text-xs text-red-500 mt-1">
-                  Configure <code className="font-mono">APS_CLIENT_ID</code> and{" "}
-                  <code className="font-mono">APS_CLIENT_SECRET</code> to enable BIM upload.
+                  APS credentials are not set. A site admin can configure them at{" "}
+                  <a href="/settings/integrations" className="underline font-medium">
+                    Settings → Integrations
+                  </a>
+                  .
                 </p>
               )}
             </div>
