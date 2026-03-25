@@ -67,7 +67,13 @@ export async function POST(
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error || !data) {
+    console.error("[bim/route] insert error:", error, "data:", data);
+    return NextResponse.json(
+      { error: error?.message ?? "Insert returned no data — check bim_models table schema and RLS" },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ model: data }, { status: 201 });
 }
