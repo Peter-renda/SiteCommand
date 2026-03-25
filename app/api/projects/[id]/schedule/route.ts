@@ -115,6 +115,18 @@ export async function GET(
     tasks = [];
   }
 
+  // Apply any saved overrides on top of the parsed XML tasks
+  const overrides = (scheduleRow.task_overrides ?? {}) as Record<string, { start?: string; finish?: string }>;
+  if (Object.keys(overrides).length > 0) {
+    for (const task of tasks) {
+      const ov = overrides[String(task.uid)];
+      if (ov) {
+        if (ov.start) task.start = ov.start;
+        if (ov.finish) task.finish = ov.finish;
+      }
+    }
+  }
+
   return NextResponse.json({
     schedule: {
       id: scheduleRow.id,
@@ -172,4 +184,46 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
+}
+
+// ── PATCH ─────────────────────────────────────────────────────────────────────
+// Body: { uid: number; field: "start" | "finish"; value: string }
+// Merges the change into the task_overrides JSONB column.
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id: projectId } = await params;
+  const supabase = getSupabase();
+
+  const body = await req.json() as { uid: number; field: "start" | "finish"; value: string };
+  if (!body.uid || !body.field || !body.value) {
+    return NextResponse.json({ error: "uid, field, and value are required" }, { status: 400 });
+  }
+
+  // Load current overrides
+  const { data: row, error: fetchError } = await supabase
+    .from("project_schedules")
+    .select("id, task_overrides")
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  if (!row) return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
+
+  const overrides = (row.task_overrides ?? {}) as Record<string, Record<string, string>>;
+  const key = String(body.uid);
+  overrides[key] = { ...(overrides[key] ?? {}), [body.field]: body.value };
+
+  const { error: updateError } = await supabase
+    .from("project_schedules")
+    .update({ task_overrides: overrides })
+    .eq("id", row.id);
+
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }
