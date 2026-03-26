@@ -41,6 +41,7 @@ type RFIResponse = {
   created_by: string | null;
   created_by_name: string | null;
   created_at: string;
+  attachments: { name: string; url: string }[];
 };
 
 
@@ -91,6 +92,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [responseBody, setResponseBody] = useState("");
+  const [responseFile, setResponseFile] = useState<File | null>(null);
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [returningCourt, setReturningCourt] = useState(false);
   const [showResponseForm, setShowResponseForm] = useState(false);
@@ -128,9 +130,23 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       body: JSON.stringify({ body: responseBody }),
     });
     if (res.ok) {
-      const newResp = await res.json();
-      setResponses((prev) => [...prev, newResp]);
+      let newResp = await res.json();
+      if (responseFile) {
+        const fd = new FormData();
+        fd.append("file", responseFile);
+        const attRes = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${newResp.id}/attachment`, {
+          method: "POST",
+          body: fd,
+        });
+        if (attRes.ok) {
+          const attData = await attRes.json();
+          newResp = { ...newResp, attachments: attData.attachments ?? [] };
+        }
+      }
+      // Responses are newest-first; prepend new response
+      setResponses((prev) => [newResp, ...prev]);
       setResponseBody("");
+      setResponseFile(null);
       setShowResponseForm(false);
     }
     setSubmittingResponse(false);
@@ -211,26 +227,35 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
             <h1 className="text-xl font-semibold text-gray-900">{rfi.subject || "No subject"}</h1>
           </div>
 
-          <Section title="Question">
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{rfi.question || "—"}</p>
-          </Section>
-
-          <Section title="Attachments">
-            {(rfi.attachments ?? []).length === 0 ? (
-              <p className="text-sm text-gray-400">No attachments</p>
-            ) : (
-              <ul className="space-y-2">
-                {rfi.attachments.map((att, i) => (
-                  <li key={i}>
-                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-700 hover:text-gray-900 underline flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      {att.name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
+          {/* Request: Question + Attachments side by side */}
+          <div className="bg-white border border-gray-100 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-900">Request</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Question</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{rfi.question || "—"}</p>
+              </div>
+              <div className="md:min-w-[200px]">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Attachments</p>
+                {(rfi.attachments ?? []).length === 0 ? (
+                  <p className="text-sm text-gray-400">—</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {rfi.attachments.map((att, i) => (
+                      <li key={i}>
+                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          <span className="truncate max-w-[160px]">{att.name}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
 
           <Section
             title="Responses"
@@ -246,32 +271,58 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
               </button>
             }
           >
-            {responses.length === 0 && !showResponseForm && <p className="text-sm text-gray-400">No responses yet.</p>}
-            <div className="space-y-4">
-              {responses.map((resp) => (
-                <div key={resp.id} className="pl-4 border-l-2 border-gray-200">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{resp.body}</p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {resp.created_by_name && <span className="font-medium text-gray-500">{resp.created_by_name} &middot; </span>}
-                    {formatDateTime(resp.created_at)}
-                  </p>
-                </div>
-              ))}
-            </div>
             {showResponseForm && (
-              <div className={`${responses.length > 0 ? "mt-4 pt-4 border-t border-gray-100" : ""}`}>
+              <div className={`${responses.length > 0 ? "mb-4 pb-4 border-b border-gray-100" : ""}`}>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Add response</label>
                 <textarea value={responseBody} onChange={(e) => setResponseBody(e.target.value)} rows={3} placeholder="Write your response..." className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
-                <div className="flex items-center gap-2 mt-2">
+                <div className="mt-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Attachment (optional)</label>
+                  <input
+                    type="file"
+                    onChange={(e) => setResponseFile(e.target.files?.[0] ?? null)}
+                    className="text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                  />
+                  {responseFile && <p className="text-xs text-gray-400 mt-1">{responseFile.name}</p>}
+                </div>
+                <div className="flex items-center gap-2 mt-3">
                   <button onClick={handleSubmitResponse} disabled={submittingResponse || !responseBody.trim()} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {submittingResponse ? "Sending..." : "Send response"}
                   </button>
-                  <button onClick={() => { setShowResponseForm(false); setResponseBody(""); }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                  <button onClick={() => { setShowResponseForm(false); setResponseBody(""); setResponseFile(null); }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
                     Cancel
                   </button>
                 </div>
               </div>
             )}
+            {responses.length === 0 && !showResponseForm && <p className="text-sm text-gray-400">No responses yet.</p>}
+            <div className="space-y-4">
+              {responses.map((resp) => (
+                <div key={resp.id} className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 pl-4 border-l-2 border-gray-200">
+                  <div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{resp.body}</p>
+                    <p className="text-xs text-gray-400 mt-2">
+                      {resp.created_by_name && <span className="font-medium text-gray-500">{resp.created_by_name} &middot; </span>}
+                      {formatDateTime(resp.created_at)}
+                    </p>
+                  </div>
+                  {(resp.attachments ?? []).length > 0 && (
+                    <div className="md:min-w-[160px]">
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Attachments</p>
+                      <ul className="space-y-1">
+                        {resp.attachments.map((att, i) => (
+                          <li key={i}>
+                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1.5">
+                              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                              <span className="truncate max-w-[140px]">{att.name}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </Section>
 
           <Section title="General Information">

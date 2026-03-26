@@ -17,9 +17,9 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("rfi_responses")
-    .select("id, body, created_by, created_at, users(username, first_name, last_name)")
+    .select("id, body, created_by, created_at, attachments, users(username, first_name, last_name)")
     .eq("rfi_id", rfiId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -28,13 +28,14 @@ export async function GET(
     body: string;
     created_by: string | null;
     created_at: string;
+    attachments: { name: string; url: string }[] | null;
     users: { username: string; first_name: string | null; last_name: string | null } | null;
   }) => {
     const u = r.users;
     const created_by_name = u
       ? ([u.first_name, u.last_name].filter(Boolean).join(" ") || u.username)
       : null;
-    return { id: r.id, body: r.body, created_by: r.created_by, created_at: r.created_at, created_by_name };
+    return { id: r.id, body: r.body, created_by: r.created_by, created_at: r.created_at, created_by_name, attachments: r.attachments ?? [] };
   });
 
   return NextResponse.json(responses);
@@ -59,11 +60,11 @@ export async function POST(
   const { data, error } = await supabase
     .from("rfi_responses")
     .insert({ rfi_id: rfiId, body: body.trim(), created_by: session.id })
-    .select("id, body, created_by, created_at")
+    .select("id, body, created_by, created_at, attachments")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const created_by_name = [session.username].filter(Boolean).join("") || null;
-  return NextResponse.json({ ...data, created_by_name });
+  return NextResponse.json({ ...data, created_by_name, attachments: data.attachments ?? [] });
 }
