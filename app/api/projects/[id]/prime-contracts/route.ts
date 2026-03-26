@@ -70,7 +70,7 @@ export async function POST(
       contract_termination_date: body.contract_termination_date || null,
       is_private: body.is_private ?? true,
       sov_view_allowed: body.allow_non_admin_sov_view ?? false,
-      original_contract_amount: 0,
+      original_contract_amount: body.original_contract_amount ? Number(body.original_contract_amount) : 0,
       approved_change_orders: 0,
       pending_change_orders: 0,
     })

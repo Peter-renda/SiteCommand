@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import ProjectNav from "../components/ProjectNav";
-import { Settings, Plus, ChevronDown, ChevronRight, Search, SlidersHorizontal, Columns3 } from "lucide-react";
+import { Settings, Plus, ChevronDown, ChevronRight, Search, SlidersHorizontal, Columns3, Upload, X, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -66,6 +66,41 @@ const COLUMNS = [
   { key: "attachments",               label: "Attach-\nments",               right: true  },
 ];
 
+type ImportFields = {
+  contract_number?: string | null;
+  title?: string | null;
+  owner_client?: string | null;
+  contractor?: string | null;
+  architect_engineer?: string | null;
+  status?: string | null;
+  executed?: boolean | null;
+  default_retainage?: number | null;
+  original_contract_amount?: number | null;
+  description?: string | null;
+  inclusions?: string | null;
+  exclusions?: string | null;
+  start_date?: string | null;
+  estimated_completion_date?: string | null;
+  actual_completion_date?: string | null;
+  signed_contract_received_date?: string | null;
+  contract_termination_date?: string | null;
+};
+
+function fmtDate(d: string | null | undefined) {
+  if (!d) return "—";
+  const dt = new Date(d + "T00:00:00");
+  return isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function Field({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className="text-xs text-gray-800 mt-0.5">{value ?? <span className="text-gray-400">—</span>}</p>
+    </div>
+  );
+}
+
 export default function PrimeContracts() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -73,14 +108,78 @@ export default function PrimeContracts() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
+  // Import state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importState, setImportState] = useState<"idle" | "parsing" | "review" | "creating">("idle");
+  const [importFields, setImportFields] = useState<ImportFields | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  function loadContracts() {
     fetch(`/api/projects/${id}/prime-contracts`)
       .then((res) => res.json())
       .then((data) => {
         setContracts(data);
         setLoading(false);
       });
+  }
+
+  useEffect(() => {
+    loadContracts();
   }, [id]);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setImportError(null);
+    setImportState("parsing");
+
+    const form = new FormData();
+    form.append("file", file);
+
+    try {
+      const res = await fetch(`/api/projects/${id}/prime-contracts/import`, {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to parse PDF");
+      setImportFields(data.fields ?? {});
+      setImportState("review");
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Failed to parse PDF");
+      setImportState("idle");
+    }
+  }
+
+  async function handleCreateFromImport() {
+    if (!importFields) return;
+    setImportState("creating");
+
+    try {
+      const res = await fetch(`/api/projects/${id}/prime-contracts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(importFields),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to create contract");
+      setImportState("idle");
+      setImportFields(null);
+      setLoading(true);
+      loadContracts();
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Failed to create contract");
+      setImportState("review");
+    }
+  }
+
+  function closeImportModal() {
+    setImportState("idle");
+    setImportFields(null);
+    setImportError(null);
+  }
 
   const exportToPDF = async (contractId: string) => {
     const res = await fetch(`/api/prime-contracts/${contractId}`);
@@ -136,6 +235,20 @@ export default function PrimeContracts() {
             Export
             <ChevronDown className="w-3 h-3" />
           </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Upload className="w-3 h-3" />
+            Import
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={handleFileChange}
+          />
           <button
             onClick={() => navigate(`/projects/${id}/prime-contracts/new`)}
             className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded font-medium transition-colors"
@@ -290,6 +403,94 @@ export default function PrimeContracts() {
           </table>
         )}
       </div>
+
+      {/* Parsing overlay */}
+      {importState === "parsing" && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl px-8 py-6 flex flex-col items-center gap-3">
+            <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
+            <p className="text-sm font-medium text-gray-700">Parsing PDF…</p>
+            <p className="text-xs text-gray-400">Extracting contract fields with AI</p>
+          </div>
+        </div>
+      )}
+
+      {/* Review modal */}
+      {(importState === "review" || importState === "creating") && importFields && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900">Review Imported Contract</h2>
+              <button onClick={closeImportModal} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-5 py-4 flex-1">
+              {importError && (
+                <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+                  {importError}
+                </div>
+              )}
+              <p className="text-xs text-gray-500 mb-4">
+                Review the fields extracted from the PDF. Click <strong>Create Contract</strong> to add it to the table.
+              </p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs">
+                <Field label="Contract #" value={importFields.contract_number} />
+                <Field label="Title" value={importFields.title} />
+                <Field label="Owner / Client" value={importFields.owner_client} />
+                <Field label="Contractor" value={importFields.contractor} />
+                <Field label="Architect / Engineer" value={importFields.architect_engineer} />
+                <Field label="Status" value={importFields.status} />
+                <Field label="Executed" value={importFields.executed == null ? null : importFields.executed ? "Yes" : "No"} />
+                <Field label="Default Retainage" value={importFields.default_retainage == null ? null : `${importFields.default_retainage}%`} />
+                <Field label="Original Contract Amount" value={importFields.original_contract_amount == null ? null : fmt(importFields.original_contract_amount)} />
+                <Field label="Start Date" value={fmtDate(importFields.start_date)} />
+                <Field label="Est. Completion" value={fmtDate(importFields.estimated_completion_date)} />
+                <Field label="Actual Completion" value={fmtDate(importFields.actual_completion_date)} />
+                <Field label="Signed Contract Received" value={fmtDate(importFields.signed_contract_received_date)} />
+                <Field label="Termination Date" value={fmtDate(importFields.contract_termination_date)} />
+              </div>
+              {importFields.description && (
+                <div className="mt-3">
+                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">Description</p>
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap">{importFields.description}</p>
+                </div>
+              )}
+              {importFields.inclusions && (
+                <div className="mt-3">
+                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">Inclusions</p>
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap">{importFields.inclusions}</p>
+                </div>
+              )}
+              {importFields.exclusions && (
+                <div className="mt-3">
+                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">Exclusions</p>
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap">{importFields.exclusions}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-200">
+              <button
+                onClick={closeImportModal}
+                disabled={importState === "creating"}
+                className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateFromImport}
+                disabled={importState === "creating"}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded font-medium transition-colors disabled:opacity-50"
+              >
+                {importState === "creating" && <Loader2 className="w-3 h-3 animate-spin" />}
+                Create Contract
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
