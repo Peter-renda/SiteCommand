@@ -78,5 +78,20 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Save SOV items if provided
+  if (Array.isArray(body.sov_items) && body.sov_items.length > 0 && data) {
+    const rows = body.sov_items.map((item: any, idx: number) => ({
+      prime_contract_id: data.id,
+      project_id: projectId,
+      budget_code: item.budget_code ?? "",
+      description: item.description ?? "",
+      scheduled_value: Number(item.amount ?? item.scheduled_value ?? 0),
+      billed_to_date: Number(item.billed_to_date ?? 0),
+      sort_order: idx,
+    }));
+    await supabase.from("prime_contract_sov_items").insert(rows);
+  }
+
   return NextResponse.json(data);
 }
