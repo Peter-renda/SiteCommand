@@ -111,7 +111,34 @@ export async function sendWebhookEventEmail(
   });
 }
 
-export async function sendContractorInviteEmail(to: string, inviteUrl: string, projectName: string, contactName: string) {
+export async function sendRFIBallInCourtEmail(
+  to: string,
+  recipientName: string,
+  senderName: string,
+  rfiNumber: number,
+  rfiSubject: string | null,
+  projectName: string,
+  rfiUrl: string,
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // silent if not configured
+
+  const resend = new Resend(apiKey);
+  const subject = rfiSubject || "No subject";
+  await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `RFI #${rfiNumber} has been returned to your court — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
+      <p style="font-size:14px;"><strong>${senderName}</strong> has returned <strong>RFI #${rfiNumber}: ${subject}</strong> to your court on <strong>${projectName}</strong>.</p>
+      <p style="font-size:13px;color:#555;">This RFI requires your attention.</p>
+      <p><a href="${rfiUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View RFI</a></p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are assigned to this RFI on SiteCommand.</p>
+    `,
+  });
+}
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY is not set in environment variables");
 
