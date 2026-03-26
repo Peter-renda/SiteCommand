@@ -1,14 +1,7 @@
 import type { Metadata } from "next";
-import { Barlow } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import DemoProvider from "@/components/DemoProvider";
 import "./globals.css";
-
-const barlow = Barlow({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-barlow",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sitecommand.com"),
@@ -29,7 +22,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={barlow.variable}>
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="antialiased">
         <DemoProvider />
         {children}
