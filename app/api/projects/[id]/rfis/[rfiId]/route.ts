@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { sendRFIBallInCourtEmail } from "@/lib/email";
 
 export async function GET(
   _req: NextRequest,
@@ -57,6 +58,38 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Send ball-in-court email notification when ball_in_court_id is set
+  if ("ball_in_court_id" in update && data.ball_in_court_id) {
+    try {
+      const [contactRes, projectRes] = await Promise.all([
+        supabase
+          .from("directory_contacts")
+          .select("first_name, last_name, email")
+          .eq("id", data.ball_in_court_id)
+          .single(),
+        supabase
+          .from("projects")
+          .select("name")
+          .eq("id", projectId)
+          .single(),
+      ]);
+
+      const contact = contactRes.data;
+      const recipientEmail = contact?.email;
+      if (recipientEmail) {
+        const recipientName = [contact.first_name, contact.last_name].filter(Boolean).join(" ");
+        const senderName = session.username;
+        const projectName = projectRes.data?.name ?? "your project";
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+        const rfiUrl = `${appUrl}/projects/${projectId}/rfis/${rfiId}`;
+        await sendRFIBallInCourtEmail(recipientEmail, recipientName, senderName, data.rfi_number, data.subject, projectName, rfiUrl);
+      }
+    } catch {
+      // Email failure should not block the response
+    }
+  }
+
   return NextResponse.json(data);
 }
 
