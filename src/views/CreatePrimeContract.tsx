@@ -246,10 +246,11 @@ export default function CreatePrimeContract() {
                 <Label required>Status</Label>
                 <Select value={formData.status} onChange={(e) => set("status", e.target.value)}>
                   <option value="Draft">Draft</option>
+                  <option value="Out for Bid">Out for Bid</option>
+                  <option value="Out for Signature">Out for Signature</option>
                   <option value="Approved">Approved</option>
-                  <option value="Executed">Executed</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Void">Void</option>
+                  <option value="Complete">Complete</option>
+                  <option value="Terminated">Terminated</option>
                 </Select>
               </div>
               <div>

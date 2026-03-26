@@ -31,11 +31,12 @@ function fmt(val: number | null | undefined) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    Approved: "border-green-500 text-green-600",
     Draft: "border-gray-400 text-gray-600",
-    Executed: "border-blue-500 text-blue-600",
-    Pending: "border-yellow-500 text-yellow-600",
-    Void: "border-red-400 text-red-600",
+    "Out for Bid": "border-yellow-500 text-yellow-600",
+    "Out for Signature": "border-blue-400 text-blue-600",
+    Approved: "border-green-500 text-green-600",
+    Complete: "border-blue-500 text-blue-600",
+    Terminated: "border-red-400 text-red-600",
   };
   const cls = map[status] ?? "border-gray-400 text-gray-600";
   return (
