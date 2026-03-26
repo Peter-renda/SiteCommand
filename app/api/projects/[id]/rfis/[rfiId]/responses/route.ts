@@ -21,14 +21,24 @@ export async function GET(
     .eq("rfi_id", rfiId)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // If attachments column doesn't exist yet (migration pending), fall back without it
+  let rows = data;
+  if (error) {
+    const { data: fallback, error: fallbackError } = await supabase
+      .from("rfi_responses")
+      .select("id, body, created_by, created_at, users(username, first_name, last_name)")
+      .eq("rfi_id", rfiId)
+      .order("created_at", { ascending: false });
+    if (fallbackError) return NextResponse.json({ error: fallbackError.message }, { status: 500 });
+    rows = fallback;
+  }
 
-  const responses = (data || []).map((r: {
+  const responses = (rows || []).map((r: {
     id: string;
     body: string;
     created_by: string | null;
     created_at: string;
-    attachments: { name: string; url: string }[] | null;
+    attachments?: { name: string; url: string }[] | null;
     users: { username: string; first_name: string | null; last_name: string | null } | null;
   }) => {
     const u = r.users;
@@ -60,11 +70,11 @@ export async function POST(
   const { data, error } = await supabase
     .from("rfi_responses")
     .insert({ rfi_id: rfiId, body: body.trim(), created_by: session.id })
-    .select("id, body, created_by, created_at, attachments")
+    .select("id, body, created_by, created_at")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const created_by_name = [session.username].filter(Boolean).join("") || null;
-  return NextResponse.json({ ...data, created_by_name, attachments: data.attachments ?? [] });
+  return NextResponse.json({ ...data, created_by_name, attachments: [] });
 }
