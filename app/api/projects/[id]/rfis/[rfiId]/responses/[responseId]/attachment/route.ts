@@ -26,7 +26,7 @@ export async function POST(
 
   const { data: response } = await supabase
     .from("rfi_responses")
-    .select("attachments")
+    .select("id")
     .eq("id", responseId)
     .eq("rfi_id", rfiId)
     .single();
@@ -43,7 +43,14 @@ export async function POST(
 
   const { data: urlData } = supabase.storage.from("rfi-attachments").getPublicUrl(path);
   const attachment = { name: file.name, url: urlData.publicUrl };
-  const attachments = Array.isArray(response.attachments) ? [...response.attachments, attachment] : [attachment];
+
+  // Fetch current attachments and append
+  const { data: current } = await supabase
+    .from("rfi_responses")
+    .select("attachments")
+    .eq("id", responseId)
+    .single();
+  const attachments = Array.isArray(current?.attachments) ? [...current.attachments, attachment] : [attachment];
 
   const { data: updated, error: updateError } = await supabase
     .from("rfi_responses")

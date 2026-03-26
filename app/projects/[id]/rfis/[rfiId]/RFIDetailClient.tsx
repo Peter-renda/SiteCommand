@@ -94,6 +94,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [responseBody, setResponseBody] = useState("");
   const [responseFile, setResponseFile] = useState<File | null>(null);
   const [submittingResponse, setSubmittingResponse] = useState(false);
+  const [responseError, setResponseError] = useState<string | null>(null);
   const [returningCourt, setReturningCourt] = useState(false);
   const [showResponseForm, setShowResponseForm] = useState(false);
 
@@ -124,31 +125,39 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   async function handleSubmitResponse() {
     if (!responseBody.trim()) return;
     setSubmittingResponse(true);
+    setResponseError(null);
     const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body: responseBody }),
     });
-    if (res.ok) {
-      let newResp = await res.json();
-      if (responseFile) {
-        const fd = new FormData();
-        fd.append("file", responseFile);
-        const attRes = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${newResp.id}/attachment`, {
-          method: "POST",
-          body: fd,
-        });
-        if (attRes.ok) {
-          const attData = await attRes.json();
-          newResp = { ...newResp, attachments: attData.attachments ?? [] };
-        }
-      }
-      // Responses are newest-first; prepend new response
-      setResponses((prev) => [newResp, ...prev]);
-      setResponseBody("");
-      setResponseFile(null);
-      setShowResponseForm(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setResponseError(err.error || "Failed to send response.");
+      setSubmittingResponse(false);
+      return;
     }
+    let newResp = await res.json();
+    if (responseFile) {
+      const fd = new FormData();
+      fd.append("file", responseFile);
+      const attRes = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${newResp.id}/attachment`, {
+        method: "POST",
+        body: fd,
+      });
+      if (attRes.ok) {
+        const attData = await attRes.json();
+        newResp = { ...newResp, attachments: attData.attachments ?? [] };
+      } else {
+        const attErr = await attRes.json().catch(() => ({}));
+        setResponseError(`Response saved but attachment failed: ${attErr.error || "upload error"}`);
+      }
+    }
+    // Responses are newest-first; prepend new response
+    setResponses((prev) => [newResp, ...prev]);
+    setResponseBody("");
+    setResponseFile(null);
+    setShowResponseForm(false);
     setSubmittingResponse(false);
   }
 
@@ -284,11 +293,12 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                   />
                   {responseFile && <p className="text-xs text-gray-400 mt-1">{responseFile.name}</p>}
                 </div>
+                {responseError && <p className="text-xs text-red-600 mt-2">{responseError}</p>}
                 <div className="flex items-center gap-2 mt-3">
                   <button onClick={handleSubmitResponse} disabled={submittingResponse || !responseBody.trim()} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {submittingResponse ? "Sending..." : "Send response"}
                   </button>
-                  <button onClick={() => { setShowResponseForm(false); setResponseBody(""); setResponseFile(null); }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                  <button onClick={() => { setShowResponseForm(false); setResponseBody(""); setResponseFile(null); setResponseError(null); }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
                     Cancel
                   </button>
                 </div>
