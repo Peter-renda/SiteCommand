@@ -44,7 +44,6 @@ type RFIResponse = {
   attachments: { name: string; url: string }[];
 };
 
-
 function contactDisplayName(c: DirectoryContact): string {
   if (c.type === "company") return c.company ?? "Unnamed Company";
   if (c.type === "distribution_group") return c.group_name ?? "Unnamed Group";
@@ -55,32 +54,36 @@ function getContactNameById(directory: DirectoryContact[], id: string | null): s
   const c = directory.find((x) => x.id === id);
   return c ? contactDisplayName(c) : "—";
 }
-
 function getSpecName(specifications: Specification[], id: string | null): string {
   if (!id) return "—";
   const s = specifications.find((x) => x.id === id);
   return s ? (s.name + (s.code ? ` (${s.code})` : "")) : "—";
 }
-
 function formatDate(d: string | null): string {
   if (!d) return "—";
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
-
 function formatDateTime(d: string | null): string {
   if (!d) return "—";
-  return new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  return new Date(d).toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
 }
 
-function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+function ChevronDown({ open }: { open: boolean }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-6">
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </div>
+    <svg className={`w-4 h-4 text-gray-500 transition-transform ${open ? "" : "-rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function AttachmentLink({ att }: { att: { name: string; url: string } }) {
+  return (
+    <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800">
+      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="truncate max-w-[180px]">{att.name}</span>
+    </a>
   );
 }
 
@@ -91,11 +94,19 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [responses, setResponses] = useState<RFIResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  const [requestOpen, setRequestOpen] = useState(true);
+  const [responsesOpen, setResponsesOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState("general");
+
   const [responseBody, setResponseBody] = useState("");
   const [responseFile, setResponseFile] = useState<File | null>(null);
   const [submittingResponse, setSubmittingResponse] = useState(false);
-  const [returningCourt, setReturningCourt] = useState(false);
+  const [responseError, setResponseError] = useState<string | null>(null);
   const [showResponseForm, setShowResponseForm] = useState(false);
+
+  const [closingRFI, setClosingRFI] = useState(false);
+  const [returningCourt, setReturningCourt] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -121,41 +132,60 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
   const canEdit = rfi && rfi.created_by === userId;
 
+  async function handleCloseRFI() {
+    if (!rfi) return;
+    setClosingRFI(true);
+    const newStatus = rfi.status === "closed" ? "open" : "closed";
+    const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (res.ok) setRfi(await res.json());
+    setClosingRFI(false);
+  }
+
   async function handleSubmitResponse() {
     if (!responseBody.trim()) return;
     setSubmittingResponse(true);
+    setResponseError(null);
     const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body: responseBody }),
     });
-    if (res.ok) {
-      let newResp = await res.json();
-      if (responseFile) {
-        const fd = new FormData();
-        fd.append("file", responseFile);
-        const attRes = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${newResp.id}/attachment`, {
-          method: "POST",
-          body: fd,
-        });
-        if (attRes.ok) {
-          const attData = await attRes.json();
-          newResp = { ...newResp, attachments: attData.attachments ?? [] };
-        }
-      }
-      // Responses are newest-first; prepend new response
-      setResponses((prev) => [newResp, ...prev]);
-      setResponseBody("");
-      setResponseFile(null);
-      setShowResponseForm(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setResponseError(err.error || "Failed to send response.");
+      setSubmittingResponse(false);
+      return;
     }
+    let newResp = await res.json();
+    if (responseFile) {
+      const fd = new FormData();
+      fd.append("file", responseFile);
+      const attRes = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${newResp.id}/attachment`, {
+        method: "POST",
+        body: fd,
+      });
+      if (attRes.ok) {
+        const attData = await attRes.json();
+        newResp = { ...newResp, attachments: attData.attachments ?? [] };
+      } else {
+        const attErr = await attRes.json().catch(() => ({}));
+        setResponseError(`Response saved but attachment failed: ${attErr.error || "upload error"}`);
+      }
+    }
+    setResponses((prev) => [newResp, ...prev]);
+    setResponseBody("");
+    setResponseFile(null);
+    setShowResponseForm(false);
     setSubmittingResponse(false);
   }
 
   async function handleReturnCourt() {
     if (!rfi) return;
     setReturningCourt(true);
-    // Determine who to pass the ball to
     const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
     const newBallInCourtId = ballIsWithAssignee ? rfi.rfi_manager_id : (rfi.assignees[0]?.id ?? null);
     const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
@@ -163,10 +193,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ball_in_court_id: newBallInCourtId }),
     });
-    if (res.ok) {
-      const updated = await res.json();
-      setRfi(updated);
-    }
+    if (res.ok) setRfi(await res.json());
     setReturningCourt(false);
   }
 
@@ -182,7 +209,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
           <a href="/dashboard" className="text-sm font-semibold text-gray-900">SiteCommand</a>
           <span className="text-sm text-gray-400">{username}</span>
         </header>
-        <main className="max-w-4xl mx-auto px-6 py-8"><p className="text-sm text-gray-400">Loading...</p></main>
+        <main className="px-6 py-8"><p className="text-sm text-gray-400">Loading...</p></main>
       </div>
     );
   }
@@ -193,13 +220,14 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
         <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
           <a href="/dashboard" className="text-sm font-semibold text-gray-900">SiteCommand</a>
         </header>
-        <main className="max-w-4xl mx-auto px-6 py-8"><p className="text-sm text-gray-500">RFI not found.</p></main>
+        <main className="px-6 py-8"><p className="text-sm text-gray-500">RFI not found.</p></main>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Site header */}
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
         <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">SiteCommand</a>
         <div className="flex items-center gap-5">
@@ -210,190 +238,291 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
       <ProjectNav projectId={projectId} />
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <a href={`/projects/${projectId}/rfis`} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+      {/* RFI title bar */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between gap-4">
+        <h1 className="text-lg font-bold text-gray-900 truncate">
+          RFI #{rfi.rfi_number}: {rfi.subject || "No subject"}
+        </h1>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={handleCloseRFI}
+            disabled={closingRFI}
+            className={`px-3 py-1.5 text-sm font-medium rounded transition-colors disabled:opacity-50 ${rfi.status === "closed" ? "bg-gray-600 text-white hover:bg-gray-700" : "bg-orange-500 text-white hover:bg-orange-600"}`}
+          >
+            {closingRFI ? "..." : rfi.status === "closed" ? "Reopen RFI" : "Close RFI"}
+          </button>
+          {canEdit && (
+            <a
+              href={`/projects/${projectId}/rfis/${rfi.id}/edit`}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+            >
+              Edit
+            </a>
+          )}
+          <a
+            href={`/projects/${projectId}/rfis`}
+            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+          >
             All RFIs
           </a>
-          {canEdit && (
-            <a href={`/projects/${projectId}/rfis/${rfi.id}`} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Edit</a>
-          )}
         </div>
+      </div>
 
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">RFI #{rfi.rfi_number}</p>
-            <h1 className="text-xl font-semibold text-gray-900">{rfi.subject || "No subject"}</h1>
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <nav className="flex gap-0 -mb-px">
+          {[
+            { id: "general", label: "General" },
+            { id: "related", label: "Related Items (0)" },
+            { id: "emails", label: "Emails (0)" },
+            { id: "history", label: `Change History` },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? "border-gray-900 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
+        {activeTab !== "general" && (
+          <div className="bg-white border border-gray-200 rounded-lg px-6 py-12 text-center">
+            <p className="text-sm text-gray-400">No content yet.</p>
           </div>
+        )}
 
-          {/* Request: Question + Attachments side by side */}
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-900">Request</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Question</p>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{rfi.question || "—"}</p>
-              </div>
-              <div className="md:min-w-[200px]">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Attachments</p>
-                {(rfi.attachments ?? []).length === 0 ? (
-                  <p className="text-sm text-gray-400">—</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {rfi.attachments.map((att, i) => (
-                      <li key={i}>
-                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1.5">
-                          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                          <span className="truncate max-w-[160px]">{att.name}</span>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <Section
-            title="Responses"
-            action={
+        {activeTab === "general" && (
+          <>
+            {/* Request card */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               <button
-                onClick={() => setShowResponseForm((v) => !v)}
-                className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-900 text-white hover:bg-gray-700 transition-colors"
-                title="Add response"
+                onClick={() => setRequestOpen((v) => !v)}
+                className="w-full flex items-center gap-2 px-6 py-3 border-b border-gray-200 hover:bg-gray-50 transition-colors text-left"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
+                <ChevronDown open={requestOpen} />
+                <span className="text-sm font-semibold text-gray-900">Request</span>
               </button>
-            }
-          >
-            {showResponseForm && (
-              <div className={`${responses.length > 0 ? "mb-4 pb-4 border-b border-gray-100" : ""}`}>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Add response</label>
-                <textarea value={responseBody} onChange={(e) => setResponseBody(e.target.value)} rows={3} placeholder="Write your response..." className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
-                <div className="mt-2">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Attachment (optional)</label>
-                  <input
-                    type="file"
-                    onChange={(e) => setResponseFile(e.target.files?.[0] ?? null)}
-                    className="text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
-                  />
-                  {responseFile && <p className="text-xs text-gray-400 mt-1">{responseFile.name}</p>}
-                </div>
-                <div className="flex items-center gap-2 mt-3">
-                  <button onClick={handleSubmitResponse} disabled={submittingResponse || !responseBody.trim()} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    {submittingResponse ? "Sending..." : "Send response"}
-                  </button>
-                  <button onClick={() => { setShowResponseForm(false); setResponseBody(""); setResponseFile(null); }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-            {responses.length === 0 && !showResponseForm && <p className="text-sm text-gray-400">No responses yet.</p>}
-            <div className="space-y-4">
-              {responses.map((resp) => (
-                <div key={resp.id} className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 pl-4 border-l-2 border-gray-200">
-                  <div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{resp.body}</p>
-                    <p className="text-xs text-gray-400 mt-2">
-                      {resp.created_by_name && <span className="font-medium text-gray-500">{resp.created_by_name} &middot; </span>}
-                      {formatDateTime(resp.created_at)}
-                    </p>
+
+              {requestOpen && (
+                <div className="px-6 py-4 space-y-3">
+                  {/* Subject row */}
+                  <div className="flex items-baseline gap-6">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 flex-shrink-0">Subject</span>
+                    <span className="text-sm text-gray-900">{rfi.subject || "—"}</span>
                   </div>
-                  {(resp.attachments ?? []).length > 0 && (
-                    <div className="md:min-w-[160px]">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Attachments</p>
-                      <ul className="space-y-1">
-                        {resp.attachments.map((att, i) => (
-                          <li key={i}>
-                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1.5">
-                              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                              <span className="truncate max-w-[140px]">{att.name}</span>
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
+
+                  <div className="border-t border-gray-100" />
+
+                  {/* Question + Attachments row */}
+                  <div className="flex gap-6">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 flex-shrink-0 pt-0.5">Question</span>
+                    <p className="flex-1 text-sm text-gray-700 whitespace-pre-wrap">{rfi.question || "—"}</p>
+                    <div className="w-52 flex-shrink-0">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Attachments</p>
+                      {(rfi.attachments ?? []).length === 0 ? (
+                        <p className="text-sm text-gray-400">—</p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {rfi.attachments.map((att, i) => <li key={i}><AttachmentLink att={att} /></li>)}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Responses card */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200">
+                <button
+                  onClick={() => setResponsesOpen((v) => !v)}
+                  className="flex items-center gap-2 hover:text-gray-600 transition-colors"
+                >
+                  <ChevronDown open={responsesOpen} />
+                  <span className="text-sm font-semibold text-gray-900">Responses</span>
+                </button>
+                <button
+                  onClick={() => { setShowResponseForm((v) => !v); setResponsesOpen(true); }}
+                  className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+                  title="Add response"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+
+              {responsesOpen && (
+                <>
+                  {/* Add response form */}
+                  {showResponseForm && (
+                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Response</label>
+                      <textarea
+                        value={responseBody}
+                        onChange={(e) => setResponseBody(e.target.value)}
+                        rows={3}
+                        placeholder="Write your response..."
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none bg-white"
+                      />
+                      <div className="mt-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Attachment (optional)</label>
+                        <input
+                          type="file"
+                          onChange={(e) => setResponseFile(e.target.files?.[0] ?? null)}
+                          className="text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                        />
+                      </div>
+                      {responseError && <p className="text-xs text-red-600 mt-2">{responseError}</p>}
+                      <div className="flex items-center gap-2 mt-3">
+                        <button
+                          onClick={handleSubmitResponse}
+                          disabled={submittingResponse || !responseBody.trim()}
+                          className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {submittingResponse ? "Sending..." : "Send response"}
+                        </button>
+                        <button
+                          onClick={() => { setShowResponseForm(false); setResponseBody(""); setResponseFile(null); setResponseError(null); }}
+                          className="px-4 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   )}
+
+                  {/* Response rows */}
+                  {responses.length === 0 && !showResponseForm && (
+                    <p className="px-6 py-6 text-sm text-gray-400">No responses yet.</p>
+                  )}
+                  {responses.map((resp, idx) => (
+                    <div
+                      key={resp.id}
+                      className={`grid grid-cols-[200px_1fr_220px_130px_40px] gap-4 px-6 py-4 items-start ${idx < responses.length - 1 ? "border-b border-gray-100" : ""}`}
+                    >
+                      {/* Author + date */}
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">{resp.created_by_name || "—"}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(resp.created_at)}</p>
+                      </div>
+
+                      {/* Response body */}
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{resp.body}</p>
+
+                      {/* Attachments */}
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Attachments</p>
+                        {(resp.attachments ?? []).length === 0 ? (
+                          <p className="text-sm text-gray-400">--</p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {resp.attachments.map((att, i) => <li key={i}><AttachmentLink att={att} /></li>)}
+                          </ul>
+                        )}
+                      </div>
+
+                      {/* Mark Official */}
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Mark Official</p>
+                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-gray-900 cursor-pointer" />
+                      </div>
+
+                      {/* Delete */}
+                      <div className="flex justify-center pt-0.5">
+                        <button className="text-gray-300 hover:text-red-500 transition-colors" title="Delete response">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {/* General Information */}
+            <div className="bg-white border border-gray-200 rounded-lg px-6 py-4">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">General Information</h2>
+              <dl className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</dt>
+                  <dd className="mt-0.5 text-gray-900">{formatDate(rfi.due_date)}</dd>
                 </div>
-              ))}
-            </div>
-          </Section>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</dt>
+                  <dd className="mt-0.5">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${rfi.status === "open" ? "bg-blue-50 text-blue-700" : rfi.status === "closed" ? "bg-gray-100 text-gray-600" : "bg-amber-50 text-amber-700"}`}>
+                      {rfi.status}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">RFI Manager</dt>
+                  <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.rfi_manager_id)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Received From</dt>
+                  <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.received_from_id)}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Assignees</dt>
+                  <dd className="mt-0.5 text-gray-900">{(rfi.assignees ?? []).map((a) => a.name).join(", ") || "—"}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Distribution List</dt>
+                  <dd className="mt-0.5 text-gray-900">{(rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Responsible Contractor</dt>
+                  <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.responsible_contractor_id)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Specification</dt>
+                  <dd className="mt-0.5 text-gray-900">{getSpecName(specifications, rfi.specification_id)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Drawing Number</dt>
+                  <dd className="mt-0.5 text-gray-900">{rfi.drawing_number || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Created</dt>
+                  <dd className="mt-0.5 text-gray-900">{formatDate(rfi.created_at)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Ball In Court</dt>
+                  <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.ball_in_court_id)}</dd>
+                </div>
+              </dl>
 
-          <Section title="General Information">
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-              <div>
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</dt>
-                <dd className="mt-0.5 text-gray-900">{formatDate(rfi.due_date)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</dt>
-                <dd className="mt-0.5"><span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${rfi.status === "open" ? "bg-blue-50 text-blue-700" : rfi.status === "closed" ? "bg-gray-100 text-gray-600" : "bg-amber-50 text-amber-700"}`}>{rfi.status}</span></dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">RFI Manager</dt>
-                <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.rfi_manager_id)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Received From</dt>
-                <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.received_from_id)}</dd>
-              </div>
-              <div className="col-span-2">
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Assignees</dt>
-                <dd className="mt-0.5 text-gray-900">{(rfi.assignees ?? []).map((a) => a.name).join(", ") || "—"}</dd>
-              </div>
-              <div className="col-span-2">
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Distribution List</dt>
-                <dd className="mt-0.5 text-gray-900">{(rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Responsible Contractor</dt>
-                <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.responsible_contractor_id)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Specification</dt>
-                <dd className="mt-0.5 text-gray-900">{getSpecName(specifications, rfi.specification_id)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Drawing Number</dt>
-                <dd className="mt-0.5 text-gray-900">{rfi.drawing_number || "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Created</dt>
-                <dd className="mt-0.5 text-gray-900">{formatDate(rfi.created_at)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Ball In Court</dt>
-                <dd className="mt-0.5 text-gray-900">{getContactNameById(directory, rfi.ball_in_court_id)}</dd>
-              </div>
-            </dl>
-          </Section>
-        </div>
-
-        {/* Return to court button */}
-        {rfi.status !== "closed" && (() => {
-          const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
-          const rfiManagerName = getContactNameById(directory, rfi.rfi_manager_id);
-          const firstAssigneeName = rfi.assignees[0]?.name ?? "Assignee";
-          const targetName = ballIsWithAssignee ? rfiManagerName : firstAssigneeName;
-          const label = `Return to ${targetName}'s Court`;
-          return (
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={handleReturnCourt}
-                disabled={returningCourt}
-                className="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {returningCourt ? "Updating..." : label}
-              </button>
+              {rfi.status !== "closed" && (() => {
+                const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
+                const targetName = ballIsWithAssignee ? getContactNameById(directory, rfi.rfi_manager_id) : (rfi.assignees[0]?.name ?? "Assignee");
+                return (
+                  <div className="flex justify-end mt-6 pt-4 border-t border-gray-100">
+                    <button
+                      onClick={handleReturnCourt}
+                      disabled={returningCourt}
+                      className="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {returningCourt ? "Updating..." : `Return to ${targetName}'s Court`}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
-          );
-        })()}
+          </>
+        )}
       </main>
     </div>
   );
