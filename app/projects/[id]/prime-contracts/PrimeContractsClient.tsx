@@ -106,6 +106,32 @@ export default function PrimeContractsClient({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // Sage sync
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  async function handleSyncToSage(e: React.MouseEvent, contract: PrimeContract) {
+    e.stopPropagation();
+    setSyncError(null);
+    setSyncingId(contract.id);
+    setContracts((prev) => prev.map((c) => c.id === contract.id ? { ...c, erp_status: "pending" } : c));
+
+    const res = await fetch("/api/integrations/sage/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordType: "prime_contracts", recordId: contract.id }),
+    });
+    const data = await res.json();
+    setSyncingId(null);
+
+    if (!res.ok) {
+      setContracts((prev) => prev.map((c) => c.id === contract.id ? { ...c, erp_status: "not_synced" } : c));
+      setSyncError(data.error ?? "Sync failed");
+    } else {
+      setContracts((prev) => prev.map((c) => c.id === contract.id ? { ...c, erp_status: "synced" } : c));
+    }
+  }
+
   // Import state
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importState, setImportState] = useState<"idle" | "parsing" | "review" | "creating">("idle");
@@ -315,8 +341,39 @@ export default function PrimeContractsClient({
                       <td className="px-2 py-1.5 text-gray-700 max-w-[10rem] truncate">
                         {contract.title}
                       </td>
-                      <td className="px-2 py-1.5 text-gray-500">
-                        {contract.erp_status ?? <span className="text-gray-400">— Not Ready</span>}
+                      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-2">
+                          {contract.erp_status === "synced" ? (
+                            <span className="flex items-center gap-1 text-xs italic text-green-600">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              Synced
+                            </span>
+                          ) : contract.erp_status === "pending" || syncingId === contract.id ? (
+                            <span className="flex items-center gap-1 text-xs italic text-amber-500">
+                              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              Pending
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs italic text-gray-400">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              Not Synced
+                            </span>
+                          )}
+                          {contract.erp_status !== "synced" && syncingId !== contract.id && (
+                            <button
+                              onClick={(e) => handleSyncToSage(e, contract)}
+                              className="text-[10px] text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+                            >
+                              Sync
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-2 py-1.5">
                         <StatusBadge status={contract.status} />
@@ -341,6 +398,19 @@ export default function PrimeContractsClient({
           </table>
         )}
       </div>
+
+      {/* Sage sync error toast */}
+      {syncError && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-red-600 text-white text-sm px-4 py-3 rounded-lg shadow-lg max-w-sm">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <span className="flex-1">Sage sync failed: {syncError}</span>
+          <button onClick={() => setSyncError(null)} className="text-white/70 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Parsing overlay */}
       {importState === "parsing" && (

@@ -539,6 +539,10 @@ export default function CommitmentsClient({
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
   const rowMenuRef = useRef<HTMLDivElement>(null);
 
+  // Sage sync
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<{ id: string; message: string } | null>(null);
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (createRef.current && !createRef.current.contains(e.target as Node))
@@ -623,6 +627,29 @@ export default function CommitmentsClient({
       setItems((prev) => [...prev, restored]);
     }
     setRestoringItem(null);
+  }
+
+  async function handleSyncToSage(item: Commitment) {
+    setRowMenuId(null);
+    setSyncError(null);
+    setSyncingId(item.id);
+    // Optimistically show pending
+    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, erp_status: "pending" } : i));
+
+    const res = await fetch("/api/integrations/sage/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordType: "commitments", recordId: item.id }),
+    });
+    const data = await res.json();
+    setSyncingId(null);
+
+    if (!res.ok) {
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, erp_status: "not_synced" } : i));
+      setSyncError({ id: item.id, message: data.error ?? "Sync failed" });
+    } else {
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, erp_status: "synced" } : i));
+    }
   }
 
   async function handleLogout() {
@@ -1109,6 +1136,16 @@ export default function CommitmentsClient({
                                       Edit
                                     </button>
                                     <button
+                                      onClick={() => handleSyncToSage(item)}
+                                      disabled={syncingId === item.id}
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                      </svg>
+                                      Sync to Sage
+                                    </button>
+                                    <button
                                       onClick={() => handleDelete(item.id)}
                                       className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                     >
@@ -1139,6 +1176,21 @@ export default function CommitmentsClient({
           </div>
         )}
       </main>
+
+      {/* Sage sync error toast */}
+      {syncError && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-red-600 text-white text-sm px-4 py-3 rounded-lg shadow-lg max-w-sm">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <span className="flex-1">Sage sync failed: {syncError.message}</span>
+          <button onClick={() => setSyncError(null)} className="text-white/70 hover:text-white">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Modals */}
       {editingItem && (

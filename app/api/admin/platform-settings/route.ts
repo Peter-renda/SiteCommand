@@ -10,7 +10,16 @@ async function requireSiteAdmin() {
   return session;
 }
 
-const ALLOWED_KEYS = ["APS_CLIENT_ID", "APS_CLIENT_SECRET", "APS_BUCKET_KEY"] as const;
+const ALLOWED_KEYS = [
+  "APS_CLIENT_ID",
+  "APS_CLIENT_SECRET",
+  "APS_BUCKET_KEY",
+  "SAGE_SENDER_ID",
+  "SAGE_SENDER_PASSWORD",
+  "SAGE_COMPANY_ID",
+  "SAGE_USER_ID",
+  "SAGE_USER_PASSWORD",
+] as const;
 
 export async function GET() {
   const session = await requireSiteAdmin();
