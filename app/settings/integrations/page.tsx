@@ -5,7 +5,12 @@ import IntegrationsClient from "./IntegrationsClient";
 export default async function IntegrationsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  if (session.role !== "site_admin") redirect("/dashboard");
 
-  return <IntegrationsClient />;
+  const isSiteAdmin = session.role === "site_admin";
+  const isSuperAdmin = session.company_role === "super_admin";
+
+  // site_admin sees APS platform settings; company super_admin sees their Sage credentials
+  if (!isSiteAdmin && !isSuperAdmin) redirect("/settings/account");
+
+  return <IntegrationsClient isSiteAdmin={isSiteAdmin} />;
 }

@@ -28,6 +28,10 @@ export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if (!session.company_id) {
+    return NextResponse.json({ error: "No company associated with this account" }, { status: 422 });
+  }
+
   const body = await req.json();
   const { recordType, recordId } = body as { recordType: string; recordId: string };
 
@@ -38,7 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid recordType" }, { status: 400 });
   }
 
-  const creds = await getSageCredentials();
+  const creds = await getSageCredentials(session.company_id);
   if (!isSageConfigured(creds)) {
     return NextResponse.json(
       { error: "Sage Intacct is not configured. Add credentials in Settings → Integrations." },

@@ -502,6 +502,9 @@ export default function DashboardClient({ username, email, role, companyRole, us
               Team
             </a>
           )}
+          <a href="/settings" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">
+            Settings
+          </a>
 <span className="hidden sm:block text-sm text-gray-400 truncate max-w-[120px]">{username}</span>
           <button
             onClick={openSettings}

@@ -3,12 +3,11 @@
  *
  * Sage Intacct's API is XML-based: every request is an HTTP POST to a single
  * endpoint with an XML envelope containing authentication and one or more
- * function calls. Responses are XML that we parse with the built-in DOMParser
- * (Node 18+ via the `@xmldom/xmldom` fallback) or a simple regex for the
+ * function calls. Responses are XML that we parse with a simple regex for the
  * lightweight fields we need.
  *
- * Credentials are read from platform_settings (admin UI) or environment
- * variables, consistent with the APS pattern in lib/platform-settings.ts.
+ * Credentials are stored per-company in the company_integrations table,
+ * managed by the company's super_admin through Settings → Integrations.
  *
  * Required credentials:
  *   SAGE_SENDER_ID       – Sage-issued sender ID for your integration
@@ -18,31 +17,64 @@
  *   SAGE_USER_PASSWORD   – API user password
  */
 
-import { getPlatformSetting } from "@/lib/platform-settings";
+import { getSupabase } from "@/lib/supabase";
 
 const INTACCT_ENDPOINT = "https://api.intacct.com/ia/xml/xmlgw.phtml";
 
 // ── Credential helpers ────────────────────────────────────────────────────────
 
-export async function getSageCredentials(): Promise<{
+export type SageCredentials = {
   senderId: string | null;
   senderPassword: string | null;
   companyId: string | null;
   userId: string | null;
   userPassword: string | null;
-}> {
-  const [senderId, senderPassword, companyId, userId, userPassword] =
-    await Promise.all([
-      getPlatformSetting("SAGE_SENDER_ID"),
-      getPlatformSetting("SAGE_SENDER_PASSWORD"),
-      getPlatformSetting("SAGE_COMPANY_ID"),
-      getPlatformSetting("SAGE_USER_ID"),
-      getPlatformSetting("SAGE_USER_PASSWORD"),
-    ]);
-  return { senderId, senderPassword, companyId, userId, userPassword };
+};
+
+/**
+ * Looks up Sage Intacct credentials for a specific SiteCommand company from
+ * the company_integrations table, falling back to environment variables.
+ */
+export async function getSageCredentials(siteCompanyId: string): Promise<SageCredentials> {
+  const keys = [
+    "SAGE_SENDER_ID",
+    "SAGE_SENDER_PASSWORD",
+    "SAGE_COMPANY_ID",
+    "SAGE_USER_ID",
+    "SAGE_USER_PASSWORD",
+  ] as const;
+
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from("company_integrations")
+      .select("key, value")
+      .eq("company_id", siteCompanyId)
+      .in("key", keys);
+
+    const map: Record<string, string> = {};
+    for (const row of data ?? []) map[row.key] = row.value;
+
+    return {
+      senderId:       map.SAGE_SENDER_ID       ?? process.env.SAGE_SENDER_ID       ?? null,
+      senderPassword: map.SAGE_SENDER_PASSWORD  ?? process.env.SAGE_SENDER_PASSWORD  ?? null,
+      companyId:      map.SAGE_COMPANY_ID       ?? process.env.SAGE_COMPANY_ID       ?? null,
+      userId:         map.SAGE_USER_ID          ?? process.env.SAGE_USER_ID          ?? null,
+      userPassword:   map.SAGE_USER_PASSWORD    ?? process.env.SAGE_USER_PASSWORD    ?? null,
+    };
+  } catch {
+    // Fall back to env vars if table doesn't exist yet (migration pending)
+    return {
+      senderId:       process.env.SAGE_SENDER_ID       ?? null,
+      senderPassword: process.env.SAGE_SENDER_PASSWORD  ?? null,
+      companyId:      process.env.SAGE_COMPANY_ID       ?? null,
+      userId:         process.env.SAGE_USER_ID          ?? null,
+      userPassword:   process.env.SAGE_USER_PASSWORD    ?? null,
+    };
+  }
 }
 
-export function isSageConfigured(creds: Awaited<ReturnType<typeof getSageCredentials>>): boolean {
+export function isSageConfigured(creds: SageCredentials): boolean {
   return !!(
     creds.senderId &&
     creds.senderPassword &&
