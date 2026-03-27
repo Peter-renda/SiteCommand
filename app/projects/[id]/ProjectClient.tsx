@@ -413,9 +413,18 @@ export default function ProjectClient({
   const [editCity, setEditCity] = useState("");
   const [editStateVal, setEditStateVal] = useState("");
   const [editZipCode, setEditZipCode] = useState("");
+  const [editCounty, setEditCounty] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editValue, setEditValue] = useState("");
   const [editStatus, setEditStatus] = useState("bidding");
+  const [editProjectNumber, setEditProjectNumber] = useState("");
+  const [editSector, setEditSector] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editActualStartDate, setEditActualStartDate] = useState("");
+  const [editCompletionDate, setEditCompletionDate] = useState("");
+  const [editProjectedFinishDate, setEditProjectedFinishDate] = useState("");
+  const [editWarrantyStartDate, setEditWarrantyStartDate] = useState("");
+  const [editWarrantyEndDate, setEditWarrantyEndDate] = useState("");
   const [editMembers, setEditMembers] = useState<Member[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
@@ -423,6 +432,10 @@ export default function ProjectClient({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addressBoxRef = useRef<HTMLDivElement>(null);
+
+  // Info card three-dot menu
+  const [showInfoMenu, setShowInfoMenu] = useState(false);
+  const infoMenuRef = useRef<HTMLDivElement>(null);
 
   // Project Roles state
   const [showRolesEdit, setShowRolesEdit] = useState(false);
@@ -444,6 +457,9 @@ export default function ProjectClient({
     function handleClick(e: MouseEvent) {
       if (teamMenuRef.current && !teamMenuRef.current.contains(e.target as Node)) {
         setTeamMenuOpen(false);
+      }
+      if (infoMenuRef.current && !infoMenuRef.current.contains(e.target as Node)) {
+        setShowInfoMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -575,12 +591,22 @@ export default function ProjectClient({
     setEditCity(project.city || "");
     setEditStateVal(project.state || "");
     setEditZipCode(project.zip_code || "");
+    setEditCounty(project.county || "");
     setEditDescription(project.description || "");
     setEditValue(project.value?.toString() || "");
     setEditStatus(project.status || "bidding");
+    setEditProjectNumber(project.project_number || "");
+    setEditSector(project.sector || "");
+    setEditStartDate(project.start_date || "");
+    setEditActualStartDate(project.actual_start_date || "");
+    setEditCompletionDate(project.completion_date || "");
+    setEditProjectedFinishDate(project.projected_finish_date || "");
+    setEditWarrantyStartDate(project.warranty_start_date || "");
+    setEditWarrantyEndDate(project.warranty_end_date || "");
     setEditMembers(project.members || []);
     setEditError("");
     setAddressSuggestions([]);
+    setShowInfoMenu(false);
     fetch("/api/users").then((r) => r.json()).then((d) => setAllUsers(Array.isArray(d) ? d : []));
     setShowEdit(true);
   }
@@ -637,9 +663,18 @@ export default function ProjectClient({
         city: editCity,
         state: editStateVal,
         zip_code: editZipCode,
+        county: editCounty,
         description: editDescription,
         value: editValue,
         status: editStatus,
+        project_number: editProjectNumber,
+        sector: editSector,
+        start_date: editStartDate || null,
+        actual_start_date: editActualStartDate || null,
+        completion_date: editCompletionDate || null,
+        projected_finish_date: editProjectedFinishDate || null,
+        warranty_start_date: editWarrantyStartDate || null,
+        warranty_end_date: editWarrantyEndDate || null,
         memberIds: editMembers.map((m) => m.id),
       }),
     });
@@ -914,6 +949,36 @@ export default function ProjectClient({
 
                 {/* Project Info Card */}
                 <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
+                  {/* Card header with three-dot edit menu */}
+                  <div className="flex items-center justify-between -mt-0.5">
+                    <h2 className="text-sm font-semibold text-gray-900">Project Details</h2>
+                    {(companyRole === "super_admin" || companyRole === "admin") && (
+                      <div ref={infoMenuRef} className="relative">
+                        <button
+                          onClick={() => setShowInfoMenu((o) => !o)}
+                          className="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                          aria-label="Project options"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="5" cy="12" r="1.5" />
+                            <circle cx="12" cy="12" r="1.5" />
+                            <circle cx="19" cy="12" r="1.5" />
+                          </svg>
+                        </button>
+                        {showInfoMenu && (
+                          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-lg shadow-lg z-20 min-w-[100px]">
+                            <button
+                              onClick={openEdit}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Status + Value */}
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5">
@@ -1017,8 +1082,6 @@ export default function ProjectClient({
                     onDays={(days) => setRainAlert(buildRainAlert(days))}
                   />
                 </div>
-
-                {/* Edit button */}
 
               </div>
             </div>
@@ -1139,14 +1202,96 @@ export default function ProjectClient({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">ZIP Code <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input
-                  type="text" value={editZipCode} onChange={(e) => setEditZipCode(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  placeholder="e.g. 10001"
-                  maxLength={5}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">ZIP Code <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text" value={editZipCode} onChange={(e) => setEditZipCode(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="e.g. 10001"
+                    maxLength={5}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">County <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text" value={editCounty} onChange={(e) => setEditCounty(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="e.g. Cook"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Project Number <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text" value={editProjectNumber} onChange={(e) => setEditProjectNumber(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="e.g. 2024-001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Sector <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text" value={editSector} onChange={(e) => setEditSector(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="e.g. Commercial"
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Dates</p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Actual Start Date</label>
+                  <input
+                    type="date" value={editActualStartDate} onChange={(e) => setEditActualStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Projected Finish</label>
+                  <input
+                    type="date" value={editProjectedFinishDate} onChange={(e) => setEditProjectedFinishDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Completion Date</label>
+                  <input
+                    type="date" value={editCompletionDate} onChange={(e) => setEditCompletionDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Warranty Start</label>
+                  <input
+                    type="date" value={editWarrantyStartDate} onChange={(e) => setEditWarrantyStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Warranty End</label>
+                  <input
+                    type="date" value={editWarrantyEndDate} onChange={(e) => setEditWarrantyEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
               </div>
 
               <div>

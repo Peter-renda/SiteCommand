@@ -12,13 +12,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const { id } = await params;
-  const { name, description, address, city, state, zip_code, value, status } = await req.json();
+  const {
+    name, description, address, city, state, zip_code, value, status,
+    project_number, sector, county,
+    start_date, actual_start_date, completion_date,
+    projected_finish_date, warranty_start_date, warranty_end_date,
+  } = await req.json();
 
   const supabase = getSupabase();
 
   const { data: project, error } = await supabase
     .from("projects")
-    .update({ name, description, address, city, state, zip_code, value: parseFloat(value) || 0, status })
+    .update({
+      name, description, address, city, state, zip_code,
+      value: parseFloat(value) || 0, status,
+      project_number: project_number || null,
+      sector: sector || null,
+      county: county || null,
+      start_date: start_date || null,
+      actual_start_date: actual_start_date || null,
+      completion_date: completion_date || null,
+      projected_finish_date: projected_finish_date || null,
+      warranty_start_date: warranty_start_date || null,
+      warranty_end_date: warranty_end_date || null,
+    })
     .eq("id", id)
     .select()
     .single();
