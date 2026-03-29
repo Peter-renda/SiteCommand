@@ -139,6 +139,33 @@ export async function sendRFIBallInCourtEmail(
   });
 }
 
+export async function sendRFIReopenedEmail(
+  to: string,
+  recipientName: string,
+  reopenedByName: string,
+  rfiNumber: number,
+  rfiSubject: string | null,
+  projectName: string,
+  rfiUrl: string,
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // silent if not configured
+
+  const resend = new Resend(apiKey);
+  const subject = rfiSubject || "No subject";
+  await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `RFI #${rfiNumber} has been reopened — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
+      <p style="font-size:14px;"><strong>${reopenedByName}</strong> has reopened <strong>RFI #${rfiNumber}: ${subject}</strong> on <strong>${projectName}</strong>.</p>
+      <p><a href="${rfiUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View RFI</a></p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are on the distribution list for this RFI on SiteCommand.</p>
+    `,
+  });
+}
+
 export async function sendContractorInviteEmail(
   to: string,
   inviteUrl: string,
