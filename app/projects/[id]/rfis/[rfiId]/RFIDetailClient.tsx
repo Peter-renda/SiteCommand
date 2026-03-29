@@ -44,6 +44,16 @@ type RFIResponse = {
   attachments: { name: string; url: string }[];
 };
 
+type ChangeHistoryEntry = {
+  id: string;
+  action: string;
+  from_value: string | null;
+  to_value: string | null;
+  changed_by_name: string | null;
+  changed_by_company: string | null;
+  created_at: string;
+};
+
 function contactDisplayName(c: DirectoryContact): string {
   if (c.type === "company") return c.company ?? "Unnamed Company";
   if (c.type === "distribution_group") return c.group_name ?? "Unnamed Group";
@@ -107,6 +117,8 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
   const [closingRFI, setClosingRFI] = useState(false);
   const [returningCourt, setReturningCourt] = useState(false);
+  const [history, setHistory] = useState<ChangeHistoryEntry[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -129,6 +141,14 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       setLoading(false);
     });
   }, [projectId, rfiId]);
+
+  useEffect(() => {
+    if (activeTab === "history" && !historyLoaded) {
+      fetch(`/api/projects/${projectId}/rfis/${rfiId}/history`)
+        .then((r) => r.json())
+        .then((d) => { setHistory(Array.isArray(d) ? d : []); setHistoryLoaded(true); });
+    }
+  }, [activeTab, historyLoaded, projectId, rfiId]);
 
   const canEdit = rfi && rfi.created_by === userId;
 
@@ -293,9 +313,53 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       </div>
 
       <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
-        {activeTab !== "general" && (
+        {(activeTab === "related" || activeTab === "emails") && (
           <div className="bg-white border border-gray-200 rounded-lg px-6 py-12 text-center">
             <p className="text-sm text-gray-400">No content yet.</p>
+          </div>
+        )}
+
+        {activeTab === "history" && (
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            {!historyLoaded ? (
+              <p className="px-6 py-8 text-sm text-gray-400">Loading...</p>
+            ) : history.length === 0 ? (
+              <p className="px-6 py-8 text-sm text-gray-400">No change history yet.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-44">Date</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">Action By</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-56">Changed</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">From</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((entry, idx) => (
+                    <tr key={entry.id} className={idx < history.length - 1 ? "border-b border-gray-100" : ""}>
+                      <td className="px-4 py-4 text-xs text-gray-500 align-top whitespace-nowrap">
+                        {formatDateTime(entry.created_at)}
+                      </td>
+                      <td className="px-4 py-4 align-top">
+                        {entry.changed_by_name ? (
+                          <span className="text-sm text-blue-600">
+                            {entry.changed_by_name}
+                            {entry.changed_by_company ? ` (${entry.changed_by_company})` : ""}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700 align-top">{entry.action}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 align-top">{entry.from_value ?? "(None)"}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700 align-top whitespace-pre-wrap">{entry.to_value ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 

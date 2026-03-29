@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logRFIChange } from "@/lib/rfi-history";
 
 export async function GET(
   _req: NextRequest,
@@ -74,6 +75,8 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  logRFIChange(supabase, session, rfiId, projectId, "Added Discussion Response", null, body.trim());
 
   const created_by_name = [session.username].filter(Boolean).join("") || null;
   return NextResponse.json({ ...data, created_by_name, attachments: [] });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logRFIChange } from "@/lib/rfi-history";
 
 export async function POST(
   req: NextRequest,
@@ -61,5 +62,8 @@ export async function POST(
     .single();
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+
+  logRFIChange(supabase, session, rfiId, projectId, "Attachment added to Discussion Response", null, file.name);
+
   return NextResponse.json(updated);
 }

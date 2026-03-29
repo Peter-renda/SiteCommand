@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { sendRFIBallInCourtEmail, sendRFIReopenedEmail } from "@/lib/email";
+import { logRFIChange } from "@/lib/rfi-history";
 
 export async function GET(
   _req: NextRequest,
@@ -50,10 +51,10 @@ export async function PATCH(
 
   const supabase = getSupabase();
 
-  // Fetch current RFI state before updating so we can detect status transitions
+  // Fetch current RFI state before updating so we can detect transitions
   const { data: prevRfi } = await supabase
     .from("rfis")
-    .select("status")
+    .select("status, ball_in_court_id, rfi_manager_id, assignees")
     .eq("id", rfiId)
     .eq("project_id", projectId)
     .single();
@@ -68,37 +69,43 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Send reopen emails when status changes from closed → open
-  if (update.status === "open" && prevRfi?.status === "closed") {
-    try {
-      const projectRes = await supabase
-        .from("projects")
-        .select("name")
-        .eq("id", projectId)
-        .single();
+  // Log status change to history + send reopen emails
+  if ("status" in update && prevRfi && update.status !== prevRfi.status) {
+    const fromLabel = (prevRfi.status as string).charAt(0).toUpperCase() + (prevRfi.status as string).slice(1);
+    const toLabel = (update.status as string).charAt(0).toUpperCase() + (update.status as string).slice(1);
+    logRFIChange(supabase, session, rfiId, projectId, "Status", fromLabel, toLabel);
 
-      const projectName = projectRes.data?.name ?? "your project";
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-      const rfiUrl = `${appUrl}/projects/${projectId}/rfis/${rfiId}`;
-      const distributionList: { id: string; name: string; email: string | null }[] = Array.isArray(data.distribution_list) ? data.distribution_list : [];
+    if (update.status === "open" && prevRfi.status === "closed") {
+      try {
+        const projectRes = await supabase
+          .from("projects")
+          .select("name")
+          .eq("id", projectId)
+          .single();
 
-      await Promise.allSettled(
-        distributionList
-          .filter((contact) => contact.email)
-          .map((contact) =>
-            sendRFIReopenedEmail(
-              contact.email!,
-              contact.name,
-              session.username,
-              data.rfi_number,
-              data.subject,
-              projectName,
-              rfiUrl,
+        const projectName = projectRes.data?.name ?? "your project";
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+        const rfiUrl = `${appUrl}/projects/${projectId}/rfis/${rfiId}`;
+        const distributionList: { id: string; name: string; email: string | null }[] = Array.isArray(data.distribution_list) ? data.distribution_list : [];
+
+        await Promise.allSettled(
+          distributionList
+            .filter((contact) => contact.email)
+            .map((contact) =>
+              sendRFIReopenedEmail(
+                contact.email!,
+                contact.name,
+                session.username,
+                data.rfi_number,
+                data.subject,
+                projectName,
+                rfiUrl,
+              )
             )
-          )
-      );
-    } catch {
-      // Email failure should not block the response
+        );
+      } catch {
+        // Email failure should not block the response
+      }
     }
   }
 
@@ -128,6 +135,14 @@ export async function PATCH(
         const rfiUrl = `${appUrl}/projects/${projectId}/rfis/${rfiId}`;
         await sendRFIBallInCourtEmail(recipientEmail, recipientName, senderName, data.rfi_number, data.subject, projectName, rfiUrl);
       }
+
+      // Determine descriptive from/to labels for history
+      const prevAssignees = Array.isArray(prevRfi?.assignees) ? prevRfi.assignees as { id: string }[] : [];
+      const prevBallWithAssignee = prevRfi?.ball_in_court_id !== null && prevRfi?.ball_in_court_id !== prevRfi?.rfi_manager_id;
+      const fromLabel = prevRfi?.ball_in_court_id == null ? null : (prevBallWithAssignee ? "Assignees" : "RFI Manager");
+      const newBallWithAssignee = data.ball_in_court_id !== data.rfi_manager_id && prevAssignees.some((a) => a.id === data.ball_in_court_id);
+      const toLabel = newBallWithAssignee ? "Assignees" : "RFI Manager";
+      logRFIChange(supabase, session, rfiId, projectId, "ball_in_court_role", fromLabel, toLabel);
     } catch {
       // Email failure should not block the response
     }
