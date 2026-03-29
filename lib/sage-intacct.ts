@@ -17,6 +17,7 @@
  *   SAGE_USER_PASSWORD   – API user password
  */
 
+import { XMLParser } from "fast-xml-parser";
 import { getSupabase } from "@/lib/supabase";
 
 const INTACCT_ENDPOINT = "https://api.intacct.com/ia/xml/xmlgw.phtml";
@@ -254,6 +255,326 @@ export async function syncCommitmentToSage(
   return callIntacct(creds, controlId, functionXml);
 }
 
+// ── Vendor list ───────────────────────────────────────────────────────────────
+
+export type SageVendor = { id: string; name: string };
+
+export type SageVendorResult =
+  | { ok: true; vendors: SageVendor[] }
+  | { ok: false; error: string };
+
+/**
+ * Fetches the list of active vendors from Sage Intacct so users can pick a
+ * validated vendor when creating a commitment rather than typing free-form.
+ */
+export async function fetchSageVendors(
+  creds: SageCredentials
+): Promise<SageVendorResult> {
+  const controlId = "sc-vendor-list";
+  const functionXml = `
+    <readByQuery>
+      <object>VENDOR</object>
+      <fields>VENDORID,NAME,STATUS</fields>
+      <query>STATUS = 'T'</query>
+      <pagesize>200</pagesize>
+    </readByQuery>`;
+
+  const envelope = buildEnvelope(creds, controlId, functionXml);
+
+  let responseText: string;
+  try {
+    const res = await fetch(INTACCT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/xml; charset=utf-8" },
+      body: envelope,
+    });
+    responseText = await res.text();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Network error";
+    return { ok: false, error: `Failed to reach Sage Intacct: ${msg}` };
+  }
+
+  // Check for top-level failure first
+  const statusMatch = responseText.match(/<status>(\w+)<\/status>/);
+  if (statusMatch?.[1] === "failure") {
+    const descMatch = responseText.match(/<description2?>([\s\S]*?)<\/description2?>/);
+    return { ok: false, error: descMatch?.[1]?.trim() ?? "Unknown Sage error" };
+  }
+
+  // Parse the vendor list out of the XML
+  try {
+    const parser = new XMLParser({ ignoreAttributes: false });
+    const parsed = parser.parse(responseText);
+    const data = parsed?.response?.operation?.result?.data;
+    const rawVendors = data?.vendor ?? [];
+    const vendorArray = Array.isArray(rawVendors) ? rawVendors : [rawVendors];
+
+    const vendors: SageVendor[] = vendorArray
+      .filter((v: Record<string, unknown>) => v?.VENDORID)
+      .map((v: Record<string, unknown>) => ({
+        id: String(v.VENDORID),
+        name: String(v.NAME ?? v.VENDORID),
+      }));
+
+    return { ok: true, vendors };
+  } catch {
+    return { ok: false, error: "Failed to parse vendor list from Sage response" };
+  }
+}
+
+// ── Project / Job sync ────────────────────────────────────────────────────────
+
+export type ProjectSyncPayload = {
+  id: string;
+  name: string;
+  description?: string | null;
+};
+
+/**
+ * Creates a project in Sage Intacct as a Project/Job so that AP bills and AR
+ * invoices can be tagged to the correct job for cost tracking. The Sage
+ * PROJECTID is derived from the SiteCommand UUID prefix — deterministic and
+ * safe to retry.
+ */
+export async function syncProjectToSage(
+  creds: SageCredentials,
+  project: ProjectSyncPayload
+): Promise<SageResult> {
+  // First 8 hex chars of the UUID gives a compact, stable Sage project ID
+  const sageProjectId = `SC-${project.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const controlId = `sc-project-${project.id}`;
+
+  const functionXml = `
+    <create_project>
+      <projectid>${xmlEscape(sageProjectId)}</projectid>
+      <name>${xmlEscape(project.name)}</name>
+      <projectcategory>Contract</projectcategory>
+      <description>${xmlEscape(project.description ?? "")}</description>
+      <status>Open</status>
+    </create_project>`;
+
+  return callIntacct(creds, controlId, functionXml);
+}
+
+// ── Change order: update commitment amount in Sage ────────────────────────────
+
+export type CommitmentUpdatePayload = CommitmentSyncPayload & {
+  approved_change_orders: number;
+};
+
+/**
+ * Updates an existing AP Subcontract or creates a Purchase Order Change Order
+ * in Sage Intacct with the revised contract amount (original + approved COs).
+ * Called when a change order is approved against a commitment.
+ */
+export async function updateCommitmentInSage(
+  creds: SageCredentials,
+  commitment: CommitmentUpdatePayload
+): Promise<SageResult> {
+  const controlId = `sc-co-commitment-${commitment.id}`;
+  const revisedAmount = (
+    commitment.original_contract_amount + commitment.approved_change_orders
+  ).toFixed(2);
+
+  let functionXml: string;
+
+  if (commitment.type === "subcontract") {
+    functionXml = `
+      <update_supdoc>
+        <supdocid>${xmlEscape(commitment.number)}</supdocid>
+        <supdocitems>
+          <supdocitem>
+            <memo>${xmlEscape(commitment.title)} (revised)</memo>
+            <amount>${xmlEscape(revisedAmount)}</amount>
+          </supdocitem>
+        </supdocitems>
+      </update_supdoc>`;
+  } else {
+    // Purchase orders: create a change-order PO transaction
+    const coRef = `${commitment.number}-CO`;
+    functionXml = `
+      <create_potransaction>
+        <transactiontype>Purchase Order Change Order</transactiontype>
+        <datecreated>
+          <year>${new Date().getFullYear()}</year>
+          <month>${new Date().getMonth() + 1}</month>
+          <day>${new Date().getDate()}</day>
+        </datecreated>
+        <vendorid>${xmlEscape(commitment.contract_company)}</vendorid>
+        <referenceno>${xmlEscape(coRef)}</referenceno>
+        <termname>N30</termname>
+        <potransitems>
+          <potransitem>
+            <itemid>GENERAL</itemid>
+            <memo>${xmlEscape(commitment.title)} - Change Order</memo>
+            <quantity>1</quantity>
+            <unit>Each</unit>
+            <price>${xmlEscape(revisedAmount)}</price>
+          </potransitem>
+        </potransitems>
+      </create_potransaction>`;
+  }
+
+  return callIntacct(creds, controlId, functionXml);
+}
+
+// ── Change order: update prime contract amount in Sage ────────────────────────
+
+export type PrimeContractUpdatePayload = PrimeContractSyncPayload & {
+  approved_change_orders: number;
+};
+
+/**
+ * Updates an existing AR Contract in Sage Intacct with the revised contract
+ * amount (original + all approved change orders).
+ * Called when a change order is approved against a prime contract.
+ */
+export async function updatePrimeContractInSage(
+  creds: SageCredentials,
+  contract: PrimeContractUpdatePayload
+): Promise<SageResult> {
+  const controlId = `sc-co-prime-${contract.id}`;
+  const revisedAmount = (
+    contract.original_contract_amount + contract.approved_change_orders
+  ).toFixed(2);
+
+  const functionXml = `
+    <update_arcontract>
+      <contractid>${xmlEscape(contract.contract_number)}</contractid>
+      <arcontractitems>
+        <arcontractitem>
+          <memo>${xmlEscape(contract.title)} (revised)</memo>
+          <amount>${xmlEscape(revisedAmount)}</amount>
+        </arcontractitem>
+      </arcontractitems>
+    </update_arcontract>`;
+
+  return callIntacct(creds, controlId, functionXml);
+}
+
+// ── AP Invoice (subcontractor pay application) ────────────────────────────────
+
+export type APInvoiceLineItem = {
+  description: string;
+  amount: number;
+  budgetCode?: string;
+};
+
+export type APInvoiceSyncPayload = {
+  commitmentId: string;
+  commitmentNumber: number;
+  vendorId: string;
+  description: string;
+  invoiceDate: Date;
+  lineItems: APInvoiceLineItem[];
+  sageProjectId?: string;
+};
+
+/**
+ * Creates an AP Bill in Sage Intacct representing a subcontractor pay
+ * application. Line items are derived from the commitment's SOV billed amounts.
+ * The caller should trigger this once the SOV is fully filled in for the period.
+ */
+export async function syncAPInvoiceToSage(
+  creds: SageCredentials,
+  invoice: APInvoiceSyncPayload
+): Promise<SageResult> {
+  const controlId = `sc-apbill-${invoice.commitmentId}-${Date.now()}`;
+  const d = invoice.invoiceDate;
+
+  const lineItemsXml = invoice.lineItems
+    .map(
+      (li) => `
+        <lineitem>
+          <glaccountno></glaccountno>
+          <description>${xmlEscape(li.description)}</description>
+          <amount>${li.amount.toFixed(2)}</amount>
+          ${invoice.sageProjectId ? `<projectid>${xmlEscape(invoice.sageProjectId)}</projectid>` : ""}
+        </lineitem>`
+    )
+    .join("");
+
+  const functionXml = `
+    <create_apbill>
+      <vendorid>${xmlEscape(invoice.vendorId)}</vendorid>
+      <datecreated>
+        <year>${d.getFullYear()}</year>
+        <month>${d.getMonth() + 1}</month>
+        <day>${d.getDate()}</day>
+      </datecreated>
+      <termname>N30</termname>
+      <action>Submit</action>
+      <referenceno>${xmlEscape(invoice.commitmentNumber)}</referenceno>
+      <description>${xmlEscape(invoice.description)}</description>
+      <billitems>
+        ${lineItemsXml}
+      </billitems>
+    </create_apbill>`;
+
+  return callIntacct(creds, controlId, functionXml);
+}
+
+// ── AR Invoice (owner billing / pay application) ──────────────────────────────
+
+export type ARInvoiceLineItem = {
+  description: string;
+  amount: number;
+};
+
+export type ARInvoiceSyncPayload = {
+  contractId: string;
+  contractNumber: number;
+  customerId: string;
+  description: string;
+  invoiceDate: Date;
+  lineItems: ARInvoiceLineItem[];
+  sageProjectId?: string;
+};
+
+/**
+ * Creates an AR Invoice in Sage Intacct representing an owner pay application
+ * (AIA G702/G703). Line items are built from the prime contract SOV's
+ * work_completed_this_period values at the time of the push.
+ */
+export async function syncARInvoiceToSage(
+  creds: SageCredentials,
+  invoice: ARInvoiceSyncPayload
+): Promise<SageResult> {
+  const controlId = `sc-arinv-${invoice.contractId}-${Date.now()}`;
+  const d = invoice.invoiceDate;
+
+  const lineItemsXml = invoice.lineItems
+    .map(
+      (li) => `
+        <lineitem>
+          <glaccountno></glaccountno>
+          <description>${xmlEscape(li.description)}</description>
+          <amount>${li.amount.toFixed(2)}</amount>
+          ${invoice.sageProjectId ? `<projectid>${xmlEscape(invoice.sageProjectId)}</projectid>` : ""}
+        </lineitem>`
+    )
+    .join("");
+
+  const functionXml = `
+    <create_invoice>
+      <customerid>${xmlEscape(invoice.customerId)}</customerid>
+      <datecreated>
+        <year>${d.getFullYear()}</year>
+        <month>${d.getMonth() + 1}</month>
+        <day>${d.getDate()}</day>
+      </datecreated>
+      <termname>N30</termname>
+      <action>Submit</action>
+      <referenceno>${xmlEscape(invoice.contractNumber)}</referenceno>
+      <description>${xmlEscape(invoice.description)}</description>
+      <invoiceitems>
+        ${lineItemsXml}
+      </invoiceitems>
+    </create_invoice>`;
+
+  return callIntacct(creds, controlId, functionXml);
+}
+
 // ── Prime contract sync ───────────────────────────────────────────────────────
 
 export type PrimeContractSyncPayload = {
@@ -292,3 +613,4 @@ export async function syncPrimeContractToSage(
 
   return callIntacct(creds, controlId, functionXml);
 }
+
