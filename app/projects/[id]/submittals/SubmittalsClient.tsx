@@ -105,12 +105,13 @@ function getSpecName(specifications: Specification[], id: string | null): string
   return s ? s.name + (s.code ? ` (${s.code})` : "") : "—";
 }
 function MultiContactPicker({
-  directory, selected, onChange, placeholder = "Search directory...",
+  directory, selected, onChange, placeholder = "Search directory...", filterType,
 }: {
   directory: DirectoryContact[];
   selected: DirContact[];
   onChange: (v: DirContact[]) => void;
   placeholder?: string;
+  filterType?: "user" | "company" | "distribution_group";
 }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -123,7 +124,8 @@ function MultiContactPicker({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
   const selectedIds = new Set(selected.map((s) => s.id));
-  const filtered = directory.filter(
+  const sourceList = filterType ? directory.filter((c) => c.type === filterType) : directory;
+  const filtered = sourceList.filter(
     (c) => !selectedIds.has(c.id) &&
       (contactDisplayName(c).toLowerCase().includes(search.toLowerCase()) ||
         (c.email ?? "").toLowerCase().includes(search.toLowerCase()))
@@ -476,7 +478,7 @@ function CreateSubmittalModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Submittal Manager <span className="text-red-500">*</span></label>
-              <SingleContactPicker directory={directory} selectedId={submittalManagerId} onChange={setSubmittalManagerId} placeholder="Select..." />
+              <SingleContactPicker directory={directory} selectedId={submittalManagerId} onChange={setSubmittalManagerId} filterType="user" placeholder="Select..." />
             </div>
           </div>
 
@@ -488,7 +490,7 @@ function CreateSubmittalModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Received From</label>
-              <SingleContactPicker directory={directory} selectedId={receivedFromId} onChange={setReceivedFromId} placeholder="Select..." />
+              <SingleContactPicker directory={directory} selectedId={receivedFromId} onChange={setReceivedFromId} filterType="user" placeholder="Select..." />
             </div>
           </div>
 
@@ -542,7 +544,7 @@ function CreateSubmittalModal({
           {/* Ball In Court */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Ball In Court</label>
-            <SingleContactPicker directory={directory} selectedId={ballInCourtId} onChange={setBallInCourtId} placeholder="Select..." />
+            <SingleContactPicker directory={directory} selectedId={ballInCourtId} onChange={setBallInCourtId} filterType="user" placeholder="Select..." />
           </div>
 
           {/* Lead Time / Required On-Site Date */}
@@ -560,7 +562,7 @@ function CreateSubmittalModal({
           {/* Distribution List */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Distribution List</label>
-            <MultiContactPicker directory={directory} selected={distributionList} onChange={setDistributionList} placeholder="Search directory..." />
+            <MultiContactPicker directory={directory} selected={distributionList} onChange={setDistributionList} filterType="user" placeholder="Search directory..." />
           </div>
 
           {/* Private */}
@@ -600,7 +602,7 @@ function CreateSubmittalModal({
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Approver Name</label>
-                <SingleContactPicker directory={directory} selectedId={approverNameId} onChange={setApproverNameId} placeholder="Select..." />
+                <SingleContactPicker directory={directory} selectedId={approverNameId} onChange={setApproverNameId} filterType="user" placeholder="Select..." />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Owner&apos;s Manual</label>
@@ -668,7 +670,7 @@ function CreateSubmittalModal({
                         <tr key={step.id}>
                           <td className="px-2 py-2 text-gray-500 text-center">{idx + 1}</td>
                           <td className="px-2 py-2">
-                            <SingleContactPicker directory={directory} selectedId={step.personId} onChange={(id) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, personId: id } : s))} placeholder="Select a Person" />
+                            <SingleContactPicker directory={directory} selectedId={step.personId} onChange={(id) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, personId: id } : s))} filterType="user" placeholder="Select a Person" />
                           </td>
                           <td className="px-2 py-2">
                             <select value={step.role} onChange={(e) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, role: e.target.value } : s))} className="w-full px-2 py-1.5 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
