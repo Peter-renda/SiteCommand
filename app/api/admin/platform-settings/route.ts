@@ -19,6 +19,10 @@ const ALLOWED_KEYS = [
   "SAGE_COMPANY_ID",
   "SAGE_USER_ID",
   "SAGE_USER_PASSWORD",
+  "QBO_CLIENT_ID",
+  "QBO_CLIENT_SECRET",
+  "XERO_CLIENT_ID",
+  "XERO_CLIENT_SECRET",
 ] as const;
 
 export async function GET() {
