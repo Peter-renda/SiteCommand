@@ -2,8 +2,13 @@
  * GET  /api/settings/company-integrations
  * PATCH /api/settings/company-integrations
  *
- * Reads and writes Sage Intacct credentials scoped to the session user's
- * company. Only company super_admins may access this endpoint.
+ * Reads and writes ERP credentials scoped to the session user's company.
+ * Supports Sage Intacct (manual credentials), QuickBooks Online (OAuth tokens),
+ * and Xero (OAuth tokens). Only company super_admins may access this endpoint.
+ *
+ * GET supports an optional ?integration=quickbooks|xero|sage query param to
+ * return only the keys for a specific integration (used by the settings UI to
+ * determine connection status without exposing all credentials at once).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -18,6 +23,21 @@ const SAGE_KEYS = [
   "SAGE_USER_PASSWORD",
 ] as const;
 
+const QBO_KEYS = [
+  "QBO_REALM_ID",
+  "QBO_ACCESS_TOKEN",
+  "QBO_REFRESH_TOKEN",
+] as const;
+
+const XERO_KEYS = [
+  "XERO_TENANT_ID",
+  "XERO_ACCESS_TOKEN",
+  "XERO_REFRESH_TOKEN",
+] as const;
+
+const ALL_KEYS = [...SAGE_KEYS, ...QBO_KEYS, ...XERO_KEYS] as const;
+type AllKey = (typeof ALL_KEYS)[number];
+
 async function requireSuperAdmin() {
   const session = await getSession();
   if (!session) return null;
@@ -26,21 +46,30 @@ async function requireSuperAdmin() {
   return session;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await requireSuperAdmin();
   if (!session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { searchParams } = new URL(req.url);
+  const integration = searchParams.get("integration"); // optional filter
+
+  let keysToFetch: readonly string[];
+  if (integration === "quickbooks") keysToFetch = QBO_KEYS;
+  else if (integration === "xero")   keysToFetch = XERO_KEYS;
+  else if (integration === "sage")   keysToFetch = SAGE_KEYS;
+  else                                keysToFetch = ALL_KEYS;
 
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("company_integrations")
     .select("key, value")
     .eq("company_id", session.company_id)
-    .in("key", SAGE_KEYS);
+    .in("key", keysToFetch);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const settings: Record<string, string | null> = {};
-  for (const key of SAGE_KEYS) {
+  for (const key of keysToFetch) {
     const row = data?.find((r) => r.key === key);
     settings[key] = row ? row.value : null;
   }
@@ -57,9 +86,9 @@ export async function PATCH(req: NextRequest) {
   const now = new Date().toISOString();
 
   const upserts: { company_id: string; key: string; value: string; updated_at: string }[] = [];
-  for (const key of SAGE_KEYS) {
-    if (typeof body[key] === "string") {
-      const val = body[key].trim();
+  for (const key of ALL_KEYS) {
+    if (typeof body[key as AllKey] === "string") {
+      const val = (body[key as AllKey] as string).trim();
       if (val) {
         upserts.push({ company_id: session.company_id!, key, value: val, updated_at: now });
       }
