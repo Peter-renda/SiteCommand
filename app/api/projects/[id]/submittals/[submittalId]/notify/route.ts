@@ -16,7 +16,7 @@ export async function POST(
   // Fetch submittal
   const { data: submittal } = await supabase
     .from("submittals")
-    .select("submittal_number, title, distribution_list, submittal_manager_id, approver_name_id")
+    .select("submittal_number, title, distribution_list, submittal_manager_id, ball_in_court_id, approver_name_id")
     .eq("id", submittalId)
     .eq("project_id", projectId)
     .single();
@@ -33,8 +33,12 @@ export async function POST(
   const projectName = project?.name ?? "Unknown Project";
   const submittalUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/projects/${projectId}/submittals/${submittalId}`;
 
-  // Collect all recipient IDs: manager + approver
-  const personIds = [submittal.submittal_manager_id, submittal.approver_name_id].filter(Boolean) as string[];
+  // Collect all recipient IDs: manager + ball in court + approver
+  const personIds = [
+    submittal.submittal_manager_id,
+    submittal.ball_in_court_id,
+    submittal.approver_name_id,
+  ].filter(Boolean) as string[];
 
   // Fetch their contact info
   const contactMap = new Map<string, { name: string; email: string | null }>();
@@ -49,7 +53,7 @@ export async function POST(
     }
   }
 
-  // Build recipient list: distribution list + manager + approver, deduped by email
+  // Build recipient list: distribution list + manager + ball in court + approver, deduped by email
   type Recipient = { name: string; email: string };
   const seen = new Set<string>();
   const recipients: Recipient[] = [];
@@ -69,6 +73,12 @@ export async function POST(
   // Manager
   if (submittal.submittal_manager_id) {
     const c = contactMap.get(submittal.submittal_manager_id);
+    if (c) addRecipient(c.name, c.email);
+  }
+
+  // Ball In Court
+  if (submittal.ball_in_court_id) {
+    const c = contactMap.get(submittal.ball_in_court_id);
     if (c) addRecipient(c.name, c.email);
   }
 
