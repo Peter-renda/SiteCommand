@@ -399,12 +399,22 @@ export type XeroPrimeContractPayload = {
   contract_number: number;
   title: string;
   owner_client: string;
+  contractor: string;
+  architect_engineer: string;
+  description: string;
   original_contract_amount: number;
+  approved_change_orders: number;
+  default_retainage: number;
   status: string;
+  executed: boolean;
+  start_date: string | null;
+  estimated_completion_date: string | null;
 };
 
 /**
- * Creates an ACCREC (accounts receivable) Invoice in Xero for a prime contract.
+ * Creates an ACCREC Invoice in Xero for a prime contract.
+ * Sends revised amount (original + approved COs), start/due dates, and a
+ * reference note with contractor, architect, retainage, and description.
  */
 export async function syncPrimeContractToXero(
   companyId: string,
@@ -413,7 +423,18 @@ export async function syncPrimeContractToXero(
   contract: XeroPrimeContractPayload
 ): Promise<XeroResult> {
   const today = new Date().toISOString().slice(0, 10);
-  const amount = Number(contract.original_contract_amount.toFixed(2));
+  const revisedAmount = Number(
+    (contract.original_contract_amount + (contract.approved_change_orders ?? 0)).toFixed(2)
+  );
+
+  const reference = [
+    `Contract #${contract.contract_number}`,
+    contract.contractor         ? `Contractor: ${contract.contractor}`                   : null,
+    contract.architect_engineer ? `A/E: ${contract.architect_engineer}`                  : null,
+    contract.default_retainage  ? `Retainage: ${contract.default_retainage}%`            : null,
+    contract.executed           ? "Executed"                                             : "Not Executed",
+    `Status: ${contract.status}`,
+  ].filter(Boolean).join(" | ");
 
   try {
     const payload = {
@@ -421,15 +442,15 @@ export async function syncPrimeContractToXero(
         {
           Type: "ACCREC",
           Contact: { Name: contract.owner_client },
-          DateString: today,
-          DueDateString: today,
+          DateString: contract.start_date ?? today,
+          DueDateString: contract.estimated_completion_date ?? today,
           InvoiceNumber: `SC-${contract.contract_number}`,
-          Reference: contract.title,
+          Reference: reference,
           LineItems: [
             {
-              Description: contract.title,
+              Description: contract.description || contract.title,
               Quantity: 1,
-              UnitAmount: amount,
+              UnitAmount: revisedAmount,
               AccountCode: "200",
             },
           ],

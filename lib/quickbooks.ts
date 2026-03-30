@@ -409,13 +409,22 @@ export type QBOPrimeContractPayload = {
   contract_number: number;
   title: string;
   owner_client: string;
+  contractor: string;
+  architect_engineer: string;
+  description: string;
   original_contract_amount: number;
+  approved_change_orders: number;
+  default_retainage: number;
   status: string;
+  executed: boolean;
+  start_date: string | null;
+  estimated_completion_date: string | null;
 };
 
 /**
- * Creates a Sales Receipt / Invoice in QuickBooks Online representing a prime
- * contract (AR side). We use Invoice so it appears in AR Aging.
+ * Creates an Invoice in QuickBooks Online representing a prime contract (AR side).
+ * Sends revised contract amount (original + approved COs), start/due dates,
+ * and a private note containing contractor, architect, retainage, and description.
  */
 export async function syncPrimeContractToQBO(
   companyId: string,
@@ -424,27 +433,43 @@ export async function syncPrimeContractToQBO(
   contract: QBOPrimeContractPayload
 ): Promise<QBOResult> {
   const today = new Date().toISOString().slice(0, 10);
-  const amount = Number(contract.original_contract_amount.toFixed(2));
+  const revisedAmount = Number(
+    (contract.original_contract_amount + (contract.approved_change_orders ?? 0)).toFixed(2)
+  );
+
+  const privateNote = [
+    contract.description,
+    contract.contractor         ? `Contractor: ${contract.contractor}`                   : null,
+    contract.architect_engineer ? `Architect/Engineer: ${contract.architect_engineer}`   : null,
+    contract.default_retainage  ? `Retainage: ${contract.default_retainage}%`            : null,
+    contract.executed           ? "Executed: Yes"                                        : "Executed: No",
+    `Status: ${contract.status}`,
+  ].filter(Boolean).join("\n");
 
   try {
-    const payload = {
+    const payload: Record<string, unknown> = {
       CustomerRef: { name: contract.owner_client },
-      TxnDate: today,
+      TxnDate: contract.start_date ?? today,
+      DueDate: contract.estimated_completion_date ?? undefined,
       DocNumber: String(contract.contract_number),
-      PrivateNote: contract.title,
+      PrivateNote: privateNote,
+      CustomerMemo: { value: contract.description || contract.title },
       Line: [
         {
           DetailType: "SalesItemLineDetail",
-          Amount: amount,
+          Amount: revisedAmount,
           Description: contract.title,
           SalesItemLineDetail: {
             ItemRef: { name: "Services" },
             Qty: 1,
-            UnitPrice: amount,
+            UnitPrice: revisedAmount,
           },
         },
       ],
     };
+
+    // Remove undefined values so QBO doesn't reject
+    if (!payload.DueDate) delete payload.DueDate;
 
     const { status, json, rawText } = await callQBO(
       companyId, appCreds, companyCreds, "POST", "invoice", payload
