@@ -128,10 +128,10 @@ export async function sendRFIBallInCourtEmail(
   await resend.emails.send({
     from: 'SiteCommand <invites@sitecommand.xyz>',
     to,
-    subject: `RFI #${rfiNumber} has been returned to your court — ${projectName}`,
+    subject: `The ball is in your court for RFI #${rfiNumber}: ${subject} — ${projectName}`,
     html: `
       <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
-      <p style="font-size:14px;"><strong>${senderName}</strong> has returned <strong>RFI #${rfiNumber}: ${subject}</strong> to your court on <strong>${projectName}</strong>.</p>
+      <p style="font-size:14px;"><strong>${senderName}</strong> has returned the ball to your court for <strong>RFI #${rfiNumber}: ${subject}</strong> on <strong>${projectName}</strong>.</p>
       <p style="font-size:13px;color:#555;">This RFI requires your attention.</p>
       <p><a href="${rfiUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View RFI</a></p>
       <p style="color:#aaa;font-size:11px;">You are receiving this because you are assigned to this RFI on SiteCommand.</p>
