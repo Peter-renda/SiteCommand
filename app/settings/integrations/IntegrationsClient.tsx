@@ -252,7 +252,7 @@ function SageSection() {
 
 const QBO_ERROR_MESSAGES: Record<string, string> = {
   qbo_not_configured:
-    "QuickBooks Online is not set up for this platform yet. A Site Command administrator needs to add the app credentials in their Integrations settings before you can connect.",
+    "No QuickBooks app credentials found. Enter your Intuit Client ID and Secret below, save, then click Connect.",
   qbo_unauthorized: "You must be logged in to connect QuickBooks.",
   qbo_forbidden:    "Only company admins can connect QuickBooks.",
   qbo_no_company:   "Your account is not associated with a company.",
@@ -262,15 +262,25 @@ const QBO_ERROR_MESSAGES: Record<string, string> = {
 };
 
 function QuickBooksSection() {
-  const [connected, setConnected] = useState<boolean | null>(null);
+  const [data, setData] = useState<Record<string, string | null>>({});
+  const [form, setForm] = useState({ QBO_CLIENT_ID: "", QBO_CLIENT_SECRET: "" });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const connected = !!(data.QBO_REALM_ID && data.QBO_ACCESS_TOKEN);
+  const appConfigured = !!(data.QBO_CLIENT_ID && data.QBO_CLIENT_SECRET);
 
   useEffect(() => {
     fetch("/api/settings/company-integrations?integration=quickbooks")
       .then((r) => r.json())
-      .then((data) => {
-        setConnected(!!(data.QBO_REALM_ID && data.QBO_ACCESS_TOKEN));
+      .then((d) => {
+        setData(d);
+        setForm({
+          QBO_CLIENT_ID:     d.QBO_CLIENT_ID     ?? "",
+          QBO_CLIENT_SECRET: d.QBO_CLIENT_SECRET ?? "",
+        });
       })
       .finally(() => setLoading(false));
   }, []);
@@ -278,12 +288,12 @@ function QuickBooksSection() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const connected = params.get("connected");
+    const connectedParam = params.get("connected");
     const error = params.get("error");
     const url = new URL(window.location.href);
 
-    if (connected === "quickbooks") {
-      setConnected(true);
+    if (connectedParam === "quickbooks") {
+      setData((prev) => ({ ...prev, QBO_REALM_ID: "connected", QBO_ACCESS_TOKEN: "connected" }));
       url.searchParams.delete("connected");
       window.history.replaceState({}, "", url.toString());
     } else if (error && error.startsWith("qbo_")) {
@@ -292,6 +302,27 @@ function QuickBooksSection() {
       window.history.replaceState({}, "", url.toString());
     }
   }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true); setSaved(false); setErrorMsg("");
+
+    const payload: Record<string, string> = {};
+    if (form.QBO_CLIENT_ID.trim())     payload.QBO_CLIENT_ID     = form.QBO_CLIENT_ID.trim();
+    if (form.QBO_CLIENT_SECRET.trim()) payload.QBO_CLIENT_SECRET = form.QBO_CLIENT_SECRET.trim();
+
+    const res = await fetch("/api/settings/company-integrations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    setSaving(false);
+    if (!res.ok) { setErrorMsg(result.error ?? "Failed to save"); return; }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+    setData((prev) => ({ ...prev, ...payload }));
+  }
 
   if (loading) return <div className="text-xs text-gray-400 py-8 text-center">Loading...</div>;
 
@@ -304,50 +335,78 @@ function QuickBooksSection() {
             Sync prime contracts, subcontracts, and purchase orders to QuickBooks Online via OAuth.
           </p>
         </div>
-        <span
-          className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ml-4 ${
-            connected ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
-          }`}
-        >
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ml-4 ${connected ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
           {connected ? "Connected" : "Not connected"}
         </span>
       </div>
 
-      <div className="space-y-4">
+      {/* Step 1 — App credentials */}
+      <form onSubmit={handleSave} className="space-y-3 mb-5">
+        <p className="text-xs font-medium text-gray-700">
+          Step 1 — Intuit app credentials
+          <span className="ml-1 font-normal text-gray-400">(from developer.intuit.com)</span>
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="qbo-cid" className="block text-xs font-medium text-gray-700 mb-1">Client ID</label>
+            <MaskedInput
+              id="qbo-cid"
+              value={form.QBO_CLIENT_ID}
+              onChange={(v) => setForm((f) => ({ ...f, QBO_CLIENT_ID: v }))}
+              placeholder={data.QBO_CLIENT_ID ? "••••••••••••••••" : "Intuit Client ID"}
+            />
+          </div>
+          <div>
+            <label htmlFor="qbo-csec" className="block text-xs font-medium text-gray-700 mb-1">Client Secret</label>
+            <MaskedInput
+              id="qbo-csec"
+              value={form.QBO_CLIENT_SECRET}
+              onChange={(v) => setForm((f) => ({ ...f, QBO_CLIENT_SECRET: v }))}
+              placeholder={data.QBO_CLIENT_SECRET ? "••••••••••••••••" : "Intuit Client Secret"}
+            />
+          </div>
+        </div>
+        {errorMsg && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{errorMsg}</p>
+        )}
+        <SaveButton saving={saving} saved={saved} />
+      </form>
+
+      {/* Step 2 — OAuth connect */}
+      <div className="border-t border-gray-100 pt-5 space-y-3">
+        <p className="text-xs font-medium text-gray-700">Step 2 — Authorize with QuickBooks</p>
         {connected ? (
           <div className="flex items-center gap-3">
             <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
-            <p className="text-sm text-gray-700">
-              Your QuickBooks Online account is connected. Sync buttons will appear on
-              commitments and prime contracts.
-            </p>
+            <p className="text-sm text-gray-700">QuickBooks Online is connected.</p>
           </div>
         ) : (
-          <p className="text-sm text-gray-600">
-            Click below to authorize SiteCommand to access your QuickBooks Online company.
-            You will be redirected to Intuit to sign in and approve the connection.
+          <p className="text-xs text-gray-500">
+            {appConfigured
+              ? "Credentials saved. Click below to authorize SiteCommand with your QuickBooks company."
+              : "Save your Client ID and Secret above first, then connect."}
           </p>
         )}
-
-        {errorMsg && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
-            {errorMsg}
-          </p>
-        )}
-
         <a
           href="/api/integrations/quickbooks/connect"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#2CA01C] text-white text-sm font-medium rounded-md hover:bg-[#237d16] transition-colors"
+          aria-disabled={!appConfigured}
+          onClick={(e) => { if (!appConfigured) e.preventDefault(); }}
+          className={`inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${
+            appConfigured
+              ? "bg-[#2CA01C] hover:bg-[#237d16]"
+              : "bg-gray-300 cursor-not-allowed"
+          }`}
         >
           <ExternalLink className="w-4 h-4" />
           {connected ? "Reconnect QuickBooks" : "Connect QuickBooks Online"}
         </a>
       </div>
 
-      <div className="mt-6 pt-5 border-t border-gray-100">
+      <div className="mt-5 pt-4 border-t border-gray-100">
         <p className="text-xs text-gray-400">
-          Uses OAuth 2.0 — no passwords stored. Tokens are refreshed automatically.
-          Your QuickBooks company data is only accessed when you trigger a sync.
+          Set the redirect URI in the Intuit Developer Portal to{" "}
+          <code className="font-mono bg-gray-100 px-1 rounded">{typeof window !== "undefined" ? window.location.origin : ""}/api/integrations/quickbooks/callback</code>.
+          Required scope: <code className="font-mono bg-gray-100 px-1 rounded">com.intuit.quickbooks.accounting</code>.
         </p>
       </div>
     </div>
@@ -358,7 +417,7 @@ function QuickBooksSection() {
 
 const XERO_ERROR_MESSAGES: Record<string, string> = {
   xero_not_configured:
-    "Xero is not set up for this platform yet. A Site Command administrator needs to add the app credentials in their Integrations settings before you can connect.",
+    "No Xero app credentials found. Enter your Xero Client ID and Secret below, save, then click Connect.",
   xero_unauthorized: "You must be logged in to connect Xero.",
   xero_forbidden:    "Only company admins can connect Xero.",
   xero_no_company:   "Your account is not associated with a company.",
@@ -368,15 +427,25 @@ const XERO_ERROR_MESSAGES: Record<string, string> = {
 };
 
 function XeroSection() {
-  const [connected, setConnected] = useState<boolean | null>(null);
+  const [data, setData] = useState<Record<string, string | null>>({});
+  const [form, setForm] = useState({ XERO_CLIENT_ID: "", XERO_CLIENT_SECRET: "" });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const connected = !!(data.XERO_TENANT_ID && data.XERO_ACCESS_TOKEN);
+  const appConfigured = !!(data.XERO_CLIENT_ID && data.XERO_CLIENT_SECRET);
 
   useEffect(() => {
     fetch("/api/settings/company-integrations?integration=xero")
       .then((r) => r.json())
-      .then((data) => {
-        setConnected(!!(data.XERO_TENANT_ID && data.XERO_ACCESS_TOKEN));
+      .then((d) => {
+        setData(d);
+        setForm({
+          XERO_CLIENT_ID:     d.XERO_CLIENT_ID     ?? "",
+          XERO_CLIENT_SECRET: d.XERO_CLIENT_SECRET ?? "",
+        });
       })
       .finally(() => setLoading(false));
   }, []);
@@ -384,12 +453,12 @@ function XeroSection() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const connected = params.get("connected");
+    const connectedParam = params.get("connected");
     const error = params.get("error");
     const url = new URL(window.location.href);
 
-    if (connected === "xero") {
-      setConnected(true);
+    if (connectedParam === "xero") {
+      setData((prev) => ({ ...prev, XERO_TENANT_ID: "connected", XERO_ACCESS_TOKEN: "connected" }));
       url.searchParams.delete("connected");
       window.history.replaceState({}, "", url.toString());
     } else if (error && error.startsWith("xero_")) {
@@ -398,6 +467,27 @@ function XeroSection() {
       window.history.replaceState({}, "", url.toString());
     }
   }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true); setSaved(false); setErrorMsg("");
+
+    const payload: Record<string, string> = {};
+    if (form.XERO_CLIENT_ID.trim())     payload.XERO_CLIENT_ID     = form.XERO_CLIENT_ID.trim();
+    if (form.XERO_CLIENT_SECRET.trim()) payload.XERO_CLIENT_SECRET = form.XERO_CLIENT_SECRET.trim();
+
+    const res = await fetch("/api/settings/company-integrations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    setSaving(false);
+    if (!res.ok) { setErrorMsg(result.error ?? "Failed to save"); return; }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+    setData((prev) => ({ ...prev, ...payload }));
+  }
 
   if (loading) return <div className="text-xs text-gray-400 py-8 text-center">Loading...</div>;
 
@@ -410,50 +500,78 @@ function XeroSection() {
             Sync prime contracts, subcontracts, and purchase orders to Xero via OAuth.
           </p>
         </div>
-        <span
-          className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ml-4 ${
-            connected ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
-          }`}
-        >
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ml-4 ${connected ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
           {connected ? "Connected" : "Not connected"}
         </span>
       </div>
 
-      <div className="space-y-4">
+      {/* Step 1 — App credentials */}
+      <form onSubmit={handleSave} className="space-y-3 mb-5">
+        <p className="text-xs font-medium text-gray-700">
+          Step 1 — Xero app credentials
+          <span className="ml-1 font-normal text-gray-400">(from developer.xero.com)</span>
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="xero-cid" className="block text-xs font-medium text-gray-700 mb-1">Client ID</label>
+            <MaskedInput
+              id="xero-cid"
+              value={form.XERO_CLIENT_ID}
+              onChange={(v) => setForm((f) => ({ ...f, XERO_CLIENT_ID: v }))}
+              placeholder={data.XERO_CLIENT_ID ? "••••••••••••••••" : "Xero Client ID"}
+            />
+          </div>
+          <div>
+            <label htmlFor="xero-csec" className="block text-xs font-medium text-gray-700 mb-1">Client Secret</label>
+            <MaskedInput
+              id="xero-csec"
+              value={form.XERO_CLIENT_SECRET}
+              onChange={(v) => setForm((f) => ({ ...f, XERO_CLIENT_SECRET: v }))}
+              placeholder={data.XERO_CLIENT_SECRET ? "••••••••••••••••" : "Xero Client Secret"}
+            />
+          </div>
+        </div>
+        {errorMsg && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{errorMsg}</p>
+        )}
+        <SaveButton saving={saving} saved={saved} />
+      </form>
+
+      {/* Step 2 — OAuth connect */}
+      <div className="border-t border-gray-100 pt-5 space-y-3">
+        <p className="text-xs font-medium text-gray-700">Step 2 — Authorize with Xero</p>
         {connected ? (
           <div className="flex items-center gap-3">
             <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
-            <p className="text-sm text-gray-700">
-              Your Xero organisation is connected. Sync buttons will appear on
-              commitments and prime contracts.
-            </p>
+            <p className="text-sm text-gray-700">Xero is connected.</p>
           </div>
         ) : (
-          <p className="text-sm text-gray-600">
-            Click below to authorize SiteCommand to access your Xero organisation.
-            You will be redirected to Xero to sign in and approve the connection.
+          <p className="text-xs text-gray-500">
+            {appConfigured
+              ? "Credentials saved. Click below to authorize SiteCommand with your Xero organisation."
+              : "Save your Client ID and Secret above first, then connect."}
           </p>
         )}
-
-        {errorMsg && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
-            {errorMsg}
-          </p>
-        )}
-
         <a
           href="/api/integrations/xero/connect"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#13B5EA] text-white text-sm font-medium rounded-md hover:bg-[#0ea0d4] transition-colors"
+          aria-disabled={!appConfigured}
+          onClick={(e) => { if (!appConfigured) e.preventDefault(); }}
+          className={`inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${
+            appConfigured
+              ? "bg-[#13B5EA] hover:bg-[#0ea0d4]"
+              : "bg-gray-300 cursor-not-allowed"
+          }`}
         >
           <ExternalLink className="w-4 h-4" />
           {connected ? "Reconnect Xero" : "Connect Xero"}
         </a>
       </div>
 
-      <div className="mt-6 pt-5 border-t border-gray-100">
+      <div className="mt-5 pt-4 border-t border-gray-100">
         <p className="text-xs text-gray-400">
-          Uses OAuth 2.0 — no passwords stored. Tokens are refreshed automatically.
-          Xero&apos;s unified Contacts model covers both suppliers and customers.
+          Set the redirect URI in the Xero Developer Centre to{" "}
+          <code className="font-mono bg-gray-100 px-1 rounded">{typeof window !== "undefined" ? window.location.origin : ""}/api/integrations/xero/callback</code>.
+          Required scopes: <code className="font-mono bg-gray-100 px-1 rounded">offline_access accounting.transactions accounting.contacts</code>.
         </p>
       </div>
     </div>

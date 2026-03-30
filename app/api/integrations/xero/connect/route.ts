@@ -29,7 +29,7 @@ export async function GET() {
     return NextResponse.redirect(`${settingsUrl}?error=xero_no_company`);
   }
 
-  const appCreds = await getXeroAppCredentials();
+  const appCreds = await getXeroAppCredentials(session.company_id);
   if (!appCreds.clientId) {
     return NextResponse.redirect(`${settingsUrl}?error=xero_not_configured`);
   }

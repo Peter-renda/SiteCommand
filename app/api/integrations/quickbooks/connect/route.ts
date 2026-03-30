@@ -28,7 +28,7 @@ export async function GET() {
     return NextResponse.redirect(`${settingsUrl}?error=qbo_no_company`);
   }
 
-  const appCreds = await getQBOAppCredentials();
+  const appCreds = await getQBOAppCredentials(session.company_id);
   if (!appCreds.clientId) {
     return NextResponse.redirect(`${settingsUrl}?error=qbo_not_configured`);
   }
