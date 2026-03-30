@@ -166,6 +166,32 @@ export async function sendRFIReopenedEmail(
   });
 }
 
+export async function sendSubmittalCreatedEmail(
+  to: string,
+  recipientName: string,
+  submittalNumber: number,
+  submittalTitle: string,
+  projectName: string,
+  submittalUrl: string,
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  const resend = new Resend(apiKey);
+  await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `Submittal #${submittalNumber}: ${submittalTitle} — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
+      <p style="font-size:14px;">A new submittal has been created on <strong>${projectName}</strong>.</p>
+      <p style="font-size:15px;font-weight:600;">Submittal #${submittalNumber}: ${submittalTitle}</p>
+      <p><a href="${submittalUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View Submittal</a></p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are the submittal manager, approver, or on the distribution list for this submittal on SiteCommand.</p>
+    `,
+  });
+}
+
 export async function sendContractorInviteEmail(
   to: string,
   inviteUrl: string,
