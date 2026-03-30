@@ -8,7 +8,7 @@
  * Auth: company super_admin or site_admin.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getXeroAppCredentials } from "@/lib/xero";
 
@@ -16,11 +16,11 @@ const XERO_AUTH_URL = "https://login.xero.com/identity/connect/authorize";
 // offline_access is required to receive a refresh token
 const SCOPES = "offline_access accounting.transactions accounting.contacts";
 
-export async function GET() {
-  const session = await getSession();
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const settingsUrl = `${baseUrl}/settings/integrations`;
+export async function GET(req: NextRequest) {
+  const origin = new URL(req.url).origin;
+  const settingsUrl = `${origin}/settings/integrations`;
 
+  const session = await getSession();
   if (!session) return NextResponse.redirect(`${settingsUrl}?error=xero_unauthorized`);
   if (session.company_role !== "super_admin" && session.role !== "site_admin") {
     return NextResponse.redirect(`${settingsUrl}?error=xero_forbidden`);
@@ -34,7 +34,7 @@ export async function GET() {
     return NextResponse.redirect(`${settingsUrl}?error=xero_not_configured`);
   }
 
-  const redirectUri = `${baseUrl}/api/integrations/xero/callback`;
+  const redirectUri = `${origin}/api/integrations/xero/callback`;
 
   const state = Buffer.from(JSON.stringify({ companyId: session.company_id })).toString("base64url");
 

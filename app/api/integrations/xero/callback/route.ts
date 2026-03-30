@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
   const stateB64 = searchParams.get("state");
   const error    = searchParams.get("error");
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const settingsUrl = `${baseUrl}/settings/integrations`;
+  const origin = new URL(req.url).origin;
+  const settingsUrl = `${origin}/settings/integrations`;
 
   if (error) {
     return NextResponse.redirect(`${settingsUrl}?error=xero_denied`);
@@ -40,12 +40,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${settingsUrl}?error=xero_invalid_state`);
   }
 
-  const appCreds = await getXeroAppCredentials();
+  const appCreds = await getXeroAppCredentials(companyId);
   if (!appCreds.clientId || !appCreds.clientSecret) {
     return NextResponse.redirect(`${settingsUrl}?error=xero_missing_app_creds`);
   }
 
-  const redirectUri = `${baseUrl}/api/integrations/xero/callback`;
+  const redirectUri = `${origin}/api/integrations/xero/callback`;
   const basicAuth = Buffer.from(`${appCreds.clientId}:${appCreds.clientSecret}`).toString("base64");
 
   // Exchange code for tokens
