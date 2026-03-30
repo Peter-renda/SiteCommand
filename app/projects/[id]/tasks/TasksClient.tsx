@@ -966,7 +966,7 @@ export default function TasksClient({
                         disabled={sendingTaskId === task.id}
                         className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 whitespace-nowrap"
                       >
-                        {sendingTaskId === task.id ? "Sending..." : "Send Task"}
+                        {sendingTaskId === task.id ? "Sending..." : "Re-send Task"}
                       </button>
                     </td>
                   </tr>

@@ -128,10 +128,10 @@ export async function sendRFIBallInCourtEmail(
   await resend.emails.send({
     from: 'SiteCommand <invites@sitecommand.xyz>',
     to,
-    subject: `RFI #${rfiNumber} has been returned to your court — ${projectName}`,
+    subject: `The ball is in your court for RFI #${rfiNumber}: ${subject} — ${projectName}`,
     html: `
       <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
-      <p style="font-size:14px;"><strong>${senderName}</strong> has returned <strong>RFI #${rfiNumber}: ${subject}</strong> to your court on <strong>${projectName}</strong>.</p>
+      <p style="font-size:14px;"><strong>${senderName}</strong> has returned the ball to your court for <strong>RFI #${rfiNumber}: ${subject}</strong> on <strong>${projectName}</strong>.</p>
       <p style="font-size:13px;color:#555;">This RFI requires your attention.</p>
       <p><a href="${rfiUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View RFI</a></p>
       <p style="color:#aaa;font-size:11px;">You are receiving this because you are assigned to this RFI on SiteCommand.</p>
@@ -188,6 +188,35 @@ export async function sendSubmittalCreatedEmail(
       <p style="font-size:15px;font-weight:600;">Submittal #${submittalNumber}: ${submittalTitle}</p>
       <p><a href="${submittalUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View Submittal</a></p>
       <p style="color:#aaa;font-size:11px;">You are receiving this because you are the submittal manager, approver, or on the distribution list for this submittal on SiteCommand.</p>
+    `,
+  });
+}
+
+export async function sendRFIResponseEmail(
+  to: string,
+  recipientName: string,
+  responderName: string,
+  rfiNumber: number,
+  rfiSubject: string | null,
+  projectName: string,
+  rfiUrl: string,
+  responseBody: string,
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  const resend = new Resend(apiKey);
+  const subject = rfiSubject || "No subject";
+  await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `New response on RFI #${rfiNumber}: ${subject} — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
+      <p style="font-size:14px;"><strong>${responderName}</strong> has added a response to <strong>RFI #${rfiNumber}: ${subject}</strong> on <strong>${projectName}</strong>.</p>
+      <blockquote style="border-left:3px solid #e5e7eb;margin:12px 0;padding:8px 16px;color:#555;font-size:13px;">${responseBody}</blockquote>
+      <p><a href="${rfiUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View RFI</a></p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are the RFI manager, assignee, or on the distribution list for this RFI on SiteCommand.</p>
     `,
   });
 }
