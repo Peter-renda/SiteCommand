@@ -3,17 +3,15 @@
  *
  * QBO uses OAuth 2.0 with short-lived access tokens (1 hr) and long-lived
  * refresh tokens (100 days). Every API call is a JSON REST request to the
- * company-scoped base URL. Tokens are stored per-company in company_integrations;
- * the app-level client credentials are stored in platform_settings (site_admin).
+ * company-scoped base URL.
  *
- * Credentials flow:
- *   Platform-level (platform_settings, site_admin):
- *     QBO_CLIENT_ID, QBO_CLIENT_SECRET
+ * Credentials lookup order (most → least specific):
+ *   1. company_integrations (company admin sets their own Intuit app credentials)
+ *   2. platform_settings    (site admin sets a shared Intuit app for all companies)
+ *   3. Environment variables
  *
- *   Company-level (company_integrations, super_admin):
- *     QBO_REALM_ID       – QuickBooks company ID (shown in the QBO URL)
- *     QBO_ACCESS_TOKEN   – OAuth 2.0 access token (1 hr)
- *     QBO_REFRESH_TOKEN  – OAuth 2.0 refresh token (100 days)
+ *   Company-level tokens set automatically via OAuth callback:
+ *     QBO_REALM_ID, QBO_ACCESS_TOKEN, QBO_REFRESH_TOKEN
  */
 
 import { getSupabase } from "@/lib/supabase";
@@ -38,23 +36,47 @@ export type QBOCompanyCredentials = {
 // ── Credential helpers ────────────────────────────────────────────────────────
 
 /**
- * Loads the platform-level QBO app credentials from platform_settings.
- * Falls back to environment variables.
+ * Loads QBO app credentials. Company-level credentials take precedence over
+ * platform-level ones, allowing each company to register their own Intuit app
+ * without requiring site admin involvement.
+ *
+ * Lookup order: company_integrations → platform_settings → env vars
  */
-export async function getQBOAppCredentials(): Promise<QBOAppCredentials> {
+export async function getQBOAppCredentials(companyId?: string): Promise<QBOAppCredentials> {
   try {
     const supabase = getSupabase();
-    const { data } = await supabase
+
+    // Check company-level credentials first
+    if (companyId) {
+      const { data: companyData } = await supabase
+        .from("company_integrations")
+        .select("key, value")
+        .eq("company_id", companyId)
+        .in("key", ["QBO_CLIENT_ID", "QBO_CLIENT_SECRET"]);
+
+      const companyMap: Record<string, string> = {};
+      for (const row of companyData ?? []) companyMap[row.key] = row.value;
+
+      if (companyMap.QBO_CLIENT_ID && companyMap.QBO_CLIENT_SECRET) {
+        return {
+          clientId:     companyMap.QBO_CLIENT_ID,
+          clientSecret: companyMap.QBO_CLIENT_SECRET,
+        };
+      }
+    }
+
+    // Fall back to platform-level credentials
+    const { data: platformData } = await supabase
       .from("platform_settings")
       .select("key, value")
       .in("key", ["QBO_CLIENT_ID", "QBO_CLIENT_SECRET"]);
 
-    const map: Record<string, string> = {};
-    for (const row of data ?? []) map[row.key] = row.value;
+    const platformMap: Record<string, string> = {};
+    for (const row of platformData ?? []) platformMap[row.key] = row.value;
 
     return {
-      clientId:     map.QBO_CLIENT_ID     ?? process.env.QBO_CLIENT_ID     ?? null,
-      clientSecret: map.QBO_CLIENT_SECRET ?? process.env.QBO_CLIENT_SECRET ?? null,
+      clientId:     platformMap.QBO_CLIENT_ID     ?? process.env.QBO_CLIENT_ID     ?? null,
+      clientSecret: platformMap.QBO_CLIENT_SECRET ?? process.env.QBO_CLIENT_SECRET ?? null,
     };
   } catch {
     return {

@@ -5,14 +5,13 @@
  * refresh tokens (60 days). API calls require a Xero-Tenant-Id header that
  * identifies which Xero organisation to act against.
  *
- * Credentials flow:
- *   Platform-level (platform_settings, site_admin):
- *     XERO_CLIENT_ID, XERO_CLIENT_SECRET
+ * Credentials lookup order (most → least specific):
+ *   1. company_integrations (company admin sets their own Xero app credentials)
+ *   2. platform_settings    (site admin sets a shared Xero app for all companies)
+ *   3. Environment variables
  *
- *   Company-level (company_integrations, super_admin):
- *     XERO_TENANT_ID     – Xero organisation tenant ID (obtained post-OAuth)
- *     XERO_ACCESS_TOKEN  – OAuth 2.0 access token (30 min)
- *     XERO_REFRESH_TOKEN – OAuth 2.0 refresh token (60 days)
+ *   Company-level tokens set automatically via OAuth callback:
+ *     XERO_TENANT_ID, XERO_ACCESS_TOKEN, XERO_REFRESH_TOKEN
  */
 
 import { getSupabase } from "@/lib/supabase";
@@ -37,23 +36,47 @@ export type XeroCompanyCredentials = {
 // ── Credential helpers ────────────────────────────────────────────────────────
 
 /**
- * Loads the platform-level Xero app credentials from platform_settings.
- * Falls back to environment variables.
+ * Loads Xero app credentials. Company-level credentials take precedence over
+ * platform-level ones, allowing each company to register their own Xero app
+ * without requiring site admin involvement.
+ *
+ * Lookup order: company_integrations → platform_settings → env vars
  */
-export async function getXeroAppCredentials(): Promise<XeroAppCredentials> {
+export async function getXeroAppCredentials(companyId?: string): Promise<XeroAppCredentials> {
   try {
     const supabase = getSupabase();
-    const { data } = await supabase
+
+    // Check company-level credentials first
+    if (companyId) {
+      const { data: companyData } = await supabase
+        .from("company_integrations")
+        .select("key, value")
+        .eq("company_id", companyId)
+        .in("key", ["XERO_CLIENT_ID", "XERO_CLIENT_SECRET"]);
+
+      const companyMap: Record<string, string> = {};
+      for (const row of companyData ?? []) companyMap[row.key] = row.value;
+
+      if (companyMap.XERO_CLIENT_ID && companyMap.XERO_CLIENT_SECRET) {
+        return {
+          clientId:     companyMap.XERO_CLIENT_ID,
+          clientSecret: companyMap.XERO_CLIENT_SECRET,
+        };
+      }
+    }
+
+    // Fall back to platform-level credentials
+    const { data: platformData } = await supabase
       .from("platform_settings")
       .select("key, value")
       .in("key", ["XERO_CLIENT_ID", "XERO_CLIENT_SECRET"]);
 
-    const map: Record<string, string> = {};
-    for (const row of data ?? []) map[row.key] = row.value;
+    const platformMap: Record<string, string> = {};
+    for (const row of platformData ?? []) platformMap[row.key] = row.value;
 
     return {
-      clientId:     map.XERO_CLIENT_ID     ?? process.env.XERO_CLIENT_ID     ?? null,
-      clientSecret: map.XERO_CLIENT_SECRET ?? process.env.XERO_CLIENT_SECRET ?? null,
+      clientId:     platformMap.XERO_CLIENT_ID     ?? process.env.XERO_CLIENT_ID     ?? null,
+      clientSecret: platformMap.XERO_CLIENT_SECRET ?? process.env.XERO_CLIENT_SECRET ?? null,
     };
   } catch {
     return {

@@ -24,12 +24,16 @@ const SAGE_KEYS = [
 ] as const;
 
 const QBO_KEYS = [
+  "QBO_CLIENT_ID",
+  "QBO_CLIENT_SECRET",
   "QBO_REALM_ID",
   "QBO_ACCESS_TOKEN",
   "QBO_REFRESH_TOKEN",
 ] as const;
 
 const XERO_KEYS = [
+  "XERO_CLIENT_ID",
+  "XERO_CLIENT_SECRET",
   "XERO_TENANT_ID",
   "XERO_ACCESS_TOKEN",
   "XERO_REFRESH_TOKEN",
