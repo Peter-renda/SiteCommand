@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
   if (recordType === "prime_contracts") {
     const { data: contract, error: fetchErr } = await supabase
       .from("prime_contracts")
-      .select("id, contract_number, title, owner_client, original_contract_amount, status")
+      .select("id, contract_number, title, owner_client, contractor, architect_engineer, description, original_contract_amount, approved_change_orders, default_retainage, status, executed, start_date, estimated_completion_date")
       .eq("id", recordId)
       .single();
 

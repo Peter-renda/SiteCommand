@@ -582,31 +582,61 @@ export type PrimeContractSyncPayload = {
   contract_number: number;
   title: string;
   owner_client: string;
+  contractor: string;
+  architect_engineer: string;
+  description: string;
   original_contract_amount: number;
+  approved_change_orders: number;
+  default_retainage: number;
   status: string;
+  executed: boolean;
+  start_date: string | null;
+  estimated_completion_date: string | null;
 };
 
 /**
  * Creates or updates a prime contract in Sage Intacct as an AR Contract.
+ * Sends the full contract record including dates, retainage, revised amount,
+ * and a memo combining description, contractor, and architect info.
  */
 export async function syncPrimeContractToSage(
   creds: Awaited<ReturnType<typeof getSageCredentials>>,
   contract: PrimeContractSyncPayload
 ): Promise<SageResult> {
   const controlId = `sc-prime-${contract.id}`;
-  const amount = contract.original_contract_amount.toFixed(2);
+  const revisedAmount = (
+    contract.original_contract_amount + (contract.approved_change_orders ?? 0)
+  ).toFixed(2);
+
+  const memo = [
+    contract.description,
+    contract.contractor     ? `Contractor: ${contract.contractor}`           : null,
+    contract.architect_engineer ? `Architect/Engineer: ${contract.architect_engineer}` : null,
+    contract.default_retainage  ? `Retainage: ${contract.default_retainage}%`          : null,
+  ].filter(Boolean).join(" | ");
+
+  const beginDateXml = contract.start_date
+    ? `<begindate><year>${contract.start_date.slice(0, 4)}</year><month>${contract.start_date.slice(5, 7)}</month><day>${contract.start_date.slice(8, 10)}</day></begindate>`
+    : "";
+
+  const endDateXml = contract.estimated_completion_date
+    ? `<enddate><year>${contract.estimated_completion_date.slice(0, 4)}</year><month>${contract.estimated_completion_date.slice(5, 7)}</month><day>${contract.estimated_completion_date.slice(8, 10)}</day></enddate>`
+    : "";
 
   const functionXml = `
     <create_arcontract>
       <contractid>${xmlEscape(contract.contract_number)}</contractid>
       <contractname>${xmlEscape(contract.title)}</contractname>
       <customerid>${xmlEscape(contract.owner_client)}</customerid>
+      <description>${xmlEscape(memo)}</description>
+      ${beginDateXml}
+      ${endDateXml}
       <basecurr>USD</basecurr>
       <currency>USD</currency>
       <arcontractitems>
         <arcontractitem>
           <memo>${xmlEscape(contract.title)}</memo>
-          <amount>${xmlEscape(amount)}</amount>
+          <amount>${xmlEscape(revisedAmount)}</amount>
         </arcontractitem>
       </arcontractitems>
     </create_arcontract>`;
