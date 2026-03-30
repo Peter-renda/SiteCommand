@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { logRFIChange } from "@/lib/rfi-history";
+import { sendRFIResponseEmail } from "@/lib/email";
 
 export async function GET(
   _req: NextRequest,
@@ -77,6 +78,75 @@ export async function POST(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   logRFIChange(supabase, session, rfiId, projectId, "Added Discussion Response", null, body.trim());
+
+  // Send email notifications to distribution list, RFI manager, and assignees
+  try {
+    const [rfiRes, projectRes] = await Promise.all([
+      supabase
+        .from("rfis")
+        .select("rfi_number, subject, distribution_list, assignees, rfi_manager_id")
+        .eq("id", rfiId)
+        .single(),
+      supabase
+        .from("projects")
+        .select("name")
+        .eq("id", projectId)
+        .single(),
+    ]);
+
+    const rfiData = rfiRes.data;
+    const projectName = projectRes.data?.name ?? "";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+    const rfiUrl = `${appUrl}/projects/${projectId}/rfis/${rfiId}`;
+    const responderName = session.username;
+
+    if (rfiData) {
+      const distributionList: { name: string; email: string | null }[] = Array.isArray(rfiData.distribution_list) ? rfiData.distribution_list : [];
+      const assignees: { name: string; email: string | null }[] = Array.isArray(rfiData.assignees) ? rfiData.assignees : [];
+
+      // Collect all recipients: distribution list + assignees
+      const allContacts = [...distributionList, ...assignees];
+
+      // Also include RFI manager if available
+      if (rfiData.rfi_manager_id) {
+        const { data: manager } = await supabase
+          .from("directory_contacts")
+          .select("first_name, last_name, email")
+          .eq("id", rfiData.rfi_manager_id)
+          .single();
+        if (manager?.email) {
+          const managerName = [manager.first_name, manager.last_name].filter(Boolean).join(" ");
+          allContacts.push({ name: managerName, email: manager.email });
+        }
+      }
+
+      // Deduplicate by email
+      const seen = new Set<string>();
+      const recipients = allContacts.filter((c) => {
+        if (!c.email) return false;
+        if (seen.has(c.email)) return false;
+        seen.add(c.email);
+        return true;
+      });
+
+      await Promise.allSettled(
+        recipients.map((r) =>
+          sendRFIResponseEmail(
+            r.email!,
+            r.name,
+            responderName,
+            rfiData.rfi_number,
+            rfiData.subject,
+            projectName,
+            rfiUrl,
+            body.trim(),
+          )
+        )
+      );
+    }
+  } catch {
+    // Email failure should not block the response
+  }
 
   const created_by_name = [session.username].filter(Boolean).join("") || null;
   return NextResponse.json({ ...data, created_by_name, attachments: [] });

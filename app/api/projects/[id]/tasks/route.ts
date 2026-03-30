@@ -60,9 +60,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Send email notifications to distribution list members with emails
-  const recipients: { name: string; email: string }[] = (distribution_list ?? []).filter(
-    (d: { email?: string | null }) => d.email
+  // Send email notifications to distribution list + assignees (deduplicated by email)
+  const allRecipients = [...(distribution_list ?? []), ...(assignees ?? [])];
+  const seen = new Set<string>();
+  const recipients: { name: string; email: string }[] = allRecipients.filter(
+    (d: { email?: string | null }) => {
+      if (!d.email) return false;
+      if (seen.has(d.email)) return false;
+      seen.add(d.email);
+      return true;
+    }
   );
 
   if (recipients.length > 0) {
