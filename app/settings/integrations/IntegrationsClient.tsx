@@ -250,12 +250,23 @@ function SageSection() {
 
 // ── QuickBooks Online section (company super_admin) ───────────────────────────
 
+const QBO_ERROR_MESSAGES: Record<string, string> = {
+  qbo_not_configured:
+    "QuickBooks Online is not set up for this platform yet. A Site Command administrator needs to add the app credentials in their Integrations settings before you can connect.",
+  qbo_unauthorized: "You must be logged in to connect QuickBooks.",
+  qbo_forbidden:    "Only company admins can connect QuickBooks.",
+  qbo_no_company:   "Your account is not associated with a company.",
+  qbo_denied:       "QuickBooks authorization was cancelled.",
+  qbo_invalid_callback: "Invalid response from QuickBooks. Please try again.",
+  qbo_token_exchange_failed: "Failed to exchange authorization code. Please try again.",
+};
+
 function QuickBooksSection() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    // Check if QBO tokens exist for this company
     fetch("/api/settings/company-integrations?integration=quickbooks")
       .then((r) => r.json())
       .then((data) => {
@@ -264,15 +275,20 @@ function QuickBooksSection() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Handle ?connected=quickbooks redirect from OAuth callback
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("connected") === "quickbooks") {
+    const connected = params.get("connected");
+    const error = params.get("error");
+    const url = new URL(window.location.href);
+
+    if (connected === "quickbooks") {
       setConnected(true);
-      // Clean up the URL without a full reload
-      const url = new URL(window.location.href);
       url.searchParams.delete("connected");
+      window.history.replaceState({}, "", url.toString());
+    } else if (error && error.startsWith("qbo_")) {
+      setErrorMsg(QBO_ERROR_MESSAGES[error] ?? "An error occurred connecting to QuickBooks.");
+      url.searchParams.delete("error");
       window.history.replaceState({}, "", url.toString());
     }
   }, []);
@@ -313,6 +329,12 @@ function QuickBooksSection() {
           </p>
         )}
 
+        {errorMsg && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
+            {errorMsg}
+          </p>
+        )}
+
         <a
           href="/api/integrations/quickbooks/connect"
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#2CA01C] text-white text-sm font-medium rounded-md hover:bg-[#237d16] transition-colors"
@@ -326,7 +348,6 @@ function QuickBooksSection() {
         <p className="text-xs text-gray-400">
           Uses OAuth 2.0 — no passwords stored. Tokens are refreshed automatically.
           Your QuickBooks company data is only accessed when you trigger a sync.
-          Contact your Site Command administrator if the Connect button returns an error.
         </p>
       </div>
     </div>
@@ -335,9 +356,21 @@ function QuickBooksSection() {
 
 // ── Xero section (company super_admin) ────────────────────────────────────────
 
+const XERO_ERROR_MESSAGES: Record<string, string> = {
+  xero_not_configured:
+    "Xero is not set up for this platform yet. A Site Command administrator needs to add the app credentials in their Integrations settings before you can connect.",
+  xero_unauthorized: "You must be logged in to connect Xero.",
+  xero_forbidden:    "Only company admins can connect Xero.",
+  xero_no_company:   "Your account is not associated with a company.",
+  xero_denied:       "Xero authorization was cancelled.",
+  xero_invalid_callback: "Invalid response from Xero. Please try again.",
+  xero_token_exchange_failed: "Failed to exchange authorization code. Please try again.",
+};
+
 function XeroSection() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     fetch("/api/settings/company-integrations?integration=xero")
@@ -351,10 +384,17 @@ function XeroSection() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("connected") === "xero") {
+    const connected = params.get("connected");
+    const error = params.get("error");
+    const url = new URL(window.location.href);
+
+    if (connected === "xero") {
       setConnected(true);
-      const url = new URL(window.location.href);
       url.searchParams.delete("connected");
+      window.history.replaceState({}, "", url.toString());
+    } else if (error && error.startsWith("xero_")) {
+      setErrorMsg(XERO_ERROR_MESSAGES[error] ?? "An error occurred connecting to Xero.");
+      url.searchParams.delete("error");
       window.history.replaceState({}, "", url.toString());
     }
   }, []);
@@ -395,6 +435,12 @@ function XeroSection() {
           </p>
         )}
 
+        {errorMsg && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
+            {errorMsg}
+          </p>
+        )}
+
         <a
           href="/api/integrations/xero/connect"
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#13B5EA] text-white text-sm font-medium rounded-md hover:bg-[#0ea0d4] transition-colors"
@@ -408,7 +454,6 @@ function XeroSection() {
         <p className="text-xs text-gray-400">
           Uses OAuth 2.0 — no passwords stored. Tokens are refreshed automatically.
           Xero&apos;s unified Contacts model covers both suppliers and customers.
-          Contact your Site Command administrator if the Connect button returns an error.
         </p>
       </div>
     </div>

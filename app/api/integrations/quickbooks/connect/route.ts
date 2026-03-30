@@ -17,23 +17,22 @@ const SCOPES = "com.intuit.quickbooks.accounting";
 
 export async function GET() {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const settingsUrl = `${baseUrl}/settings/integrations`;
+
+  if (!session) return NextResponse.redirect(`${settingsUrl}?error=qbo_unauthorized`);
   if (session.company_role !== "super_admin" && session.role !== "site_admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.redirect(`${settingsUrl}?error=qbo_forbidden`);
   }
   if (!session.company_id) {
-    return NextResponse.json({ error: "No company associated with this account" }, { status: 422 });
+    return NextResponse.redirect(`${settingsUrl}?error=qbo_no_company`);
   }
 
   const appCreds = await getQBOAppCredentials();
   if (!appCreds.clientId) {
-    return NextResponse.json(
-      { error: "QuickBooks Client ID is not configured. Contact your Site Command administrator." },
-      { status: 422 }
-    );
+    return NextResponse.redirect(`${settingsUrl}?error=qbo_not_configured`);
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const redirectUri = `${baseUrl}/api/integrations/quickbooks/callback`;
 
   // Encode company_id in state so the callback can associate tokens with the right company

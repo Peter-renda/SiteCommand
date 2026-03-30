@@ -18,23 +18,22 @@ const SCOPES = "offline_access accounting.transactions accounting.contacts";
 
 export async function GET() {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const settingsUrl = `${baseUrl}/settings/integrations`;
+
+  if (!session) return NextResponse.redirect(`${settingsUrl}?error=xero_unauthorized`);
   if (session.company_role !== "super_admin" && session.role !== "site_admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.redirect(`${settingsUrl}?error=xero_forbidden`);
   }
   if (!session.company_id) {
-    return NextResponse.json({ error: "No company associated with this account" }, { status: 422 });
+    return NextResponse.redirect(`${settingsUrl}?error=xero_no_company`);
   }
 
   const appCreds = await getXeroAppCredentials();
   if (!appCreds.clientId) {
-    return NextResponse.json(
-      { error: "Xero Client ID is not configured. Contact your Site Command administrator." },
-      { status: 422 }
-    );
+    return NextResponse.redirect(`${settingsUrl}?error=xero_not_configured`);
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const redirectUri = `${baseUrl}/api/integrations/xero/callback`;
 
   const state = Buffer.from(JSON.stringify({ companyId: session.company_id })).toString("base64url");
