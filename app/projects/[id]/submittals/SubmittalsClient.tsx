@@ -782,15 +782,9 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
       }
       setSubmittals((prev) => [...prev, newSubmittal]);
       if (sendEmails) {
-        const distList = (rest.distribution_list as DirContact[]) ?? [];
-        const emails = distList.map((d) => d.email).filter(Boolean) as string[];
-        if (emails.length) {
-          await fetch(`/api/projects/${projectId}/submittals/${newSubmittal.id}/notify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ distribution_emails: emails, submittal_summary: `Submittal #${newSubmittal.submittal_number}: ${rest.title}` }),
-          });
-        }
+        await fetch(`/api/projects/${projectId}/submittals/${newSubmittal.id}/notify`, {
+          method: "POST",
+        });
       }
     }
     setCreating(false);
