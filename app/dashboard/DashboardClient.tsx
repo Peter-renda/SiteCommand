@@ -256,6 +256,9 @@ export default function DashboardClient({ username, email, role, companyRole, us
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
   const companyMenuRef = useRef<HTMLDivElement>(null);
+  const dashboardSearchRef = useRef<HTMLDivElement>(null);
+  const [dashboardSearch, setDashboardSearch] = useState("");
+  const [showDashboardSearch, setShowDashboardSearch] = useState(false);
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
@@ -344,10 +347,60 @@ export default function DashboardClient({ username, email, role, companyRole, us
       if (companyMenuRef.current && !companyMenuRef.current.contains(e.target as Node)) {
         setCompanyMenuOpen(false);
       }
+      if (dashboardSearchRef.current && !dashboardSearchRef.current.contains(e.target as Node)) {
+        setShowDashboardSearch(false);
+      }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  const searchQuery = dashboardSearch.trim().toLowerCase();
+  const dashboardSearchResults = searchQuery.length < 2
+    ? []
+    : [
+      ...projects
+        .filter((p) =>
+          [p.name, p.description, p.address, p.status].filter(Boolean).join(" ").toLowerCase().includes(searchQuery)
+        )
+        .map((p) => ({
+          id: `project-${p.id}`,
+          title: p.name,
+          subtitle: `Project • ${p.status || "No status"}`,
+          href: `/projects/${p.id}`,
+        })),
+      ...activities
+        .filter((a) =>
+          [a.title, a.project_name, TYPE_LABELS[a.type]].filter(Boolean).join(" ").toLowerCase().includes(searchQuery)
+        )
+        .map((a) => ({
+          id: `activity-${a.type}-${a.id}`,
+          title: a.title,
+          subtitle: `${TYPE_LABELS[a.type]} • ${a.project_name}`,
+          href:
+            a.type === "rfi"
+              ? `/projects/${a.project_id}/rfis/${a.id}`
+              : a.type === "submittal"
+                ? `/projects/${a.project_id}/submittals/${a.id}`
+                : a.type === "task"
+                  ? `/projects/${a.project_id}/tasks/${a.id}`
+                  : a.type === "document"
+                    ? `/projects/${a.project_id}/documents`
+                    : a.type === "daily_log"
+                      ? `/projects/${a.project_id}/daily-log`
+                      : `/projects/${a.project_id}/drawings`,
+        })),
+      ...myTasks
+        .filter((t) =>
+          [t.title, t.project_name, t.status].filter(Boolean).join(" ").toLowerCase().includes(searchQuery)
+        )
+        .map((t) => ({
+          id: `my-task-${t.id}`,
+          title: t.title,
+          subtitle: `My Task • ${t.project_name}`,
+          href: `/projects/${t.project_id}/tasks/${t.id}`,
+        })),
+    ].slice(0, 25);
 
   function toggleActivityType(type: string) {
     setVisibleCount(4);
@@ -486,6 +539,45 @@ export default function DashboardClient({ username, email, role, companyRole, us
           )}
         </div>
         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+          <div ref={dashboardSearchRef} className="relative hidden md:block w-[26rem] max-w-[36vw]">
+            <svg
+              className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              value={dashboardSearch}
+              onChange={(e) => { setDashboardSearch(e.target.value); setShowDashboardSearch(true); }}
+              onFocus={() => setShowDashboardSearch(true)}
+              placeholder="Search portal..."
+              className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
+            {showDashboardSearch && searchQuery.length >= 2 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto">
+                {dashboardSearchResults.length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-gray-400">No results found.</p>
+                ) : (
+                  <div className="py-1">
+                    {dashboardSearchResults.map((result) => (
+                      <a
+                        key={result.id}
+                        href={result.href}
+                        className="block px-3 py-2 hover:bg-gray-50"
+                        onClick={() => setShowDashboardSearch(false)}
+                      >
+                        <p className="text-sm text-gray-900 truncate">{result.title}</p>
+                        <p className="text-xs text-gray-500 truncate">{result.subtitle}</p>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {(companyRole === "super_admin" || companyRole === "admin") && (
             <a href="/company" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">
               Team

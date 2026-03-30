@@ -22,8 +22,16 @@ export default function ProjectNav({
 }) {
   const [open, setOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
+
+  const [portalSearch, setPortalSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchResults, setSearchResults] = useState<
+    { id: string; title: string; subtitle: string; href: string; section: string }[]
+  >([]);
 
   // null = not loaded yet, undefined = no restrictions (all enabled)
   const [enabledFeatures, setEnabledFeatures] = useState<string[] | null | undefined>(null);
@@ -47,10 +55,136 @@ export default function ProjectNav({
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (toolsRef.current && !toolsRef.current.contains(e.target as Node)) setOpen(false);
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowSearchResults(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  useEffect(() => {
+    const q = portalSearch.trim().toLowerCase();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const [dailyLogsRes, drawingsRes, documentsRes, directoryRes, rfisRes, submittalsRes, tasksRes] = await Promise.all([
+          fetch(`/api/projects/${projectId}/daily-log`).then((r) => (r.ok ? r.json() : [])),
+          fetch(`/api/projects/${projectId}/drawings`).then((r) => (r.ok ? r.json() : { drawings: [] })),
+          fetch(`/api/projects/${projectId}/documents?all_folders=true`).then((r) => (r.ok ? r.json() : [])),
+          fetch(`/api/projects/${projectId}/directory`).then((r) => (r.ok ? r.json() : [])),
+          fetch(`/api/projects/${projectId}/rfis`).then((r) => (r.ok ? r.json() : [])),
+          fetch(`/api/projects/${projectId}/submittals`).then((r) => (r.ok ? r.json() : [])),
+          fetch(`/api/projects/${projectId}/tasks`).then((r) => (r.ok ? r.json() : [])),
+        ]);
+
+        const nextResults: { id: string; title: string; subtitle: string; href: string; section: string }[] = [];
+
+        for (const log of dailyLogsRes ?? []) {
+          const text = [log.log_date, log.summary, log.notes].filter(Boolean).join(" ").toLowerCase();
+          if (text.includes(q)) {
+            nextResults.push({
+              id: `daily-${log.id}`,
+              title: `Daily Log — ${log.log_date ?? "Untitled"}`,
+              subtitle: log.summary || log.notes || "Daily report entry",
+              href: `/projects/${projectId}/daily-log`,
+              section: "Daily Logs",
+            });
+          }
+        }
+
+        const drawings = drawingsRes?.drawings ?? [];
+        for (const d of drawings) {
+          const text = [d.filename, d.title, d.drawing_no, d.revision].filter(Boolean).join(" ").toLowerCase();
+          if (text.includes(q)) {
+            nextResults.push({
+              id: `drawing-${d.id}`,
+              title: d.title || d.filename || `Drawing ${d.page_number ?? ""}`,
+              subtitle: [d.drawing_no, d.revision].filter(Boolean).join(" • ") || "Drawing",
+              href: `/projects/${projectId}/drawings`,
+              section: "Drawings",
+            });
+          }
+        }
+
+        for (const doc of documentsRes ?? []) {
+          const text = [doc.name, doc.type].filter(Boolean).join(" ").toLowerCase();
+          if (text.includes(q)) {
+            nextResults.push({
+              id: `doc-${doc.id}`,
+              title: doc.name || "Untitled",
+              subtitle: doc.type === "folder" ? "Folder" : "Document",
+              href: `/projects/${projectId}/documents`,
+              section: "Documents",
+            });
+          }
+        }
+
+        for (const c of directoryRes ?? []) {
+          const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ");
+          const text = [fullName, c.company, c.email, c.job_title].filter(Boolean).join(" ").toLowerCase();
+          if (text.includes(q)) {
+            nextResults.push({
+              id: `dir-${c.id}`,
+              title: fullName || c.email || "Unnamed contact",
+              subtitle: [c.company, c.job_title, c.email].filter(Boolean).join(" • ") || "Directory contact",
+              href: `/projects/${projectId}/directory`,
+              section: "Directory",
+            });
+          }
+        }
+
+        for (const rfi of rfisRes ?? []) {
+          const text = [rfi.number, rfi.subject, rfi.question, rfi.status].filter(Boolean).join(" ").toLowerCase();
+          if (text.includes(q)) {
+            nextResults.push({
+              id: `rfi-${rfi.id}`,
+              title: `${rfi.number ? `${rfi.number} — ` : ""}${rfi.subject || "RFI"}`,
+              subtitle: rfi.status || "RFI",
+              href: `/projects/${projectId}/rfis/${rfi.id}`,
+              section: "RFIs",
+            });
+          }
+        }
+
+        for (const submittal of submittalsRes ?? []) {
+          const text = [submittal.number, submittal.title, submittal.status].filter(Boolean).join(" ").toLowerCase();
+          if (text.includes(q)) {
+            nextResults.push({
+              id: `sub-${submittal.id}`,
+              title: `${submittal.number ? `${submittal.number} — ` : ""}${submittal.title || "Submittal"}`,
+              subtitle: submittal.status || "Submittal",
+              href: `/projects/${projectId}/submittals/${submittal.id}`,
+              section: "Submittals",
+            });
+          }
+        }
+
+        for (const task of tasksRes ?? []) {
+          const text = [task.title, task.description, task.status, task.priority].filter(Boolean).join(" ").toLowerCase();
+          if (text.includes(q)) {
+            nextResults.push({
+              id: `task-${task.id}`,
+              title: task.title || "Task",
+              subtitle: [task.status, task.priority].filter(Boolean).join(" • ") || "Task",
+              href: `/projects/${projectId}/tasks/${task.id}`,
+              section: "Tasks",
+            });
+          }
+        }
+
+        setSearchResults(nextResults.slice(0, 30));
+      } finally {
+        setSearching(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [portalSearch, projectId]);
 
   // Fetch favorites on mount
   useEffect(() => {
@@ -261,10 +395,55 @@ export default function ProjectNav({
           </>
         )}
 
+        <div ref={searchRef} className="relative ml-auto w-full max-w-md">
+          <svg
+            className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+          <input
+            value={portalSearch}
+            onChange={(e) => {
+              setPortalSearch(e.target.value);
+              setShowSearchResults(true);
+            }}
+            onFocus={() => setShowSearchResults(true)}
+            placeholder="Search portal (reports, drawings, docs, directory...)"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+          />
+          {showSearchResults && portalSearch.trim().length >= 2 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[9999] max-h-[26rem] overflow-y-auto">
+              {searching && <p className="px-3 py-2 text-xs text-gray-400">Searching portal...</p>}
+              {!searching && searchResults.length === 0 && (
+                <p className="px-3 py-2 text-xs text-gray-400">No results found.</p>
+              )}
+              {!searching && searchResults.length > 0 && (
+                <div className="py-1">
+                  {searchResults.map((result) => (
+                    <a
+                      key={result.id}
+                      href={result.href}
+                      className="block px-3 py-2 hover:bg-gray-50"
+                      onClick={() => setShowSearchResults(false)}
+                    >
+                      <p className="text-sm text-gray-900 font-medium truncate">{result.title}</p>
+                      <p className="text-xs text-gray-500 truncate">{result.section} • {result.subtitle}</p>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Settings */}
         <button
           onClick={openSettings}
-          className="ml-auto py-2.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0"
+          className="py-2.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0"
           title="Settings"
         >
           Settings
