@@ -96,77 +96,56 @@ const faqs = [
 
 export default function SchedulePage() {
   return (
-    <div className="min-h-dvh bg-white">
+    <div className="min-h-dvh" style={{ background: "#FAFAF9" }}>
       <Navbar />
 
       {/* Hero */}
-      <section className="relative flex flex-col items-start justify-center min-h-[90vh] px-6 sm:px-10 max-w-7xl mx-auto">
-        <div
-          className="absolute inset-0 -z-10 pointer-events-none"
-          aria-hidden="true"
-          style={{
-            background:
-              "radial-gradient(ellipse 70% 60% at 60% 40%, rgba(212,80,10,0.07) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 20% 80%, rgba(0,0,0,0.03) 0%, transparent 60%)",
-          }}
-        />
-        <div className="max-w-3xl pt-32 pb-20">
-          <span className="inline-block text-xs font-semibold tracking-wide text-orange-700 bg-orange-50 border border-orange-100 rounded px-2.5 py-1 mb-8">
-            Construction · Schedule
-          </span>
-          <h1
-            className="text-6xl sm:text-7xl font-bold tracking-tight text-gray-950 leading-[1.05]"
-            style={{ letterSpacing: "-0.03em" }}
-          >
-            Keep the field on<br />
-            <span className="text-gray-400">the same plan.</span>
-          </h1>
-          <p className="mt-8 text-xl text-gray-500 max-w-xl leading-relaxed">
-            Build schedules that connect planning to execution — with real-time
-            updates, lookaheads, and delay tracking that keeps every crew,
-            trade, and stakeholder aligned.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-4">
-            <Link
-              href="/pricing"
-              className="px-7 py-3.5 text-sm font-semibold text-white bg-gray-950 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
-            >
-              Get started free
-            </Link>
-            <Link
-              href="/demo"
-              className="px-7 py-3.5 text-sm font-semibold text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all duration-150"
-            >
-              See a demo
-            </Link>
+      <section className="relative overflow-hidden pt-28 pb-20 px-6 sm:px-10">
+        <div className="absolute inset-0 -z-10 pointer-events-none" style={{ background: "radial-gradient(ellipse 60% 50% at 65% 25%, rgba(212,80,10,0.05) 0%, transparent 65%)" }} />
+        <div className="max-w-7xl mx-auto">
+          <div className="max-w-3xl">
+            <div className="animate-fade-up inline-flex items-center gap-2 mb-8">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+              <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Construction · Schedule</span>
+            </div>
+            <h1 className="animate-fade-up delay-100" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em", fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
+              Keep the field on<br /><em className="not-italic" style={{ color: "#C0C0BC" }}>the same plan.</em>
+            </h1>
+            <p className="animate-fade-up delay-200 mt-7 text-lg text-gray-500 max-w-md leading-relaxed">
+              Build schedules that connect planning to execution — with real-time
+              updates, lookaheads, and delay tracking that keeps every crew,
+              trade, and stakeholder aligned.
+            </p>
+            <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
+              <Link href="/pricing" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                <span className="relative z-10">Get started free</span>
+                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
+              </Link>
+              <Link href="/demo" className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:border-gray-300 hover:bg-white active:scale-[0.98]" style={{ background: "rgba(255,255,255,0.6)" }}>
+                See a demo <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="border-t border-gray-100 bg-gray-950 py-16 px-6 sm:px-10">
+      {/* Stats Strip */}
+      <section className="border-y py-12 px-6 sm:px-10" style={{ borderColor: "rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
           {stats.map((s) => (
             <div key={s.label} className="flex flex-col gap-1">
-              <span
-                className="text-4xl font-bold text-white"
-                style={{ letterSpacing: "-0.03em" }}
-              >
-                {s.value}
-              </span>
+              <span className="text-3xl font-bold tabular-nums text-gray-950" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>{s.value}</span>
               <span className="text-sm text-gray-400">{s.label}</span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Intro paragraph */}
-      <section className="py-20 px-6 sm:px-10">
+      {/* Intro 2-col */}
+      <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           <div>
-            <h2
-              className="text-4xl font-bold text-gray-950 leading-tight mb-6"
-              style={{ letterSpacing: "-0.02em" }}
-            >
+            <h2 className="text-4xl font-bold text-gray-950 leading-tight mb-6" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
               Work confidently with<br />one version of the truth.
             </h2>
             <p className="text-lg text-gray-500 leading-relaxed mb-4">
@@ -181,70 +160,57 @@ export default function SchedulePage() {
               to the field in seconds — no reprinting, no re-emailing.
             </p>
           </div>
-          <div className="rounded-2xl bg-gray-50 border border-gray-100 p-8 space-y-4">
-            {[
-              "Gantt, milestone, and calendar views",
-              "Import from Primavera P6 and MS Project",
-              "Field-ready on any mobile device or browser",
-              "Delays linked to RFIs, submittals & observations",
-              "Role-based access for owners, subs & inspectors",
-            ].map((point) => (
-              <div key={point} className="flex items-start gap-3">
-                <svg
-                  className="w-5 h-5 text-orange-500 mt-0.5 shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="text-sm text-gray-700">{point}</span>
-              </div>
-            ))}
+          <div className="rounded-2xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "1.5px" }}>
+            <div className="rounded-[14px] p-8 space-y-4" style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+              {[
+                "Gantt, milestone, and calendar views",
+                "Import from Primavera P6 and MS Project",
+                "Field-ready on any mobile device or browser",
+                "Delays linked to RFIs, submittals & observations",
+                "Role-based access for owners, subs & inspectors",
+              ].map((point) => (
+                <div key={point} className="flex items-start gap-3">
+                  <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "#D4500A" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-gray-700">{point}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Features grid */}
-      <section className="border-t border-gray-100 bg-gray-50 py-20 px-6 sm:px-10">
+      {/* Features Grid */}
+      <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto">
-          <p className="text-xs font-semibold tracking-wide text-gray-400 uppercase mb-4">
-            Core capabilities
-          </p>
-          <h2
-            className="text-3xl font-bold text-gray-950 mb-14"
-            style={{ letterSpacing: "-0.02em" }}
-          >
+          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Core capabilities</span>
+          <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-gray-950 mb-14" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
             Everything you need to plan, track, and deliver on time
           </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {features.map((f) => (
-              <div
-                key={f.name}
-                className="bg-white rounded-xl border border-gray-100 p-6 flex flex-col gap-3 hover:border-gray-200 hover:shadow-sm transition-all duration-150"
-              >
-                <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-500 flex items-center justify-center">
-                  {f.icon}
+              <div key={f.name} className="rounded-2xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "1.5px" }}>
+                <div className="h-full rounded-[14px] p-6 flex flex-col gap-4" style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(212,80,10,0.08)" }}>
+                    <div style={{ color: "#D4500A" }}>{f.icon}</div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1.5">{f.name}</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
+                  </div>
                 </div>
-                <h3 className="font-semibold text-gray-900">{f.name}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="py-20 px-6 sm:px-10">
+      {/* How It Works */}
+      <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
         <div className="max-w-7xl mx-auto">
-          <p className="text-xs font-semibold tracking-wide text-gray-400 uppercase mb-4">
-            How it works
-          </p>
-          <h2
-            className="text-3xl font-bold text-gray-950 mb-14 max-w-lg"
-            style={{ letterSpacing: "-0.02em" }}
-          >
+          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">How it works</span>
+          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-14 max-w-lg" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
             From baseline to closeout
           </h2>
           <div className="grid md:grid-cols-3 gap-10">
@@ -266,8 +232,11 @@ export default function SchedulePage() {
               },
             ].map((item) => (
               <div key={item.step} className="flex flex-col gap-4">
-                <span className="text-xs font-bold text-orange-400 tracking-widest">{item.step}</span>
-                <h3 className="text-lg font-semibold text-gray-900">{item.title}</h3>
+                <div className="inline-flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+                  <span className="text-xs font-bold tracking-widest text-gray-400 uppercase">{item.step}</span>
+                </div>
+                <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{item.body}</p>
               </div>
             ))}
@@ -276,50 +245,28 @@ export default function SchedulePage() {
       </section>
 
       {/* Mid-page CTA */}
-      <section className="border-t border-gray-100 bg-orange-50 py-16 px-6 sm:px-10">
+      <section className="py-16 px-6 sm:px-10" style={{ background: "#F5F0EC", borderTop: "1px solid rgba(0,0,0,0.06)", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
           <div className="max-w-xl">
-            <h2
-              className="text-2xl font-bold text-gray-950 mb-2"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              See SiteCommand on your next project
-            </h2>
-            <p className="text-sm text-gray-500">
-              Schedule a 20-minute walkthrough with our team. No slides — just
-              live software on a real project.
-            </p>
+            <h2 className="text-2xl font-bold text-gray-950 mb-2" style={{ fontFamily: "var(--font-dm-serif)" }}>See SiteCommand on your next project</h2>
+            <p className="text-sm text-gray-500">Schedule a 20-minute walkthrough with our team. No slides — just live software on a real project.</p>
           </div>
-          <div className="flex gap-4 flex-wrap shrink-0">
-            <Link
-              href="/demo"
-              className="px-7 py-3.5 text-sm font-semibold text-white bg-gray-950 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
-            >
-              Request a demo
+          <div className="flex gap-3 flex-wrap shrink-0">
+            <Link href="/demo" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+              <span className="relative z-10">Request a demo</span>
+              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
             </Link>
-            <Link
-              href="/pricing"
-              className="px-7 py-3.5 text-sm font-semibold text-gray-700 border border-gray-300 bg-white rounded-lg hover:bg-gray-50 active:scale-[0.98] transition-all duration-150"
-            >
-              View pricing
-            </Link>
+            <Link href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-all">View pricing</Link>
           </div>
         </div>
       </section>
 
       {/* FAQ */}
-      <section className="py-20 px-6 sm:px-10">
+      <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
         <div className="max-w-3xl mx-auto">
-          <p className="text-xs font-semibold tracking-wide text-gray-400 uppercase mb-4">
-            FAQ
-          </p>
-          <h2
-            className="text-3xl font-bold text-gray-950 mb-12"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            Common questions
-          </h2>
-          <div className="divide-y divide-gray-100">
+          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">FAQ</span>
+          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-12" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Common questions</h2>
+          <div className="divide-y" style={{ borderColor: "rgba(0,0,0,0.06)" }}>
             {faqs.map((faq) => (
               <div key={faq.q} className="py-6">
                 <h3 className="font-semibold text-gray-900 mb-2">{faq.q}</h3>
@@ -331,46 +278,45 @@ export default function SchedulePage() {
       </section>
 
       {/* Bottom CTA */}
-      <section className="border-t border-gray-100 bg-gray-950 py-20 px-6 sm:px-10">
-        <div className="max-w-7xl mx-auto flex flex-col items-center text-center gap-6">
-          <h2
-            className="text-4xl font-bold text-white max-w-xl leading-tight"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            Deliver your next project on time
-          </h2>
-          <p className="text-gray-400 text-lg max-w-md">
-            Join hundreds of contractors who've replaced static spreadsheets
-            with a live schedule the whole team can trust.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center mt-2">
-            <Link
-              href="/pricing"
-              className="px-7 py-3.5 text-sm font-semibold text-gray-950 bg-white rounded-lg hover:bg-gray-100 active:scale-[0.98] transition-all duration-150"
-            >
-              Get started free
-            </Link>
-            <Link
-              href="/demo"
-              className="px-7 py-3.5 text-sm font-semibold text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
-            >
-              Request a demo
-            </Link>
+      <section className="py-24 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="rounded-3xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 4px 16px rgba(0,0,0,0.05), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "2px" }}>
+            <div className="rounded-[22px] px-10 py-20 text-center relative overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+              <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 0%, rgba(212,80,10,0.04) 0%, transparent 70%)" }} />
+              <div className="relative">
+                <span className="inline-flex items-center gap-2 mb-6">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+                  <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Get started today</span>
+                </span>
+                <h2 className="text-4xl sm:text-5xl font-bold text-gray-950 leading-tight" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Deliver your next project on time</h2>
+                <p className="mt-5 text-lg text-gray-400 max-w-md mx-auto">
+                  Join hundreds of contractors who've replaced static spreadsheets
+                  with a live schedule the whole team can trust.
+                </p>
+                <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+                  <Link href="/pricing" className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                    <span className="relative z-10">Get started free</span>
+                    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
+                  </Link>
+                  <Link href="/demo" className="px-8 py-4 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98]">Request a demo</Link>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 bg-gray-950 py-10 px-6 sm:px-10">
+      <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-white">SiteCommand</span>
-          <div className="flex flex-wrap gap-6 text-xs text-gray-500">
-            <a href="/pricing" className="hover:text-gray-300 transition-colors">Pricing</a>
-            <a href="/demo" className="hover:text-gray-300 transition-colors">Demo</a>
-            <a href="#" className="hover:text-gray-300 transition-colors">Privacy policy</a>
-            <a href="#" className="hover:text-gray-300 transition-colors">Terms of service</a>
+          <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <div className="flex flex-wrap gap-6 text-xs text-gray-400">
+            <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
+            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
+            <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
+            <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>
-          <p className="text-xs text-gray-600">&copy; {new Date().getFullYear()} SiteCommand</p>
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} SiteCommand</p>
         </div>
       </footer>
     </div>

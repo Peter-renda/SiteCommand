@@ -86,54 +86,56 @@ export default function BIMPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ background: "#FAFAF9" }}>
       <Navbar />
 
       {/* Hero */}
-      <section className="pt-32 pb-24 px-6 bg-gradient-to-b from-gray-50 to-white text-center">
-        <div className="max-w-3xl mx-auto">
-          <span className="inline-block mb-4 px-3 py-1 text-xs font-semibold text-gray-500 bg-gray-100 rounded-full tracking-wider uppercase">
-            Preconstruction
-          </span>
-          <h1 className="text-5xl font-bold tracking-tight text-gray-900 mb-6">
-            BIM for construction management
-          </h1>
-          <p className="text-xl text-gray-500 mb-10 leading-relaxed">
-            Revolutionize your projects with BIM that's simple, intuitive, and designed to unlock collaboration for everyone, everywhere — from the design table to the jobsite.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/signup"
-              className="px-6 py-3 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
-            >
-              Request a demo
-            </Link>
-            <Link
-              href="/pricing"
-              className="px-6 py-3 text-sm font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              See pricing
-            </Link>
+      <section className="relative overflow-hidden pt-28 pb-20 px-6 sm:px-10">
+        <div className="absolute inset-0 -z-10 pointer-events-none" style={{ background: "radial-gradient(ellipse 60% 50% at 65% 25%, rgba(212,80,10,0.05) 0%, transparent 65%)" }} />
+        <div className="max-w-7xl mx-auto">
+          <div className="max-w-3xl">
+            <div className="animate-fade-up inline-flex items-center gap-2 mb-8">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+              <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Preconstruction</span>
+            </div>
+            <h1 className="animate-fade-up delay-100" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em", fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
+              BIM for construction<br />
+              <em className="not-italic" style={{ color: "#C0C0BC" }}>management.</em>
+            </h1>
+            <p className="animate-fade-up delay-200 mt-7 text-lg text-gray-500 max-w-md leading-relaxed">
+              Revolutionize your projects with BIM that&apos;s simple, intuitive, and designed to unlock collaboration for everyone, everywhere — from the design table to the jobsite.
+            </p>
+            <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
+              <a href="/signup" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                <span className="relative z-10">Request a demo</span>
+                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
+              </a>
+              <a href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-all" style={{ background: "rgba(255,255,255,0.6)" }}>See pricing</a>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Stats bar */}
-      <section className="py-16 px-6 border-y border-gray-100">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
+      {/* Stats Strip */}
+      <section className="border-y py-12 px-6 sm:px-10" style={{ borderColor: "rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           {stats.map((s) => (
             <div key={s.value}>
-              <p className="text-5xl font-bold text-gray-900 mb-2">{s.value}</p>
-              <p className="text-sm text-gray-500 leading-relaxed">{s.label}</p>
+              <p className="text-4xl font-bold text-gray-950 mb-1 tabular-nums" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>{s.value}</p>
+              <p className="text-sm text-gray-400 leading-relaxed">{s.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* What is BIM */}
-      <section className="py-24 px-6">
+      <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">What is BIM?</h2>
+          <div className="inline-flex items-center gap-2 mb-5">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+            <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Overview</span>
+          </div>
+          <h2 className="text-3xl font-bold text-gray-950 mb-6" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>What is BIM?</h2>
           <p className="text-lg text-gray-500 leading-relaxed mb-6">
             Building Information Modeling (BIM) is a 3D model-based process that gives architecture, engineering, and construction professionals insights and tools to more efficiently plan, design, construct, and manage buildings and infrastructure.
           </p>
@@ -143,26 +145,23 @@ export default function BIMPage() {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-24 px-6 bg-gray-50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Build with confidence</h2>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              SiteCommand BIM connects your models, your team, and your project data — so every decision is grounded in the most current information.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Features Grid */}
+      <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
+        <div className="max-w-7xl mx-auto">
+          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Features</span>
+          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-14" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Build with confidence</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {features.map((f) => (
-              <div
-                key={f.title}
-                className="bg-white border border-gray-100 rounded-2xl p-8 hover:shadow-md transition-shadow"
-              >
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 mb-5">
-                  {f.icon}
+              <div key={f.title} className="rounded-2xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "1.5px" }}>
+                <div className="h-full rounded-[14px] p-6 flex flex-col gap-4" style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(212,80,10,0.08)" }}>
+                    <div style={{ color: "#D4500A" }}>{f.icon}</div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1.5">{f.title}</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{f.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{f.description}</p>
               </div>
             ))}
           </div>
@@ -170,45 +169,44 @@ export default function BIMPage() {
       </section>
 
       {/* How BIM is transforming construction */}
-      <section className="py-24 px-6">
+      <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">How BIM is transforming construction</h2>
+          <div className="inline-flex items-center gap-2 mb-5">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+            <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Impact</span>
+          </div>
+          <h2 className="text-3xl font-bold text-gray-950 mb-6" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>How BIM is transforming construction</h2>
           <p className="text-lg text-gray-500 leading-relaxed mb-6">
             BIM transforms construction by fundamentally changing how projects are planned, executed, and managed. The technology enables teams to virtually build and optimize structures before construction begins, significantly reducing the rework that accounts for roughly 30% of total project cost on traditional builds.
           </p>
           <p className="text-lg text-gray-500 leading-relaxed">
-            Connected to SiteCommand's project management, documents, and financial tools, BIM data becomes actionable across every phase — from early design through final closeout. Owners get real-time visibility, GCs reduce surprises, and subcontractors arrive on site knowing exactly what to build.
+            Connected to SiteCommand&apos;s project management, documents, and financial tools, BIM data becomes actionable across every phase — from early design through final closeout. Owners get real-time visibility, GCs reduce surprises, and subcontractors arrive on site knowing exactly what to build.
           </p>
         </div>
       </section>
 
       {/* FAQ */}
-      <section className="py-24 px-6 bg-gray-50">
+      <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
-            Frequently asked questions
-          </h2>
-          <div className="space-y-3">
+          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">FAQ</span>
+          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-12" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Frequently asked questions</h2>
+          <div className="space-y-2">
             {faqs.map((faq, i) => (
-              <div key={i} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                <button
-                  className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-gray-50 transition-colors"
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                >
-                  <span className="font-medium text-gray-900">{faq.question}</span>
-                  <svg
-                    className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ml-4 ${openFaq === i ? "rotate-180" : ""}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
+              <div key={i} className="rounded-xl overflow-hidden" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
+                <div className="rounded-xl overflow-hidden" style={{ background: "#FFFFFF", margin: "1.5px" }}>
+                  <button
+                    className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50/60 transition-colors"
+                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {openFaq === i && (
-                  <div className="px-6 pb-5 text-sm text-gray-500 leading-relaxed">{faq.answer}</div>
-                )}
+                    <span className="font-medium text-gray-900 text-sm">{faq.question}</span>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ml-4 ${openFaq === i ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {openFaq === i && (
+                    <div className="px-6 pb-4 text-sm text-gray-500 leading-relaxed" style={{ borderTop: "1px solid rgba(0,0,0,0.05)" }}>{faq.answer}</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -216,28 +214,46 @@ export default function BIMPage() {
       </section>
 
       {/* Bottom CTA */}
-      <section className="py-24 px-6 bg-gray-900 text-white text-center">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Ready to build smarter?</h2>
-          <p className="text-gray-400 mb-10 text-lg">
-            Give every member of your team — from the design studio to the field — access to the same intelligent model.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/signup"
-              className="px-6 py-3 text-sm font-medium text-gray-900 bg-white rounded-md hover:bg-gray-100 transition-colors"
-            >
-              Request a demo
-            </Link>
-            <Link
-              href="/pricing"
-              className="px-6 py-3 text-sm font-medium text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors"
-            >
-              See pricing
-            </Link>
+      <section className="py-24 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="rounded-3xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 4px 16px rgba(0,0,0,0.05), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "2px" }}>
+            <div className="rounded-[22px] px-10 py-20 text-center relative overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+              <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 0%, rgba(212,80,10,0.04) 0%, transparent 70%)" }} />
+              <div className="relative">
+                <span className="inline-flex items-center gap-2 mb-6">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+                  <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Get started today</span>
+                </span>
+                <h2 className="text-4xl sm:text-5xl font-bold text-gray-950 leading-tight" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Ready to build smarter?</h2>
+                <p className="mt-5 text-lg text-gray-400 max-w-md mx-auto">
+                  Give every member of your team — from the design studio to the field — access to the same intelligent model.
+                </p>
+                <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+                  <a href="/signup" className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                    <span className="relative z-10">Request a demo</span>
+                    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
+                  </a>
+                  <a href="/pricing" className="px-8 py-4 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98]">See pricing</a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <div className="flex flex-wrap gap-6 text-xs text-gray-400">
+            <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
+            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
+            <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
+            <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
+          </div>
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} SiteCommand</p>
+        </div>
+      </footer>
     </div>
   );
 }
