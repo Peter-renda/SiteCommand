@@ -281,101 +281,6 @@ const DEMO_EVENTS: ChangeEvent[] = [
   },
 ];
 
-// ── Create Modal ───────────────────────────────────────────────────────────────
-
-function CreateModal({
-  projectId,
-  onClose,
-  onCreated,
-}: {
-  projectId: string;
-  onClose: () => void;
-  onCreated: (ev: ChangeEvent) => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [status, setStatus] = useState("Open");
-  const [saving, setSaving] = useState(false);
-  const backdropRef = useRef<HTMLDivElement>(null);
-
-  async function handleSave() {
-    if (!title.trim()) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/change-events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), status }),
-      });
-      if (res.ok) {
-        const ev = await res.json();
-        onCreated(ev);
-        onClose();
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div
-      ref={backdropRef}
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-      onMouseDown={(e) => {
-        if (e.target === backdropRef.current) onClose();
-      }}
-    >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-900">New Change Event</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="px-5 py-4 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Title *</label>
-            <input
-              autoFocus
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Change event title"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900"
-            >
-              {["Open", "Pending", "Approved", "Rejected", "Void"].map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-100">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !title.trim()}
-            className="px-4 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-50"
-          >
-            {saving ? "Creating…" : "Create"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function ChangeEventsClient({
@@ -391,7 +296,6 @@ export default function ChangeEventsClient({
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showCreate, setShowCreate] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -553,7 +457,7 @@ export default function ChangeEventsClient({
           </div>
           {canCreate && (
             <button
-              onClick={() => setShowCreate(true)}
+              onClick={() => router.push(`/projects/${projectId}/change-events/new`)}
               className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors font-medium"
             >
               <Plus className="w-3.5 h-3.5" /> Create
@@ -953,14 +857,6 @@ export default function ChangeEventsClient({
         </div>
       )}
 
-      {/* ── Create modal ──────────────────────────────────────────────────────── */}
-      {showCreate && (
-        <CreateModal
-          projectId={projectId}
-          onClose={() => setShowCreate(false)}
-          onCreated={(ev) => setEvents((prev) => [ev, ...prev])}
-        />
-      )}
     </div>
   );
 }
