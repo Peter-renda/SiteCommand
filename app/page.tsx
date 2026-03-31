@@ -1,109 +1,627 @@
 import Navbar from "./components/Navbar";
 
+const features = [
+  {
+    name: "RFI Management",
+    desc: "Track requests for information from submittal to resolution. No lost emails, no missed deadlines.",
+    large: true,
+    accentColor: "#D4500A",
+  },
+  {
+    name: "Submittals",
+    desc: "Manage approvals without chasing emails or lost documents.",
+    large: false,
+    accentColor: "#6366F1",
+  },
+  {
+    name: "Daily Logs",
+    desc: "Record manpower, weather, and site activity every day.",
+    large: false,
+    accentColor: "#0EA5E9",
+  },
+  {
+    name: "Drawing Control",
+    desc: "Keep the team on the current set — always. Version control for your construction drawings.",
+    large: true,
+    accentColor: "#111110",
+  },
+  {
+    name: "Schedule Tracking",
+    desc: "See where you are versus where you planned to be.",
+    large: false,
+    accentColor: "#10B981",
+  },
+  {
+    name: "Budget & Costs",
+    desc: "Monitor spend against budget before it becomes a problem.",
+    large: false,
+    accentColor: "#F59E0B",
+  },
+];
+
+const stats = [
+  { value: "200+", label: "Construction teams" },
+  { value: "4.9", label: "Average rating" },
+  { value: "40%", label: "Less time on admin" },
+  { value: "1 place", label: "For everything" },
+];
+
 export default function Home() {
   return (
-    <div className="min-h-dvh bg-white">
-      <a href="#main-content" className="skip-link">Skip to content</a>
+    <div className="min-h-dvh" style={{ background: "#FAFAF9" }}>
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
       <Navbar />
 
-      {/* Hero */}
-      <main
-        id="main-content"
-        className="relative flex flex-col items-start justify-center min-h-dvh px-6 sm:px-10 max-w-7xl mx-auto"
-      >
-        {/* Ambient background gradient */}
-        <div
-          className="absolute inset-0 -z-10 pointer-events-none"
-          aria-hidden="true"
-          style={{
-            background:
-              "radial-gradient(ellipse 70% 60% at 60% 40%, rgba(212,80,10,0.07) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 20% 80%, rgba(0,0,0,0.03) 0%, transparent 60%)",
-          }}
-        />
+      <main id="main-content">
+        {/* ── Hero ── */}
+        <section className="relative overflow-hidden pt-28 pb-20 px-6 sm:px-10">
+          {/* Ambient glow */}
+          <div
+            className="absolute inset-0 -z-10 pointer-events-none"
+            aria-hidden="true"
+            style={{
+              background:
+                "radial-gradient(ellipse 60% 50% at 75% 25%, rgba(212,80,10,0.06) 0%, transparent 65%), radial-gradient(ellipse 40% 35% at 15% 85%, rgba(212,80,10,0.04) 0%, transparent 60%)",
+            }}
+          />
 
-        <div className="max-w-3xl pt-32 pb-24">
-          <span className="inline-block text-xs font-semibold tracking-wide text-orange-700 bg-orange-50 border border-orange-100 rounded px-2.5 py-1 mb-8">
-            Built for contractors
-          </span>
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_460px] xl:grid-cols-[1fr_500px] gap-12 xl:gap-20 items-center">
 
-          <h1
-            className="text-6xl sm:text-7xl font-bold tracking-tight text-gray-950 leading-[1.05]"
-            style={{ letterSpacing: "-0.03em" }}
-          >
-            Take command<br />
-            <span className="text-gray-400">of your site.</span>
-          </h1>
+              {/* ── Left: Copy ── */}
+              <div>
+                {/* Eyebrow tag */}
+                <div className="animate-fade-up inline-flex items-center gap-2 mb-8">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: "#D4500A" }}
+                  />
+                  <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">
+                    Built for contractors
+                  </span>
+                </div>
 
-          <p className="mt-8 text-xl text-gray-500 max-w-xl leading-relaxed">
-            RFIs, submittals, daily logs, drawings, and schedules — managed in
-            one place. Built for contractors who need clarity, not chaos.
-          </p>
+                {/* Headline — DM Serif Display for editorial luxury */}
+                <h1
+                  className="animate-fade-up delay-100 text-[clamp(2.8rem,6.5vw,5.2rem)] leading-[0.96] tracking-tight text-gray-950"
+                  style={{
+                    fontFamily: "var(--font-dm-serif)",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  Take command
+                  <br />
+                  <em
+                    className="not-italic"
+                    style={{ color: "#C0C0BC" }}
+                  >
+                    of your site.
+                  </em>
+                </h1>
 
-          <div className="mt-10 flex flex-wrap gap-4">
-            <a
-              href="/pricing"
-              className="px-7 py-3.5 text-sm font-semibold text-white bg-gray-950 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
-            >
-              Get started free
-            </a>
-            <a
-              href="/demo"
-              className="px-7 py-3.5 text-sm font-semibold text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all duration-150"
-            >
-              See a demo
-            </a>
+                <p className="animate-fade-up delay-200 mt-7 text-lg text-gray-500 max-w-md leading-relaxed">
+                  RFIs, submittals, daily logs, drawings, and schedules —
+                  managed in one place. Built for contractors who need
+                  clarity, not chaos.
+                </p>
+
+                {/* CTAs */}
+                <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
+                  <a
+                    href="/pricing"
+                    className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98]"
+                    style={{ background: "#111110" }}
+                  >
+                    <span className="relative z-10">Get started free</span>
+                    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity duration-200" />
+                  </a>
+                  <a
+                    href="/demo"
+                    className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-white hover:text-gray-900 active:scale-[0.98]"
+                    style={{ background: "rgba(255,255,255,0.6)" }}
+                  >
+                    See a demo
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </a>
+                </div>
+
+                {/* Social proof */}
+                <div className="animate-fade-up delay-400 mt-12 flex items-center gap-4 pt-10 border-t border-gray-100">
+                  <div className="flex -space-x-1.5">
+                    {(["#C2410C", "#B45309", "#047857", "#1D4ED8"] as const).map(
+                      (color, i) => (
+                        <div
+                          key={i}
+                          className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-white text-[9px] font-bold"
+                          style={{ background: color }}
+                        >
+                          {["T", "J", "R", "M"][i]}
+                        </div>
+                      )
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-0.5 mb-1">
+                      {[...Array(5)].map((_, i) => (
+                        <svg
+                          key={i}
+                          className="w-3 h-3 text-orange-400"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      4.9 · Trusted by 200+ construction teams
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Right: Product preview — Double-Bezel card ── */}
+              <div className="hidden lg:block animate-scale-in delay-200">
+                {/* Outer shell */}
+                <div
+                  className="rounded-2xl"
+                  style={{
+                    background:
+                      "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.6) 100%)",
+                    border: "1px solid rgba(0,0,0,0.06)",
+                    boxShadow:
+                      "0 24px 48px rgba(0,0,0,0.09), 0 6px 16px rgba(0,0,0,0.05), 0 1px 0 rgba(255,255,255,0.8) inset",
+                    padding: "2px",
+                  }}
+                >
+                  {/* Inner core */}
+                  <div
+                    className="rounded-[14px] overflow-hidden"
+                    style={{
+                      background: "#FFFFFF",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
+                    }}
+                  >
+                    {/* Mock app header */}
+                    <div
+                      className="px-5 py-3.5 border-b flex items-center justify-between"
+                      style={{
+                        borderColor: "rgba(0,0,0,0.05)",
+                        background: "rgba(250,250,249,0.9)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className="w-2 h-2 rounded-full"
+                          style={{ background: "#D4500A" }}
+                        />
+                        <span className="text-xs font-semibold text-gray-700 tracking-wide">
+                          RFI Tracker
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="px-2 py-0.5 text-[10px] font-medium rounded-full"
+                          style={{
+                            color: "#C2410C",
+                            background: "#FFF7ED",
+                            border: "1px solid #FED7AA",
+                          }}
+                        >
+                          3 Open
+                        </span>
+                        <span
+                          className="px-2 py-0.5 text-[10px] font-medium rounded-full"
+                          style={{
+                            color: "#047857",
+                            background: "#ECFDF5",
+                            border: "1px solid #A7F3D0",
+                          }}
+                        >
+                          12 Closed
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Mock RFI rows */}
+                    <div className="divide-y" style={{ borderColor: "rgba(0,0,0,0.04)" }}>
+                      {[
+                        {
+                          id: "RFI-024",
+                          title: "Structural beam specifications",
+                          status: "Open",
+                          statusStyle: {
+                            color: "#C2410C",
+                            background: "#FFF7ED",
+                            border: "1px solid #FED7AA",
+                          },
+                        },
+                        {
+                          id: "RFI-023",
+                          title: "Electrical panel location change",
+                          status: "In Review",
+                          statusStyle: {
+                            color: "#1D4ED8",
+                            background: "#EFF6FF",
+                            border: "1px solid #BFDBFE",
+                          },
+                        },
+                        {
+                          id: "RFI-022",
+                          title: "Waterproofing membrane detail",
+                          status: "Closed",
+                          statusStyle: {
+                            color: "#6B7280",
+                            background: "#F9FAFB",
+                            border: "1px solid #E5E7EB",
+                          },
+                        },
+                        {
+                          id: "RFI-021",
+                          title: "Door hardware schedule revision",
+                          status: "Closed",
+                          statusStyle: {
+                            color: "#6B7280",
+                            background: "#F9FAFB",
+                            border: "1px solid #E5E7EB",
+                          },
+                        },
+                      ].map((rfi) => (
+                        <div
+                          key={rfi.id}
+                          className="px-5 py-3.5 flex items-center gap-3 transition-colors duration-100 hover:bg-gray-50/70"
+                        >
+                          <span className="text-[10px] font-mono text-gray-400 w-14 shrink-0 tabular-nums">
+                            {rfi.id}
+                          </span>
+                          <span className="text-xs text-gray-700 flex-1 truncate">
+                            {rfi.title}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 text-[10px] font-medium rounded-full shrink-0"
+                            style={rfi.statusStyle}
+                          >
+                            {rfi.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Mock footer */}
+                    <div
+                      className="px-5 py-3 border-t flex items-center justify-between"
+                      style={{
+                        borderColor: "rgba(0,0,0,0.05)",
+                        background: "rgba(250,250,249,0.7)",
+                      }}
+                    >
+                      <span className="text-[10px] text-gray-400">
+                        Westfield Commercial · Phase 2
+                      </span>
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className="h-1 w-20 rounded-full overflow-hidden"
+                          style={{ background: "#F3F4F6" }}
+                        >
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: "80%",
+                              background: "#D4500A",
+                            }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-gray-400">
+                          80% resolved
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating notification chip — Double-bezel small card */}
+                <div
+                  className="mt-3 ml-4 inline-flex animate-fade-up delay-500"
+                >
+                  <div
+                    className="rounded-xl"
+                    style={{
+                      background:
+                        "linear-gradient(145deg, rgba(255,255,255,0.95), rgba(240,240,238,0.7))",
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      boxShadow:
+                        "0 8px 24px rgba(0,0,0,0.07), 0 2px 6px rgba(0,0,0,0.04)",
+                      padding: "1.5px",
+                    }}
+                  >
+                    <div
+                      className="rounded-[10px] px-4 py-3 flex items-center gap-3"
+                      style={{
+                        background: "#FFFFFF",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
+                      }}
+                    >
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: "rgba(212,80,10,0.08)" }}
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          style={{ color: "#D4500A" }}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-gray-800 leading-tight">
+                          Submittal approved
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          3 minutes ago
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* Social proof strip */}
-        <div className="pb-16 flex items-center gap-6 flex-wrap">
-          <p className="text-xs text-gray-400 font-medium">Trusted by construction teams across the US</p>
-          <div className="flex items-center gap-1">
-            {[...Array(5)].map((_, i) => (
-              <svg key={i} className="w-3.5 h-3.5 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            ))}
-            <span className="ml-1.5 text-xs text-gray-500">4.9 / 5 from 200+ teams</span>
-          </div>
-        </div>
-      </main>
-
-      {/* Features strip */}
-      <section className="border-t border-gray-100 bg-gray-50 py-20 px-6 sm:px-10">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-xs font-semibold tracking-wide text-gray-400 uppercase mb-10">
-            Everything your crew needs
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-12 gap-y-10">
-            {[
-              { name: "RFI management", desc: "Track requests for information from submittal to resolution." },
-              { name: "Submittals", desc: "Manage approvals without chasing emails or lost documents." },
-              { name: "Daily logs", desc: "Record manpower, weather, and site activity every day." },
-              { name: "Drawing control", desc: "Keep the team on the current set — always." },
-              { name: "Schedule tracking", desc: "See where you are versus where you planned to be." },
-              { name: "Budget & costs", desc: "Monitor spend against budget before it becomes a problem." },
-            ].map((feature) => (
-              <div key={feature.name}>
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">{feature.name}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{feature.desc}</p>
+        {/* ── Stats strip ── */}
+        <section
+          className="border-y py-12 px-6 sm:px-10"
+          style={{ borderColor: "rgba(0,0,0,0.06)", background: "#FFFFFF" }}
+        >
+          <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+            {stats.map((s) => (
+              <div key={s.label} className="flex flex-col gap-1">
+                <span
+                  className="text-3xl font-bold tracking-tight text-gray-950 tabular-nums"
+                  style={{
+                    fontFamily: "var(--font-dm-serif)",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  {s.value}
+                </span>
+                <span className="text-sm text-gray-400">{s.label}</span>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-100 bg-white py-10 px-6 sm:px-10">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
-          <div className="flex flex-wrap gap-6 text-xs text-gray-400">
-            <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
-            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
-            <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
-            <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
+        {/* ── Features Bento Grid ── */}
+        <section className="py-24 px-6 sm:px-10" style={{ background: "#FAFAF9" }}>
+          <div className="max-w-7xl mx-auto">
+            {/* Section header */}
+            <div className="mb-14 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+              <div>
+                <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                  Platform
+                </span>
+                <h2
+                  className="mt-3 text-4xl sm:text-5xl font-bold text-gray-950"
+                  style={{
+                    fontFamily: "var(--font-dm-serif)",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  Everything your
+                  <br />
+                  crew needs
+                </h2>
+              </div>
+              <a
+                href="/pricing"
+                className="self-start sm:self-auto text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors duration-150 flex items-center gap-1.5 shrink-0"
+              >
+                See all features
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </a>
+            </div>
+
+            {/* Bento grid — asymmetric 4-col layout */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {features.map((f) => (
+                <div
+                  key={f.name}
+                  className={f.large ? "col-span-2" : "col-span-1"}
+                >
+                  {/* Outer bezel */}
+                  <div
+                    className="h-full rounded-2xl"
+                    style={{
+                      background:
+                        "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)",
+                      border: "1px solid rgba(0,0,0,0.055)",
+                      boxShadow:
+                        "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset",
+                      padding: "1.5px",
+                    }}
+                  >
+                    {/* Inner core */}
+                    <div
+                      className="h-full rounded-[14px] p-6 flex flex-col gap-4"
+                      style={{
+                        background: "#FFFFFF",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
+                      }}
+                    >
+                      {/* Accent dot */}
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center"
+                        style={{ background: `${f.accentColor}0f` }}
+                      >
+                        <div
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ background: f.accentColor }}
+                        />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-1.5">
+                          {f.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 leading-relaxed">
+                          {f.desc}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} SiteCommand</p>
+        </section>
+
+        {/* ── Final CTA ── */}
+        <section
+          className="py-28 px-6 sm:px-10"
+          style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
+        >
+          <div className="max-w-7xl mx-auto">
+            {/* Outer bezel */}
+            <div
+              className="rounded-3xl"
+              style={{
+                background:
+                  "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)",
+                border: "1px solid rgba(0,0,0,0.055)",
+                boxShadow:
+                  "0 4px 16px rgba(0,0,0,0.05), 0 1px 0 rgba(255,255,255,0.7) inset",
+                padding: "2px",
+              }}
+            >
+              {/* Inner core */}
+              <div
+                className="rounded-[22px] px-10 py-20 text-center relative overflow-hidden"
+                style={{
+                  background: "#FFFFFF",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
+                }}
+              >
+                {/* Subtle ambient gradient */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  aria-hidden="true"
+                  style={{
+                    background:
+                      "radial-gradient(ellipse 70% 60% at 50% 0%, rgba(212,80,10,0.04) 0%, transparent 70%)",
+                  }}
+                />
+
+                <div className="relative">
+                  <span className="inline-flex items-center gap-2 mb-6">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: "#D4500A" }}
+                    />
+                    <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">
+                      Get started today
+                    </span>
+                  </span>
+
+                  <h2
+                    className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-950 leading-tight"
+                    style={{
+                      fontFamily: "var(--font-dm-serif)",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    Ready to take command?
+                  </h2>
+
+                  <p className="mt-5 text-lg text-gray-400 max-w-md mx-auto leading-relaxed">
+                    Join 200+ construction teams already running smarter
+                    projects.
+                  </p>
+
+                  <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+                    <a
+                      href="/pricing"
+                      className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98]"
+                      style={{ background: "#111110" }}
+                    >
+                      <span className="relative z-10">Start for free</span>
+                      <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity duration-200" />
+                    </a>
+                    <a
+                      href="/demo"
+                      className="inline-flex items-center gap-2 px-8 py-4 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 active:scale-[0.98]"
+                    >
+                      Watch a demo
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* ── Footer ── */}
+      <footer
+        className="py-10 px-6 sm:px-10"
+        style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}
+      >
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <span
+            className="text-sm font-semibold text-gray-900"
+            style={{ fontFamily: "var(--font-dm-serif)" }}
+          >
+            SiteCommand
+          </span>
+          <div className="flex flex-wrap gap-6 text-xs text-gray-400">
+            <a href="/pricing" className="hover:text-gray-700 transition-colors">
+              Pricing
+            </a>
+            <a href="/demo" className="hover:text-gray-700 transition-colors">
+              Demo
+            </a>
+            <a href="#" className="hover:text-gray-700 transition-colors">
+              Privacy policy
+            </a>
+            <a href="#" className="hover:text-gray-700 transition-colors">
+              Terms of service
+            </a>
+          </div>
+          <p className="text-xs text-gray-400">
+            &copy; {new Date().getFullYear()} SiteCommand
+          </p>
         </div>
       </footer>
     </div>
