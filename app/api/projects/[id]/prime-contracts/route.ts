@@ -20,7 +20,49 @@ export async function GET(
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+
+  const contracts = data || [];
+
+  // Fetch SOV totals per contract
+  const { data: sovItems } = await supabase
+    .from("prime_contract_sov_items")
+    .select("prime_contract_id, scheduled_value")
+    .eq("project_id", projectId);
+
+  // Fetch change orders per contract
+  const { data: changeOrders } = await supabase
+    .from("change_orders")
+    .select("prime_contract_id, status, amount")
+    .eq("project_id", projectId)
+    .eq("type", "prime")
+    .is("deleted_at", null);
+
+  // Build SOV sum map: contractId -> total scheduled_value
+  const sovMap: Record<string, number> = {};
+  for (const item of sovItems ?? []) {
+    if (!item.prime_contract_id) continue;
+    sovMap[item.prime_contract_id] = (sovMap[item.prime_contract_id] ?? 0) + (item.scheduled_value ?? 0);
+  }
+
+  // Build change order sum map: contractId -> { Approved, Pending, Draft }
+  const coMap: Record<string, { Approved: number; Pending: number; Draft: number }> = {};
+  for (const co of changeOrders ?? []) {
+    if (!co.prime_contract_id) continue;
+    if (!coMap[co.prime_contract_id]) coMap[co.prime_contract_id] = { Approved: 0, Pending: 0, Draft: 0 };
+    if (co.status === "Approved") coMap[co.prime_contract_id].Approved += co.amount ?? 0;
+    else if (co.status === "Pending") coMap[co.prime_contract_id].Pending += co.amount ?? 0;
+    else if (co.status === "Draft") coMap[co.prime_contract_id].Draft += co.amount ?? 0;
+  }
+
+  const enriched = contracts.map((c) => ({
+    ...c,
+    original_contract_amount: sovMap[c.id] ?? 0,
+    approved_change_orders: coMap[c.id]?.Approved ?? 0,
+    pending_change_orders: coMap[c.id]?.Pending ?? 0,
+    draft_change_orders: coMap[c.id]?.Draft ?? 0,
+  }));
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(
