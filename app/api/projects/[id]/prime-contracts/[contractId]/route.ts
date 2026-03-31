@@ -28,7 +28,26 @@ export async function GET(
     .eq("prime_contract_id", contractId)
     .order("sort_order", { ascending: true });
 
-  return NextResponse.json({ ...contract, sov_items: sovItems ?? [] });
+  const { data: changeOrders } = await supabase
+    .from("change_orders")
+    .select("status, amount")
+    .eq("prime_contract_id", contractId)
+    .eq("type", "prime")
+    .is("deleted_at", null);
+
+  const originalContractAmount = (sovItems ?? []).reduce((s, i) => s + (i.scheduled_value ?? 0), 0);
+  const approvedCO = (changeOrders ?? []).filter((co) => co.status === "Approved").reduce((s, co) => s + (co.amount ?? 0), 0);
+  const pendingCO = (changeOrders ?? []).filter((co) => co.status === "Pending").reduce((s, co) => s + (co.amount ?? 0), 0);
+  const draftCO = (changeOrders ?? []).filter((co) => co.status === "Draft").reduce((s, co) => s + (co.amount ?? 0), 0);
+
+  return NextResponse.json({
+    ...contract,
+    sov_items: sovItems ?? [],
+    original_contract_amount: originalContractAmount,
+    approved_change_orders: approvedCO,
+    pending_change_orders: pendingCO,
+    draft_change_orders: draftCO,
+  });
 }
 
 export async function PATCH(
