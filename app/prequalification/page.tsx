@@ -106,34 +106,42 @@ export default function PrequalificationPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ background: "#FAFAF9" }}>
       <Navbar />
 
       {/* Hero */}
-      <section className="pt-32 pb-24 px-6 bg-gradient-to-b from-gray-50 to-white text-center">
-        <div className="max-w-3xl mx-auto">
-          <span className="inline-block mb-4 px-3 py-1 text-xs font-semibold text-gray-500 bg-gray-100 rounded-full tracking-wider uppercase">
-            Preconstruction
-          </span>
-          <h1 className="text-5xl font-bold tracking-tight text-gray-900 mb-6">
-            Construction prequalification software
+      <section className="pt-36 pb-28 px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="inline-flex items-center gap-2 mb-8 animate-fade-up">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+            <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Preconstruction</span>
+          </div>
+
+          <h1
+            className="text-5xl md:text-6xl leading-[1.08] tracking-tight mb-6 animate-fade-up delay-100"
+            style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+          >
+            Construction prequalification
+            <br />
+            <em className="not-italic" style={{ color: "#C0C0BC" }}>software that reduces risk.</em>
           </h1>
-          <p className="text-xl text-gray-500 mb-4 leading-relaxed font-medium">
-            Reduce risk by hiring qualified contractors
-          </p>
-          <p className="text-lg text-gray-400 mb-10 leading-relaxed">
+
+          <p className="text-lg text-gray-500 mb-10 leading-relaxed max-w-2xl animate-fade-up delay-200">
             Streamline the prequalification process with a single platform for assessing a company's risk, putting together a plan, and inviting them onto your projects.
           </p>
-          <div className="flex flex-wrap gap-4 justify-center">
+
+          <div className="flex flex-wrap gap-4 animate-fade-up delay-300">
             <Link
               href="/signup"
-              className="px-6 py-3 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
+              className="px-6 py-3 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-80"
+              style={{ background: "#111110" }}
             >
               Request a demo
             </Link>
             <Link
               href="/pricing"
-              className="px-6 py-3 text-sm font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+              className="px-6 py-3 text-sm font-medium rounded-lg border transition-colors hover:bg-white"
+              style={{ color: "#111110", borderColor: "rgba(0,0,0,0.12)" }}
             >
               See pricing
             </Link>
@@ -142,11 +150,16 @@ export default function PrequalificationPage() {
       </section>
 
       {/* Stats bar */}
-      <section className="py-16 px-6 border-y border-gray-100">
+      <section className="py-16 px-6 bg-white border-y border-gray-100">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
           {stats.map((s) => (
             <div key={s.value}>
-              <p className="text-5xl font-bold text-gray-900 mb-2">{s.value}</p>
+              <p
+                className="text-5xl mb-2"
+                style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+              >
+                {s.value}
+              </p>
               <p className="text-sm text-gray-500 leading-relaxed">{s.label}</p>
             </div>
           ))}
@@ -154,27 +167,35 @@ export default function PrequalificationPage() {
       </section>
 
       {/* Features */}
-      <section className="py-24 px-6">
+      <section className="py-28 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <div className="mb-14">
+            <h2
+              className="text-4xl mb-4"
+              style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+            >
               A smarter way to vet your subcontractors
             </h2>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-500 max-w-2xl">
               From digital applications to automated renewals, SiteCommand gives you the tools to build and maintain a trusted subcontractor base — at scale.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {features.map((f) => (
               <div
                 key={f.title}
-                className="border border-gray-100 rounded-2xl p-8 hover:shadow-md transition-shadow"
+                className="rounded-2xl p-8 bg-white transition-shadow hover:shadow-md"
+                style={{ border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
               >
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 mb-5">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-5"
+                  style={{ background: "rgba(212,80,10,0.08)", color: "#D4500A" }}
+                >
                   {f.icon}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{f.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{f.description}</p>
+                <h3 className="text-base font-semibold mb-2" style={{ color: "#111110" }}>{f.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
               </div>
             ))}
           </div>
@@ -182,19 +203,28 @@ export default function PrequalificationPage() {
       </section>
 
       {/* How it works */}
-      <section className="py-24 px-6 bg-gray-50">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">How it works</h2>
+      <section className="py-28 px-6 bg-white border-y border-gray-100">
+        <div className="max-w-5xl mx-auto">
+          <div className="mb-14">
+            <h2
+              className="text-4xl mb-4"
+              style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+            >
+              How it works
+            </h2>
             <p className="text-lg text-gray-500">
               A straightforward three-step process from invitation to a qualified bidder list.
             </p>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {steps.map((step) => (
-              <div key={step.number} className="text-center">
-                <div className="text-6xl font-bold text-gray-100 mb-3 leading-none">{step.number}</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{step.title}</h3>
+              <div key={step.number}>
+                <div className="inline-flex items-center gap-2 mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+                  <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">{step.number}</span>
+                </div>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: "#111110" }}>{step.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{step.description}</p>
               </div>
             ))}
@@ -203,19 +233,26 @@ export default function PrequalificationPage() {
       </section>
 
       {/* FAQ */}
-      <section className="py-24 px-6">
+      <section className="py-28 px-6">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
+          <h2
+            className="text-4xl mb-12"
+            style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+          >
             Frequently asked questions
           </h2>
           <div className="space-y-3">
             {faqs.map((faq, i) => (
-              <div key={i} className="border border-gray-100 rounded-xl overflow-hidden">
+              <div
+                key={i}
+                className="rounded-xl overflow-hidden bg-white"
+                style={{ border: "1px solid rgba(0,0,0,0.07)" }}
+              >
                 <button
-                  className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center justify-between px-6 py-5 text-left transition-colors hover:bg-gray-50"
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                 >
-                  <span className="font-medium text-gray-900">{faq.question}</span>
+                  <span className="font-medium text-sm" style={{ color: "#111110" }}>{faq.question}</span>
                   <svg
                     className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ml-4 ${openFaq === i ? "rotate-180" : ""}`}
                     fill="none"
@@ -235,29 +272,63 @@ export default function PrequalificationPage() {
         </div>
       </section>
 
-      {/* Bottom CTA */}
-      <section className="py-24 px-6 bg-gray-900 text-white text-center">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Build a subcontractor base you can trust</h2>
-          <p className="text-gray-400 mb-10 text-lg">
-            Stop awarding work to subs you haven't vetted. Start every project with a qualified, compliant team.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/signup"
-              className="px-6 py-3 text-sm font-medium text-gray-900 bg-white rounded-md hover:bg-gray-100 transition-colors"
+      {/* Bottom CTA — double-bezel */}
+      <section className="py-28 px-6">
+        <div className="max-w-3xl mx-auto">
+          <div
+            className="rounded-3xl p-px"
+            style={{
+              background: "linear-gradient(135deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.03) 100%)",
+              border: "1px solid rgba(0,0,0,0.055)",
+            }}
+          >
+            <div
+              className="rounded-3xl px-12 py-16 text-center"
+              style={{
+                background: "#111110",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+              }}
             >
-              Request a demo
-            </Link>
-            <Link
-              href="/pricing"
-              className="px-6 py-3 text-sm font-medium text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors"
-            >
-              See pricing
-            </Link>
+              <h2
+                className="text-3xl md:text-4xl text-white mb-4"
+                style={{ fontFamily: "var(--font-dm-serif)" }}
+              >
+                Build a subcontractor base you can trust
+              </h2>
+              <p className="text-gray-400 mb-10 text-lg max-w-xl mx-auto">
+                Stop awarding work to subs you haven't vetted. Start every project with a qualified, compliant team.
+              </p>
+              <div className="flex flex-wrap gap-4 justify-center">
+                <Link
+                  href="/signup"
+                  className="px-6 py-3 text-sm font-medium text-gray-900 bg-white rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Request a demo
+                </Link>
+                <Link
+                  href="/pricing"
+                  className="px-6 py-3 text-sm font-medium text-white border border-white/20 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  See pricing
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="py-12 px-6 border-t border-gray-100">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <span className="text-sm font-medium" style={{ color: "#111110" }}>SiteCommand</span>
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} SiteCommand. All rights reserved.</p>
+          <div className="flex gap-6">
+            <Link href="/pricing" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Pricing</Link>
+            <Link href="/about" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">About</Link>
+            <Link href="/login" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Sign in</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

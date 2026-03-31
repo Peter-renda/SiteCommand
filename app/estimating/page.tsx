@@ -100,60 +100,59 @@ export default function EstimatingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ background: "#FAFAF9" }}>
       <Navbar />
 
       {/* Hero */}
-      <section className="pt-32 pb-24 px-6 bg-gradient-to-b from-gray-50 to-white text-center">
-        <div className="max-w-3xl mx-auto">
-          <span className="inline-block mb-4 px-3 py-1 text-xs font-semibold text-gray-500 bg-gray-100 rounded-full tracking-wider uppercase">
-            Preconstruction
-          </span>
-          <h1 className="text-5xl font-bold tracking-tight text-gray-900 mb-6">
-            Construction takeoff &amp; estimating software
-          </h1>
-          <p className="text-xl text-gray-500 mb-10 leading-relaxed">
-            Align on scope and cost from day one by streamlining takeoffs, estimates, and proposals in one connected solution. Reduce rework, protect your margins, and win more profitable work.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/signup"
-              className="px-6 py-3 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
-            >
-              Request a demo
-            </Link>
-            <Link
-              href="/pricing"
-              className="px-6 py-3 text-sm font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              See pricing
-            </Link>
+      <section className="relative overflow-hidden pt-28 pb-20 px-6 sm:px-10">
+        <div className="absolute inset-0 -z-10 pointer-events-none" style={{ background: "radial-gradient(ellipse 60% 50% at 65% 25%, rgba(212,80,10,0.05) 0%, transparent 65%)" }} />
+        <div className="max-w-7xl mx-auto">
+          <div className="max-w-3xl">
+            <div className="animate-fade-up inline-flex items-center gap-2 mb-8">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+              <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Preconstruction</span>
+            </div>
+            <h1 className="animate-fade-up delay-100" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em", fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
+              Construction takeoff &amp;<br />
+              <em className="not-italic" style={{ color: "#C0C0BC" }}>estimating software.</em>
+            </h1>
+            <p className="animate-fade-up delay-200 mt-7 text-lg text-gray-500 max-w-md leading-relaxed">
+              Align on scope and cost from day one by streamlining takeoffs, estimates, and proposals in one connected solution. Reduce rework, protect your margins, and win more profitable work.
+            </p>
+            <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
+              <a href="/signup" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                <span className="relative z-10">Request a demo</span>
+                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
+              </a>
+              <a href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-all">See pricing</a>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+      <section className="py-24 px-6 sm:px-10" style={{ background: "#FAFAF9" }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-16">
+            <h2 className="text-3xl font-bold text-gray-950 mb-4" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
               Reduce rework, protect your margins, and win more profitable work
             </h2>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-500 max-w-2xl leading-relaxed">
               Replace disconnected spreadsheets and manual takeoffs with a unified estimating platform purpose-built for how construction teams work.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {features.map((f) => (
-              <div
-                key={f.title}
-                className="border border-gray-100 rounded-2xl p-8 hover:shadow-md transition-shadow"
-              >
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 mb-5">
-                  {f.icon}
+              <div key={f.title} className="rounded-2xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "1.5px" }}>
+                <div className="h-full rounded-[14px] p-6 flex flex-col gap-4" style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(212,80,10,0.08)", color: "#D4500A" }}>
+                    {f.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold mb-1.5" style={{ color: "#111110" }}>{f.title}</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{f.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{f.description}</p>
               </div>
             ))}
           </div>
@@ -161,19 +160,22 @@ export default function EstimatingPage() {
       </section>
 
       {/* How it works */}
-      <section className="py-24 px-6 bg-gray-50">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">How it works</h2>
-            <p className="text-lg text-gray-500">
+      <section className="py-24 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-16">
+            <h2 className="text-3xl font-bold text-gray-950 mb-4" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>How it works</h2>
+            <p className="text-lg text-gray-500 leading-relaxed">
               From the first drawing to the final proposal — a connected process that gets you to bid day faster.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {steps.map((step) => (
-              <div key={step.number} className="text-center">
-                <div className="text-6xl font-bold text-gray-100 mb-3 leading-none">{step.number}</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{step.title}</h3>
+              <div key={step.number}>
+                <div className="inline-flex items-center gap-2 mb-5">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+                  <span className="text-xs font-medium tracking-widest uppercase" style={{ color: "#D4500A" }}>{step.number}</span>
+                </div>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: "#111110" }}>{step.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{step.description}</p>
               </div>
             ))}
@@ -182,32 +184,34 @@ export default function EstimatingPage() {
       </section>
 
       {/* FAQ */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 sm:px-10" style={{ background: "#FAFAF9" }}>
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
+          <h2 className="text-3xl font-bold text-gray-950 mb-12" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
             Frequently asked questions
           </h2>
           <div className="space-y-3">
             {faqs.map((faq, i) => (
-              <div key={i} className="border border-gray-100 rounded-xl overflow-hidden">
-                <button
-                  className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-gray-50 transition-colors"
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                >
-                  <span className="font-medium text-gray-900">{faq.question}</span>
-                  <svg
-                    className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ml-4 ${openFaq === i ? "rotate-180" : ""}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
+              <div key={i} className="rounded-2xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "1.5px" }}>
+                <div className="rounded-[14px] overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+                  <button
+                    className="w-full flex items-center justify-between px-6 py-5 text-left transition-colors hover:bg-gray-50/60"
+                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {openFaq === i && (
-                  <div className="px-6 pb-5 text-sm text-gray-500 leading-relaxed">{faq.answer}</div>
-                )}
+                    <span className="font-medium text-sm" style={{ color: "#111110" }}>{faq.question}</span>
+                    <svg
+                      className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ml-4 ${openFaq === i ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {openFaq === i && (
+                    <div className="px-6 pb-5 text-sm text-gray-500 leading-relaxed" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>{faq.answer}</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -215,28 +219,41 @@ export default function EstimatingPage() {
       </section>
 
       {/* Bottom CTA */}
-      <section className="py-24 px-6 bg-gray-900 text-white text-center">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Ready to estimate smarter?</h2>
-          <p className="text-gray-400 mb-10 text-lg">
-            Join estimating teams that have cut bid prep time and built stronger margins with connected takeoff and estimating tools.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/signup"
-              className="px-6 py-3 text-sm font-medium text-gray-900 bg-white rounded-md hover:bg-gray-100 transition-colors"
-            >
-              Request a demo
-            </Link>
-            <Link
-              href="/pricing"
-              className="px-6 py-3 text-sm font-medium text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors"
-            >
-              See pricing
-            </Link>
+      <section className="py-24 px-6 sm:px-10" style={{ background: "#FAFAF9" }}>
+        <div className="max-w-3xl mx-auto">
+          <div className="rounded-2xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "1.5px" }}>
+            <div className="rounded-[14px] px-10 py-14 text-center" style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+              <h2 className="text-3xl font-bold mb-4" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em", color: "#111110" }}>
+                Ready to estimate smarter?
+              </h2>
+              <p className="text-gray-500 mb-10 text-lg leading-relaxed max-w-lg mx-auto">
+                Join estimating teams that have cut bid prep time and built stronger margins with connected takeoff and estimating tools.
+              </p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <a href="/signup" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                  <span className="relative z-10">Request a demo</span>
+                  <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
+                </a>
+                <a href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">See pricing</a>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <div className="flex flex-wrap gap-6 text-xs text-gray-400">
+            <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
+            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
+            <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
+            <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
+          </div>
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} SiteCommand</p>
+        </div>
+      </footer>
     </div>
   );
 }
