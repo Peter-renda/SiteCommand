@@ -11,6 +11,7 @@ import {
   X,
   Search,
   Pencil,
+  Check,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -66,6 +67,22 @@ type ChangeEvent = {
 
 type Tab = "detail" | "summary" | "rfqs" | "recycle_bin";
 
+type RomPopup = {
+  lineItemId: string;
+  eventId: string;
+  budgetCode: string;
+  description: string;
+  vendor: string;
+  contractNumber: string;
+  unitOfMeasure: string;
+  revUnitQty: string;
+  revUnitCost: string;
+  costUnitQty: string;
+  costUnitCost: string;
+  top: number;
+  left: number;
+};
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function fmt(val: number | null | undefined) {
@@ -105,12 +122,16 @@ export default function ChangeEventsClient({
   const [page, setPage] = useState(1);
   const filterRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+  const [romPopup, setRomPopup] = useState<RomPopup | null>(null);
+  const [romSaving, setRomSaving] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
 
-  // Click-outside for dropdowns
+  // Click-outside for dropdowns and popup
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false);
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) setRomPopup(null);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -188,6 +209,96 @@ export default function ChangeEventsClient({
   const allSelected = pageEvents.length > 0 && selectedIds.size === pageEvents.length;
 
   const canCreate = role !== "external_collaborator";
+
+  function openRomPopup(
+    e: { currentTarget: HTMLElement },
+    li: LineItem,
+    eventId: string
+  ) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setRomPopup({
+      lineItemId: li.id,
+      eventId,
+      budgetCode: li.budget_code ?? "",
+      description: li.description ?? "",
+      vendor: li.vendor ?? "",
+      contractNumber: li.contract_number ?? "",
+      unitOfMeasure: "",
+      revUnitQty: li.rev_unit_qty != null ? String(li.rev_unit_qty) : "",
+      revUnitCost: li.rev_unit_cost != null ? String(li.rev_unit_cost) : "",
+      costUnitQty: li.cost_unit_qty != null ? String(li.cost_unit_qty) : "",
+      costUnitCost: li.cost_unit_cost != null ? String(li.cost_unit_cost) : "",
+      top: rect.bottom + window.scrollY + 4,
+      left: Math.min(rect.left + window.scrollX, window.innerWidth - 380),
+    });
+  }
+
+  async function saveRomPopup() {
+    if (!romPopup) return;
+    setRomSaving(true);
+    try {
+      const revQty = parseFloat(romPopup.revUnitQty) || null;
+      const revCost = parseFloat(romPopup.revUnitCost) || null;
+      const costQty = parseFloat(romPopup.costUnitQty) || null;
+      const costCost = parseFloat(romPopup.costUnitCost) || null;
+      const revRom = revQty != null && revCost != null ? revQty * revCost : null;
+      const costRom = costQty != null && costCost != null ? costQty * costCost : null;
+
+      const res = await fetch(
+        `/api/projects/${projectId}/change-events/${romPopup.eventId}/line-items/${romPopup.lineItemId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            budget_code: romPopup.budgetCode || null,
+            description: romPopup.description || null,
+            vendor: romPopup.vendor || null,
+            contract_number: romPopup.contractNumber || null,
+            rev_unit_qty: revQty,
+            rev_unit_cost: revCost,
+            rev_rom: revRom,
+            cost_unit_qty: costQty,
+            cost_unit_cost: costCost,
+            cost_rom: costRom,
+          }),
+        }
+      );
+
+      if (res.ok) {
+        // Update local state
+        setEvents((prev) =>
+          prev.map((ev) => {
+            if (ev.id !== romPopup.eventId) return ev;
+            const updatedItems = ev.line_items.map((li) => {
+              if (li.id !== romPopup.lineItemId) return li;
+              return {
+                ...li,
+                budget_code: romPopup.budgetCode || null,
+                description: romPopup.description || null,
+                vendor: romPopup.vendor || null,
+                contract_number: romPopup.contractNumber || null,
+                rev_unit_qty: revQty,
+                rev_unit_cost: revCost,
+                rev_rom: revRom,
+                cost_unit_qty: costQty,
+                cost_unit_cost: costCost,
+                cost_rom: costRom,
+              };
+            });
+            return {
+              ...ev,
+              line_items: updatedItems,
+              rev_rom: updatedItems.reduce((s, li) => s + (li.rev_rom ?? 0), 0),
+              cost_rom: updatedItems.reduce((s, li) => s + (li.cost_rom ?? 0), 0),
+            };
+          })
+        );
+        setRomPopup(null);
+      }
+    } finally {
+      setRomSaving(false);
+    }
+  }
 
   // ── Column header cell ─────────────────────────────────────────────────────
   function TH({ children, right }: { children?: string | number; right?: boolean }) {
@@ -540,7 +651,7 @@ export default function ChangeEventsClient({
                                   className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
                                   onClick={() =>
                                     router.push(
-                                      `/projects/${projectId}/change-events/${ev.id}`
+                                      `/projects/${projectId}/change-events/${ev.id}/edit`
                                     )
                                   }
                                 >
@@ -573,7 +684,17 @@ export default function ChangeEventsClient({
                               {/* Revenue */}
                               <NumCell val={li.rev_unit_qty} qty />
                               <NumCell val={li.rev_unit_cost} />
-                              <NumCell val={li.rev_rom} />
+                              <td className="px-2 py-1.5 text-right text-xs whitespace-nowrap">
+                                <button
+                                  onClick={(e) => openRomPopup(e, li, ev.id)}
+                                  className="text-blue-600 hover:underline font-medium cursor-pointer"
+                                  title="Click to edit"
+                                >
+                                  {li.rev_rom != null && li.rev_rom !== 0
+                                    ? li.rev_rom.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 })
+                                    : "$0.00"}
+                                </button>
+                              </td>
                               <NumCell val={li.rev_prime_pco} />
                               <NumCell val={li.rev_latest_price} />
                               {/* Cost */}
@@ -665,6 +786,153 @@ export default function ChangeEventsClient({
           >
             ›
           </button>
+        </div>
+      )}
+
+      {/* ── ROM Edit Popup ────────────────────────────────────────────────────── */}
+      {romPopup && (
+        <div
+          ref={popupRef}
+          className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-[360px] p-4"
+          style={{ top: romPopup.top, left: romPopup.left }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Edit Line Item</h3>
+            <button
+              onClick={() => setRomPopup(null)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Detail fields */}
+          <div className="space-y-2 mb-4">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Budget Code</label>
+                <input
+                  type="text"
+                  value={romPopup.budgetCode}
+                  onChange={(e) => setRomPopup((p) => p ? { ...p, budgetCode: e.target.value } : p)}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Description</label>
+                <input
+                  type="text"
+                  value={romPopup.description}
+                  onChange={(e) => setRomPopup((p) => p ? { ...p, description: e.target.value } : p)}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Vendor</label>
+                <input
+                  type="text"
+                  value={romPopup.vendor}
+                  onChange={(e) => setRomPopup((p) => p ? { ...p, vendor: e.target.value } : p)}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Contract #</label>
+                <input
+                  type="text"
+                  value={romPopup.contractNumber}
+                  onChange={(e) => setRomPopup((p) => p ? { ...p, contractNumber: e.target.value } : p)}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Revenue section */}
+          <div className="mb-3">
+            <p className="text-xs font-semibold text-blue-600 mb-1.5">Revenue</p>
+            <div className="grid grid-cols-3 gap-2 items-end">
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Unit Qty</label>
+                <input
+                  type="number"
+                  value={romPopup.revUnitQty}
+                  onChange={(e) => setRomPopup((p) => p ? { ...p, revUnitQty: e.target.value } : p)}
+                  placeholder="0"
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Unit Cost</label>
+                <input
+                  type="number"
+                  value={romPopup.revUnitCost}
+                  onChange={(e) => setRomPopup((p) => p ? { ...p, revUnitCost: e.target.value } : p)}
+                  placeholder="0.00"
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">ROM</label>
+                <div className="border border-gray-200 rounded px-2 py-1.5 text-xs bg-gray-50 text-gray-700 font-medium">
+                  {((parseFloat(romPopup.revUnitQty) || 0) * (parseFloat(romPopup.revUnitCost) || 0)).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Cost section */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-gray-600 mb-1.5">Cost</p>
+            <div className="grid grid-cols-3 gap-2 items-end">
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Unit Qty</label>
+                <input
+                  type="number"
+                  value={romPopup.costUnitQty}
+                  onChange={(e) => setRomPopup((p) => p ? { ...p, costUnitQty: e.target.value } : p)}
+                  placeholder="0"
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Unit Cost</label>
+                <input
+                  type="number"
+                  value={romPopup.costUnitCost}
+                  onChange={(e) => setRomPopup((p) => p ? { ...p, costUnitCost: e.target.value } : p)}
+                  placeholder="0.00"
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">ROM</label>
+                <div className="border border-gray-200 rounded px-2 py-1.5 text-xs bg-gray-50 text-gray-700 font-medium">
+                  {((parseFloat(romPopup.costUnitQty) || 0) * (parseFloat(romPopup.costUnitCost) || 0)).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => setRomPopup(null)}
+              className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={saveRomPopup}
+              disabled={romSaving}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-50 font-medium"
+            >
+              <Check className="w-3 h-3" />
+              {romSaving ? "Saving…" : "Save"}
+            </button>
+          </div>
         </div>
       )}
 
