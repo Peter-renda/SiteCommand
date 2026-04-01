@@ -230,7 +230,11 @@ export default function EditPrimeContractClient({
       "signed_contract_received_date",
       "contract_termination_date",
     ] as const;
-    const payload: any = { ...formData, sov_items: sovItems };
+    const payload: any = {
+      ...formData,
+      default_retainage: formData.default_retainage !== "" ? Number(formData.default_retainage) : 0,
+      sov_items: sovItems,
+    };
     for (const field of DATE_FIELDS) {
       if (!payload[field]) payload[field] = null;
     }
