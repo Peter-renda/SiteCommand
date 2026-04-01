@@ -651,6 +651,9 @@ export default function NewCommitmentClient({
   // Contract Privacy
   const [isPrivate, setIsPrivate] = useState(true);
   const [sovViewAllowed, setSovViewAllowed] = useState(false);
+  const [accessUserIds, setAccessUserIds] = useState<string[]>([]);
+  const [accessDropdownOpen, setAccessDropdownOpen] = useState(false);
+  const accessDropdownRef = useRef<HTMLDivElement>(null);
 
   // Subcontract Additional Fields
   const [subcontractCoverLetter, setSubcontractCoverLetter] = useState("");
@@ -686,6 +689,16 @@ export default function NewCommitmentClient({
       setNextNumber(nums.length > 0 ? Math.max(...nums) + 1 : 1);
     });
   }, [projectId]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (accessDropdownRef.current && !accessDropdownRef.current.contains(e.target as Node)) {
+        setAccessDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const companies = directory.filter(
     (c) => c.type === "company" || c.type === "user"
@@ -766,6 +779,7 @@ export default function NewCommitmentClient({
           signed_po_received_date: signedPoDate || null,
           is_private: isPrivate,
           sov_view_allowed: sovViewAllowed,
+          access_user_ids: accessUserIds,
           subcontract_cover_letter: subcontractCoverLetter,
           bond_amount: numVal(bondAmount),
           exhibit_a_scope: exhibitAScope,
@@ -961,48 +975,6 @@ export default function NewCommitmentClient({
                 </span>
               </div>
             </Field>
-            <Field label="Assigned To">
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className={selectCls}
-              >
-                <option value="">Select Person</option>
-                {users.map((u) => (
-                  <option key={u.id} value={contactName(u)}>
-                    {contactName(u)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <Field label="Bill To">
-              <RichTextEditor value={billTo} onChange={setBillTo} />
-            </Field>
-            <Field label="Payment Terms">
-              <input
-                type="text"
-                value={paymentTerms}
-                onChange={(e) => setPaymentTerms(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <Field label="Ship To">
-              <RichTextEditor value={shipTo} onChange={setShipTo} />
-            </Field>
-            <Field label="Ship Via">
-              <input
-                type="text"
-                value={shipVia}
-                onChange={(e) => setShipVia(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
           </div>
 
           <Field label="Description" className="mb-4">
@@ -1022,6 +994,19 @@ export default function NewCommitmentClient({
               }
             />
           </Field>
+        </Section>
+
+        {/* ── Schedule of Values ── */}
+        <Section title="Schedule of Values">
+          <SovTable
+            lines={sovLines}
+            method={sovMethod}
+            onMethodChange={setSovMethod}
+            onAdd={addSovLine}
+            onAddGroup={addSovGroup}
+            onUpdate={updateSovLine}
+            onRemove={removeSovLine}
+          />
         </Section>
 
         {/* ── Contract Dates ── */}
@@ -1062,14 +1047,71 @@ export default function NewCommitmentClient({
           </Field>
           <div className="grid grid-cols-2 gap-4 items-start mb-4">
             <Field label="Access for Non-Admin Users">
-              <select className={selectCls} disabled={!isPrivate}>
-                <option value="">Select Values</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {contactName(u)}
-                  </option>
-                ))}
-              </select>
+              <div className="relative" ref={accessDropdownRef}>
+                <button
+                  type="button"
+                  disabled={!isPrivate}
+                  onClick={() => setAccessDropdownOpen((o) => !o)}
+                  className={`w-full text-left px-3 py-2 border border-gray-300 rounded text-sm bg-white flex items-center justify-between ${!isPrivate ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-gray-400"}`}
+                >
+                  <span className="text-gray-700 truncate">
+                    {accessUserIds.length === 0
+                      ? "Select people…"
+                      : `${accessUserIds.length} person${accessUserIds.length > 1 ? "s" : ""} selected`}
+                  </span>
+                  <svg className="w-4 h-4 text-gray-400 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {accessDropdownOpen && isPrivate && (
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-56 overflow-y-auto">
+                    {directory.filter((c) => c.type !== "group").length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-gray-400">No contacts in directory</p>
+                    ) : (
+                      directory.filter((c) => c.type !== "group").map((c) => (
+                        <label
+                          key={c.id}
+                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm text-gray-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={accessUserIds.includes(c.id)}
+                            onChange={() =>
+                              setAccessUserIds((prev) =>
+                                prev.includes(c.id)
+                                  ? prev.filter((id) => id !== c.id)
+                                  : [...prev, c.id]
+                              )
+                            }
+                            className="w-4 h-4 rounded border-gray-300 text-gray-900"
+                          />
+                          {contactName(c)}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                )}
+                {accessUserIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {accessUserIds.map((uid) => {
+                      const contact = directory.find((c) => c.id === uid);
+                      if (!contact) return null;
+                      return (
+                        <span key={uid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
+                          {contactName(contact)}
+                          <button
+                            type="button"
+                            onClick={() => setAccessUserIds((prev) => prev.filter((id) => id !== uid))}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </Field>
             <div className="pt-6">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -1227,18 +1269,6 @@ export default function NewCommitmentClient({
           </div>
         </Section>
 
-        {/* ── Schedule of Values ── */}
-        <Section title="Schedule of Values">
-          <SovTable
-            lines={sovLines}
-            method={sovMethod}
-            onMethodChange={setSovMethod}
-            onAdd={addSovLine}
-            onAddGroup={addSovGroup}
-            onUpdate={updateSovLine}
-            onRemove={removeSovLine}
-          />
-        </Section>
       </div>
     </div>
   );
