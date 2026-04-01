@@ -73,6 +73,28 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Replace SOV items if provided
+  if (Array.isArray(sov_items)) {
+    await supabase
+      .from("prime_contract_sov_items")
+      .delete()
+      .eq("prime_contract_id", contractId);
+
+    if (sov_items.length > 0) {
+      const rows = sov_items.map((item: any, idx: number) => ({
+        prime_contract_id: contractId,
+        project_id: projectId,
+        budget_code: item.budget_code ?? "",
+        description: item.description ?? "",
+        scheduled_value: Number(item.amount ?? item.scheduled_value ?? 0),
+        billed_to_date: Number(item.billed_to_date ?? 0),
+        sort_order: idx,
+      }));
+      await supabase.from("prime_contract_sov_items").insert(rows);
+    }
+  }
+
   return NextResponse.json(data);
 }
 
