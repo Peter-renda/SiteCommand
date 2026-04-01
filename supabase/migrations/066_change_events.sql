@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS change_events (
   revenue_source      TEXT,
   prime_contract      TEXT,
   description         TEXT,
-  created_by          UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_by          UUID        REFERENCES users(id) ON DELETE SET NULL,
   deleted_at          TIMESTAMPTZ,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
