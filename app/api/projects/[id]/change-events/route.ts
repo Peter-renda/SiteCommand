@@ -66,11 +66,44 @@ export async function POST(
       number: nextNumber,
       title: body.title || "",
       status: body.status || "Open",
+      origin: body.origin ?? null,
+      type: body.type ?? null,
+      change_reason: body.change_reason ?? null,
+      scope: body.scope ?? null,
+      expecting_revenue: body.expecting_revenue ?? false,
+      revenue_source: body.revenue_source ?? null,
+      prime_contract: body.prime_contract ?? null,
+      description: body.description ?? null,
       created_by: session.id,
     })
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Insert line items if provided
+  const lineItems = Array.isArray(body.line_items) ? body.line_items : [];
+  if (lineItems.length > 0) {
+    const { error: liError } = await supabase
+      .from("change_event_line_items")
+      .insert(
+        lineItems.map((li: Record<string, unknown>) => ({
+          change_event_id: data.id,
+          budget_code: li.budget_code ?? null,
+          description: li.description ?? null,
+          vendor: li.vendor ?? null,
+          contract_number: li.contract_number ?? null,
+          unit_of_measure: li.unit_of_measure ?? null,
+          rev_unit_qty: li.rev_unit_qty ?? null,
+          rev_unit_cost: li.rev_unit_cost ?? null,
+          rev_rom: li.rev_rom ?? null,
+          cost_unit_qty: li.cost_unit_qty ?? null,
+          cost_unit_cost: li.cost_unit_cost ?? null,
+          cost_rom: li.cost_rom ?? null,
+        }))
+      );
+    if (liError) return NextResponse.json({ error: liError.message }, { status: 500 });
+  }
+
   return NextResponse.json(data);
 }
