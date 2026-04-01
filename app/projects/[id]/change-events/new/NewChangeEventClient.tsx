@@ -622,6 +622,7 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
   // Line Items
   const [lineItems, setLineItems] = useState<LineItem[]>([emptyLine()]);
   const [saving, setSaving] = useState(false);
+  const [primeContractOptions, setPrimeContractOptions] = useState<string[]>([]);
 
   // Fetch next number
   useEffect(() => {
@@ -631,6 +632,20 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
         const arr = Array.isArray(data) ? data : [];
         const max = arr.reduce((m: number, e: { number: number }) => Math.max(m, e.number ?? 0), 0);
         setNumber(String(max + 1).padStart(3, "0"));
+      })
+      .catch(() => {});
+  }, [projectId]);
+
+  // Fetch approved prime contracts for this project
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/prime-contracts`)
+      .then((r) => r.json())
+      .then((data) => {
+        const arr = Array.isArray(data) ? data : [];
+        const approved = arr
+          .filter((c: { status: string; title: string }) => c.status?.toLowerCase() === "approved" && c.title)
+          .map((c: { title: string }) => c.title);
+        setPrimeContractOptions(approved);
       })
       .catch(() => {});
   }, [projectId]);
@@ -692,18 +707,14 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
     }
   }, [title, status, origin, type, changeReason, scope, expectingRevenue, revenueSource, primeContract, lineItems, projectId, router]);
 
-  const TYPE_OPTIONS = ["Allowance", "Owner Request", "Design Error", "Differing Conditions", "Scope Gap", "Unforeseen", "Weather", "Other"];
-  const ORIGIN_OPTIONS = ["Owner", "Architect", "Engineer", "Contractor", "Subcontractor", "Other"];
-  const SCOPE_OPTIONS = ["TBD", "In Scope", "Out of Scope", "Disputed"];
+  const TYPE_OPTIONS = ["Allowance", "Contingency", "Owner Change", "TBD", "Transfer"];
+  const ORIGIN_OPTIONS = ["Emails", "Meetings", "RFIs"];
+  const SCOPE_OPTIONS = ["In Scope", "Out of Scope", "TBD"];
+  const CHANGE_REASON_OPTIONS = ["Allowance", "Backcharge", "CCD", "Client Request", "Design Development", "Existing Condition"];
   const REVENUE_SOURCE_OPTIONS = [
     "Match Revenue to Latest Cost",
     "Enter Manually",
-    "No Revenue",
-  ];
-  const PRIME_CONTRACT_OPTIONS = [
-    "1 - The Arbors at South Crossing Prime Contract",
-    "2 - Site Work Prime Contract",
-    "3 - Concrete Prime Contract",
+    "Quantity x Unit Cost",
   ];
 
   return (
@@ -739,8 +750,8 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
               <input
                 type="text"
                 value={number}
-                readOnly
-                className={INPUT + " bg-gray-50 text-gray-500 cursor-not-allowed"}
+                onChange={(e) => setNumber(e.target.value)}
+                className={INPUT}
               />
             </Field>
             <Field>
@@ -761,7 +772,7 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
                   onChange={(e) => setStatus(e.target.value)}
                   className={SELECT + " pr-8"}
                 >
-                  {["Open", "Pending", "Approved", "Rejected", "Void"].map((s) => (
+                  {["Closed", "Open", "Pending", "Void"].map((s) => (
                     <option key={s}>{s}</option>
                   ))}
                 </select>
@@ -808,7 +819,7 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
               <ClearableSelect
                 value={changeReason}
                 onChange={setChangeReason}
-                options={TYPE_OPTIONS}
+                options={CHANGE_REASON_OPTIONS}
                 placeholder="Select Reason"
               />
             </Field>
@@ -872,7 +883,7 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
               <ClearableSelect
                 value={primeContract}
                 onChange={setPrimeContract}
-                options={PRIME_CONTRACT_OPTIONS}
+                options={primeContractOptions}
                 placeholder="Select Contract"
               />
             </Field>
