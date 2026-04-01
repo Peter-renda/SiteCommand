@@ -309,145 +309,153 @@ export default function ProjectNav({
 
   return (
     <>
-      <nav className="bg-white border-b border-gray-100 w-full px-6 flex items-center gap-4 overflow-visible relative">
-        {/* All Projects */}
-        <a
-          href="/dashboard"
-          className="flex items-center gap-1.5 py-2.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          All Projects
-        </a>
-
-        {showBackToProject && (
-          <>
-            <div className="w-px h-4 bg-gray-200" />
-            <a
-              href={`/projects/${projectId}`}
-              className="flex items-center gap-1.5 py-2.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0"
-            >
-              ← Back to Project
-            </a>
-          </>
-        )}
-
-        <div className="w-px h-4 bg-gray-200" />
-
-        {/* Tools dropdown */}
-        <div ref={toolsRef} className="relative inline-block">
-          <button
-            onClick={() => setOpen((o) => !o)}
-            className="flex items-center gap-1.5 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+      <nav className="bg-white border-b border-gray-100 w-full flex items-center overflow-visible relative">
+        {/* Non-scrollable left: back links + tools dropdown */}
+        <div className="flex items-center gap-4 pl-6 shrink-0">
+          {/* All Projects */}
+          <a
+            href="/dashboard"
+            className="flex items-center gap-1.5 py-2.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0"
           >
-            Tools
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            All Projects
+          </a>
+
+          {showBackToProject && (
+            <>
+              <div className="w-px h-4 bg-gray-200" />
+              <a
+                href={`/projects/${projectId}`}
+                className="flex items-center gap-1.5 py-2.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0"
+              >
+                ← Back to Project
+              </a>
+            </>
+          )}
+
+          <div className="w-px h-4 bg-gray-200" />
+
+          {/* Tools dropdown */}
+          <div ref={toolsRef} className="relative inline-block">
+            <button
+              onClick={() => setOpen((o) => !o)}
+              className="flex items-center gap-1.5 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
+              Tools
+              <svg
+                className={`w-4 h-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {open && (
+              <div className="absolute left-0 top-full mt-1 w-56 sm:w-[760px] bg-white border border-gray-100 rounded-xl shadow-xl z-[9999] p-5 max-h-[80vh] overflow-y-auto">
+                <div className="grid grid-cols-1 gap-1 sm:grid-cols-4 sm:gap-6">
+                  {visibleSections.map((section) => (
+                    <div key={section.label}>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 mt-3 sm:mt-0">
+                        {section.label}
+                      </p>
+                      <div className="space-y-0.5">
+                        {section.items.map((item) => (
+                          <a
+                            key={item.slug}
+                            href={`/projects/${projectId}${item.slug ? `/${item.slug}` : ""}`}
+                            onClick={() => setOpen(false)}
+                            className="block px-2 py-1.5 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                          >
+                            {item.name}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Scrollable middle: favorites + search */}
+        <div className="flex items-center gap-4 overflow-x-auto flex-1 min-w-0 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Favorite links */}
+          {favoritedItems.length > 0 && (
+            <>
+              <div className="w-px h-4 bg-gray-200 shrink-0" />
+              {favoritedItems.map((item) => (
+                <a
+                  key={item.slug}
+                  href={`/projects/${projectId}/${item.slug}`}
+                  className="py-2.5 text-sm text-gray-500 hover:text-gray-900 transition-colors shrink-0"
+                >
+                  {item.name}
+                </a>
+              ))}
+            </>
+          )}
+
+          <div ref={searchRef} className="relative ml-auto shrink-0 w-64">
             <svg
-              className={`w-4 h-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+              className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={2}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
             </svg>
-          </button>
-          {open && (
-            <div className="absolute left-0 top-full mt-1 w-[760px] bg-white border border-gray-100 rounded-xl shadow-xl z-[9999] p-5">
-              <div className="grid grid-cols-4 gap-6">
-                {visibleSections.map((section) => (
-                  <div key={section.label}>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
-                      {section.label}
-                    </p>
-                    <div className="space-y-0.5">
-                      {section.items.map((item) => (
-                        <a
-                          key={item.slug}
-                          href={`/projects/${projectId}${item.slug ? `/${item.slug}` : ""}`}
-                          onClick={() => setOpen(false)}
-                          className="block px-2 py-1.5 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                        >
-                          {item.name}
-                        </a>
-                      ))}
-                    </div>
+            <input
+              value={portalSearch}
+              onChange={(e) => {
+                setPortalSearch(e.target.value);
+                setShowSearchResults(true);
+              }}
+              onFocus={() => setShowSearchResults(true)}
+              placeholder="Search portal..."
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
+            {showSearchResults && portalSearch.trim().length >= 2 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[9999] max-h-[26rem] overflow-y-auto">
+                {searching && <p className="px-3 py-2 text-xs text-gray-400">Searching portal...</p>}
+                {!searching && searchResults.length === 0 && (
+                  <p className="px-3 py-2 text-xs text-gray-400">No results found.</p>
+                )}
+                {!searching && searchResults.length > 0 && (
+                  <div className="py-1">
+                    {searchResults.map((result) => (
+                      <a
+                        key={result.id}
+                        href={result.href}
+                        className="block px-3 py-2 hover:bg-gray-50"
+                        onClick={() => setShowSearchResults(false)}
+                      >
+                        <p className="text-sm text-gray-900 font-medium truncate">{result.title}</p>
+                        <p className="text-xs text-gray-500 truncate">{result.section} • {result.subtitle}</p>
+                      </a>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Favorite links */}
-        {favoritedItems.length > 0 && (
-          <>
-            <div className="w-px h-4 bg-gray-200" />
-            {favoritedItems.map((item) => (
-              <a
-                key={item.slug}
-                href={`/projects/${projectId}/${item.slug}`}
-                className="py-2.5 text-sm text-gray-500 hover:text-gray-900 transition-colors shrink-0"
-              >
-                {item.name}
-              </a>
-            ))}
-          </>
-        )}
-
-        <div ref={searchRef} className="relative ml-auto w-full max-w-md">
-          <svg
-            className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+        {/* Non-scrollable right: settings */}
+        <div className="pl-2 pr-6 shrink-0">
+          <button
+            onClick={openSettings}
+            className="py-2.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
+            title="Settings"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-          </svg>
-          <input
-            value={portalSearch}
-            onChange={(e) => {
-              setPortalSearch(e.target.value);
-              setShowSearchResults(true);
-            }}
-            onFocus={() => setShowSearchResults(true)}
-            placeholder="Search portal (reports, drawings, docs, directory...)"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
-          />
-          {showSearchResults && portalSearch.trim().length >= 2 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[9999] max-h-[26rem] overflow-y-auto">
-              {searching && <p className="px-3 py-2 text-xs text-gray-400">Searching portal...</p>}
-              {!searching && searchResults.length === 0 && (
-                <p className="px-3 py-2 text-xs text-gray-400">No results found.</p>
-              )}
-              {!searching && searchResults.length > 0 && (
-                <div className="py-1">
-                  {searchResults.map((result) => (
-                    <a
-                      key={result.id}
-                      href={result.href}
-                      className="block px-3 py-2 hover:bg-gray-50"
-                      onClick={() => setShowSearchResults(false)}
-                    >
-                      <p className="text-sm text-gray-900 font-medium truncate">{result.title}</p>
-                      <p className="text-xs text-gray-500 truncate">{result.section} • {result.subtitle}</p>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            Settings
+          </button>
         </div>
-
-        {/* Settings */}
-        <button
-          onClick={openSettings}
-          className="py-2.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0"
-          title="Settings"
-        >
-          Settings
-        </button>
       </nav>
 
       {/* Settings Modal */}
