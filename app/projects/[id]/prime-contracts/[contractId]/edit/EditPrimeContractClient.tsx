@@ -223,11 +223,26 @@ export default function EditPrimeContractClient({
     e.preventDefault();
     setSaving(true);
     setSaveError(null);
+    const DATE_FIELDS = [
+      "start_date",
+      "estimated_completion_date",
+      "actual_completion_date",
+      "signed_contract_received_date",
+      "contract_termination_date",
+    ] as const;
+    const payload: any = {
+      ...formData,
+      default_retainage: formData.default_retainage !== "" ? Number(formData.default_retainage) : 0,
+      sov_items: sovItems,
+    };
+    for (const field of DATE_FIELDS) {
+      if (!payload[field]) payload[field] = null;
+    }
     try {
       const res = await fetch(`/api/projects/${projectId}/prime-contracts/${contractId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, sov_items: sovItems }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         router.push(`/projects/${projectId}/prime-contracts/${contractId}`);
