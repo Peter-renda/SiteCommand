@@ -47,6 +47,11 @@ type ChangeEvent = {
   title: string;
   status: string;
   created_at: string;
+  // Classification
+  scope: string | null;
+  type: string | null;
+  change_reason: string | null;
+  origin: string | null;
   // Rolled-up Revenue
   rev_unit_qty: number | null;
   rev_unit_cost: number | null;
@@ -150,9 +155,16 @@ export default function ChangeEventsClient({
           rev_unit_qty: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.rev_unit_qty ?? 0), 0) ?? 0,
           rev_unit_cost: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.rev_unit_cost ?? 0), 0) ?? 0,
           rev_rom: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.rev_rom ?? 0), 0) ?? 0,
+          rev_prime_pco: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.rev_prime_pco ?? 0), 0) ?? 0,
+          rev_latest_price: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.rev_latest_price ?? 0), 0) ?? 0,
           cost_unit_qty: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_unit_qty ?? 0), 0) ?? 0,
           cost_unit_cost: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_unit_cost ?? 0), 0) ?? 0,
           cost_rom: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_rom ?? 0), 0) ?? 0,
+          cost_rfq: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_rfq ?? 0), 0) ?? 0,
+          cost_commitment: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_commitment ?? 0), 0) ?? 0,
+          cost_latest: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_latest ?? 0), 0) ?? 0,
+          cost_over_under: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_over_under ?? 0), 0) ?? 0,
+          cost_budget_mod: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_budget_mod ?? 0), 0) ?? 0,
         }));
         setEvents(normalized);
         setLoading(false);
@@ -509,6 +521,143 @@ export default function ChangeEventsClient({
       <div className="flex-1 overflow-x-auto">
         {loading ? (
           <div className="text-center py-20 text-gray-400 text-sm">Loading change events…</div>
+        ) : activeTab === "summary" ? (
+          /* ── Summary Tab ──────────────────────────────────────────────────── */
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200 bg-white">
+                <th colSpan={2} className="w-24 px-2 py-2" />
+                <TH>#</TH>
+                <TH>Title</TH>
+                <TH>Scope</TH>
+                <TH>Type</TH>
+                <TH>Reason</TH>
+                <TH>Status</TH>
+                <TH>Origin</TH>
+                <TH right>ROM</TH>
+                <th className="px-2 py-2 text-xs font-medium text-gray-500 whitespace-nowrap text-right">
+                  <span className="inline-flex items-center gap-1">
+                    Prime Totals
+                    <Info className="w-3 h-3 text-gray-400" />
+                  </span>
+                </th>
+                <TH right>Commitment Totals</TH>
+                <TH right>RFQs</TH>
+                <TH right>Commitment COs</TH>
+                <TH right>Prime PCOs</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {pageEvents.length === 0 ? (
+                <tr>
+                  <td colSpan={15} className="text-center py-20 text-gray-400">
+                    No change events found.
+                  </td>
+                </tr>
+              ) : (
+                pageEvents.map((ev) => (
+                  <tr
+                    key={ev.id}
+                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                  >
+                    {/* Edit button */}
+                    <td className="px-1 py-2 whitespace-nowrap">
+                      <button
+                        onClick={() => router.push(`/projects/${projectId}/change-events/${ev.id}/edit`)}
+                        className="px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                    {/* View button */}
+                    <td className="px-1 py-2 whitespace-nowrap">
+                      <button
+                        onClick={() => router.push(`/projects/${projectId}/change-events/${ev.id}`)}
+                        className="px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        View
+                      </button>
+                    </td>
+                    {/* # */}
+                    <td className="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">
+                      {String(ev.number).padStart(3, "0")}
+                    </td>
+                    {/* Title */}
+                    <td className="px-2 py-2 text-xs text-gray-900 min-w-[180px]">
+                      {ev.title}
+                    </td>
+                    {/* Scope */}
+                    <td className="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">
+                      {ev.scope ?? ""}
+                    </td>
+                    {/* Type */}
+                    <td className="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">
+                      {ev.type ?? ""}
+                    </td>
+                    {/* Reason */}
+                    <td className="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">
+                      {ev.change_reason ?? ""}
+                    </td>
+                    {/* Status */}
+                    <td className="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">
+                      {ev.status}
+                    </td>
+                    {/* Origin */}
+                    <td className="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">
+                      {ev.origin ?? ""}
+                    </td>
+                    {/* ROM */}
+                    <NumCell val={ev.rev_rom} />
+                    {/* Prime Totals */}
+                    <NumCell val={ev.rev_rom} />
+                    {/* Commitment Totals */}
+                    <NumCell val={ev.cost_commitment} />
+                    {/* RFQs */}
+                    <NumCell val={ev.cost_rfq} />
+                    {/* Commitment COs */}
+                    <NumCell val={ev.cost_budget_mod} />
+                    {/* Prime PCOs */}
+                    <NumCell val={ev.rev_prime_pco} />
+                  </tr>
+                ))
+              )}
+            </tbody>
+            {pageEvents.length > 0 && (() => {
+              type SumKey = "rev_rom" | "cost_commitment" | "cost_rfq" | "cost_budget_mod" | "rev_prime_pco";
+              // ROM and Prime Totals both use rev_rom; order matches the 6 financial columns
+              const financialKeys: SumKey[] = [
+                "rev_rom", "rev_rom", "cost_commitment", "cost_rfq", "cost_budget_mod", "rev_prime_pco",
+              ];
+              const sumOver = (evList: ChangeEvent[], key: SumKey) =>
+                evList.reduce((s, ev) => s + (ev[key] ?? 0), 0);
+              const pageTotals = financialKeys.map((k) => sumOver(pageEvents, k));
+              const grandTotals = financialKeys.map((k) => sumOver(filtered, k));
+              return (
+                <tfoot>
+                  <tr className="border-t-2 border-gray-300 bg-white font-semibold">
+                    <td colSpan={9} className="px-2 py-2 text-xs text-right text-gray-600">
+                      Totals
+                    </td>
+                    {pageTotals.map((t, i) => (
+                      <td key={i} className="px-2 py-2 text-right text-xs text-gray-900 whitespace-nowrap">
+                        {fmt(t)}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-t border-gray-200 bg-gray-50 font-semibold">
+                    <td colSpan={9} className="px-2 py-2 text-xs text-right text-gray-600">
+                      Report Grand Totals
+                    </td>
+                    {grandTotals.map((t, i) => (
+                      <td key={i} className="px-2 py-2 text-right text-xs text-gray-900 whitespace-nowrap">
+                        {fmt(t)}
+                      </td>
+                    ))}
+                  </tr>
+                </tfoot>
+              );
+            })()}
+          </table>
         ) : activeTab !== "detail" ? (
           <div className="text-center py-20 text-gray-400 text-sm">
             {activeTab === "recycle_bin" ? "Recycle Bin is empty." : "No data to display for this view."}
