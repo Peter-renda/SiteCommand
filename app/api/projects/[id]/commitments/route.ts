@@ -62,6 +62,7 @@ export async function POST(
     signed_po_received_date,
     is_private,
     sov_view_allowed,
+    access_user_ids,
     ssov_status,
     original_contract_amount,
     approved_change_orders,
@@ -131,5 +132,16 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Save per-user access list
+  if (Array.isArray(access_user_ids) && access_user_ids.length > 0) {
+    await supabase.from("commitment_access_users").insert(
+      access_user_ids.map((contactId: string) => ({
+        commitment_id: data.id,
+        directory_contact_id: contactId,
+      }))
+    );
+  }
+
   return NextResponse.json(data);
 }
