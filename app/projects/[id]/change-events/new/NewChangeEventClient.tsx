@@ -367,11 +367,15 @@ function LineItemsTable({
   onChange,
   onRemove,
   onAdd,
+  vendorOptions,
+  contractOptions,
 }: {
   items: LineItem[];
   onChange: (id: string, field: keyof LineItem, value: string) => void;
   onRemove: (id: string) => void;
   onAdd: () => void;
+  vendorOptions: string[];
+  contractOptions: string[];
 }) {
   const totalRevROM = items.reduce((s, li) => s + calcROM(li.revQty, li.revUnitCost), 0);
   const totalCostROM = items.reduce((s, li) => s + calcROM(li.costQty, li.costUnitCost), 0);
@@ -391,7 +395,7 @@ function LineItemsTable({
     />
   );
 
-  const UOM_OPTIONS = ["", "LS", "EA", "LF", "SF", "CY", "TN", "HR", "DAY", "MO"];
+  const UOM_OPTIONS = ["", "Time", "Amount", "Length", "Area", "Volume", "Mass", "Other"];
 
   return (
     <div>
@@ -473,9 +477,27 @@ function LineItemsTable({
                   {/* Description */}
                   <td className="px-1 py-1">{cellInput(li.id, "description", "--")}</td>
                   {/* Vendor */}
-                  <td className="px-1 py-1">{cellInput(li.id, "vendor", "--")}</td>
+                  <td className="px-1 py-1">
+                    <select
+                      value={li.vendor}
+                      onChange={(e) => onChange(li.id, "vendor", e.target.value)}
+                      className="w-full px-1.5 py-1 text-xs border-0 focus:outline-none focus:ring-1 focus:ring-blue-300 rounded bg-transparent"
+                    >
+                      <option value="">--</option>
+                      {vendorOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </td>
                   {/* Contract */}
-                  <td className="px-1 py-1">{cellInput(li.id, "contract", "--")}</td>
+                  <td className="px-1 py-1">
+                    <select
+                      value={li.contract}
+                      onChange={(e) => onChange(li.id, "contract", e.target.value)}
+                      className="w-full px-1.5 py-1 text-xs border-0 focus:outline-none focus:ring-1 focus:ring-blue-300 rounded bg-transparent"
+                    >
+                      <option value="">--</option>
+                      {contractOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </td>
                   {/* Unit of Measure */}
                   <td className="px-1 py-1 border-r border-gray-200">
                     <select
@@ -623,6 +645,8 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
   const [lineItems, setLineItems] = useState<LineItem[]>([emptyLine()]);
   const [saving, setSaving] = useState(false);
   const [primeContractOptions, setPrimeContractOptions] = useState<string[]>([]);
+  const [vendorOptions, setVendorOptions] = useState<string[]>([]);
+  const [contractOptions, setContractOptions] = useState<string[]>([]);
 
   // Fetch next number
   useEffect(() => {
@@ -646,6 +670,36 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
           .filter((c: { status: string; title: string }) => c.status?.toLowerCase() === "approved" && c.title)
           .map((c: { title: string }) => c.title);
         setPrimeContractOptions(approved);
+      })
+      .catch(() => {});
+  }, [projectId]);
+
+  // Fetch vendor companies from project directory
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/directory`)
+      .then((r) => r.json())
+      .then((data) => {
+        const arr = Array.isArray(data) ? data : [];
+        const companies = Array.from(new Set(
+          arr
+            .map((c: { company: string }) => c.company)
+            .filter((v: string) => !!v)
+        )) as string[];
+        setVendorOptions(companies.sort());
+      })
+      .catch(() => {});
+  }, [projectId]);
+
+  // Fetch commitments for contract dropdown
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/commitments`)
+      .then((r) => r.json())
+      .then((data) => {
+        const arr = Array.isArray(data) ? data : [];
+        const contracts = arr
+          .filter((c: { number: number; title: string }) => c.number != null && c.title)
+          .map((c: { number: number; title: string }) => `${c.number}: ${c.title}`);
+        setContractOptions(contracts);
       })
       .catch(() => {});
   }, [projectId]);
@@ -914,6 +968,8 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
             onChange={updateLine}
             onRemove={removeLine}
             onAdd={addLine}
+            vendorOptions={vendorOptions}
+            contractOptions={contractOptions}
           />
         </section>
       </div>
