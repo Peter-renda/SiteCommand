@@ -123,7 +123,17 @@ export default function ChangeEventsClient({
       .then((r) => r.json())
       .then((data) => {
         const arr = Array.isArray(data) ? data : [];
-        setEvents(arr);
+        // Roll up line item values onto the event row so collapsed rows show aggregated totals
+        const normalized = arr.map((ev: ChangeEvent) => ({
+          ...ev,
+          rev_unit_qty: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.rev_unit_qty ?? 0), 0) ?? 0,
+          rev_unit_cost: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.rev_unit_cost ?? 0), 0) ?? 0,
+          rev_rom: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.rev_rom ?? 0), 0) ?? 0,
+          cost_unit_qty: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_unit_qty ?? 0), 0) ?? 0,
+          cost_unit_cost: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_unit_cost ?? 0), 0) ?? 0,
+          cost_rom: ev.line_items?.reduce((s: number, li: LineItem) => s + (li.cost_rom ?? 0), 0) ?? 0,
+        }));
+        setEvents(normalized);
         setLoading(false);
       })
       .catch(() => {
@@ -191,15 +201,15 @@ export default function ChangeEventsClient({
   }
 
   // ── Number cell ────────────────────────────────────────────────────────────
-  function NumCell({ val, blue }: { val: number | null | undefined; blue?: boolean }) {
+  function NumCell({ val, blue, qty }: { val: number | null | undefined; blue?: boolean; qty?: boolean }) {
     if (val === null || val === undefined || val === 0) {
-      return <td className="px-2 py-2 text-right text-xs text-gray-400 whitespace-nowrap">$0.00</td>;
+      return <td className="px-2 py-2 text-right text-xs text-gray-400 whitespace-nowrap">{qty ? "0.00" : "$0.00"}</td>;
     }
     return (
       <td
         className={`px-2 py-2 text-right text-xs whitespace-nowrap ${blue ? "text-blue-600 font-medium" : "text-gray-700"}`}
       >
-        {fmt(val)}
+        {qty ? fmtQty(val) : fmt(val)}
       </td>
     );
   }
@@ -492,13 +502,13 @@ export default function ChangeEventsClient({
                           </button>
                         </td>
                         {/* Revenue */}
-                        <NumCell val={ev.rev_unit_qty} />
+                        <NumCell val={ev.rev_unit_qty} qty />
                         <NumCell val={ev.rev_unit_cost} />
                         <NumCell val={ev.rev_rom} />
                         <NumCell val={ev.rev_prime_pco} />
                         <NumCell val={ev.rev_latest_price} />
                         {/* Cost */}
-                        <NumCell val={ev.cost_unit_qty} />
+                        <NumCell val={ev.cost_unit_qty} qty />
                         <NumCell val={ev.cost_unit_cost} />
                         <NumCell val={ev.cost_rom} />
                         <NumCell val={ev.cost_rfq} />
@@ -561,13 +571,13 @@ export default function ChangeEventsClient({
                                 </div>
                               </td>
                               {/* Revenue */}
-                              <NumCell val={li.rev_unit_qty} />
+                              <NumCell val={li.rev_unit_qty} qty />
                               <NumCell val={li.rev_unit_cost} />
                               <NumCell val={li.rev_rom} />
                               <NumCell val={li.rev_prime_pco} />
                               <NumCell val={li.rev_latest_price} />
                               {/* Cost */}
-                              <NumCell val={li.cost_unit_qty} />
+                              <NumCell val={li.cost_unit_qty} qty />
                               <NumCell val={li.cost_unit_cost} />
                               <NumCell val={li.cost_rom} />
                               <NumCell val={li.cost_rfq} />
@@ -614,7 +624,7 @@ export default function ChangeEventsClient({
                     );
                     return (
                       <td key={key} className="px-2 py-2 text-right text-xs text-gray-900 whitespace-nowrap">
-                        {fmt(total)}
+                        {key === "rev_unit_qty" || key === "cost_unit_qty" ? fmtQty(total) : fmt(total)}
                       </td>
                     );
                   })}
