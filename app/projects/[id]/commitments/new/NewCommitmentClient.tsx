@@ -759,12 +759,23 @@ export default function NewCommitmentClient({
   async function handleSave() {
     setSaving(true);
     try {
+      const sovTotal = sovLines
+        .filter((l) => !l.is_group_header)
+        .reduce((sum, l) => {
+          const amt =
+            sovMethod === "unit_quantity"
+              ? numVal(l.qty) * numVal(l.unit_cost)
+              : numVal(l.amount);
+          return sum + amt;
+        }, 0);
+
       const res = await fetch(`/api/projects/${projectId}/commitments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: commitmentType,
           number: nextNumber !== "" ? Number(nextNumber) : undefined,
+          original_contract_amount: sovTotal,
           contract_company: contractCompany,
           title,
           status,
