@@ -1,0 +1,461 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import ProjectNav from "@/components/ProjectNav";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type Commitment = {
+  id: string;
+  project_id: string;
+  type: "subcontract" | "purchase_order";
+  number: number;
+  contract_company: string;
+  title: string;
+  erp_status: string;
+  status: string;
+  executed: boolean;
+  default_retainage: number;
+  assigned_to: string;
+  bill_to: string;
+  payment_terms: string;
+  ship_to: string;
+  ship_via: string;
+  description: string;
+  delivery_date: string | null;
+  signed_po_received_date: string | null;
+  is_private: boolean;
+  sov_view_allowed: boolean;
+  ssov_status: string;
+  original_contract_amount: number;
+  approved_change_orders: number;
+  pending_change_orders: number;
+  draft_amount: number;
+  subcontract_cover_letter: string;
+  bond_amount: number;
+  exhibit_a_scope: string;
+  trades: string;
+  subcontractor_contact: string;
+  subcontract_type: string;
+  show_cover_letter: boolean;
+  show_executed_cover_letter: boolean;
+  sov_accounting_method: string;
+  created_at: string;
+};
+
+type SovItem = {
+  id: string;
+  is_group_header: boolean;
+  group_name: string;
+  change_event_line_item: string;
+  budget_code: string;
+  description: string;
+  qty: number;
+  uom: string;
+  unit_cost: number;
+  amount: number;
+  billed_to_date: number;
+  sort_order: number;
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmt(n: number): string {
+  const abs = Math.abs(n);
+  const formatted = abs.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return n < 0 ? `($${formatted})` : `$${formatted}`;
+}
+
+function formatDate(d: string | null): string {
+  if (!d) return "—";
+  const [year, month, day] = d.split("-");
+  return `${month}/${day}/${year}`;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  approved: "bg-green-100 text-green-700",
+  draft: "bg-gray-100 text-gray-500",
+  void: "bg-red-50 text-red-500",
+  terminated: "bg-orange-50 text-orange-600",
+};
+
+const ERP_LABELS: Record<string, string> = {
+  synced: "Synced",
+  not_synced: "Not Synced",
+  pending: "Pending",
+};
+
+const ERP_COLORS: Record<string, string> = {
+  synced: "text-green-600",
+  not_synced: "text-gray-400",
+  pending: "text-amber-500",
+};
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function DetailField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-500 mb-0.5">{label}</p>
+      <div className="text-sm text-gray-900">{children}</div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="py-8 border-b border-gray-200 last:border-b-0">
+      <h2 className="text-base font-semibold text-gray-900 mb-6">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+
+export default function CommitmentDetailClient({
+  projectId,
+  commitmentId,
+  username,
+}: {
+  projectId: string;
+  commitmentId: string;
+  role: string;
+  username: string;
+}) {
+  const [commitment, setCommitment] = useState<Commitment | null>(null);
+  const [sovItems, setSovItems] = useState<SovItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/projects/${projectId}/commitments/${commitmentId}`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/commitments/${commitmentId}/sov`).then((r) => r.json()),
+    ]).then(([c, sov]) => {
+      setCommitment(c);
+      setSovItems(Array.isArray(sov) ? sov : []);
+      setLoading(false);
+    });
+  }, [projectId, commitmentId]);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/";
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-sm text-gray-400">Loading…</p>
+      </div>
+    );
+  }
+
+  if (!commitment) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-sm text-gray-500">Commitment not found.</p>
+      </div>
+    );
+  }
+
+  const typeLabel = commitment.type === "purchase_order" ? "Purchase Order" : "Subcontract";
+  const revised = commitment.original_contract_amount + commitment.approved_change_orders;
+
+  const statusCls = STATUS_COLORS[commitment.status] ?? "bg-gray-100 text-gray-500";
+  const statusLabel =
+    commitment.status === "approved"
+      ? "Approved"
+      : commitment.status === "void"
+      ? "Void"
+      : commitment.status === "terminated"
+      ? "Terminated"
+      : "Draft";
+
+  const erpColor = ERP_COLORS[commitment.erp_status] ?? "text-gray-400";
+  const erpLabel = ERP_LABELS[commitment.erp_status] ?? commitment.erp_status;
+
+  const sovMethod = commitment.sov_accounting_method;
+  const sovTotal = sovItems
+    .filter((l) => !l.is_group_header)
+    .reduce((sum, l) => sum + (sovMethod === "unit_quantity" ? l.qty * l.unit_cost : l.amount), 0);
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
+        <a
+          href="/dashboard"
+          className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors"
+        >
+          SiteCommand
+        </a>
+        <div className="flex items-center gap-5">
+          <span className="text-sm text-gray-400">{username}</span>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-400 hover:text-gray-900 transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <ProjectNav projectId={projectId} />
+
+      {/* Page header bar */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-8 py-3 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3">
+          <a
+            href={`/projects/${projectId}/commitments`}
+            className="text-sm text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            ← Commitments
+          </a>
+          <span className="text-gray-200">/</span>
+          <h1 className="text-sm font-semibold text-gray-900">
+            #{commitment.number} — {commitment.title || typeLabel}
+          </h1>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+            {typeLabel}
+          </span>
+        </div>
+        <a
+          href={`/projects/${projectId}/commitments/${commitmentId}/edit`}
+          className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+        >
+          Edit
+        </a>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-5xl mx-auto px-8">
+
+        {/* ── General Information ── */}
+        <Section title="General Information">
+          <div className="grid grid-cols-3 gap-6 mb-6">
+            <DetailField label="Contract #">
+              {commitment.number}
+            </DetailField>
+            <DetailField label="Contract Company">
+              {commitment.contract_company || <span className="text-gray-400">—</span>}
+            </DetailField>
+            <DetailField label="Title">
+              {commitment.title || <span className="text-gray-400">—</span>}
+            </DetailField>
+          </div>
+          <div className="grid grid-cols-3 gap-6 mb-6">
+            <DetailField label="Status">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusCls}`}>
+                {statusLabel}
+              </span>
+            </DetailField>
+            <DetailField label="Executed">
+              {commitment.executed ? "Yes" : "No"}
+            </DetailField>
+            <DetailField label="Default Retainage">
+              {commitment.default_retainage}%
+            </DetailField>
+          </div>
+          <div className="grid grid-cols-3 gap-6 mb-6">
+            <DetailField label="ERP Status">
+              <span className={`text-sm italic ${erpColor}`}>{erpLabel}</span>
+            </DetailField>
+            <DetailField label="SSOV Status">
+              {commitment.ssov_status || <span className="text-gray-400">—</span>}
+            </DetailField>
+          </div>
+          {commitment.description && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-gray-500 mb-1">Description</p>
+              <div
+                className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: commitment.description }}
+              />
+            </div>
+          )}
+        </Section>
+
+        {/* ── Financial Summary ── */}
+        <Section title="Financial Summary">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {[
+              { label: "Original Contract Amount", value: commitment.original_contract_amount },
+              { label: "Approved Change Orders", value: commitment.approved_change_orders },
+              { label: "Revised Contract Amount", value: revised },
+              { label: "Pending Change Orders", value: commitment.pending_change_orders },
+              { label: "Draft Amount", value: commitment.draft_amount },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+                <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>
+                <p className="text-base font-semibold text-gray-900 tabular-nums">{fmt(value)}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        {/* ── Schedule of Values ── */}
+        <Section title="Schedule of Values">
+          <p className="text-xs text-gray-500 mb-4">
+            Accounting method:{" "}
+            <strong>{sovMethod === "unit_quantity" ? "Unit / Quantity" : "Amount"}</strong>
+          </p>
+          {sovItems.length === 0 ? (
+            <p className="text-sm text-gray-400">No schedule of values items.</p>
+          ) : (
+            <div className="border border-gray-200 rounded overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 w-10">#</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500">Change Event Line Item</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500">Budget Code</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500">Description</th>
+                      {sovMethod === "unit_quantity" ? (
+                        <>
+                          <th className="px-3 py-2 text-right font-medium text-gray-500">Qty</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-500">UOM</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-500">Unit Cost</th>
+                        </>
+                      ) : null}
+                      <th className="px-3 py-2 text-right font-medium text-gray-500">Amount</th>
+                      <th className="px-3 py-2 text-right font-medium text-gray-500">Billed to Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sovItems.map((item, idx) =>
+                      item.is_group_header ? (
+                        <tr key={item.id} className="bg-gray-50 border-b border-gray-100">
+                          <td colSpan={sovMethod === "unit_quantity" ? 9 : 6} className="px-3 py-2 font-semibold text-gray-700">
+                            {item.group_name || "Group"}
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr key={item.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+                          <td className="px-3 py-2 text-gray-400">{idx + 1}</td>
+                          <td className="px-3 py-2 text-gray-700">{item.change_event_line_item || "—"}</td>
+                          <td className="px-3 py-2 text-gray-700">{item.budget_code || "—"}</td>
+                          <td className="px-3 py-2 text-gray-700">{item.description || "—"}</td>
+                          {sovMethod === "unit_quantity" ? (
+                            <>
+                              <td className="px-3 py-2 text-right tabular-nums text-gray-700">{item.qty}</td>
+                              <td className="px-3 py-2 text-gray-500">{item.uom || "—"}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-gray-700">{fmt(item.unit_cost)}</td>
+                            </>
+                          ) : null}
+                          <td className="px-3 py-2 text-right tabular-nums text-gray-900 font-medium">
+                            {fmt(sovMethod === "unit_quantity" ? item.qty * item.unit_cost : item.amount)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-gray-700">{fmt(item.billed_to_date)}</td>
+                        </tr>
+                      )
+                    )}
+                    <tr className="bg-gray-50 border-t border-gray-200 font-semibold">
+                      <td colSpan={sovMethod === "unit_quantity" ? 7 : 4} className="px-3 py-2 text-gray-700 text-right">
+                        Total
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-gray-900">{fmt(sovTotal)}</td>
+                      <td />
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </Section>
+
+        {/* ── Contract Dates ── */}
+        <Section title="Contract Dates">
+          <div className="grid grid-cols-2 gap-8">
+            <DetailField label="Delivery Date">
+              {formatDate(commitment.delivery_date)}
+            </DetailField>
+            <DetailField label="Signed Purchase Order Received Date">
+              {formatDate(commitment.signed_po_received_date)}
+            </DetailField>
+          </div>
+        </Section>
+
+        {/* ── Contract Privacy ── */}
+        <Section title="Contract Privacy">
+          <div className="grid grid-cols-2 gap-8">
+            <DetailField label="Private">
+              {commitment.is_private ? "Yes" : "No"}
+            </DetailField>
+            <DetailField label="Allow Non-Admin Users to View SOV Items">
+              {commitment.sov_view_allowed ? "Yes" : "No"}
+            </DetailField>
+          </div>
+        </Section>
+
+        {/* ── Additional Information ── */}
+        <Section title="Additional Information">
+          {commitment.type === "subcontract" && (
+            <div className="mb-8">
+              <h3 className="text-sm font-semibold text-gray-800 mb-4">Subcontract Fields</h3>
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <DetailField label="Cover Letter">
+                  {commitment.subcontract_cover_letter || <span className="text-gray-400">—</span>}
+                </DetailField>
+                <DetailField label="Bond Amount">
+                  {commitment.bond_amount > 0 ? fmt(commitment.bond_amount) : <span className="text-gray-400">—</span>}
+                </DetailField>
+              </div>
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <DetailField label="Trades">
+                  {commitment.trades || <span className="text-gray-400">—</span>}
+                </DetailField>
+                <DetailField label="Subcontractor Contact">
+                  {commitment.subcontractor_contact || <span className="text-gray-400">—</span>}
+                </DetailField>
+              </div>
+              {commitment.exhibit_a_scope && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-500 mb-1">Exhibit A Scope of Work</p>
+                  <div
+                    className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: commitment.exhibit_a_scope }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">Purchase Order Fields</h3>
+            <div className="grid grid-cols-2 gap-6">
+              <DetailField label="Subcontract Type">
+                {commitment.subcontract_type
+                  ? commitment.subcontract_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+                  : <span className="text-gray-400">—</span>}
+              </DetailField>
+              <DetailField label="Show Cover Letter">
+                {commitment.show_cover_letter ? "Yes" : "No"}
+              </DetailField>
+              <DetailField label="Show Executed Cover Letter">
+                {commitment.show_executed_cover_letter ? "Yes" : "No"}
+              </DetailField>
+            </div>
+          </div>
+        </Section>
+
+      </div>
+    </div>
+  );
+}
