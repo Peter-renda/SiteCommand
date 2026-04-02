@@ -714,9 +714,12 @@ export default function CommitmentsClient({
     switch (key) {
       case "number":
         return (
-          <span className="text-blue-600 font-medium hover:underline cursor-pointer">
+          <a
+            href={`/projects/${projectId}/commitments/${item.id}`}
+            className="text-blue-600 font-medium hover:underline"
+          >
             {item.number}
-          </span>
+          </a>
         );
       case "contract_company":
         return (
