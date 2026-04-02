@@ -20,6 +20,8 @@ type Commitment = {
   approved_change_orders: number;
   pending_change_orders: number;
   draft_amount: number;
+  invoiced: number;
+  payments_issued: number;
   sort_order: number;
   deleted_at: string | null;
   created_at: string;
@@ -99,6 +101,8 @@ function exportCSV(items: Commitment[]) {
     "Revised Contract Amount",
     "Pending Change Orders",
     "Draft Amount",
+    "Invoiced",
+    "Payments Issued",
   ];
 
   const rows = items.map((item) => [
@@ -115,6 +119,8 @@ function exportCSV(items: Commitment[]) {
     item.original_contract_amount + item.approved_change_orders,
     item.pending_change_orders,
     item.draft_amount,
+    item.invoiced,
+    item.payments_issued,
   ]);
 
   const csv = [headers, ...rows]
@@ -147,6 +153,8 @@ function exportPDF(items: Commitment[]) {
         <td>${fmt(revised)}</td>
         <td>${fmt(item.pending_change_orders)}</td>
         <td>${fmt(item.draft_amount)}</td>
+        <td>${fmt(item.invoiced)}</td>
+        <td>${fmt(item.payments_issued)}</td>
       </tr>`;
     })
     .join("");
@@ -170,7 +178,7 @@ function exportPDF(items: Commitment[]) {
           <th>#</th><th>Type</th><th>Company</th><th>Title</th><th>ERP</th>
           <th>Status</th><th>Executed</th><th>Original Amount</th>
           <th>Approved COs</th><th>Revised Amount</th>
-          <th>Pending COs</th><th>Draft</th>
+          <th>Pending COs</th><th>Draft</th><th>Invoiced</th><th>Payments Issued</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -708,6 +716,8 @@ export default function CommitmentsClient({
       width: "min-w-[150px]",
     },
     { key: "draft_amount", label: "Draft", width: "min-w-[100px]" },
+    { key: "invoiced", label: "Invoiced", width: "min-w-[120px]" },
+    { key: "payments_issued", label: "Payments Issued", width: "min-w-[130px]" },
   ] as const;
 
   function renderCell(item: Commitment, key: (typeof COLS)[number]["key"]) {
@@ -785,6 +795,10 @@ export default function CommitmentsClient({
         return <span className="text-gray-900 tabular-nums">{fmt(item.pending_change_orders)}</span>;
       case "draft_amount":
         return <span className="text-gray-900 tabular-nums">{fmt(item.draft_amount)}</span>;
+      case "invoiced":
+        return <span className="text-gray-900 tabular-nums">{fmt(item.invoiced)}</span>;
+      case "payments_issued":
+        return <span className="text-gray-900 tabular-nums">{fmt(item.payments_issued)}</span>;
     }
   }
 
@@ -1174,6 +1188,43 @@ export default function CommitmentsClient({
                     ))
                   )}
                 </tbody>
+                {visibleItems.length > 0 && (() => {
+                  const totalOriginal = visibleItems.reduce((s, i) => s + i.original_contract_amount, 0);
+                  const totalApproved = visibleItems.reduce((s, i) => s + i.approved_change_orders, 0);
+                  const totalRevised = totalOriginal + totalApproved;
+                  const totalPending = visibleItems.reduce((s, i) => s + i.pending_change_orders, 0);
+                  const totalDraft = visibleItems.reduce((s, i) => s + i.draft_amount, 0);
+                  const totalInvoiced = visibleItems.reduce((s, i) => s + i.invoiced, 0);
+                  const totalPayments = visibleItems.reduce((s, i) => s + i.payments_issued, 0);
+                  const totals: Record<string, React.ReactNode> = {
+                    number: <span className="font-semibold text-gray-700">Totals</span>,
+                    contract_company: null,
+                    title: null,
+                    erp_status: null,
+                    status: null,
+                    executed: null,
+                    ssov_status: null,
+                    original_contract_amount: <span className="font-semibold tabular-nums">{fmt(totalOriginal)}</span>,
+                    approved_change_orders: <span className="font-semibold tabular-nums">{fmt(totalApproved)}</span>,
+                    revised_contract_amount: <span className="font-semibold tabular-nums">{fmt(totalRevised)}</span>,
+                    pending_change_orders: <span className="font-semibold tabular-nums">{fmt(totalPending)}</span>,
+                    draft_amount: <span className="font-semibold tabular-nums">{fmt(totalDraft)}</span>,
+                    invoiced: <span className="font-semibold tabular-nums">{fmt(totalInvoiced)}</span>,
+                    payments_issued: <span className="font-semibold tabular-nums">{fmt(totalPayments)}</span>,
+                  };
+                  return (
+                    <tfoot>
+                      <tr className="border-t-2 border-gray-200 bg-gray-50">
+                        {COLS.map((col) => (
+                          <td key={col.key} className="px-3 py-3 text-xs whitespace-nowrap">
+                            {totals[col.key]}
+                          </td>
+                        ))}
+                        <td className="px-3 py-3" />
+                      </tr>
+                    </tfoot>
+                  );
+                })()}
               </table>
             </div>
           </div>
