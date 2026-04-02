@@ -46,6 +46,7 @@ export async function POST(
   const body = await req.json();
   const {
     type,
+    number: requestedNumber,
     contract_company,
     title,
     erp_status,
@@ -80,15 +81,20 @@ export async function POST(
     sort_order,
   } = body;
 
-  // Get next number for this project (includes soft-deleted for uniqueness)
-  const { data: existing } = await supabase
-    .from("commitments")
-    .select("number")
-    .eq("project_id", projectId)
-    .order("number", { ascending: false })
-    .limit(1);
+  let nextNumber: number;
+  if (requestedNumber != null && Number.isInteger(Number(requestedNumber))) {
+    nextNumber = Number(requestedNumber);
+  } else {
+    // Get next number for this project (includes soft-deleted for uniqueness)
+    const { data: existing } = await supabase
+      .from("commitments")
+      .select("number")
+      .eq("project_id", projectId)
+      .order("number", { ascending: false })
+      .limit(1);
 
-  const nextNumber = existing && existing.length > 0 ? existing[0].number + 1 : 1;
+    nextNumber = existing && existing.length > 0 ? existing[0].number + 1 : 1;
+  }
 
   const { data, error } = await supabase
     .from("commitments")
