@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { ArrowLeft, Settings, ChevronDown } from "lucide-react";
+import { ArrowLeft, Settings, ChevronDown, ChevronUp } from "lucide-react";
 
 type SovItem = {
   id: string;
@@ -96,6 +96,87 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+function ContractSummaryTile({
+  original,
+  approvedCO,
+  pendingCO,
+  draftCO,
+  invoiced,
+  paymentsReceived,
+  revised,
+  pendingRevised,
+  remaining,
+  pctPaid,
+}: {
+  original: number;
+  approvedCO: number;
+  pendingCO: number;
+  draftCO: number;
+  invoiced: number;
+  paymentsReceived: number;
+  revised: number;
+  pendingRevised: number;
+  remaining: number;
+  pctPaid: string;
+}) {
+  const [open, setOpen] = useState(true);
+
+  type SummaryItem = { label: string; value: number; pct?: true };
+
+  const rows: SummaryItem[][] = [
+    [
+      { label: "Original Contract Amount", value: original },
+      { label: "Pending Change Orders", value: pendingCO },
+      { label: "Invoices", value: invoiced },
+      { label: "Payments Received", value: paymentsReceived },
+    ],
+    [
+      { label: "Approved Change Orders", value: approvedCO },
+      { label: "Pending Revised Contract Amount", value: pendingRevised },
+      { label: "Remaining Balance", value: remaining },
+      { label: "Percent Paid", value: parseFloat(pctPaid), pct: true },
+    ],
+    [
+      { label: "Revised Contract Amount", value: revised },
+      { label: "Draft Change Orders", value: draftCO },
+    ],
+  ];
+
+  return (
+    <div className="bg-white border-b border-gray-200 px-8 py-5">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 mb-4"
+      >
+        {open ? (
+          <ChevronDown className="w-4 h-4 text-gray-500" />
+        ) : (
+          <ChevronUp className="w-4 h-4 text-gray-500" />
+        )}
+        <h2 className="text-sm font-semibold text-gray-900">Contract Summary</h2>
+      </button>
+      {open && (
+        <div className="space-y-5">
+          {rows.map((row, ri) => (
+            <div key={ri} className="grid grid-cols-4 gap-x-8">
+              {row.map((item) => (
+                <div key={item.label}>
+                  <p className="text-xs font-semibold text-gray-800 mb-0.5">{item.label}</p>
+                  <p className="text-sm text-gray-700">
+                    {item.pct
+                      ? `${item.value.toFixed(1)}%`
+                      : `$ ${item.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Tab = "overview" | "sov" | "inclusions" | "dates";
 
 export default function PrimeContractDetailClient({
@@ -142,6 +223,7 @@ export default function PrimeContractDetailClient({
   }
 
   const revised = (contract.original_contract_amount ?? 0) + (contract.approved_change_orders ?? 0);
+  const pendingRevised = (contract.original_contract_amount ?? 0) + (contract.pending_change_orders ?? 0);
   const pctPaid = revised > 0 ? ((contract.payments_received / revised) * 100).toFixed(1) : "0.0";
   const remaining = revised - (contract.payments_received ?? 0);
 
@@ -252,6 +334,18 @@ export default function PrimeContractDetailClient({
                 </div>
               )}
             </Section>
+            <ContractSummaryTile
+              original={contract.original_contract_amount}
+              approvedCO={contract.approved_change_orders}
+              pendingCO={contract.pending_change_orders}
+              draftCO={contract.draft_change_orders}
+              invoiced={contract.invoiced}
+              paymentsReceived={contract.payments_received}
+              revised={revised}
+              pendingRevised={pendingRevised}
+              remaining={remaining}
+              pctPaid={pctPaid}
+            />
           </div>
         )}
 
