@@ -36,9 +36,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     approved_cos,
     pending_budget_changes,
     committed_costs,
-    direct_costs,
+    job_to_date_costs,
+    commitments_invoiced,
     pending_cost_changes,
-    forecast_to_complete,
     sort_order,
   } = body;
 
@@ -57,9 +57,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       approved_cos: approved_cos ?? 0,
       pending_budget_changes: pending_budget_changes ?? 0,
       committed_costs: committed_costs ?? 0,
-      direct_costs: direct_costs ?? 0,
+      job_to_date_costs: job_to_date_costs ?? 0,
+      commitments_invoiced: commitments_invoiced ?? 0,
       pending_cost_changes: pending_cost_changes ?? 0,
-      forecast_to_complete: forecast_to_complete ?? 0,
       sort_order: sort_order ?? 0,
     })
     .select()

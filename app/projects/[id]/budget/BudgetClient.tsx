@@ -16,9 +16,9 @@ type BudgetLineItem = {
   approved_cos: number;
   pending_budget_changes: number;
   committed_costs: number;
-  direct_costs: number;
+  job_to_date_costs: number;
+  commitments_invoiced: number;
   pending_cost_changes: number;
-  forecast_to_complete: number;
   sort_order: number;
   created_at: string;
 };
@@ -35,15 +35,17 @@ function calc(item: BudgetLineItem) {
   const revisedBudget =
     item.original_budget_amount + item.budget_modifications + item.approved_cos;
   const projectedBudget = revisedBudget + item.pending_budget_changes;
-  const jobToDateCosts = item.committed_costs + item.direct_costs;
-  const projectedCosts = jobToDateCosts + item.pending_cost_changes;
-  const estimatedCostAtCompletion = jobToDateCosts + item.forecast_to_complete;
-  const projectedOverUnder = revisedBudget - estimatedCostAtCompletion;
+  const directCosts = item.job_to_date_costs - item.commitments_invoiced;
+  const projectedCosts = item.committed_costs + directCosts + item.pending_cost_changes;
+  const forecastToComplete = Math.max(0, projectedBudget - projectedCosts);
+  const estimatedCostAtCompletion = projectedCosts + forecastToComplete;
+  const projectedOverUnder = projectedBudget - estimatedCostAtCompletion;
   return {
     revisedBudget,
     projectedBudget,
-    jobToDateCosts,
+    directCosts,
     projectedCosts,
+    forecastToComplete,
     estimatedCostAtCompletion,
     projectedOverUnder,
   };
@@ -56,13 +58,14 @@ function sumItems(items: BudgetLineItem[]) {
     approved_cos: 0,
     pending_budget_changes: 0,
     committed_costs: 0,
-    direct_costs: 0,
+    job_to_date_costs: 0,
+    commitments_invoiced: 0,
     pending_cost_changes: 0,
-    forecast_to_complete: 0,
     revisedBudget: 0,
     projectedBudget: 0,
-    jobToDateCosts: 0,
+    directCosts: 0,
     projectedCosts: 0,
+    forecastToComplete: 0,
     estimatedCostAtCompletion: 0,
     projectedOverUnder: 0,
   };
@@ -73,13 +76,14 @@ function sumItems(items: BudgetLineItem[]) {
     totals.approved_cos += item.approved_cos;
     totals.pending_budget_changes += item.pending_budget_changes;
     totals.committed_costs += item.committed_costs;
-    totals.direct_costs += item.direct_costs;
+    totals.job_to_date_costs += item.job_to_date_costs;
+    totals.commitments_invoiced += item.commitments_invoiced;
     totals.pending_cost_changes += item.pending_cost_changes;
-    totals.forecast_to_complete += item.forecast_to_complete;
     totals.revisedBudget += c.revisedBudget;
     totals.projectedBudget += c.projectedBudget;
-    totals.jobToDateCosts += c.jobToDateCosts;
+    totals.directCosts += c.directCosts;
     totals.projectedCosts += c.projectedCosts;
+    totals.forecastToComplete += c.forecastToComplete;
     totals.estimatedCostAtCompletion += c.estimatedCostAtCompletion;
     totals.projectedOverUnder += c.projectedOverUnder;
   }
@@ -139,11 +143,11 @@ function exportPDF(items: BudgetLineItem[]) {
       <td>${fmt(totals.pending_budget_changes)}</td>
       <td>${fmt(totals.projectedBudget)}</td>
       <td>${fmt(totals.committed_costs)}</td>
-      <td>${fmt(totals.direct_costs)}</td>
-      <td>${fmt(totals.jobToDateCosts)}</td>
+      <td>${fmt(totals.directCosts)}</td>
+      <td>${fmt(totals.job_to_date_costs)}</td>
       <td>${fmt(totals.pending_cost_changes)}</td>
       <td>${fmt(totals.projectedCosts)}</td>
-      <td>${fmt(totals.forecast_to_complete)}</td>
+      <td>${fmt(totals.forecastToComplete)}</td>
       <td>${fmt(totals.estimatedCostAtCompletion)}</td>
       <td style="color:${totals.projectedOverUnder >= 0 ? "inherit" : "#dc2626"}">${fmt(totals.projectedOverUnder)}</td>
     </tr>`;
@@ -164,11 +168,11 @@ function exportPDF(items: BudgetLineItem[]) {
         <td>${fmt(item.pending_budget_changes)}</td>
         <td>${fmt(c.projectedBudget)}</td>
         <td>${fmt(item.committed_costs)}</td>
-        <td>${fmt(item.direct_costs)}</td>
-        <td>${fmt(c.jobToDateCosts)}</td>
+        <td>${fmt(c.directCosts)}</td>
+        <td>${fmt(item.job_to_date_costs)}</td>
         <td>${fmt(item.pending_cost_changes)}</td>
         <td>${fmt(c.projectedCosts)}</td>
-        <td>${fmt(item.forecast_to_complete)}</td>
+        <td>${fmt(c.forecastToComplete)}</td>
         <td>${fmt(c.estimatedCostAtCompletion)}</td>
         <td style="color:${c.projectedOverUnder >= 0 ? "inherit" : "#dc2626"}">${fmt(c.projectedOverUnder)}</td>
       </tr>`;
@@ -207,9 +211,9 @@ type LineItemFormData = {
   approved_cos: string;
   pending_budget_changes: string;
   committed_costs: string;
-  direct_costs: string;
+  job_to_date_costs: string;
+  commitments_invoiced: string;
   pending_cost_changes: string;
-  forecast_to_complete: string;
 };
 
 const emptyForm: LineItemFormData = {
@@ -220,9 +224,9 @@ const emptyForm: LineItemFormData = {
   approved_cos: "",
   pending_budget_changes: "",
   committed_costs: "",
-  direct_costs: "",
+  job_to_date_costs: "",
+  commitments_invoiced: "",
   pending_cost_changes: "",
-  forecast_to_complete: "",
 };
 
 function numVal(s: string): number {
@@ -279,9 +283,9 @@ function LineItemModal({
           approved_cos: initial.approved_cos !== 0 ? String(initial.approved_cos) : "",
           pending_budget_changes: initial.pending_budget_changes !== 0 ? String(initial.pending_budget_changes) : "",
           committed_costs: initial.committed_costs !== 0 ? String(initial.committed_costs) : "",
-          direct_costs: initial.direct_costs !== 0 ? String(initial.direct_costs) : "",
+          job_to_date_costs: initial.job_to_date_costs !== 0 ? String(initial.job_to_date_costs) : "",
+          commitments_invoiced: initial.commitments_invoiced !== 0 ? String(initial.commitments_invoiced) : "",
           pending_cost_changes: initial.pending_cost_changes !== 0 ? String(initial.pending_cost_changes) : "",
-          forecast_to_complete: initial.forecast_to_complete !== 0 ? String(initial.forecast_to_complete) : "",
         }
       : emptyForm
   );
@@ -362,14 +366,14 @@ function LineItemModal({
             <Field label="Committed Costs">
               <MoneyInput value={form.committed_costs} onChange={(v) => set("committed_costs", v)} />
             </Field>
-            <Field label="Direct Costs">
-              <MoneyInput value={form.direct_costs} onChange={(v) => set("direct_costs", v)} />
+            <Field label="ERP Job to Date Costs">
+              <MoneyInput value={form.job_to_date_costs} onChange={(v) => set("job_to_date_costs", v)} />
+            </Field>
+            <Field label="Commitments Invoiced">
+              <MoneyInput value={form.commitments_invoiced} onChange={(v) => set("commitments_invoiced", v)} />
             </Field>
             <Field label="Pending Cost Changes">
               <MoneyInput value={form.pending_cost_changes} onChange={(v) => set("pending_cost_changes", v)} />
-            </Field>
-            <Field label="Forecast to Complete">
-              <MoneyInput value={form.forecast_to_complete} onChange={(v) => set("forecast_to_complete", v)} />
             </Field>
           </div>
 
@@ -493,6 +497,41 @@ function ErpConfirmModal({
   );
 }
 
+// ── Column header tooltip ─────────────────────────────────────────────────────
+
+type ColTooltip = {
+  subtitle?: string;
+  kind: "Source Column" | "Calculated Column" | "Standard Column";
+  body: React.ReactNode;
+};
+
+function ColumnTooltip({ label, tooltip }: { label: string; tooltip: ColTooltip }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div
+      className="relative inline-block"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <span className="cursor-default select-none">{label}</span>
+      {show && (
+        <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg bg-gray-900 text-white shadow-xl p-3 text-xs pointer-events-none">
+          <div className="font-semibold text-sm leading-tight">
+            {label}
+            {tooltip.subtitle && (
+              <span className="text-gray-400 font-normal"> {tooltip.subtitle}</span>
+            )}
+          </div>
+          <div className="text-gray-400 mt-0.5 mb-2">{tooltip.kind}</div>
+          <div className="border-t border-gray-700 pt-2 space-y-1 leading-relaxed">
+            {tooltip.body}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function BudgetClient({
@@ -557,9 +596,9 @@ export default function BudgetClient({
         approved_cos: numVal(data.approved_cos),
         pending_budget_changes: numVal(data.pending_budget_changes),
         committed_costs: numVal(data.committed_costs),
-        direct_costs: numVal(data.direct_costs),
+        job_to_date_costs: numVal(data.job_to_date_costs),
+        commitments_invoiced: numVal(data.commitments_invoiced),
         pending_cost_changes: numVal(data.pending_cost_changes),
-        forecast_to_complete: numVal(data.forecast_to_complete),
         sort_order: items.length,
       }),
     });
@@ -583,9 +622,9 @@ export default function BudgetClient({
         approved_cos: numVal(data.approved_cos),
         pending_budget_changes: numVal(data.pending_budget_changes),
         committed_costs: numVal(data.committed_costs),
-        direct_costs: numVal(data.direct_costs),
+        job_to_date_costs: numVal(data.job_to_date_costs),
+        commitments_invoiced: numVal(data.commitments_invoiced),
         pending_cost_changes: numVal(data.pending_cost_changes),
-        forecast_to_complete: numVal(data.forecast_to_complete),
       }),
     });
     if (res.ok) {
@@ -626,25 +665,102 @@ export default function BudgetClient({
 
   const totals = sumItems(items);
 
-  const COLS = [
+  const COLS: Array<{
+    key: string;
+    label: string;
+    width: string;
+    tooltip?: ColTooltip;
+  }> = [
     { key: "description", label: "Description", width: "min-w-[180px]" },
     { key: "original_budget_amount", label: "Original Budget Amount", width: "min-w-[130px]" },
     { key: "budget_modifications", label: "Budget Modifications", width: "min-w-[120px]" },
-    { key: "approved_cos", label: "Approved COs", width: "min-w-[110px]" },
-    { key: "revised_budget", label: "Revised Budget", width: "min-w-[110px]" },
-    { key: "pending_budget_changes", label: "Pending Budget Changes", width: "min-w-[130px]" },
-    { key: "projected_budget", label: "Projected Budget", width: "min-w-[110px]" },
-    { key: "committed_costs", label: "Committed Costs", width: "min-w-[110px]" },
-    { key: "direct_costs", label: "Direct Costs", width: "min-w-[100px]" },
-    { key: "job_to_date_costs", label: "Job to Date Costs", width: "min-w-[110px]" },
-    { key: "pending_cost_changes", label: "Pending Cost Changes", width: "min-w-[120px]" },
-    { key: "projected_costs", label: "Projected Costs", width: "min-w-[110px]" },
-    { key: "forecast_to_complete", label: "Forecast To Complete", width: "min-w-[120px]" },
-    { key: "estimated_cost_at_completion", label: "Estimated Cost at Completion", width: "min-w-[140px]" },
-    { key: "projected_over_under", label: "Projected over Under", width: "min-w-[120px]" },
-  ] as const;
+    {
+      key: "approved_cos", label: "Approved COs", width: "min-w-[110px]",
+      tooltip: {
+        subtitle: "(Prime Contract)", kind: "Source Column",
+        body: (<><p className="font-medium">Change Orders</p><p className="text-gray-400">Status</p><p className="text-gray-300">• Approved</p></>),
+      },
+    },
+    {
+      key: "revised_budget", label: "Revised Budget", width: "min-w-[110px]",
+      tooltip: {
+        kind: "Calculated Column",
+        body: (<><p className="text-gray-300">{"  "}Original Budget Amount</p><p className="text-gray-300">+ Budget Modifications</p><p className="text-gray-300">+ Approved COs</p><div className="border-t border-gray-700 mt-1 pt-1"><p className="font-semibold">= Revised Budget</p></div></>),
+      },
+    },
+    {
+      key: "pending_budget_changes", label: "Pending Budget Changes", width: "min-w-[130px]",
+      tooltip: {
+        subtitle: "(Prime Contract)", kind: "Source Column",
+        body: (<><p className="font-medium">Change Orders</p><p className="text-gray-400">Status</p><p className="text-gray-300">• Pending - In Review</p><p className="text-gray-300">• Pending - Not Pricing</p><p className="text-gray-300">• Pending - Not Proceeding</p><p className="text-gray-300">• Pending - Pricing</p><p className="text-gray-300">• Pending - Proceeding</p><p className="text-gray-300">• Pending - Revised</p></>),
+      },
+    },
+    {
+      key: "projected_budget", label: "Projected Budget", width: "min-w-[110px]",
+      tooltip: {
+        kind: "Calculated Column",
+        body: (<><p className="text-gray-300">{"  "}Revised Budget</p><p className="text-gray-300">+ Pending Budget Changes</p><div className="border-t border-gray-700 mt-1 pt-1"><p className="font-semibold">= Projected Budget</p></div></>),
+      },
+    },
+    {
+      key: "committed_costs", label: "Committed Costs", width: "min-w-[110px]",
+      tooltip: {
+        subtitle: "(Commitment)", kind: "Source Column",
+        body: (<><p className="font-medium">Subcontracts</p><p className="text-gray-400">Status</p><p className="text-gray-300">• Approved</p><p className="text-gray-300">• Complete</p><div className="border-t border-gray-700 my-1.5" /><p className="font-medium">Purchase Order Contracts</p><p className="text-gray-400">Status</p><p className="text-gray-300">• Approved</p><div className="border-t border-gray-700 my-1.5" /><p className="font-medium">Change Orders</p><p className="text-gray-400">Status</p><p className="text-gray-300">• Approved</p></>),
+      },
+    },
+    {
+      key: "direct_costs", label: "Direct Costs", width: "min-w-[100px]",
+      tooltip: {
+        kind: "Calculated Column",
+        body: (<><p className="text-gray-300">{"  "}Job to Date Costs</p><p className="text-gray-300">- Commitments Invoiced</p><div className="border-t border-gray-700 mt-1 pt-1"><p className="font-semibold">= Direct Costs</p></div></>),
+      },
+    },
+    {
+      key: "job_to_date_costs", label: "Job to Date Costs", width: "min-w-[110px]",
+      tooltip: {
+        subtitle: "(ERP Job Costs)", kind: "Source Column",
+        body: (<><p className="text-gray-300">ERP Job to Date Costs</p></>),
+      },
+    },
+    {
+      key: "pending_cost_changes", label: "Pending Cost Changes", width: "min-w-[120px]",
+      tooltip: {
+        subtitle: "(Commitment)", kind: "Source Column",
+        body: (<><p className="font-medium">Subcontracts</p><p className="text-gray-400">Status</p><p className="text-gray-300">• Out For Signature</p><div className="border-t border-gray-700 my-1.5" /><p className="font-medium">Purchase Order Contracts</p><p className="text-gray-400">Status</p><p className="text-gray-300">• Processing</p><p className="text-gray-300">• Submitted</p><p className="text-gray-300">• Partially Received</p><p className="text-gray-300">• Received</p><div className="border-t border-gray-700 my-1.5" /><p className="font-medium">Change Orders</p><p className="text-gray-400">Status</p><p className="text-gray-300">• Pending - In Review</p><p className="text-gray-300">• Pending - Not Pricing</p><p className="text-gray-300">• Pending - Not Proceeding</p><p className="text-gray-300">• Pending - Pricing</p><p className="text-gray-300">• Pending - Proceeding</p><p className="text-gray-300">• Pending - Revised</p></>),
+      },
+    },
+    {
+      key: "projected_costs", label: "Projected Costs", width: "min-w-[110px]",
+      tooltip: {
+        kind: "Calculated Column",
+        body: (<><p className="text-gray-300">{"  "}Committed Costs</p><p className="text-gray-300">+ Direct Costs</p><p className="text-gray-300">+ Pending Cost Changes</p><div className="border-t border-gray-700 mt-1 pt-1"><p className="font-semibold">= Projected Costs</p></div></>),
+      },
+    },
+    {
+      key: "forecast_to_complete", label: "Forecast To Complete", width: "min-w-[120px]",
+      tooltip: {
+        kind: "Standard Column",
+        body: (<><p className="text-gray-300">{"  "}Projected Budget</p><p className="text-gray-300">- Projected Costs</p><div className="border-t border-gray-700 mt-1 pt-1"><p className="font-semibold">= Forecast To Complete</p></div><p className="text-gray-400 mt-1.5">If negative, column will show 0.</p></>),
+      },
+    },
+    {
+      key: "estimated_cost_at_completion", label: "Estimated Cost at Completion", width: "min-w-[140px]",
+      tooltip: {
+        kind: "Calculated Column",
+        body: (<><p className="text-gray-300">{"  "}Projected Costs</p><p className="text-gray-300">+ Forecast To Complete</p><div className="border-t border-gray-700 mt-1 pt-1"><p className="font-semibold">= Estimated Cost at Completion</p></div></>),
+      },
+    },
+    {
+      key: "projected_over_under", label: "Projected over Under", width: "min-w-[120px]",
+      tooltip: {
+        kind: "Calculated Column",
+        body: (<><p className="text-gray-300">{"  "}Projected Budget</p><p className="text-gray-300">- Estimated Cost at Completion</p><div className="border-t border-gray-700 mt-1 pt-1"><p className="font-semibold">= Projected over Under</p></div></>),
+      },
+    },
+  ];
 
-  function renderCell(item: BudgetLineItem | null, key: (typeof COLS)[number]["key"]) {
+  function renderCell(item: BudgetLineItem | null, key: string) {
     if (item === null) {
       // Totals row
       switch (key) {
@@ -656,17 +772,18 @@ export default function BudgetClient({
         case "pending_budget_changes": return <span className="font-semibold">{fmt(totals.pending_budget_changes)}</span>;
         case "projected_budget": return <span className="font-semibold">{fmt(totals.projectedBudget)}</span>;
         case "committed_costs": return <span className="font-semibold">{fmt(totals.committed_costs)}</span>;
-        case "direct_costs": return <span className="font-semibold">{fmt(totals.direct_costs)}</span>;
-        case "job_to_date_costs": return <span className="font-semibold">{fmt(totals.jobToDateCosts)}</span>;
+        case "direct_costs": return <span className="font-semibold">{fmt(totals.directCosts)}</span>;
+        case "job_to_date_costs": return <span className="font-semibold">{fmt(totals.job_to_date_costs)}</span>;
         case "pending_cost_changes": return <span className="font-semibold">{fmt(totals.pending_cost_changes)}</span>;
         case "projected_costs": return <span className="font-semibold">{fmt(totals.projectedCosts)}</span>;
-        case "forecast_to_complete": return <span className="font-semibold">{fmt(totals.forecast_to_complete)}</span>;
+        case "forecast_to_complete": return <span className="font-semibold">{fmt(totals.forecastToComplete)}</span>;
         case "estimated_cost_at_completion": return <span className="font-semibold">{fmt(totals.estimatedCostAtCompletion)}</span>;
         case "projected_over_under": return (
           <span className={`font-semibold ${totals.projectedOverUnder < 0 ? "text-red-600" : ""}`}>
             {fmt(totals.projectedOverUnder)}
           </span>
         );
+        default: return null;
       }
     }
 
@@ -686,11 +803,11 @@ export default function BudgetClient({
       case "pending_budget_changes": return fmt(item!.pending_budget_changes);
       case "projected_budget": return fmt(c.projectedBudget);
       case "committed_costs": return fmt(item!.committed_costs);
-      case "direct_costs": return fmt(item!.direct_costs);
-      case "job_to_date_costs": return <span className="text-blue-600">{fmt(c.jobToDateCosts)}</span>;
+      case "direct_costs": return fmt(c.directCosts);
+      case "job_to_date_costs": return <span className="text-blue-600">{fmt(item!.job_to_date_costs)}</span>;
       case "pending_cost_changes": return fmt(item!.pending_cost_changes);
       case "projected_costs": return fmt(c.projectedCosts);
-      case "forecast_to_complete": return fmtWithArrow(item!.forecast_to_complete);
+      case "forecast_to_complete": return fmtWithArrow(c.forecastToComplete);
       case "estimated_cost_at_completion": return fmt(c.estimatedCostAtCompletion);
       case "projected_over_under":
         return (
@@ -698,6 +815,7 @@ export default function BudgetClient({
             {fmt(c.projectedOverUnder)}
           </span>
         );
+      default: return null;
     }
   }
 
@@ -833,7 +951,11 @@ export default function BudgetClient({
                         key={col.key}
                         className={`text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap ${col.width}`}
                       >
-                        {col.label}
+                        {col.tooltip ? (
+                          <ColumnTooltip label={col.label} tooltip={col.tooltip} />
+                        ) : (
+                          col.label
+                        )}
                       </th>
                     ))}
                     <th className="px-3 py-3 w-10" />
