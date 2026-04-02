@@ -21,9 +21,9 @@ export async function PATCH(
     "approved_cos",
     "pending_budget_changes",
     "committed_costs",
-    "direct_costs",
+    "job_to_date_costs",
+    "commitments_invoiced",
     "pending_cost_changes",
-    "forecast_to_complete",
     "sort_order",
   ];
 
