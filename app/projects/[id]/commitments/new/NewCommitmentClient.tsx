@@ -628,7 +628,7 @@ export default function NewCommitmentClient({
 }) {
   // Directory contacts
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
-  const [nextNumber, setNextNumber] = useState<number | null>(null);
+  const [nextNumber, setNextNumber] = useState<string>("");
 
   // Form state - General Information
   const [contractCompany, setContractCompany] = useState("");
@@ -686,7 +686,7 @@ export default function NewCommitmentClient({
       const nums = Array.isArray(existing)
         ? existing.map((c: { number: number }) => c.number)
         : [];
-      setNextNumber(nums.length > 0 ? Math.max(...nums) + 1 : 1);
+      setNextNumber(String(nums.length > 0 ? Math.max(...nums) + 1 : 1));
     });
   }, [projectId]);
 
@@ -764,6 +764,7 @@ export default function NewCommitmentClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: commitmentType,
+          number: nextNumber !== "" ? Number(nextNumber) : undefined,
           contract_company: contractCompany,
           title,
           status,
@@ -905,9 +906,9 @@ export default function NewCommitmentClient({
             <Field label="Contract #">
               <input
                 type="text"
-                readOnly
-                value={nextNumber ?? "—"}
-                className={inputCls + " bg-gray-50 text-gray-500"}
+                value={nextNumber}
+                onChange={(e) => setNextNumber(e.target.value)}
+                className={inputCls}
               />
             </Field>
             <Field label="Contract Company">
