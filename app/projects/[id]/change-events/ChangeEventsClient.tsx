@@ -122,11 +122,13 @@ export default function ChangeEventsClient({
   const [showBanner, setShowBanner] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [showRows, setShowRows] = useState(25);
   const [page, setPage] = useState(1);
   const filterRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+  const quickActionsRef = useRef<HTMLDivElement>(null);
   const [romPopup, setRomPopup] = useState<RomPopup | null>(null);
   const [romSaving, setRomSaving] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -136,6 +138,7 @@ export default function ChangeEventsClient({
     function handler(e: MouseEvent) {
       if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false);
+      if (quickActionsRef.current && !quickActionsRef.current.contains(e.target as Node)) setQuickActionsOpen(false);
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) setRomPopup(null);
     }
     document.addEventListener("mousedown", handler);
@@ -424,15 +427,44 @@ export default function ChangeEventsClient({
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-white shrink-0">
-        {/* Status filter placeholder */}
-        <select className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white min-w-[100px]">
-          <option value="">Status</option>
-          <option>Open</option>
-          <option>Pending</option>
-          <option>Approved</option>
-          <option>Rejected</option>
-          <option>Void</option>
-        </select>
+        {/* Quick Actions dropdown */}
+        <div ref={quickActionsRef} className="relative">
+          <button
+            disabled={selectedIds.size === 0}
+            onClick={() => setQuickActionsOpen((v) => !v)}
+            className={`flex items-center gap-1 px-3 py-1 text-xs border rounded transition-colors ${
+              selectedIds.size > 0
+                ? "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white"
+                : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+            }`}
+          >
+            Quick Actions <ChevronDown className="w-3 h-3" />
+          </button>
+          {quickActionsOpen && selectedIds.size > 0 && (
+            <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-30 w-64 py-1">
+              {[
+                { label: "Add to Unapproved Commitment", hasInfo: true },
+                { label: "Add to Unapproved Commitment CO", hasInfo: true },
+                { label: "Add to Unapproved Prime PCO", hasArrow: true },
+                { label: "Create Commitment CO", hasInfo: true },
+                { label: "Create Prime PCO", hasArrow: true },
+                { label: "Create Purchase Order Contract", hasInfo: true },
+                { label: "Create Subcontract", hasInfo: true },
+                { label: "Send RFQs", hasInfo: true },
+              ].map(({ label, hasInfo, hasArrow }) => (
+                <button
+                  key={label}
+                  className="w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                  onClick={() => setQuickActionsOpen(false)}
+                >
+                  <span>{label}</span>
+                  {hasInfo && <Info className="w-3 h-3 text-gray-400 shrink-0" />}
+                  {hasArrow && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Search */}
         <div className="relative">
