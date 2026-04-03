@@ -102,23 +102,27 @@ export default function NewPrimePCOClient({
     const ids = eventIds.split(",").filter(Boolean);
     if (ids.length === 0) return;
 
-    // Fetch each event and build title + description
     Promise.all(
       ids.map((id) =>
         fetch(`/api/projects/${projectId}/change-events/${id}`).then((r) => r.json())
       )
     )
-      .then((events: ChangeEvent[]) => {
+      .then((events: (ChangeEvent & { description?: string })[]) => {
         if (events.length === 1) {
           setTitle(events[0].title);
+          // Use the change event's own description if present, otherwise build one
+          setDescription(
+            events[0].description?.trim() ||
+              `CE #${String(events[0].number).padStart(3, "0")} - ${events[0].title}`
+          );
         } else {
           setTitle(events.map((e) => `CE #${String(e.number).padStart(3, "0")}`).join(", "));
+          setDescription(
+            events
+              .map((e) => `CE #${String(e.number).padStart(3, "0")} - ${e.title}`)
+              .join("\n")
+          );
         }
-        setDescription(
-          events
-            .map((e) => `CE #${String(e.number).padStart(3, "0")} - ${e.title}`)
-            .join("\n")
-        );
       })
       .catch(() => {});
   }, [eventIds, projectId]);
@@ -154,7 +158,14 @@ export default function NewPrimePCOClient({
         }),
       });
       if (res.ok) {
-        router.push(`/projects/${projectId}/prime-contracts/${contractId}`);
+        const created = await res.json();
+        if (sendEmail && created?.id) {
+          router.push(
+            `/projects/${projectId}/prime-contracts/${contractId}/change-orders/${created.id}/forward`
+          );
+        } else {
+          router.push(`/projects/${projectId}/prime-contracts/${contractId}`);
+        }
       }
     } finally {
       setSaving(false);
