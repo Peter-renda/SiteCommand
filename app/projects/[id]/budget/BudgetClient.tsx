@@ -962,16 +962,6 @@ export default function BudgetClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Totals row */}
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    {COLS.map((col) => (
-                      <td key={col.key} className="px-3 py-3 text-xs whitespace-nowrap">
-                        {renderCell(null, col.key)}
-                      </td>
-                    ))}
-                    <td />
-                  </tr>
-
                   {/* Line items */}
                   {items.length === 0 ? (
                     <tr>
@@ -1028,6 +1018,16 @@ export default function BudgetClient({
                       </tr>
                     ))
                   )}
+
+                  {/* Totals row */}
+                  <tr className="border-t border-gray-200 bg-gray-50">
+                    {COLS.map((col) => (
+                      <td key={col.key} className="px-3 py-3 text-xs whitespace-nowrap">
+                        {renderCell(null, col.key)}
+                      </td>
+                    ))}
+                    <td />
+                  </tr>
                 </tbody>
               </table>
             </div>

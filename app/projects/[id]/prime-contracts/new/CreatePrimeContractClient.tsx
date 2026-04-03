@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import {
@@ -10,6 +10,7 @@ import {
   Scissors, Copy, ClipboardPaste,
   Link, Undo2, Redo2, ChevronDown,
   Paperclip, HelpCircle, Trash2, Info,
+  Search, Plus,
 } from "lucide-react";
 
 type SOVItem = {
@@ -18,6 +19,160 @@ type SOVItem = {
   amount: number;
   billed_to_date: number;
 };
+
+type BudgetItem = {
+  id: string;
+  cost_code: string;
+  description: string;
+};
+
+function BudgetCodeDropdown({
+  projectId,
+  value,
+  budgetItems,
+  onSelect,
+  onCreateNew,
+}: {
+  projectId: string;
+  value: string;
+  budgetItems: BudgetItem[];
+  onSelect: (code: string, description: string) => void;
+  onCreateNew: (code: string, description: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newCode, setNewCode] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [saving, setSaving] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setCreating(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const filtered = budgetItems.filter(
+    (b) =>
+      !search ||
+      b.cost_code.toLowerCase().includes(search.toLowerCase()) ||
+      b.description.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen((o) => !o); setSearch(""); setCreating(false); }}
+        className="w-full flex items-center justify-between px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white text-left min-w-[140px]"
+      >
+        <span className={value ? "text-gray-800 truncate" : "text-gray-400"}>{value || "Select..."}</span>
+        <ChevronDown className="w-3 h-3 text-gray-400 shrink-0 ml-1" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded shadow-lg w-64">
+          {/* Search */}
+          <div className="flex items-center border-b border-gray-100 px-2 py-1.5">
+            <Search className="w-3.5 h-3.5 text-gray-400 mr-1.5 shrink-0" />
+            <input
+              autoFocus
+              type="text"
+              placeholder="Search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 text-xs focus:outline-none"
+            />
+          </div>
+
+          {/* List */}
+          <div className="max-h-52 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-gray-400 px-3 py-3 text-center">No budget codes found</p>
+            ) : (
+              filtered.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => { onSelect(b.cost_code, b.description); setOpen(false); }}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
+                >
+                  <p className="text-xs font-medium text-gray-800">{b.cost_code}</p>
+                  {b.description && <p className="text-[11px] text-gray-500">{b.description}</p>}
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Create section */}
+          {creating ? (
+            <div className="border-t border-gray-100 px-3 py-2.5 space-y-1.5">
+              <input
+                autoFocus
+                type="text"
+                placeholder="Budget code"
+                value={newCode}
+                onChange={(e) => setNewCode(e.target.value)}
+                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <input
+                type="text"
+                placeholder="Description"
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <div className="flex gap-1.5 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setCreating(false)}
+                  className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!newCode.trim() || saving}
+                  onClick={async () => {
+                    if (!newCode.trim()) return;
+                    setSaving(true);
+                    await onCreateNew(newCode.trim(), newDesc.trim());
+                    onSelect(newCode.trim(), newDesc.trim());
+                    setSaving(false);
+                    setCreating(false);
+                    setOpen(false);
+                    setNewCode("");
+                    setNewDesc("");
+                  }}
+                  className="flex-1 px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded font-medium disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium transition-colors rounded-b"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Create
+              <HelpCircle className="w-3.5 h-3.5 opacity-70" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ToolBtn({ children }: { children: React.ReactNode }) {
   return (
@@ -121,6 +276,28 @@ export default function CreatePrimeContractClient({ projectId }: { projectId: st
   const [dragOver, setDragOver] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/budget`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setBudgetItems(data);
+      })
+      .catch(() => {});
+  }, [projectId]);
+
+  async function handleCreateBudgetItem(code: string, description: string) {
+    const res = await fetch(`/api/projects/${projectId}/budget`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cost_code: code, description }),
+    });
+    if (res.ok) {
+      const created = await res.json();
+      setBudgetItems((prev) => [...prev, created]);
+    }
+  }
 
   const [formData, setFormData] = useState({
     contract_number: "",
@@ -401,11 +578,18 @@ export default function CreatePrimeContractClient({ projectId }: { projectId: st
                       <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
                         <td className="px-4 py-2 text-gray-400 text-xs">{i + 1}</td>
                         <td className="px-4 py-2">
-                          <input
-                            type="text"
+                          <BudgetCodeDropdown
+                            projectId={projectId}
                             value={item.budget_code}
-                            onChange={(e) => updateSov(i, "budget_code", e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            budgetItems={budgetItems}
+                            onSelect={(code, desc) =>
+                              setSovItems((prev) => {
+                                const next = [...prev];
+                                next[i] = { ...next[i], budget_code: code, description: desc };
+                                return next;
+                              })
+                            }
+                            onCreateNew={handleCreateBudgetItem}
                           />
                         </td>
                         <td className="px-4 py-2">
