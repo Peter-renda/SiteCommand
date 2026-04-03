@@ -315,6 +315,9 @@ export default function DirectoryClient({
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
+  // Active tab
+  const [activeTab, setActiveTab] = useState<"all" | "companies">("all");
+
   useEffect(() => { loadContacts(); }, [projectId]);
 
   useEffect(() => {
@@ -509,26 +512,6 @@ export default function DirectoryClient({
             />
           </div>
 
-          {/* Group by */}
-          <div className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded text-sm bg-white text-gray-700">
-            <span className="text-gray-500">Group by:</span>
-            <span className="font-medium">Company</span>
-            <svg className="w-4 h-4 text-gray-400 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-
-          {/* Add Filter */}
-          <button className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded text-sm bg-white text-gray-700 hover:bg-gray-50 transition-colors">
-            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            Add Filter
-            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
           {/* Spacer */}
           <div className="flex-1" />
 
@@ -561,22 +544,38 @@ export default function DirectoryClient({
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 mb-4">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === "all" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setActiveTab("companies")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === "companies" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+          >
+            Companies
+          </button>
+        </div>
+
         {/* Count row */}
         {!loading && totalCount > 0 && (
           <p className="text-xs text-gray-500 mb-3">
-            Displaying 1 – {totalCount} of {totalCount}
+            Displaying 1 – {activeTab === "companies" ? companyEntries.length : totalCount} of {activeTab === "companies" ? companyEntries.length : totalCount}
           </p>
         )}
 
         {/* Table */}
         {loading ? (
           <p className="text-sm text-gray-400 py-8">Loading…</p>
-        ) : totalCount === 0 ? (
+        ) : (activeTab === "all" ? totalCount === 0 : companyEntries.length === 0) ? (
           <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
             <svg className="w-10 h-10 text-gray-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>
-            <p className="text-sm text-gray-400">No contacts{q ? " matching your search" : " yet"}</p>
+            <p className="text-sm text-gray-400">{activeTab === "companies" ? `No companies${q ? " matching your search" : " yet"}` : `No contacts${q ? " matching your search" : " yet"}`}</p>
             {!q && <p className="text-xs text-gray-300 mt-1">Use the Add button to create your first contact</p>}
           </div>
         ) : (
@@ -606,7 +605,52 @@ export default function DirectoryClient({
               </thead>
               <tbody className="divide-y divide-gray-100">
 
-                {/* Company groups */}
+                {/* Companies tab: flat list of company-type entries */}
+                {activeTab === "companies" && companyEntries.map((ce) => (
+                  <tr key={ce.id} className="hover:bg-blue-50/30 transition-colors border-b border-gray-100 last:border-b-0">
+                    <td className="px-3 py-3" />
+                    <td className="px-1 py-3">
+                      <input type="checkbox" className="rounded border-gray-300 cursor-pointer" readOnly />
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <button onClick={() => setEditTarget(ce)} className="shrink-0 px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors">Edit</button>
+                        <span className="font-medium text-gray-900 text-sm">{displayName(ce)}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-500"><span className="text-gray-300">—</span></td>
+                    <td className="px-3 py-3">
+                      <div className="space-y-0.5">
+                        {ce.email && <div className="text-xs text-gray-600"><a href={`mailto:${ce.email}`} className="hover:text-gray-900 hover:underline transition-colors">{ce.email}</a></div>}
+                        {ce.phone && <div className="text-xs text-gray-500">{ce.phone}</div>}
+                        {!ce.email && !ce.phone && <span className="text-gray-300 text-xs">—</span>}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-xs text-gray-500 max-w-[160px]">{ce.address || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-3 py-3 text-sm text-gray-500"><span className="text-gray-300">—</span></td>
+                    <td className="px-3 py-3 text-sm text-gray-500"><span className="text-gray-300">—</span></td>
+                    <td className="px-3 py-3">
+                      <button
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (openMenuId === ce.id) { setOpenMenuId(null); setMenuPos(null); return; }
+                          const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                          setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                          setOpenMenuId(ce.id);
+                        }}
+                        className="p-1 text-gray-400 hover:text-gray-700 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                          <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {/* All tab: Company groups */}
+                {activeTab === "all" && companyNamesOrdered.map((companyName) => {
                 {companyNamesOrdered.map((companyName) => {
                   const companyEntry = companyEntries.find((ce) => ce.company === companyName);
                   const members = users.filter((u) => u.company === companyName);
@@ -689,7 +733,7 @@ export default function DirectoryClient({
                 })}
 
                 {/* Users with no company */}
-                {usersNoCompany.length > 0 && (
+                {activeTab === "all" && usersNoCompany.length > 0 && (
                   <>
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <td className="px-3 py-2">
@@ -729,7 +773,7 @@ export default function DirectoryClient({
                 )}
 
                 {/* Distribution groups */}
-                {groups.length > 0 && (
+                {activeTab === "all" && groups.length > 0 && (
                   <>
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <td colSpan={9} className="px-3 py-2">

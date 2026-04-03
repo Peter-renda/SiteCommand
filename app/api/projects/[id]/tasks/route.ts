@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id: projectId } = await params;
   const supabase = getSupabase();
 
-  // Determine next task number
+  // Determine next task number (fallback if not provided)
   const { data: maxRow } = await supabase
     .from("tasks")
     .select("task_number")
@@ -36,16 +36,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .limit(1)
     .single();
 
-  const nextNumber = (maxRow?.task_number ?? 0) + 1;
+  const autoNextNumber = (maxRow?.task_number ?? 0) + 1;
 
-  const { title, status, category, description, distribution_list, assignees, due_date } = await req.json();
+  const { task_number, title, status, category, description, distribution_list, assignees, due_date } = await req.json();
   if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
+
+  const resolvedTaskNumber = (typeof task_number === "number" && task_number > 0) ? task_number : autoNextNumber;
 
   const { data, error } = await supabase
     .from("tasks")
     .insert({
       project_id: projectId,
-      task_number: nextNumber,
+      task_number: resolvedTaskNumber,
       title,
       status: status || "open",
       category: category || null,
