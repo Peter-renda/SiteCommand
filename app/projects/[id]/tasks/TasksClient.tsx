@@ -315,6 +315,7 @@ function NewTaskModal({
   nextNumber: number;
   directory: DirectoryContact[];
   onConfirm: (data: {
+    task_number: number;
     title: string;
     status: string;
     category: string;
@@ -326,6 +327,7 @@ function NewTaskModal({
   }) => void;
   onCancel: () => void;
 }) {
+  const [taskNumber, setTaskNumber] = useState(nextNumber);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("initiated");
   const [category, setCategory] = useState("");
@@ -353,7 +355,7 @@ function NewTaskModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onConfirm({ title, status, category, description, distribution_list: distribution, assignees, due_date: dueDate, photoFile });
+    onConfirm({ task_number: taskNumber, title, status, category, description, distribution_list: distribution, assignees, due_date: dueDate, photoFile });
   }
 
   return (
@@ -374,10 +376,11 @@ function NewTaskModal({
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Task #</label>
               <input
-                type="text"
-                readOnly
-                value={nextNumber}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                type="number"
+                min={1}
+                value={taskNumber}
+                onChange={(e) => setTaskNumber(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </div>
             <div className="col-span-3">
@@ -755,6 +758,7 @@ export default function TasksClient({
   const nextNumber = validNums.length > 0 ? Math.max(...validNums) + 1 : 1;
 
   async function handleCreate(data: {
+    task_number: number;
     title: string;
     status: string;
     category: string;
@@ -771,6 +775,7 @@ export default function TasksClient({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        task_number: data.task_number,
         title: data.title,
         status: data.status,
         category: data.category || null,
