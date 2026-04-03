@@ -318,6 +318,9 @@ export default function DirectoryClient({
   // Active tab
   const [activeTab, setActiveTab] = useState<"all" | "companies">("all");
 
+  // Sort direction for company name column
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
   useEffect(() => { loadContacts(); }, [projectId]);
 
   useEffect(() => {
@@ -472,6 +475,18 @@ export default function DirectoryClient({
     }
   }
 
+  // Sort company names alphabetically
+  companyNamesOrdered.sort((a, b) =>
+    sortDir === "asc" ? a.localeCompare(b) : b.localeCompare(a)
+  );
+
+  // Sorted company entries for the Companies tab
+  const sortedCompanyEntries = [...companyEntries].sort((a, b) => {
+    const nameA = a.company ?? "";
+    const nameB = b.company ?? "";
+    return sortDir === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+  });
+
   const usersNoCompany = users.filter((u) => !u.company);
   const totalCount = filtered.length;
 
@@ -588,12 +603,19 @@ export default function DirectoryClient({
                     <input type="checkbox" className="rounded border-gray-300" readOnly />
                   </th>
                   <th className="px-3 py-2.5 text-left">
-                    <span className="flex items-center gap-1 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    <button
+                      onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-600 uppercase tracking-wide hover:text-gray-900 transition-colors"
+                    >
                       Name
                       <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+                        {sortDir === "asc" ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 8V20m0 0l4-4m-4 4l-4-4M7 20V8m0 0L3 12m4-4l4 4" />
+                        )}
                       </svg>
-                    </span>
+                    </button>
                   </th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Job Title</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Email / Phone / Fax</th>
@@ -605,8 +627,8 @@ export default function DirectoryClient({
               </thead>
               <tbody className="divide-y divide-gray-100">
 
-                {/* Companies tab: flat list of company-type entries */}
-                {activeTab === "companies" && companyEntries.map((ce) => (
+                {/* Companies tab: flat list of company-type entries, sorted alphabetically */}
+                {activeTab === "companies" && sortedCompanyEntries.map((ce) => (
                   <tr key={ce.id} className="hover:bg-blue-50/30 transition-colors border-b border-gray-100 last:border-b-0">
                     <td className="px-3 py-3" />
                     <td className="px-1 py-3">
