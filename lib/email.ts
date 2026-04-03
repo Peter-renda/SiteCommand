@@ -139,6 +139,33 @@ export async function sendRFIBallInCourtEmail(
   });
 }
 
+export async function sendRFIClosedEmail(
+  to: string,
+  recipientName: string,
+  closedByName: string,
+  rfiNumber: number,
+  rfiSubject: string | null,
+  projectName: string,
+  rfiUrl: string,
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // silent if not configured
+
+  const resend = new Resend(apiKey);
+  const subject = rfiSubject || "No subject";
+  await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `RFI #${rfiNumber} has been closed — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
+      <p style="font-size:14px;"><strong>${closedByName}</strong> has closed <strong>RFI #${rfiNumber}: ${subject}</strong> on <strong>${projectName}</strong>.</p>
+      <p><a href="${rfiUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View RFI</a></p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are on the distribution list, assigned to, or otherwise associated with this RFI on SiteCommand.</p>
+    `,
+  });
+}
+
 export async function sendRFIReopenedEmail(
   to: string,
   recipientName: string,
