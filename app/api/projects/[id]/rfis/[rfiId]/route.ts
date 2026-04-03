@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
-import { sendRFIBallInCourtEmail, sendRFIReopenedEmail } from "@/lib/email";
+import { sendRFIBallInCourtEmail, sendRFIClosedEmail, sendRFIReopenedEmail } from "@/lib/email";
 import { logRFIChange } from "@/lib/rfi-history";
 
 export async function GET(
@@ -102,6 +102,61 @@ export async function PATCH(
                 rfiUrl,
               )
             )
+        );
+      } catch {
+        // Email failure should not block the response
+      }
+    }
+
+    if (update.status === "closed" && prevRfi.status !== "closed") {
+      try {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+        const rfiUrl = `${appUrl}/projects/${projectId}/rfis/${rfiId}`;
+
+        const contactIds = [data.rfi_manager_id, data.received_from_id].filter(Boolean);
+        const [projectRes, contactsRes] = await Promise.all([
+          supabase.from("projects").select("name").eq("id", projectId).single(),
+          contactIds.length > 0
+            ? supabase.from("directory_contacts").select("id, first_name, last_name, email").in("id", contactIds)
+            : Promise.resolve({ data: [] }),
+        ]);
+
+        const projectName = projectRes.data?.name ?? "your project";
+        const contactsById = Object.fromEntries(
+          ((contactsRes.data ?? []) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[]).map((c) => [c.id, c])
+        );
+
+        // Collect all recipients: distribution list + assignees + rfi_manager + received_from
+        const recipients: { name: string; email: string }[] = [];
+        const seen = new Set<string>();
+
+        const addRecipient = (name: string, email: string | null) => {
+          if (email && !seen.has(email)) {
+            seen.add(email);
+            recipients.push({ name, email });
+          }
+        };
+
+        const distributionList: { id: string; name: string; email: string | null }[] = Array.isArray(data.distribution_list) ? data.distribution_list : [];
+        for (const contact of distributionList) addRecipient(contact.name, contact.email);
+
+        const assignees: { id: string; name: string; email: string | null }[] = Array.isArray(data.assignees) ? data.assignees : [];
+        for (const contact of assignees) addRecipient(contact.name, contact.email);
+
+        if (data.rfi_manager_id && contactsById[data.rfi_manager_id]) {
+          const c = contactsById[data.rfi_manager_id];
+          addRecipient([c.first_name, c.last_name].filter(Boolean).join(" "), c.email);
+        }
+
+        if (data.received_from_id && contactsById[data.received_from_id]) {
+          const c = contactsById[data.received_from_id];
+          addRecipient([c.first_name, c.last_name].filter(Boolean).join(" "), c.email);
+        }
+
+        await Promise.allSettled(
+          recipients.map((r) =>
+            sendRFIClosedEmail(r.email, r.name, session.username, data.rfi_number, data.subject, projectName, rfiUrl)
+          )
         );
       } catch {
         // Email failure should not block the response
