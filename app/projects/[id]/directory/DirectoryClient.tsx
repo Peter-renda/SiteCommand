@@ -651,7 +651,6 @@ export default function DirectoryClient({
 
                 {/* All tab: Company groups */}
                 {activeTab === "all" && companyNamesOrdered.map((companyName) => {
-                {companyNamesOrdered.map((companyName) => {
                   const companyEntry = companyEntries.find((ce) => ce.company === companyName);
                   const members = users.filter((u) => u.company === companyName);
                   const collapsed = collapsedGroups.has(companyName);
