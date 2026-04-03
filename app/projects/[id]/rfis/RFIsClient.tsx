@@ -384,6 +384,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<readonly string[]>(() => [...COLUMN_KEYS]);
@@ -430,6 +431,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
   }) {
     setShowCreate(false);
     setCreating(true);
+    setAttachmentError(null);
     const res = await fetch(`/api/projects/${projectId}/rfis`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -457,6 +459,9 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
         if (attRes.ok) {
           const updated = await attRes.json();
           newRfi.attachments = updated.attachments ?? [];
+        } else {
+          const attErr = await attRes.json().catch(() => ({}));
+          setAttachmentError(attErr.error ?? "Failed to upload attachment. Please add it again from the RFI detail page.");
         }
       }
       setRfis((prev) => [...prev, newRfi]);
@@ -500,6 +505,14 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
       <ProjectNav projectId={projectId} />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {attachmentError && (
+          <div className="mb-4 flex items-start gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <span className="flex-1">{attachmentError}</span>
+            <button onClick={() => setAttachmentError(null)} className="text-red-400 hover:text-red-600 flex-shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">RFIs</h1>
           <div className="flex items-center gap-2">
