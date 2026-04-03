@@ -123,6 +123,10 @@ export default function ChangeEventsClient({
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
+  const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null);
+  const [matchingContracts, setMatchingContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
+  const [allContracts, setAllContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
   const [search, setSearch] = useState("");
   const [showRows, setShowRows] = useState(25);
   const [page, setPage] = useState(1);
@@ -182,6 +186,22 @@ export default function ChangeEventsClient({
     fetchEvents();
     setPage(1);
   }, [fetchEvents]);
+
+  // Fetch matching prime contracts whenever the quick actions dropdown opens
+  useEffect(() => {
+    if (!quickActionsOpen || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds).join(",");
+    fetch(`/api/projects/${projectId}/change-events/matching-prime-contracts?eventIds=${ids}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setMatchingContracts(data.matching ?? []);
+        setAllContracts(data.all ?? []);
+      })
+      .catch(() => {
+        setMatchingContracts([]);
+        setAllContracts([]);
+      });
+  }, [quickActionsOpen, selectedIds, projectId]);
 
   // Filtering
   const filtered = events.filter((ev) =>
@@ -431,7 +451,11 @@ export default function ChangeEventsClient({
         <div ref={quickActionsRef} className="relative">
           <button
             disabled={selectedIds.size === 0}
-            onClick={() => setQuickActionsOpen((v) => !v)}
+            onClick={() => {
+              setQuickActionsOpen((v) => !v);
+              setHoveredAction(null);
+              setHoveredSubItem(null);
+            }}
             className={`flex items-center gap-1 px-3 py-1 text-xs border rounded transition-colors ${
               selectedIds.size > 0
                 ? "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white"
@@ -442,7 +466,7 @@ export default function ChangeEventsClient({
           </button>
           {quickActionsOpen && selectedIds.size > 0 && (
             <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-30 w-64 py-1">
-              {[
+              {([
                 { label: "Add to Unapproved Commitment", hasInfo: true },
                 { label: "Add to Unapproved Commitment CO", hasInfo: true },
                 { label: "Add to Unapproved Prime PCO", hasArrow: true },
@@ -451,16 +475,104 @@ export default function ChangeEventsClient({
                 { label: "Create Purchase Order Contract", hasInfo: true },
                 { label: "Create Subcontract", hasInfo: true },
                 { label: "Send RFQs", hasInfo: true },
-              ].map(({ label, hasInfo, hasArrow }) => (
-                <button
+              ] as { label: string; hasInfo?: boolean; hasArrow?: boolean }[]).map(({ label, hasInfo, hasArrow }) => (
+                <div
                   key={label}
-                  className="w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                  onClick={() => setQuickActionsOpen(false)}
+                  className="relative"
+                  onMouseEnter={() => { setHoveredAction(label); setHoveredSubItem(null); }}
+                  onMouseLeave={() => setHoveredAction(null)}
                 >
-                  <span>{label}</span>
-                  {hasInfo && <Info className="w-3 h-3 text-gray-400 shrink-0" />}
-                  {hasArrow && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
-                </button>
+                  <button
+                    className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
+                      hoveredAction === label ? "bg-gray-100" : "hover:bg-gray-50"
+                    }`}
+                    onClick={() => { if (!hasArrow) setQuickActionsOpen(false); }}
+                  >
+                    <span>{label}</span>
+                    {hasInfo && <Info className="w-3 h-3 text-gray-400 shrink-0" />}
+                    {hasArrow && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
+                  </button>
+
+                  {/* Level-1 submenu for items with arrows */}
+                  {hasArrow && hoveredAction === label && (
+                    <div
+                      className="absolute left-full top-0 ml-0.5 bg-white border border-gray-200 rounded shadow-lg z-40 w-56 py-1"
+                      onMouseEnter={() => setHoveredAction(label)}
+                    >
+                      {/* "Contracts with matching cost codes" row */}
+                      <div
+                        className="relative"
+                        onMouseEnter={() => setHoveredSubItem("matching")}
+                        onMouseLeave={() => setHoveredSubItem(null)}
+                      >
+                        <button
+                          className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
+                            hoveredSubItem === "matching" ? "bg-gray-100" : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <span>Contracts with matching cost codes ({matchingContracts.length})</span>
+                          {matchingContracts.length > 0 && (
+                            <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
+                          )}
+                        </button>
+
+                        {/* Level-2 submenu: actual contract names */}
+                        {hoveredSubItem === "matching" && matchingContracts.length > 0 && (
+                          <div
+                            className="absolute left-full top-0 ml-0.5 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
+                            onMouseEnter={() => setHoveredSubItem("matching")}
+                          >
+                            {matchingContracts.map((c) => (
+                              <button
+                                key={c.id}
+                                className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                onClick={() => setQuickActionsOpen(false)}
+                              >
+                                {c.contract_number}: {c.title}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* "Contracts" (non-matching) row */}
+                      <div
+                        className="relative"
+                        onMouseEnter={() => setHoveredSubItem("all")}
+                        onMouseLeave={() => setHoveredSubItem(null)}
+                      >
+                        <button
+                          className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
+                            hoveredSubItem === "all" ? "bg-gray-100" : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <span>Contracts ({allContracts.length})</span>
+                          {allContracts.length > 0 && (
+                            <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
+                          )}
+                        </button>
+
+                        {/* Level-2 submenu: all (non-matching) contracts */}
+                        {hoveredSubItem === "all" && allContracts.length > 0 && (
+                          <div
+                            className="absolute left-full top-0 ml-0.5 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
+                            onMouseEnter={() => setHoveredSubItem("all")}
+                          >
+                            {allContracts.map((c) => (
+                              <button
+                                key={c.id}
+                                className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                onClick={() => setQuickActionsOpen(false)}
+                              >
+                                {c.contract_number}: {c.title}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}
