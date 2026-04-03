@@ -60,7 +60,7 @@ export async function POST(
       revision: body.revision ?? 0,
       title: body.title || "",
       date_initiated: body.date_initiated || new Date().toISOString().slice(0, 10),
-      contract_company: body.contract_company || null,
+      contract_company: body.contract_company || "",
       designated_reviewer: body.designated_reviewer || null,
       due_date: body.due_date || null,
       review_date: body.review_date || null,
@@ -68,6 +68,19 @@ export async function POST(
       amount: body.amount ?? 0,
       is_locked: body.is_locked ?? false,
       has_attachments: body.has_attachments ?? false,
+      // Extended fields
+      change_reason: body.change_reason || "",
+      description: body.description || "",
+      is_private: body.is_private ?? true,
+      executed: body.executed ?? false,
+      request_received_from: body.request_received_from || "",
+      schedule_impact: body.schedule_impact ?? null,
+      reference: body.reference || "",
+      signed_change_order_received_date: body.signed_change_order_received_date || null,
+      location: body.location || "",
+      field_change: body.field_change ?? false,
+      paid_in_full: body.paid_in_full ?? false,
+      prime_contract_change_order: body.prime_contract_change_order || "none",
     })
     .select()
     .single();

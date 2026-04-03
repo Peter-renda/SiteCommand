@@ -526,7 +526,11 @@ export default function ChangeEventsClient({
                               <button
                                 key={c.id}
                                 className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                onClick={() => setQuickActionsOpen(false)}
+                                onClick={() => {
+                                  setQuickActionsOpen(false);
+                                  const ids = Array.from(selectedIds).join(",");
+                                  router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
+                                }}
                               >
                                 {c.contract_number}: {c.title}
                               </button>
@@ -562,7 +566,11 @@ export default function ChangeEventsClient({
                               <button
                                 key={c.id}
                                 className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                onClick={() => setQuickActionsOpen(false)}
+                                onClick={() => {
+                                  setQuickActionsOpen(false);
+                                  const ids = Array.from(selectedIds).join(",");
+                                  router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
+                                }}
                               >
                                 {c.contract_number}: {c.title}
                               </button>
