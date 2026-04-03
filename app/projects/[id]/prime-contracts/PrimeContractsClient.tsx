@@ -312,87 +312,118 @@ export default function PrimeContractsClient({
                   </td>
                 </tr>
               ) : (
-                filtered.map((contract) => {
-                  const original = contract.original_contract_amount ?? 0;
-                  const approved = contract.approved_change_orders ?? 0;
-                  const revised = original + approved;
-                  const pending = contract.pending_change_orders ?? 0;
-                  const draft = contract.draft_change_orders ?? 0;
-                  const invoiced = contract.invoiced ?? 0;
-                  const payments = contract.payments_received ?? 0;
-                  const pctPaid = revised > 0 ? ((payments / revised) * 100).toFixed(2) : "0.00";
-                  const remaining = revised - payments;
+                <>
+                  {filtered.map((contract) => {
+                    const original = contract.original_contract_amount ?? 0;
+                    const approved = contract.approved_change_orders ?? 0;
+                    const revised = original + approved;
+                    const pending = contract.pending_change_orders ?? 0;
+                    const draft = contract.draft_change_orders ?? 0;
+                    const invoiced = contract.invoiced ?? 0;
+                    const payments = contract.payments_received ?? 0;
+                    const pctPaid = revised > 0 ? ((payments / revised) * 100).toFixed(2) : "0.00";
+                    const remaining = revised - payments;
 
-                  return (
-                    <tr
-                      key={contract.id}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contract.id}`)}
-                    >
-                      <td className="px-2 py-1.5 text-gray-400">
-                        <ChevronRight className="w-3 h-3" />
-                      </td>
-                      <td className="px-2 py-1.5 text-blue-600 hover:underline">
-                        {contract.contract_number}
-                      </td>
-                      <td className="px-2 py-1.5 text-blue-600 hover:underline max-w-[9rem] truncate">
-                        {contract.owner_client}
-                      </td>
-                      <td className="px-2 py-1.5 text-gray-700 max-w-[10rem] truncate">
-                        {contract.title}
-                      </td>
-                      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-2">
-                          {contract.erp_status === "synced" ? (
-                            <span className="flex items-center gap-1 text-xs italic text-green-600">
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                              Synced
-                            </span>
-                          ) : contract.erp_status === "pending" || syncingId === contract.id ? (
-                            <span className="flex items-center gap-1 text-xs italic text-amber-500">
-                              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                              Pending
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs italic text-gray-400">
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                              Not Synced
-                            </span>
-                          )}
-                          {contract.erp_status !== "synced" && syncingId !== contract.id && (
-                            <button
-                              onClick={(e) => handleSyncToSage(e, contract)}
-                              className="text-[10px] text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
-                            >
-                              Sync
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <StatusBadge status={contract.status} />
-                      </td>
-                      <td className="px-2 py-1.5 text-gray-700">{contract.executed ? "Yes" : "No"}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{fmt(original)}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{fmt(approved)}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{fmt(revised)}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{fmt(pending)}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{fmt(draft)}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{fmt(invoiced)}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{fmt(payments)}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{pctPaid}%</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{fmt(remaining)}</td>
-                      <td className="px-2 py-1.5 text-gray-700">{contract.is_private ? "Yes" : "No"}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-700">{contract.attachments_count ?? 0}</td>
-                    </tr>
-                  );
-                })
+                    return (
+                      <tr
+                        key={contract.id}
+                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contract.id}`)}
+                      >
+                        <td className="px-2 py-1.5 text-gray-400">
+                          <ChevronRight className="w-3 h-3" />
+                        </td>
+                        <td className="px-2 py-1.5 text-blue-600 hover:underline">
+                          {contract.contract_number}
+                        </td>
+                        <td className="px-2 py-1.5 text-blue-600 hover:underline max-w-[9rem] truncate">
+                          {contract.owner_client}
+                        </td>
+                        <td className="px-2 py-1.5 text-gray-700 max-w-[10rem] truncate">
+                          {contract.title}
+                        </td>
+                        <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            {contract.erp_status === "synced" ? (
+                              <span className="flex items-center gap-1 text-xs italic text-green-600">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Synced
+                              </span>
+                            ) : contract.erp_status === "pending" || syncingId === contract.id ? (
+                              <span className="flex items-center gap-1 text-xs italic text-amber-500">
+                                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Pending
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs italic text-gray-400">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Not Synced
+                              </span>
+                            )}
+                            {contract.erp_status !== "synced" && syncingId !== contract.id && (
+                              <button
+                                onClick={(e) => handleSyncToSage(e, contract)}
+                                className="text-[10px] text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+                              >
+                                Sync
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <StatusBadge status={contract.status} />
+                        </td>
+                        <td className="px-2 py-1.5 text-gray-700">{contract.executed ? "Yes" : "No"}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{fmt(original)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{fmt(approved)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{fmt(revised)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{fmt(pending)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{fmt(draft)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{fmt(invoiced)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{fmt(payments)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{pctPaid}%</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{fmt(remaining)}</td>
+                        <td className="px-2 py-1.5 text-gray-700">{contract.is_private ? "Yes" : "No"}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-700">{contract.attachments_count ?? 0}</td>
+                      </tr>
+                    );
+                  })}
+                  {(() => {
+                    const totOriginal  = filtered.reduce((s, c) => s + (c.original_contract_amount ?? 0), 0);
+                    const totApproved  = filtered.reduce((s, c) => s + (c.approved_change_orders ?? 0), 0);
+                    const totRevised   = totOriginal + totApproved;
+                    const totPending   = filtered.reduce((s, c) => s + (c.pending_change_orders ?? 0), 0);
+                    const totDraft     = filtered.reduce((s, c) => s + (c.draft_change_orders ?? 0), 0);
+                    const totInvoiced  = filtered.reduce((s, c) => s + (c.invoiced ?? 0), 0);
+                    const totPayments  = filtered.reduce((s, c) => s + (c.payments_received ?? 0), 0);
+                    const totPctPaid   = totRevised > 0 ? ((totPayments / totRevised) * 100).toFixed(2) : "0.00";
+                    const totRemaining = totRevised - totPayments;
+                    const totAttachments = filtered.reduce((s, c) => s + (c.attachments_count ?? 0), 0);
+                    return (
+                      <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
+                        <td className="px-2 py-1.5" />
+                        <td colSpan={6} className="px-2 py-1.5 text-gray-700">Totals</td>
+                        <td className="px-2 py-1.5 text-right text-gray-900">{fmt(totOriginal)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-900">{fmt(totApproved)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-900">{fmt(totRevised)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-900">{fmt(totPending)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-900">{fmt(totDraft)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-900">{fmt(totInvoiced)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-900">{fmt(totPayments)}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-900">{totPctPaid}%</td>
+                        <td className="px-2 py-1.5 text-right text-gray-900">{fmt(totRemaining)}</td>
+                        <td className="px-2 py-1.5" />
+                        <td className="px-2 py-1.5 text-right text-gray-900">{totAttachments}</td>
+                      </tr>
+                    );
+                  })()}
+                </>
               )}
             </tbody>
           </table>
