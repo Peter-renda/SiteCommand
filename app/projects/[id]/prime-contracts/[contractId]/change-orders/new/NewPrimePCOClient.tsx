@@ -164,7 +164,7 @@ export default function NewPrimePCOClient({
             `/projects/${projectId}/prime-contracts/${contractId}/change-orders/${created.id}/forward`
           );
         } else {
-          router.push(`/projects/${projectId}/prime-contracts/${contractId}`);
+          router.push(`/projects/${projectId}/change-orders`);
         }
       }
     } finally {
