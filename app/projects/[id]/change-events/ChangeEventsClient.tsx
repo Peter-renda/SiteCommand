@@ -127,6 +127,10 @@ export default function ChangeEventsClient({
   const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null);
   const [matchingContracts, setMatchingContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
   const [allContracts, setAllContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
+  const [pcoPickerOpen, setPcoPickerOpen] = useState(false);
+  const [pcoPickerLoading, setPcoPickerLoading] = useState(false);
+  const [pcoPickerMatching, setPcoPickerMatching] = useState<{ id: string; contract_number: number; title: string }[]>([]);
+  const [pcoPickerAll, setPcoPickerAll] = useState<{ id: string; contract_number: number; title: string }[]>([]);
   const [search, setSearch] = useState("");
   const [showRows, setShowRows] = useState(25);
   const [page, setPage] = useState(1);
@@ -471,11 +475,11 @@ export default function ChangeEventsClient({
                 { label: "Add to Unapproved Commitment CO", hasInfo: true },
                 { label: "Add to Unapproved Prime PCO", hasArrow: true },
                 { label: "Create Commitment CO", hasInfo: true },
-                { label: "Create Prime PCO", hasArrow: true },
+                { label: "Create Prime PCO", hasAction: true },
                 { label: "Create Purchase Order Contract", hasInfo: true },
                 { label: "Create Subcontract", hasInfo: true },
                 { label: "Send RFQs", hasInfo: true },
-              ] as { label: string; hasInfo?: boolean; hasArrow?: boolean }[]).map(({ label, hasInfo, hasArrow }) => (
+              ] as { label: string; hasInfo?: boolean; hasArrow?: boolean; hasAction?: boolean }[]).map(({ label, hasInfo, hasArrow, hasAction }) => (
                 <div
                   key={label}
                   className="relative"
@@ -486,17 +490,37 @@ export default function ChangeEventsClient({
                     className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
                       hoveredAction === label ? "bg-gray-100" : "hover:bg-gray-50"
                     }`}
-                    onClick={() => { if (!hasArrow) setQuickActionsOpen(false); }}
+                    onClick={() => {
+                      if (hasAction) {
+                        setQuickActionsOpen(false);
+                        setPcoPickerLoading(true);
+                        setPcoPickerOpen(true);
+                        const ids = Array.from(selectedIds).join(",");
+                        fetch(`/api/projects/${projectId}/change-events/matching-prime-contracts?eventIds=${ids}`)
+                          .then((r) => r.json())
+                          .then((data) => {
+                            setPcoPickerMatching(data.matching ?? []);
+                            setPcoPickerAll(data.all ?? []);
+                          })
+                          .catch(() => {
+                            setPcoPickerMatching([]);
+                            setPcoPickerAll([]);
+                          })
+                          .finally(() => setPcoPickerLoading(false));
+                      } else if (!hasArrow) {
+                        setQuickActionsOpen(false);
+                      }
+                    }}
                   >
                     <span>{label}</span>
                     {hasInfo && <Info className="w-3 h-3 text-gray-400 shrink-0" />}
                     {hasArrow && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
                   </button>
 
-                  {/* Level-1 submenu for items with arrows */}
+                  {/* Level-1 submenu for items with arrows (hover-based) */}
                   {hasArrow && hoveredAction === label && (
                     <div
-                      className="absolute left-full top-0 ml-0.5 bg-white border border-gray-200 rounded shadow-lg z-40 w-56 py-1"
+                      className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-40 w-56 py-1"
                       onMouseEnter={() => setHoveredAction(label)}
                     >
                       {/* "Contracts with matching cost codes" row */}
@@ -519,7 +543,7 @@ export default function ChangeEventsClient({
                         {/* Level-2 submenu: actual contract names */}
                         {hoveredSubItem === "matching" && matchingContracts.length > 0 && (
                           <div
-                            className="absolute left-full top-0 ml-0.5 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
+                            className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
                             onMouseEnter={() => setHoveredSubItem("matching")}
                           >
                             {matchingContracts.map((c) => (
@@ -559,7 +583,7 @@ export default function ChangeEventsClient({
                         {/* Level-2 submenu: all (non-matching) contracts */}
                         {hoveredSubItem === "all" && allContracts.length > 0 && (
                           <div
-                            className="absolute left-full top-0 ml-0.5 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
+                            className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
                             onMouseEnter={() => setHoveredSubItem("all")}
                           >
                             {allContracts.map((c) => (
@@ -1087,6 +1111,95 @@ export default function ChangeEventsClient({
           >
             ›
           </button>
+        </div>
+      )}
+
+      {/* ── Create Prime PCO – Contract Picker Modal ──────────────────────────── */}
+      {pcoPickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={(e) => { if (e.target === e.currentTarget) setPcoPickerOpen(false); }}
+        >
+          <div className="bg-white rounded-lg shadow-xl w-[480px] max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900">Select a Prime Contract</h2>
+              <button
+                onClick={() => setPcoPickerOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              {pcoPickerLoading ? (
+                <p className="text-xs text-gray-500 py-4 text-center">Loading contracts…</p>
+              ) : pcoPickerMatching.length === 0 && pcoPickerAll.length === 0 ? (
+                <p className="text-xs text-gray-500 py-4 text-center">No prime contracts found for this project.</p>
+              ) : (
+                <>
+                  {pcoPickerMatching.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                        Contracts with matching cost codes
+                      </p>
+                      <div className="divide-y divide-gray-100 border border-gray-200 rounded">
+                        {pcoPickerMatching.map((c) => (
+                          <button
+                            key={c.id}
+                            className="w-full text-left px-3 py-2.5 text-xs text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                            onClick={() => {
+                              setPcoPickerOpen(false);
+                              const ids = Array.from(selectedIds).join(",");
+                              router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
+                            }}
+                          >
+                            {c.contract_number} – {c.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {pcoPickerAll.length > 0 && (
+                    <div>
+                      {pcoPickerMatching.length > 0 && (
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                          Other contracts
+                        </p>
+                      )}
+                      <div className="divide-y divide-gray-100 border border-gray-200 rounded">
+                        {pcoPickerAll.map((c) => (
+                          <button
+                            key={c.id}
+                            className="w-full text-left px-3 py-2.5 text-xs text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                            onClick={() => {
+                              setPcoPickerOpen(false);
+                              const ids = Array.from(selectedIds).join(",");
+                              router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
+                            }}
+                          >
+                            {c.contract_number} – {c.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setPcoPickerOpen(false)}
+                className="px-4 py-1.5 text-xs text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
