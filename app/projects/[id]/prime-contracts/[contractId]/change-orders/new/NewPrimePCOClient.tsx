@@ -177,7 +177,7 @@ export default function NewPrimePCOClient({
     : "Loading…";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="flex flex-col h-screen overflow-hidden bg-white">
       <ProjectNav projectId={projectId} role={role} />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* ── Breadcrumb ── */}
