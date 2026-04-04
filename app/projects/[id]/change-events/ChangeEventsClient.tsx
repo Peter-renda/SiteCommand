@@ -129,8 +129,7 @@ export default function ChangeEventsClient({
   const [allContracts, setAllContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
   const [pcoPickerOpen, setPcoPickerOpen] = useState(false);
   const [pcoPickerLoading, setPcoPickerLoading] = useState(false);
-  const [pcoPickerMatching, setPcoPickerMatching] = useState<{ id: string; contract_number: number; title: string }[]>([]);
-  const [pcoPickerAll, setPcoPickerAll] = useState<{ id: string; contract_number: number; title: string }[]>([]);
+  const [pcoPickerContracts, setPcoPickerContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
   const [search, setSearch] = useState("");
   const [showRows, setShowRows] = useState(25);
   const [page, setPage] = useState(1);
@@ -494,17 +493,15 @@ export default function ChangeEventsClient({
                       if (hasAction) {
                         setQuickActionsOpen(false);
                         setPcoPickerLoading(true);
+                        setPcoPickerContracts([]);
                         setPcoPickerOpen(true);
-                        const ids = Array.from(selectedIds).join(",");
-                        fetch(`/api/projects/${projectId}/change-events/matching-prime-contracts?eventIds=${ids}`)
+                        fetch(`/api/projects/${projectId}/prime-contracts`)
                           .then((r) => r.json())
-                          .then((data) => {
-                            setPcoPickerMatching(data.matching ?? []);
-                            setPcoPickerAll(data.all ?? []);
+                          .then((data: { id: string; contract_number: number; title: string }[]) => {
+                            setPcoPickerContracts(Array.isArray(data) ? data : []);
                           })
                           .catch(() => {
-                            setPcoPickerMatching([]);
-                            setPcoPickerAll([]);
+                            setPcoPickerContracts([]);
                           })
                           .finally(() => setPcoPickerLoading(false));
                       } else if (!hasArrow) {
@@ -1136,57 +1133,24 @@ export default function ChangeEventsClient({
             <div className="flex-1 overflow-y-auto px-5 py-3">
               {pcoPickerLoading ? (
                 <p className="text-xs text-gray-500 py-4 text-center">Loading contracts…</p>
-              ) : pcoPickerMatching.length === 0 && pcoPickerAll.length === 0 ? (
+              ) : pcoPickerContracts.length === 0 ? (
                 <p className="text-xs text-gray-500 py-4 text-center">No prime contracts found for this project.</p>
               ) : (
-                <>
-                  {pcoPickerMatching.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                        Contracts with matching cost codes
-                      </p>
-                      <div className="divide-y divide-gray-100 border border-gray-200 rounded">
-                        {pcoPickerMatching.map((c) => (
-                          <button
-                            key={c.id}
-                            className="w-full text-left px-3 py-2.5 text-xs text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                            onClick={() => {
-                              setPcoPickerOpen(false);
-                              const ids = Array.from(selectedIds).join(",");
-                              router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
-                            }}
-                          >
-                            {c.contract_number} – {c.title}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {pcoPickerAll.length > 0 && (
-                    <div>
-                      {pcoPickerMatching.length > 0 && (
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                          Other contracts
-                        </p>
-                      )}
-                      <div className="divide-y divide-gray-100 border border-gray-200 rounded">
-                        {pcoPickerAll.map((c) => (
-                          <button
-                            key={c.id}
-                            className="w-full text-left px-3 py-2.5 text-xs text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                            onClick={() => {
-                              setPcoPickerOpen(false);
-                              const ids = Array.from(selectedIds).join(",");
-                              router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
-                            }}
-                          >
-                            {c.contract_number} – {c.title}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
+                <div className="divide-y divide-gray-100 border border-gray-200 rounded">
+                  {pcoPickerContracts.map((c) => (
+                    <button
+                      key={c.id}
+                      className="w-full text-left px-3 py-2.5 text-xs text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                      onClick={() => {
+                        setPcoPickerOpen(false);
+                        const ids = Array.from(selectedIds).join(",");
+                        router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
+                      }}
+                    >
+                      {c.contract_number} – {c.title}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
