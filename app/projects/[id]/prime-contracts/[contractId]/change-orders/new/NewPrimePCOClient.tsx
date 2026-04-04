@@ -47,6 +47,7 @@ export default function NewPrimePCOClient({
   const [contract, setContract] = useState<Contract | null>(null);
   const [nextNumber, setNextNumber] = useState("001");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Form state
   const [revision, setRevision] = useState("0");
@@ -129,6 +130,7 @@ export default function NewPrimePCOClient({
 
   async function handleCreate(sendEmail = false) {
     setSaving(true);
+    setSaveError(null);
     try {
       const res = await fetch(`/api/projects/${projectId}/change-orders`, {
         method: "POST",
@@ -166,7 +168,12 @@ export default function NewPrimePCOClient({
         } else {
           router.push(`/projects/${projectId}/change-orders`);
         }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setSaveError(errData?.error || `Server error (${res.status})`);
       }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setSaving(false);
     }
@@ -526,6 +533,11 @@ export default function NewPrimePCOClient({
         </div>
 
         {/* ── Footer actions ── */}
+        {saveError && (
+          <div className="px-6 py-2 bg-red-50 border-t border-red-200 text-xs text-red-700 shrink-0">
+            Error: {saveError}
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
           <button
             onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}`)}
