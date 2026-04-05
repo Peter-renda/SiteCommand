@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { checkProjectAccess } from "@/lib/permissions";
 
 export async function GET(
   _req: NextRequest,
@@ -10,6 +11,12 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, eventId } = await params;
+
+  try {
+    await checkProjectAccess(session.id, projectId);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const supabase = getSupabase();
 
   const { data, error } = await supabase
@@ -31,6 +38,16 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, eventId } = await params;
+
+  try {
+    const { permission } = await checkProjectAccess(session.id, projectId);
+    if (permission !== "write") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const supabase = getSupabase();
   const body = await req.json();
 

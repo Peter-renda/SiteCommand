@@ -60,9 +60,11 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 export default function ChangeEventDetailClient({
   projectId,
   eventId,
+  canWrite,
 }: {
   projectId: string;
   eventId: string;
+  canWrite: boolean;
 }) {
   const router = useRouter();
   const [event, setEvent] = useState<ChangeEvent | null>(null);
@@ -127,13 +129,15 @@ export default function ChangeEventDetailClient({
             Change Event #{String(event.number).padStart(3, "0")}: {event.title}
           </span>
         </div>
-        <button
-          onClick={() => router.push(`/projects/${projectId}/change-events/${eventId}/edit`)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors text-gray-700"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-          Edit
-        </button>
+        {canWrite && (
+          <button
+            onClick={() => router.push(`/projects/${projectId}/change-events/${eventId}/edit`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors text-gray-700"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">

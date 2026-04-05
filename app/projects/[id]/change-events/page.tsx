@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { checkProjectAccess } from "@/lib/permissions";
 import ChangeEventsClient from "./ChangeEventsClient";
 
 export default async function ChangeEventsPage({
@@ -11,5 +12,14 @@ export default async function ChangeEventsPage({
   if (!session) redirect("/login");
 
   const { id } = await params;
-  return <ChangeEventsClient projectId={id} role={session.role} />;
+
+  let canWrite = false;
+  try {
+    const { permission } = await checkProjectAccess(session.id, id);
+    canWrite = permission === "write";
+  } catch {
+    redirect("/login");
+  }
+
+  return <ChangeEventsClient projectId={id} canWrite={canWrite} />;
 }

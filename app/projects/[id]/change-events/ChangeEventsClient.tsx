@@ -108,10 +108,10 @@ function fmtQty(val: number | null | undefined) {
 
 export default function ChangeEventsClient({
   projectId,
-  role,
+  canWrite,
 }: {
   projectId: string;
-  role: string;
+  canWrite: boolean;
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("detail");
@@ -246,7 +246,6 @@ export default function ChangeEventsClient({
 
   const allSelected = pageEvents.length > 0 && selectedIds.size === pageEvents.length;
 
-  const canCreate = role !== "external_collaborator";
 
   function openRomPopup(
     e: { currentTarget: HTMLElement },
@@ -415,7 +414,7 @@ export default function ChangeEventsClient({
               </div>
             )}
           </div>
-          {canCreate && (
+          {canWrite && (
             <button
               onClick={() => router.push(`/projects/${projectId}/change-events/new`)}
               className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors font-medium"
@@ -450,8 +449,8 @@ export default function ChangeEventsClient({
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-white shrink-0">
-        {/* Quick Actions dropdown */}
-        <div ref={quickActionsRef} className="relative">
+        {/* Quick Actions dropdown – write-access users only */}
+        {canWrite && <div ref={quickActionsRef} className="relative">
           <button
             disabled={selectedIds.size === 0}
             onClick={() => {
@@ -605,7 +604,7 @@ export default function ChangeEventsClient({
               ))}
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Search */}
         <div className="relative">
@@ -733,14 +732,16 @@ export default function ChangeEventsClient({
                     key={ev.id}
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
-                    {/* Edit button */}
+                    {/* Edit button – write access only */}
                     <td className="px-1 py-2 whitespace-nowrap">
-                      <button
-                        onClick={() => router.push(`/projects/${projectId}/change-events/${ev.id}/edit`)}
-                        className="px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
-                      >
-                        Edit
-                      </button>
+                      {canWrite && (
+                        <button
+                          onClick={() => router.push(`/projects/${projectId}/change-events/${ev.id}/edit`)}
+                          className="px-2 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
+                        >
+                          Edit
+                        </button>
+                      )}
                     </td>
                     {/* View button */}
                     <td className="px-1 py-2 whitespace-nowrap">
@@ -967,19 +968,21 @@ export default function ChangeEventsClient({
                             >
                               {/* Indent spacer */}
                               <td className="w-6 px-1 py-1.5" />
-                              {/* Edit button */}
+                              {/* Edit button – write access only */}
                               <td className="w-6 px-1 py-1.5">
-                                <button
-                                  className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
-                                  onClick={() =>
-                                    router.push(
-                                      `/projects/${projectId}/change-events/${ev.id}/edit`
-                                    )
-                                  }
-                                >
-                                  <Pencil className="w-2.5 h-2.5" />
-                                  Edit
-                                </button>
+                                {canWrite && (
+                                  <button
+                                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
+                                    onClick={() =>
+                                      router.push(
+                                        `/projects/${projectId}/change-events/${ev.id}/edit`
+                                      )
+                                    }
+                                  >
+                                    <Pencil className="w-2.5 h-2.5" />
+                                    Edit
+                                  </button>
+                                )}
                               </td>
                               {/* Budget code + details */}
                               <td className="px-2 py-1.5">
@@ -1007,15 +1010,23 @@ export default function ChangeEventsClient({
                               <NumCell val={li.rev_unit_qty} qty />
                               <NumCell val={li.rev_unit_cost} />
                               <td className="px-2 py-1.5 text-right text-xs whitespace-nowrap">
-                                <button
-                                  onClick={(e) => openRomPopup(e, li, ev.id)}
-                                  className="text-blue-600 hover:underline font-medium cursor-pointer"
-                                  title="Click to edit"
-                                >
-                                  {li.rev_rom != null && li.rev_rom !== 0
-                                    ? li.rev_rom.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 })
-                                    : "$0.00"}
-                                </button>
+                                {canWrite ? (
+                                  <button
+                                    onClick={(e) => openRomPopup(e, li, ev.id)}
+                                    className="text-blue-600 hover:underline font-medium cursor-pointer"
+                                    title="Click to edit"
+                                  >
+                                    {li.rev_rom != null && li.rev_rom !== 0
+                                      ? li.rev_rom.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 })
+                                      : "$0.00"}
+                                  </button>
+                                ) : (
+                                  <span className="font-medium text-gray-900">
+                                    {li.rev_rom != null && li.rev_rom !== 0
+                                      ? li.rev_rom.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 })
+                                      : "$0.00"}
+                                  </span>
+                                )}
                               </td>
                               <NumCell val={li.rev_prime_pco} />
                               <NumCell val={li.rev_latest_price} />

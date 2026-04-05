@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { checkProjectAccess } from "@/lib/permissions";
 
 // GET /api/projects/[id]/change-events/matching-prime-contracts?eventIds=id1,id2,...
 // Returns prime contracts split into those whose SOV budget codes overlap with the
@@ -13,6 +14,12 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId } = await params;
+
+  try {
+    await checkProjectAccess(session.id, projectId);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const eventIds = (req.nextUrl.searchParams.get("eventIds") ?? "")
     .split(",")
     .map((s) => s.trim())
