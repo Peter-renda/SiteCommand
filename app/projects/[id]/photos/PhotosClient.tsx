@@ -122,49 +122,44 @@ export default function PhotosClient({
     }));
     setUploadItems((prev) => [...prev, ...items]);
 
-    const formData = new FormData();
-    fileArr.forEach((f) => formData.append("file", f));
+    await Promise.all(
+      fileArr.map(async (f, i) => {
+        const item = items[i];
+        const formData = new FormData();
+        formData.append("file", f);
 
-    try {
-      const res = await fetch(`/api/projects/${projectId}/photos`, {
-        method: "POST",
-        body: formData,
-      });
+        try {
+          const res = await fetch(`/api/projects/${projectId}/photos`, {
+            method: "POST",
+            body: formData,
+          });
 
-      if (res.ok) {
-        const created: ProjectPhoto[] = await res.json();
-        setPhotos((prev) => [...created, ...prev]);
-        setUploadItems((prev) =>
-          prev.map((item) =>
-            items.find((i) => i.id === item.id)
-              ? { ...item, status: "done" }
-              : item
-          )
-        );
-        setTimeout(() => {
+          if (res.ok) {
+            const created: ProjectPhoto[] = await res.json();
+            setPhotos((prev) => [created[0], ...prev]);
+            setUploadItems((prev) =>
+              prev.map((u) => u.id === item.id ? { ...u, status: "done" } : u)
+            );
+            setTimeout(() => {
+              setUploadItems((prev) => prev.filter((u) => u.id !== item.id));
+            }, 3000);
+          } else {
+            const err = await res.json();
+            setUploadItems((prev) =>
+              prev.map((u) =>
+                u.id === item.id ? { ...u, status: "error", error: err.error } : u
+              )
+            );
+          }
+        } catch {
           setUploadItems((prev) =>
-            prev.filter((item) => !items.find((i) => i.id === item.id))
+            prev.map((u) =>
+              u.id === item.id ? { ...u, status: "error", error: "Upload failed" } : u
+            )
           );
-        }, 3000);
-      } else {
-        const err = await res.json();
-        setUploadItems((prev) =>
-          prev.map((item) =>
-            items.find((i) => i.id === item.id)
-              ? { ...item, status: "error", error: err.error }
-              : item
-          )
-        );
-      }
-    } catch {
-      setUploadItems((prev) =>
-        prev.map((item) =>
-          items.find((i) => i.id === item.id)
-            ? { ...item, status: "error", error: "Upload failed" }
-            : item
-        )
-      );
-    }
+        }
+      })
+    );
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
