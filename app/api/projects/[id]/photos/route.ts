@@ -44,8 +44,9 @@ export async function POST(
 
   for (const file of files) {
     const timestamp = Date.now();
+    const uniqueId = crypto.randomUUID().slice(0, 8);
     const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const storagePath = `${projectId}/photos/${timestamp}-${safeFilename}`;
+    const storagePath = `${projectId}/photos/${timestamp}-${uniqueId}-${safeFilename}`;
 
     const { error: uploadError } = await supabase.storage
       .from("project-photos")
