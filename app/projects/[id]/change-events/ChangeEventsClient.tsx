@@ -127,6 +127,7 @@ export default function ChangeEventsClient({
   const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null);
   const [matchingContracts, setMatchingContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
   const [allContracts, setAllContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
+  const [allCommitments, setAllCommitments] = useState<{ id: string; number: number; title: string; type: string }[]>([]);
   const [pcoPickerOpen, setPcoPickerOpen] = useState(false);
   const [pcoPickerLoading, setPcoPickerLoading] = useState(false);
   const [pcoPickerContracts, setPcoPickerContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
@@ -190,7 +191,7 @@ export default function ChangeEventsClient({
     setPage(1);
   }, [fetchEvents]);
 
-  // Fetch matching prime contracts whenever the quick actions dropdown opens
+  // Fetch matching prime contracts and all commitments whenever the quick actions dropdown opens
   useEffect(() => {
     if (!quickActionsOpen || selectedIds.size === 0) return;
     const ids = Array.from(selectedIds).join(",");
@@ -204,6 +205,10 @@ export default function ChangeEventsClient({
         setMatchingContracts([]);
         setAllContracts([]);
       });
+    fetch(`/api/projects/${projectId}/commitments`)
+      .then((r) => r.json())
+      .then((data) => setAllCommitments(Array.isArray(data) ? data : []))
+      .catch(() => setAllCommitments([]));
   }, [quickActionsOpen, selectedIds, projectId]);
 
   // Filtering
@@ -466,144 +471,238 @@ export default function ChangeEventsClient({
           >
             Quick Actions <ChevronDown className="w-3 h-3" />
           </button>
-          {quickActionsOpen && selectedIds.size > 0 && (
-            <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-30 w-64 py-1">
-              {([
-                { label: "Add to Unapproved Commitment", hasInfo: true },
-                { label: "Add to Unapproved Commitment CO", hasInfo: true },
-                { label: "Add to Unapproved Prime PCO", hasArrow: true },
-                { label: "Create Commitment CO", hasInfo: true },
-                { label: "Create Prime PCO", hasAction: true },
-                { label: "Create Purchase Order Contract", hasInfo: true },
-                { label: "Create Subcontract", hasInfo: true },
-                { label: "Send RFQs", hasInfo: true },
-              ] as { label: string; hasInfo?: boolean; hasArrow?: boolean; hasAction?: boolean }[]).map(({ label, hasInfo, hasArrow, hasAction }) => (
+
+          {quickActionsOpen && selectedIds.size > 0 && (() => {
+            const eventIds = Array.from(selectedIds).join(",");
+            const subcontracts = allCommitments.filter((c) => c.type === "subcontract");
+            const purchaseOrders = allCommitments.filter((c) => c.type === "purchase_order");
+
+            // Reusable commitment submenu shared by "Add to Unapproved Commitment" and "Create Commitment CO"
+            function CommitmentSubmenu({ navSuffix }: { navSuffix: string }) {
+              return (
                 <div
-                  key={label}
-                  className="relative"
-                  onMouseEnter={() => { setHoveredAction(label); setHoveredSubItem(null); }}
-                  onMouseLeave={() => setHoveredAction(null)}
+                  className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-40 w-56 py-1"
+                  onMouseEnter={() => setHoveredAction(hoveredAction)}
                 >
-                  <button
-                    className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
-                      hoveredAction === label ? "bg-gray-100" : "hover:bg-gray-50"
-                    }`}
-                    onClick={() => {
-                      if (hasAction) {
-                        setQuickActionsOpen(false);
-                        setPcoPickerLoading(true);
-                        setPcoPickerContracts([]);
-                        setPcoPickerOpen(true);
-                        fetch(`/api/projects/${projectId}/prime-contracts`)
-                          .then((r) => r.json())
-                          .then((data: { id: string; contract_number: number; title: string }[]) => {
-                            setPcoPickerContracts(Array.isArray(data) ? data : []);
-                          })
-                          .catch(() => {
-                            setPcoPickerContracts([]);
-                          })
-                          .finally(() => setPcoPickerLoading(false));
-                      } else if (!hasArrow) {
-                        setQuickActionsOpen(false);
-                      }
-                    }}
+                  {/* Subcontracts row */}
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setHoveredSubItem("subcontracts")}
+                    onMouseLeave={() => setHoveredSubItem(null)}
                   >
-                    <span>{label}</span>
-                    {hasInfo && <Info className="w-3 h-3 text-gray-400 shrink-0" />}
-                    {hasArrow && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
-                  </button>
-
-                  {/* Level-1 submenu for items with arrows (hover-based) */}
-                  {hasArrow && hoveredAction === label && (
-                    <div
-                      className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-40 w-56 py-1"
-                      onMouseEnter={() => setHoveredAction(label)}
+                    <button
+                      className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
+                        hoveredSubItem === "subcontracts" ? "bg-gray-100" : "hover:bg-gray-50"
+                      }`}
                     >
-                      {/* "Contracts with matching cost codes" row */}
+                      <span>Subcontracts ({subcontracts.length})</span>
+                      {subcontracts.length > 0 && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
+                    </button>
+                    {hoveredSubItem === "subcontracts" && subcontracts.length > 0 && (
                       <div
-                        className="relative"
-                        onMouseEnter={() => setHoveredSubItem("matching")}
-                        onMouseLeave={() => setHoveredSubItem(null)}
+                        className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
+                        onMouseEnter={() => setHoveredSubItem("subcontracts")}
                       >
-                        <button
-                          className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
-                            hoveredSubItem === "matching" ? "bg-gray-100" : "hover:bg-gray-50"
-                          }`}
-                        >
-                          <span>Contracts with matching cost codes ({matchingContracts.length})</span>
-                          {matchingContracts.length > 0 && (
-                            <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
-                          )}
-                        </button>
-
-                        {/* Level-2 submenu: actual contract names */}
-                        {hoveredSubItem === "matching" && matchingContracts.length > 0 && (
-                          <div
-                            className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
-                            onMouseEnter={() => setHoveredSubItem("matching")}
+                        {subcontracts.map((c) => (
+                          <button
+                            key={c.id}
+                            className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                            onClick={() => {
+                              setQuickActionsOpen(false);
+                              router.push(`/projects/${projectId}/commitments/${c.id}${navSuffix}${navSuffix.includes("?") ? "&" : "?"}eventIds=${eventIds}`);
+                            }}
                           >
-                            {matchingContracts.map((c) => (
-                              <button
-                                key={c.id}
-                                className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                onClick={() => {
-                                  setQuickActionsOpen(false);
-                                  const ids = Array.from(selectedIds).join(",");
-                                  router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
-                                }}
-                              >
-                                {c.contract_number}: {c.title}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                            {String(c.number).padStart(3, "0")}: {c.title}
+                          </button>
+                        ))}
                       </div>
+                    )}
+                  </div>
 
-                      {/* "Contracts" (non-matching) row */}
+                  {/* Purchase Orders row */}
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setHoveredSubItem("purchase-orders")}
+                    onMouseLeave={() => setHoveredSubItem(null)}
+                  >
+                    <button
+                      className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
+                        hoveredSubItem === "purchase-orders" ? "bg-gray-100" : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <span>Purchase Orders ({purchaseOrders.length})</span>
+                      {purchaseOrders.length > 0 && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
+                    </button>
+                    {hoveredSubItem === "purchase-orders" && purchaseOrders.length > 0 && (
                       <div
-                        className="relative"
-                        onMouseEnter={() => setHoveredSubItem("all")}
-                        onMouseLeave={() => setHoveredSubItem(null)}
+                        className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
+                        onMouseEnter={() => setHoveredSubItem("purchase-orders")}
                       >
-                        <button
-                          className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
-                            hoveredSubItem === "all" ? "bg-gray-100" : "hover:bg-gray-50"
-                          }`}
-                        >
-                          <span>Contracts ({allContracts.length})</span>
-                          {allContracts.length > 0 && (
-                            <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
-                          )}
-                        </button>
-
-                        {/* Level-2 submenu: all (non-matching) contracts */}
-                        {hoveredSubItem === "all" && allContracts.length > 0 && (
-                          <div
-                            className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
-                            onMouseEnter={() => setHoveredSubItem("all")}
+                        {purchaseOrders.map((c) => (
+                          <button
+                            key={c.id}
+                            className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                            onClick={() => {
+                              setQuickActionsOpen(false);
+                              router.push(`/projects/${projectId}/commitments/${c.id}${navSuffix}${navSuffix.includes("?") ? "&" : "?"}eventIds=${eventIds}`);
+                            }}
                           >
-                            {allContracts.map((c) => (
-                              <button
-                                key={c.id}
-                                className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                onClick={() => {
-                                  setQuickActionsOpen(false);
-                                  const ids = Array.from(selectedIds).join(",");
-                                  router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
-                                }}
-                              >
-                                {c.contract_number}: {c.title}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                            {String(c.number).padStart(3, "0")}: {c.title}
+                          </button>
+                        ))}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            }
+
+            type Action =
+              | { label: string; type: "commitment-submenu"; navSuffix: string }
+              | { label: string; type: "prime-submenu" }
+              | { label: string; type: "prime-action" }
+              | { label: string; type: "new-commitment"; commitmentType: string }
+              | { label: string; type: "rfq" };
+
+            const actions: Action[] = [
+              { label: "Add to Unapproved Commitment", type: "commitment-submenu", navSuffix: "" },
+              { label: "Add to Unapproved Prime PCO", type: "prime-submenu" },
+              { label: "Create Commitment CO", type: "commitment-submenu", navSuffix: "?action=co" },
+              { label: "Create Prime PCO", type: "prime-action" },
+              { label: "Create Purchase Order Contract", type: "new-commitment", commitmentType: "purchase_order" },
+              { label: "Create Subcontract", type: "new-commitment", commitmentType: "subcontract" },
+              { label: "Send RFQs", type: "rfq" },
+            ];
+
+            return (
+              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-30 w-64 py-1">
+                {actions.map((action) => (
+                  <div
+                    key={action.label}
+                    className="relative"
+                    onMouseEnter={() => { setHoveredAction(action.label); setHoveredSubItem(null); }}
+                    onMouseLeave={() => setHoveredAction(null)}
+                  >
+                    <button
+                      className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
+                        hoveredAction === action.label ? "bg-gray-100" : "hover:bg-gray-50"
+                      }`}
+                      onClick={() => {
+                        if (action.type === "prime-action") {
+                          setQuickActionsOpen(false);
+                          setPcoPickerLoading(true);
+                          setPcoPickerContracts([]);
+                          setPcoPickerOpen(true);
+                          fetch(`/api/projects/${projectId}/prime-contracts`)
+                            .then((r) => r.json())
+                            .then((data: { id: string; contract_number: number; title: string }[]) => {
+                              setPcoPickerContracts(Array.isArray(data) ? data : []);
+                            })
+                            .catch(() => setPcoPickerContracts([]))
+                            .finally(() => setPcoPickerLoading(false));
+                        } else if (action.type === "new-commitment") {
+                          setQuickActionsOpen(false);
+                          router.push(`/projects/${projectId}/commitments/new?type=${action.commitmentType}&eventIds=${eventIds}`);
+                        } else if (action.type === "rfq") {
+                          setQuickActionsOpen(false);
+                          router.push(`/projects/${projectId}/bid-management?eventIds=${eventIds}`);
+                        }
+                        // commitment-submenu and prime-submenu stay open (arrow-based)
+                      }}
+                    >
+                      <span>{action.label}</span>
+                      {(action.type === "commitment-submenu" || action.type === "prime-submenu") && (
+                        <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
+                      )}
+                    </button>
+
+                    {/* Commitment submenu */}
+                    {action.type === "commitment-submenu" && hoveredAction === action.label && (
+                      <CommitmentSubmenu navSuffix={action.navSuffix} />
+                    )}
+
+                    {/* Prime PCO submenu (matching + all prime contracts) */}
+                    {action.type === "prime-submenu" && hoveredAction === action.label && (
+                      <div
+                        className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-40 w-56 py-1"
+                        onMouseEnter={() => setHoveredAction(action.label)}
+                      >
+                        {/* Contracts with matching cost codes */}
+                        <div
+                          className="relative"
+                          onMouseEnter={() => setHoveredSubItem("matching")}
+                          onMouseLeave={() => setHoveredSubItem(null)}
+                        >
+                          <button
+                            className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
+                              hoveredSubItem === "matching" ? "bg-gray-100" : "hover:bg-gray-50"
+                            }`}
+                          >
+                            <span>Contracts with matching cost codes ({matchingContracts.length})</span>
+                            {matchingContracts.length > 0 && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
+                          </button>
+                          {hoveredSubItem === "matching" && matchingContracts.length > 0 && (
+                            <div
+                              className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
+                              onMouseEnter={() => setHoveredSubItem("matching")}
+                            >
+                              {matchingContracts.map((c) => (
+                                <button
+                                  key={c.id}
+                                  className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                  onClick={() => {
+                                    setQuickActionsOpen(false);
+                                    router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${eventIds}`);
+                                  }}
+                                >
+                                  {c.contract_number}: {c.title}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* All (non-matching) contracts */}
+                        <div
+                          className="relative"
+                          onMouseEnter={() => setHoveredSubItem("all")}
+                          onMouseLeave={() => setHoveredSubItem(null)}
+                        >
+                          <button
+                            className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
+                              hoveredSubItem === "all" ? "bg-gray-100" : "hover:bg-gray-50"
+                            }`}
+                          >
+                            <span>Contracts ({allContracts.length})</span>
+                            {allContracts.length > 0 && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
+                          </button>
+                          {hoveredSubItem === "all" && allContracts.length > 0 && (
+                            <div
+                              className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
+                              onMouseEnter={() => setHoveredSubItem("all")}
+                            >
+                              {allContracts.map((c) => (
+                                <button
+                                  key={c.id}
+                                  className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                  onClick={() => {
+                                    setQuickActionsOpen(false);
+                                    router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${eventIds}`);
+                                  }}
+                                >
+                                  {c.contract_number}: {c.title}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>}
 
         {/* Search */}
