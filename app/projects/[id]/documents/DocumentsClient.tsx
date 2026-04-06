@@ -1359,53 +1359,26 @@ export default function DocumentsClient({
 
   async function uploadDocumentFile(file: File, parentId: string | null): Promise<string | null> {
     try {
-      let storagePath: string | null = null;
-      let uploadError: string | null = null;
-      const maxAttempts = 2;
-
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        const uploadUrlRes = await fetch(
-          `/api/projects/${projectId}/documents/upload-url?filename=${encodeURIComponent(file.name)}`
-        );
-        if (!uploadUrlRes.ok) {
-          const data = await uploadUrlRes.json().catch(() => ({}));
-          return data.error ?? `Failed to prepare upload for ${file.name} (server error ${uploadUrlRes.status}).`;
-        }
-
-        const uploadPayload = await uploadUrlRes.json();
-        const signedUrl = typeof uploadPayload?.signedUrl === "string" ? uploadPayload.signedUrl : null;
-        storagePath = typeof uploadPayload?.storagePath === "string" ? uploadPayload.storagePath : null;
-        if (!signedUrl || !storagePath) {
-          return `Failed to prepare upload for ${file.name} (missing upload URL).`;
-        }
-
-        const storageUploadRes = await fetch(signedUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": file.type || "application/octet-stream",
-            "x-upsert": "true",
-          },
-          body: file,
-        });
-
-        if (storageUploadRes.ok) {
-          uploadError = null;
-          break;
-        }
-
-        const errorText = (await storageUploadRes.text().catch(() => "")).trim();
-        uploadError = `${file.name} could not be uploaded to storage (error ${storageUploadRes.status})${errorText ? `: ${errorText}` : "."}`;
-
-        const shouldRetry =
-          attempt < maxAttempts &&
-          (storageUploadRes.status === 400 || storageUploadRes.status === 401 || storageUploadRes.status === 403);
-        if (!shouldRetry) {
-          break;
-        }
+      const uploadUrlRes = await fetch(
+        `/api/projects/${projectId}/documents?upload_url_for=${encodeURIComponent(file.name)}`
+      );
+      if (!uploadUrlRes.ok) {
+        const data = await uploadUrlRes.json().catch(() => ({}));
+        return data.error ?? `Failed to prepare upload for ${file.name} (server error ${uploadUrlRes.status}).`;
       }
 
-      if (uploadError || !storagePath) {
-        return uploadError ?? `Failed to upload ${file.name} to storage.`;
+      const { signedUrl, storagePath } = await uploadUrlRes.json();
+      if (!signedUrl || !storagePath) {
+        return `Failed to prepare upload for ${file.name} (missing upload URL).`;
+      }
+
+      const storageUploadRes = await fetch(signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!storageUploadRes.ok) {
+        return `${file.name} could not be uploaded to storage (error ${storageUploadRes.status}).`;
       }
 
       const registerRes = await fetch(`/api/projects/${projectId}/documents`, {

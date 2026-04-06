@@ -17,7 +17,7 @@ export async function GET(
   const supabase = getSupabase();
   const { data, error } = await supabase.storage
     .from("project-documents")
-    .createSignedUploadUrl(storagePath, { upsert: true });
+    .createSignedUploadUrl(storagePath);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

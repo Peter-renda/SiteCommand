@@ -10,7 +10,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const sp = new URL(req.url).searchParams;
   const parentId = sp.get("parent_id");
   const allFolders = sp.get("all_folders") === "true";
+  const uploadUrlFilename = sp.get("upload_url_for");
   const supabase = getSupabase();
+
+  if (uploadUrlFilename) {
+    const safeFilename = uploadUrlFilename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storagePath = `${projectId}/${crypto.randomUUID()}/${safeFilename}`;
+    const { data, error } = await supabase.storage
+      .from("project-documents")
+      .createSignedUploadUrl(storagePath);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ signedUrl: data.signedUrl, storagePath });
+  }
 
   if (allFolders) {
     const { data } = await supabase
