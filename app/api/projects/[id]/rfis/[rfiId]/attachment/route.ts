@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logRFIChange } from "@/lib/rfi-history";
 
 export async function POST(
   req: NextRequest,
@@ -25,7 +26,6 @@ export async function POST(
 
   if (!rfi) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
 
-  const ext = file.name.split(".").pop() || "bin";
   const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
   const path = `${projectId}/${rfiId}/${Date.now()}-${safeName}`;
 
@@ -48,5 +48,6 @@ export async function POST(
     .single();
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  logRFIChange(supabase, session, rfiId, projectId, "Attachment Added", null, file.name);
   return NextResponse.json(updated);
 }

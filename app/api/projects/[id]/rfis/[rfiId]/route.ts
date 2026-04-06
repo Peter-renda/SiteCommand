@@ -4,6 +4,42 @@ import { getSession } from "@/lib/auth";
 import { sendRFIBallInCourtEmail, sendRFIClosedEmail, sendRFIReopenedEmail } from "@/lib/email";
 import { logRFIChange } from "@/lib/rfi-history";
 
+type NamedContact = { id: string; first_name: string | null; last_name: string | null };
+type NamedSpecification = { id: string; name: string | null; code: string | null };
+type AssigneeLike = { id?: string | null; name?: string | null };
+
+function toComparable(value: unknown): string {
+  return JSON.stringify(value ?? null);
+}
+
+function isEqual(a: unknown, b: unknown): boolean {
+  return toComparable(a) === toComparable(b);
+}
+
+function contactNameById(contacts: NamedContact[], id: string | null): string | null {
+  if (!id) return null;
+  const contact = contacts.find((c) => c.id === id);
+  if (!contact) return id;
+  const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ").trim();
+  return name || id;
+}
+
+function specNameById(specifications: NamedSpecification[], id: string | null): string | null {
+  if (!id) return null;
+  const specification = specifications.find((s) => s.id === id);
+  if (!specification) return id;
+  const base = specification.name?.trim() || id;
+  return specification.code ? `${base} (${specification.code})` : base;
+}
+
+function listNames(value: unknown): string {
+  const items = Array.isArray(value) ? (value as AssigneeLike[]) : [];
+  const names = items
+    .map((item) => item?.name?.trim() || item?.id?.trim() || null)
+    .filter((name): name is string => Boolean(name));
+  return names.join(", ");
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string; rfiId: string }> }
@@ -54,7 +90,7 @@ export async function PATCH(
   // Fetch current RFI state before updating so we can detect transitions
   const { data: prevRfi } = await supabase
     .from("rfis")
-    .select("status, ball_in_court_id, rfi_manager_id, assignees")
+    .select("subject, question, due_date, status, rfi_manager_id, received_from_id, assignees, distribution_list, responsible_contractor_id, specification_id, drawing_number, attachments, ball_in_court_id")
     .eq("id", rfiId)
     .eq("project_id", projectId)
     .single();
@@ -69,11 +105,13 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const historyPromises: Promise<unknown>[] = [];
+
   // Log status change to history + send reopen emails
   if ("status" in update && prevRfi && update.status !== prevRfi.status) {
     const fromLabel = (prevRfi.status as string).charAt(0).toUpperCase() + (prevRfi.status as string).slice(1);
     const toLabel = (update.status as string).charAt(0).toUpperCase() + (update.status as string).slice(1);
-    logRFIChange(supabase, session, rfiId, projectId, "Status", fromLabel, toLabel);
+    historyPromises.push(logRFIChange(supabase, session, rfiId, projectId, "Status", fromLabel, toLabel));
 
     if (update.status === "open" && prevRfi.status === "closed") {
       try {
@@ -197,10 +235,75 @@ export async function PATCH(
       const fromLabel = prevRfi?.ball_in_court_id == null ? null : (prevBallWithAssignee ? "Assignees" : "RFI Manager");
       const newBallWithAssignee = data.ball_in_court_id !== data.rfi_manager_id && prevAssignees.some((a) => a.id === data.ball_in_court_id);
       const toLabel = newBallWithAssignee ? "Assignees" : "RFI Manager";
-      logRFIChange(supabase, session, rfiId, projectId, "ball_in_court_role", fromLabel, toLabel);
+      historyPromises.push(logRFIChange(supabase, session, rfiId, projectId, "ball_in_court_role", fromLabel, toLabel));
     } catch {
       // Email failure should not block the response
     }
+  }
+
+  if (prevRfi) {
+    const [contactsRes, specsRes] = await Promise.all([
+      supabase.from("directory_contacts").select("id, first_name, last_name").eq("project_id", projectId),
+      supabase.from("specifications").select("id, name, code").eq("project_id", projectId),
+    ]);
+
+    const contacts = (contactsRes.data ?? []) as NamedContact[];
+    const specifications = (specsRes.data ?? []) as NamedSpecification[];
+
+    const fieldChanges = [
+      { key: "subject", action: "Subject", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
+      { key: "question", action: "Question", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
+      { key: "due_date", action: "Due Date", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
+      { key: "rfi_manager_id", action: "RFI Manager", toDisplay: (v: unknown) => contactNameById(contacts, typeof v === "string" ? v : null) },
+      { key: "received_from_id", action: "Received From", toDisplay: (v: unknown) => contactNameById(contacts, typeof v === "string" ? v : null) },
+      { key: "assignees", action: "Assignees", toDisplay: (v: unknown) => listNames(v) || null },
+      { key: "distribution_list", action: "Distribution List", toDisplay: (v: unknown) => listNames(v) || null },
+      { key: "responsible_contractor_id", action: "Responsible Contractor", toDisplay: (v: unknown) => contactNameById(contacts, typeof v === "string" ? v : null) },
+      { key: "specification_id", action: "Specification", toDisplay: (v: unknown) => specNameById(specifications, typeof v === "string" ? v : null) },
+      { key: "drawing_number", action: "Drawing Number", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
+    ];
+
+    for (const change of fieldChanges) {
+      if (!(change.key in update)) continue;
+      const oldValue = (prevRfi as Record<string, unknown>)[change.key];
+      const newValue = (data as Record<string, unknown>)[change.key];
+      if (isEqual(oldValue, newValue)) continue;
+
+      historyPromises.push(
+        logRFIChange(
+          supabase,
+          session,
+          rfiId,
+          projectId,
+          change.action,
+          change.toDisplay(oldValue),
+          change.toDisplay(newValue),
+        ),
+      );
+    }
+
+    if ("attachments" in update) {
+      const prevAttachments = Array.isArray(prevRfi.attachments) ? prevRfi.attachments : [];
+      const newAttachments = Array.isArray(data.attachments) ? data.attachments : [];
+
+      const prevUrls = new Set(
+        prevAttachments
+          .map((attachment: unknown) => (attachment && typeof attachment === "object" && "url" in attachment ? (attachment as { url?: string }).url : null))
+          .filter((url): url is string => Boolean(url)),
+      );
+
+      for (const attachment of newAttachments) {
+        const nextAttachment = attachment as { name?: string; url?: string };
+        if (nextAttachment.url && prevUrls.has(nextAttachment.url)) continue;
+        historyPromises.push(
+          logRFIChange(supabase, session, rfiId, projectId, "Attachment Added", null, nextAttachment.name ?? "Attachment"),
+        );
+      }
+    }
+  }
+
+  if (historyPromises.length > 0) {
+    await Promise.allSettled(historyPromises);
   }
 
   return NextResponse.json(data);

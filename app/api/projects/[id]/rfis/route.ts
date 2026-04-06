@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { dispatchWebhookEvent } from "@/lib/webhook-dispatch";
+import { logRFIChange } from "@/lib/rfi-history";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -76,6 +77,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  logRFIChange(supabase, session, data.id, projectId, "Created RFI", null, `RFI #${data.rfi_number}`);
 
   if (session.company_id) {
     dispatchWebhookEvent(session.company_id, "rfi.created", {
