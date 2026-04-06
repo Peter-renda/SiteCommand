@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
 type DirContact = { id: string; name: string; email: string | null };
@@ -122,6 +122,9 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [returningCourt, setReturningCourt] = useState(false);
   const [history, setHistory] = useState<ChangeHistoryEntry[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [processingAction, setProcessingAction] = useState<"email" | "delete" | null>(null);
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -152,6 +155,17 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
         .then((d) => { setHistory(Array.isArray(d) ? d : []); setHistoryLoaded(true); });
     }
   }, [activeTab, historyLoaded, projectId, rfiId]);
+
+  useEffect(() => {
+    function onDocumentMouseDown(e: MouseEvent) {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setShowActionsMenu(false);
+      }
+    }
+
+    document.addEventListener("mousedown", onDocumentMouseDown);
+    return () => document.removeEventListener("mousedown", onDocumentMouseDown);
+  }, []);
 
   const canEdit = rfi && rfi.created_by === userId;
 
@@ -225,6 +239,58 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     window.location.href = "/";
   }
 
+  async function handleEmailRFI() {
+    const distributionEmails = (rfi.distribution_list ?? [])
+      .map((contact) => contact.email)
+      .filter((email): email is string => Boolean(email));
+
+    if (distributionEmails.length === 0) {
+      window.alert("This RFI has no distribution list emails.");
+      return;
+    }
+
+    setProcessingAction("email");
+    const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/notify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        distribution_emails: distributionEmails,
+        rfi_summary: `RFI #${rfi.rfi_number}: ${rfi.subject || "No subject"}`,
+      }),
+    });
+    setProcessingAction(null);
+    setShowActionsMenu(false);
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      window.alert(errorData.error || "Failed to send email notification.");
+      return;
+    }
+    window.alert("Email notification queued for the distribution list.");
+  }
+
+  async function handleDeleteRFI() {
+    if (!canEdit) {
+      window.alert("Only the RFI creator can delete this RFI.");
+      return;
+    }
+
+    const confirmed = window.confirm("Delete this RFI? This action cannot be undone.");
+    if (!confirmed) return;
+
+    setProcessingAction("delete");
+    const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, { method: "DELETE" });
+    setProcessingAction(null);
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      window.alert(errorData.error || "Failed to delete the RFI.");
+      return;
+    }
+
+    window.location.href = `/projects/${projectId}/rfis`;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -288,6 +354,57 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
           >
             All RFIs
           </a>
+          <div className="relative" ref={actionsMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowActionsMenu((v) => !v)}
+              className="w-9 h-9 inline-flex items-center justify-center text-gray-600 bg-white border border-blue-600 rounded hover:bg-blue-50 transition-colors"
+              aria-haspopup="menu"
+              aria-expanded={showActionsMenu}
+              aria-label="More actions"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="5" r="1.75" />
+                <circle cx="12" cy="12" r="1.75" />
+                <circle cx="12" cy="19" r="1.75" />
+              </svg>
+            </button>
+
+            {showActionsMenu && (
+              <div className="absolute right-0 top-10 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-20">
+                <button
+                  type="button"
+                  onClick={handleEmailRFI}
+                  disabled={processingAction !== null}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                >
+                  {processingAction === "email" ? "Emailing..." : "Email"}
+                </button>
+                <a
+                  href={`/projects/${projectId}/change-events/new`}
+                  onClick={() => setShowActionsMenu(false)}
+                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  Create Change Event
+                </a>
+                <button
+                  type="button"
+                  onClick={handleDeleteRFI}
+                  disabled={processingAction !== null || !canEdit}
+                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {processingAction === "delete" ? "Deleting..." : "Delete"}
+                </button>
+                <a
+                  href={`/projects/${projectId}/rfis`}
+                  onClick={() => setShowActionsMenu(false)}
+                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  Create RFI
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
