@@ -1279,28 +1279,10 @@ export default function DocumentsClient({
     setUploading(true);
     setUploadError(null);
 
-    const MAX_SIZE = 4.5 * 1024 * 1024; // 4.5MB Vercel limit
     const errors: string[] = [];
     for (const file of Array.from(files)) {
-      if (file.size > MAX_SIZE) {
-        errors.push(`${file.name} exceeds the 4.5MB upload limit. Please compress the file and try again.`);
-        continue;
-      }
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("parent_id", currentParentId ?? "null");
-      const res = await fetch(`/api/projects/${projectId}/documents`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        if (res.status === 413) {
-          errors.push(`${file.name} is too large to upload (exceeds server limit).`);
-        } else {
-          const data = await res.json().catch(() => ({}));
-          errors.push(data.error ?? `Failed to upload ${file.name} (server error ${res.status}).`);
-        }
-      }
+      const uploadError = await uploadDocumentFile(file, currentParentId);
+      if (uploadError) errors.push(uploadError);
     }
 
     setUploading(false);
@@ -1354,13 +1336,10 @@ export default function DocumentsClient({
       const parentPath = parts.slice(0, -1).join("/");
       const parentId = parentPath ? (pathToId.get(parentPath) ?? currentParentId) : currentParentId;
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("parent_id", parentId ?? "null");
-      await fetch(`/api/projects/${projectId}/documents`, {
-        method: "POST",
-        body: formData,
-      });
+      const uploadError = await uploadDocumentFile(file, parentId);
+      if (uploadError) {
+        setUploadError((prev) => (prev ? `${prev}; ${uploadError}` : uploadError));
+      }
     }
 
     setUploading(false);
@@ -1376,6 +1355,54 @@ export default function DocumentsClient({
       body: JSON.stringify({ name, parent_id: currentParentId }),
     });
     await loadItems(currentParentId);
+  }
+
+  async function uploadDocumentFile(file: File, parentId: string | null): Promise<string | null> {
+    try {
+      const uploadUrlRes = await fetch(
+        `/api/projects/${projectId}/documents/upload-url?filename=${encodeURIComponent(file.name)}`
+      );
+      if (!uploadUrlRes.ok) {
+        const data = await uploadUrlRes.json().catch(() => ({}));
+        return data.error ?? `Failed to prepare upload for ${file.name} (server error ${uploadUrlRes.status}).`;
+      }
+
+      const { signedUrl, storagePath } = await uploadUrlRes.json();
+      if (!signedUrl || !storagePath) {
+        return `Failed to prepare upload for ${file.name} (missing upload URL).`;
+      }
+
+      const storageUploadRes = await fetch(signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!storageUploadRes.ok) {
+        return `${file.name} could not be uploaded to storage (error ${storageUploadRes.status}).`;
+      }
+
+      const registerRes = await fetch(`/api/projects/${projectId}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "file",
+          name: file.name,
+          parent_id: parentId,
+          storage_path: storagePath,
+          mime_type: file.type,
+          size: file.size,
+        }),
+      });
+
+      if (!registerRes.ok) {
+        const data = await registerRes.json().catch(() => ({}));
+        return data.error ?? `Failed to save ${file.name} after upload (server error ${registerRes.status}).`;
+      }
+
+      return null;
+    } catch {
+      return `Failed to upload ${file.name}. Please try again.`;
+    }
   }
 
   async function handleRename(name: string) {
