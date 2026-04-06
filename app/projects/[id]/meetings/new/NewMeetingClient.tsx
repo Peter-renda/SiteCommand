@@ -467,7 +467,7 @@ export default function NewMeetingClient({
 
     if (res.ok) {
       const meeting = await res.json();
-      window.location.href = `/projects/${projectId}/meetings`;
+      window.location.href = `/projects/${projectId}/meetings/${meeting.id}`;
     } else {
       const err = await res.json();
       setError(err.error ?? "Failed to create meeting.");
