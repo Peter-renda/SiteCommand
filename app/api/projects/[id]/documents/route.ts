@@ -10,7 +10,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const sp = new URL(req.url).searchParams;
   const parentId = sp.get("parent_id");
   const allFolders = sp.get("all_folders") === "true";
+  const uploadUrlFilename = sp.get("upload_url_for");
   const supabase = getSupabase();
+
+  if (uploadUrlFilename) {
+    const safeFilename = uploadUrlFilename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storagePath = `${projectId}/${crypto.randomUUID()}/${safeFilename}`;
+    const { data, error } = await supabase.storage
+      .from("project-documents")
+      .createSignedUploadUrl(storagePath);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ signedUrl: data.signedUrl, storagePath });
+  }
 
   if (allFolders) {
     const { data } = await supabase
@@ -106,22 +119,53 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ...data,
       url: supabase.storage.from("project-documents").getPublicUrl(path).data.publicUrl,
     });
-  } else {
-    const { name, parent_id } = await req.json();
-    if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 });
+  }
 
-    const { data } = await supabase
+  const body = await req.json();
+  const { name, parent_id, type, storage_path, mime_type, size } = body;
+  if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 });
+
+  if (type === "file") {
+    if (!storage_path) {
+      return NextResponse.json({ error: "storage_path is required for file uploads" }, { status: 400 });
+    }
+
+    const docId = crypto.randomUUID();
+    const { data, error: insertError } = await supabase
       .from("documents")
       .insert({
+        id: docId,
         project_id: projectId,
         parent_id: parent_id || null,
         name,
-        type: "folder",
+        type: "file",
+        storage_path,
+        mime_type: mime_type || null,
+        size: typeof size === "number" ? size : null,
         created_by: session.id,
       })
       .select()
       .single();
 
-    return NextResponse.json({ ...data, url: null });
+    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+
+    return NextResponse.json({
+      ...data,
+      url: supabase.storage.from("project-documents").getPublicUrl(storage_path).data.publicUrl,
+    });
   }
+
+  const { data } = await supabase
+    .from("documents")
+    .insert({
+      project_id: projectId,
+      parent_id: parent_id || null,
+      name,
+      type: "folder",
+      created_by: session.id,
+    })
+    .select()
+    .single();
+
+  return NextResponse.json({ ...data, url: null });
 }
