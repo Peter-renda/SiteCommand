@@ -14,7 +14,7 @@ export async function GET(
 
   const { data: rfi } = await supabase
     .from("rfis")
-    .select("id")
+    .select("id, rfi_number, created_at, created_by")
     .eq("id", rfiId)
     .eq("project_id", projectId)
     .single();
@@ -27,5 +27,44 @@ export async function GET(
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  const history = data ?? [];
+  const hasCreatedEntry = history.some((entry) => entry.action === "Created RFI");
+  if (hasCreatedEntry) return NextResponse.json(history);
+
+  let changedByName: string | null = null;
+  let changedByCompany: string | null = null;
+
+  if (rfi.created_by) {
+    const { data: user } = await supabase
+      .from("users")
+      .select("first_name, last_name, username, company_id")
+      .eq("id", rfi.created_by)
+      .single();
+
+    if (user) {
+      changedByName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username || null;
+      if (user.company_id) {
+        const { data: company } = await supabase
+          .from("companies")
+          .select("name")
+          .eq("id", user.company_id)
+          .single();
+        changedByCompany = company?.name ?? null;
+      }
+    }
+  }
+
+  return NextResponse.json([
+    ...history,
+    {
+      id: `synthetic-created-${rfi.id}`,
+      action: "Created RFI",
+      from_value: null,
+      to_value: `RFI #${rfi.rfi_number}`,
+      changed_by_name: changedByName,
+      changed_by_company: changedByCompany,
+      created_at: rfi.created_at,
+    },
+  ]);
 }
