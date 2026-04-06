@@ -1360,7 +1360,7 @@ export default function DocumentsClient({
   async function uploadDocumentFile(file: File, parentId: string | null): Promise<string | null> {
     try {
       const uploadUrlRes = await fetch(
-        `/api/projects/${projectId}/documents/upload-url?filename=${encodeURIComponent(file.name)}`
+        `/api/projects/${projectId}/documents?upload_url_for=${encodeURIComponent(file.name)}`
       );
       if (!uploadUrlRes.ok) {
         const data = await uploadUrlRes.json().catch(() => ({}));
