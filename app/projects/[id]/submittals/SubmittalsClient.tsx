@@ -743,7 +743,9 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
   const [specifications, setSpecifications] = useState<Specification[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [creating, setCreating] = useState(false);
+  const createMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -758,10 +760,21 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
     });
   }, [projectId]);
 
+  useEffect(() => {
+    function onPointerDown(e: MouseEvent) {
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) {
+        setShowCreateMenu(false);
+      }
+    }
+    window.addEventListener("mousedown", onPointerDown);
+    return () => window.removeEventListener("mousedown", onPointerDown);
+  }, []);
+
   const nextNumber = submittals.length > 0 ? Math.max(...submittals.map((s) => s.submittal_number)) + 1 : 1;
 
   async function handleCreate(data: Record<string, unknown>, sendEmails: boolean) {
     setShowCreate(false);
+    setShowCreateMenu(false);
     setCreating(true);
     const { attachmentFile, ...rest } = data;
     const res = await fetch(`/api/projects/${projectId}/submittals`, {
@@ -815,10 +828,43 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
               <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               Export as PDF
             </button>
-            <button onClick={() => setShowCreate(true)} disabled={creating} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              {creating ? "Creating..." : "Create submittal"}
-            </button>
+            <div className="relative" ref={createMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowCreateMenu((o) => !o)}
+                disabled={creating}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                {creating ? "Creating..." : "Create +"}
+                <svg className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 20 20" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" /></svg>
+              </button>
+              {showCreateMenu && (
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-20 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => { setShowCreate(true); setShowCreateMenu(false); }}
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Create Submittal
+                  </button>
+                  <a
+                    href={`/projects/${projectId}/transmittals/new?type=Submittal%20Package`}
+                    onClick={() => setShowCreateMenu(false)}
+                    className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Submittal Package
+                  </a>
+                  <a
+                    href={`/projects/${projectId}/submittals?createFromSpecs=1`}
+                    onClick={() => setShowCreateMenu(false)}
+                    className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Submittals from Specifications
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -827,7 +873,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
         ) : submittals.length === 0 ? (
           <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
             <p className="text-sm text-gray-400">No submittals yet</p>
-            <p className="text-xs text-gray-300 mt-1">Click Create submittal to add the first one</p>
+            <p className="text-xs text-gray-300 mt-1">Click Create + to add the first one</p>
           </div>
         ) : (
           <div className="bg-white border border-gray-100 rounded-xl overflow-x-auto">
