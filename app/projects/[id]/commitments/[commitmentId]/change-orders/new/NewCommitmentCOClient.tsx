@@ -446,7 +446,7 @@ export default function NewCommitmentCOClient({
                       <option value="">Select…</option>
                       {directoryContacts.map((c) => {
                         const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "";
-                        return name ? <option key={c.id} value={name}>{name}</option> : null;
+                        return c.email ? <option key={c.id} value={c.email}>{name}</option> : null;
                       })}
                     </select>
                   </Field>
@@ -461,7 +461,7 @@ export default function NewCommitmentCOClient({
                       <option value="">Select…</option>
                       {directoryContacts.map((c) => {
                         const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "";
-                        return name ? <option key={c.id} value={name}>{name}</option> : null;
+                        return c.email ? <option key={c.id} value={c.email}>{name}</option> : null;
                       })}
                     </select>
                   </Field>

@@ -63,6 +63,12 @@ type ChangeOrder = {
   prime_contract_id: string | null;
 };
 
+function contactName(email: string, contacts: DirectoryContact[]): string {
+  const c = contacts.find((x) => x.email === email);
+  if (!c) return email;
+  return [c.first_name, c.last_name].filter(Boolean).join(" ") || email;
+}
+
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
   return (
@@ -138,9 +144,17 @@ export default function ChangeOrderDetailClient({
       .catch(() => setLoading(false));
   }, [projectId, changeOrderId]);
 
+  // designated_reviewer stores the email; username is session.email
   const isReviewer =
-    username.trim().toLowerCase() === designatedReviewer.trim().toLowerCase();
-  const pendingReview = status === "Pending - In Review" || status === "Pending - Revised";
+    !!designatedReviewer && username.trim().toLowerCase() === designatedReviewer.trim().toLowerCase();
+  const pendingReview = new Set([
+    "Pending - In Review",
+    "Pending - Revised",
+    "Pending - Pricing",
+    "Pending - Not Pricing",
+    "Pending - Proceeding",
+    "Pending - Not Proceeding",
+  ]).has(status);
 
   async function handleSave() {
     setSaving(true);
@@ -291,7 +305,9 @@ export default function ChangeOrderDetailClient({
           {/* Reviewer actions shown when current user is the designated reviewer and status is pending */}
           {isCommitment && isReviewer && pendingReview && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-amber-600 font-medium">Awaiting your review</span>
+              <span className="text-xs text-amber-600 font-medium">
+                Awaiting your review as {contactName(designatedReviewer, directoryContacts)}
+              </span>
               <button
                 disabled={saving}
                 onClick={() => handleReview("Approved")}
@@ -495,7 +511,7 @@ export default function ChangeOrderDetailClient({
                       <option value="">Select…</option>
                       {directoryContacts.map((c) => {
                         const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "";
-                        return name ? <option key={c.id} value={name}>{name}</option> : null;
+                        return c.email ? <option key={c.id} value={c.email}>{name}</option> : null;
                       })}
                     </select>
                   </Field>
@@ -510,7 +526,7 @@ export default function ChangeOrderDetailClient({
                       <option value="">Select…</option>
                       {directoryContacts.map((c) => {
                         const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "";
-                        return name ? <option key={c.id} value={name}>{name}</option> : null;
+                        return c.email ? <option key={c.id} value={c.email}>{name}</option> : null;
                       })}
                     </select>
                   </Field>
