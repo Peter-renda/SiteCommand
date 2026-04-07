@@ -15,7 +15,7 @@ export default async function ChangeOrderDetailPage({
     <ChangeOrderDetailClient
       projectId={id}
       changeOrderId={changeOrderId}
-      username={(session as any).username ?? ""}
+      username={session.email}
       role={session.role}
     />
   );

@@ -240,7 +240,8 @@ export default function ChangeOrdersClient({
                       <div className="flex items-center gap-1">
                         {activeTab === "commitment" &&
                           pendingReviewStatuses.has(order.status) &&
-                          order.designated_reviewer?.trim().toLowerCase() === username.trim().toLowerCase() && (
+                          !!order.designated_reviewer &&
+                          order.designated_reviewer.trim().toLowerCase() === username.trim().toLowerCase() && (
                             <>
                               <button
                                 disabled={updatingId === order.id}

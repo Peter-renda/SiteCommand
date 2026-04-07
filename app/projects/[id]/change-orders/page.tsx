@@ -15,7 +15,7 @@ export default async function ChangeOrdersPage({
     <ChangeOrdersClient
       projectId={id}
       role={session.role}
-      username={session.username}
+      username={session.email}
     />
   );
 }
