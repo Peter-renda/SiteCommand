@@ -44,6 +44,29 @@ type ImportFields = {
   contract_termination_date?: string | null;
 };
 
+type PrimeContractSettings = {
+  number_of_change_order_tiers: number;
+  allow_standard_users_create_pccos: boolean;
+  allow_standard_users_create_pcos: boolean;
+  enable_always_editable_sov: boolean;
+  show_financial_markup_on_change_order_pdf: boolean;
+  show_financial_markup_on_invoice_exports: boolean;
+  default_prime_contract_user_id: string | null;
+  default_prime_contract_change_order_user_id: string | null;
+  default_prime_contract_potential_change_order_user_id: string | null;
+};
+
+type ProjectMember = {
+  user_id: string;
+  users: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    username: string | null;
+    email: string | null;
+  } | null;
+};
+
 function fmt(val: number | null | undefined) {
   if (val == null) return "$0.00";
   return val.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
@@ -137,6 +160,13 @@ export default function PrimeContractsClient({
   const [importState, setImportState] = useState<"idle" | "parsing" | "review" | "creating">("idle");
   const [importFields, setImportFields] = useState<ImportFields | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<PrimeContractSettings | null>(null);
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
 
   function loadContracts() {
     fetch(`/api/projects/${projectId}/prime-contracts`)
@@ -206,6 +236,56 @@ export default function PrimeContractsClient({
     setImportError(null);
   }
 
+  async function openSettingsModal() {
+    setShowSettings(true);
+    setSettingsLoading(true);
+    setSettingsError(null);
+    setSettingsSuccess(null);
+    try {
+      const [settingsRes, membersRes] = await Promise.all([
+        fetch(`/api/projects/${projectId}/prime-contracts/settings`),
+        fetch(`/api/projects/${projectId}/members`),
+      ]);
+      const settingsData = await settingsRes.json();
+      const membersData = await membersRes.json();
+      if (!settingsRes.ok) throw new Error(settingsData.error ?? "Failed to load settings");
+      setSettings(settingsData);
+      setMembers(Array.isArray(membersData) ? membersData : []);
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : "Failed to load settings");
+    } finally {
+      setSettingsLoading(false);
+    }
+  }
+
+  async function saveSettings() {
+    if (!settings) return;
+    setSettingsSaving(true);
+    setSettingsError(null);
+    setSettingsSuccess(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/prime-contracts/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to save settings");
+      setSettingsSuccess("Settings updated.");
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : "Failed to save settings");
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
+
+  function formatMemberName(member: ProjectMember) {
+    const u = member.users;
+    if (!u) return "Unknown user";
+    const fullName = `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim();
+    return fullName || u.username || u.email || "Unnamed user";
+  }
+
   const filtered = contracts.filter((c) => {
     const q = search.toLowerCase();
     return (
@@ -223,7 +303,13 @@ export default function PrimeContractsClient({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-white shrink-0">
         <div className="flex items-center gap-2">
-          <Settings className="w-4 h-4 text-gray-500" />
+          <button
+            onClick={openSettingsModal}
+            className="text-gray-500 hover:text-gray-700 transition-colors"
+            title="Prime Contract Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
           <h1 className="text-sm font-semibold text-gray-900">Prime Contracts</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -530,6 +616,114 @@ export default function PrimeContractsClient({
                 Create Contract
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showSettings && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-[#f5f5f5] rounded-lg shadow-xl w-full max-w-6xl max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-300">
+              <h2 className="text-3xl font-light text-gray-700">Prime Contract Settings</h2>
+              <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {settingsLoading || !settings ? (
+              <div className="p-8 text-sm text-gray-500">Loading settings...</div>
+            ) : (
+              <div className="p-4 text-sm text-gray-800">
+                {settingsError && <div className="mb-3 px-3 py-2 border border-red-200 bg-red-50 text-red-700 rounded">{settingsError}</div>}
+                {settingsSuccess && <div className="mb-3 px-3 py-2 border border-green-200 bg-green-50 text-green-700 rounded">{settingsSuccess}</div>}
+
+                <section className="border-b border-orange-300 pb-4 mb-6">
+                  <h3 className="text-xl font-medium mb-2">CONTRACT CONFIGURATION</h3>
+                  <div className="grid grid-cols-[1fr_240px] gap-y-2 items-center text-[13px]">
+                    <label>Number of Prime Contract Change Order Tiers:</label>
+                    <select
+                      className="border border-gray-300 bg-white px-2 py-1"
+                      value={settings.number_of_change_order_tiers}
+                      onChange={(e) => setSettings((prev) => prev ? ({ ...prev, number_of_change_order_tiers: Number(e.target.value) }) : prev)}
+                    >
+                      {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+
+                    <label>Allow Standard Level Users to Create PCCOs:</label>
+                    <input type="checkbox" checked={settings.allow_standard_users_create_pccos} onChange={(e) => setSettings((prev) => prev ? ({ ...prev, allow_standard_users_create_pccos: e.target.checked }) : prev)} />
+
+                    <label>Allow Standard Level Users to Create PCOs:</label>
+                    <input type="checkbox" checked={settings.allow_standard_users_create_pcos} onChange={(e) => setSettings((prev) => prev ? ({ ...prev, allow_standard_users_create_pcos: e.target.checked }) : prev)} />
+
+                    <label>Enable Always Editable Schedule of Values:</label>
+                    <input type="checkbox" checked={settings.enable_always_editable_sov} onChange={(e) => setSettings((prev) => prev ? ({ ...prev, enable_always_editable_sov: e.target.checked }) : prev)} />
+
+                    <label>Show Financial Markup Application Criteria on Change Order PDF exports:</label>
+                    <input type="checkbox" checked={settings.show_financial_markup_on_change_order_pdf} onChange={(e) => setSettings((prev) => prev ? ({ ...prev, show_financial_markup_on_change_order_pdf: e.target.checked }) : prev)} />
+                  </div>
+                </section>
+
+                <section className="border-b border-orange-300 pb-4 mb-6">
+                  <h3 className="text-xl font-medium mb-2">CONTRACT DATES</h3>
+                  <div className="bg-blue-50 border-l-4 border-blue-500 px-3 py-2 text-[13px]">
+                    The Prime Contracts Tool&apos;s Contract Dates Have Been Moved. Configure these in Company Admin.
+                  </div>
+                </section>
+
+                <section className="border-b border-orange-300 pb-4 mb-6">
+                  <h3 className="text-xl font-medium mb-2">CONTRACT INVOICE SETTINGS</h3>
+                  <div className="grid grid-cols-[1fr_240px] gap-y-2 items-center text-[13px]">
+                    <label>Show Financial Markup on Invoice PDF and CSV:</label>
+                    <input type="checkbox" checked={settings.show_financial_markup_on_invoice_exports} onChange={(e) => setSettings((prev) => prev ? ({ ...prev, show_financial_markup_on_invoice_exports: e.target.checked }) : prev)} />
+                  </div>
+                </section>
+
+                <section className="pb-4">
+                  <h3 className="text-xl font-medium mb-2">DEFAULT DISTRIBUTIONS</h3>
+                  <div className="grid grid-cols-[1fr_320px] gap-y-2 items-center text-[13px]">
+                    <label>Prime Contract:</label>
+                    <select
+                      className="border border-gray-300 bg-white px-2 py-1"
+                      value={settings.default_prime_contract_user_id ?? ""}
+                      onChange={(e) => setSettings((prev) => prev ? ({ ...prev, default_prime_contract_user_id: e.target.value || null }) : prev)}
+                    >
+                      <option value="">Select A Person...</option>
+                      {members.map((m) => <option key={m.user_id} value={m.user_id}>{formatMemberName(m)}</option>)}
+                    </select>
+
+                    <label>Prime Contract Change Order:</label>
+                    <select
+                      className="border border-gray-300 bg-white px-2 py-1"
+                      value={settings.default_prime_contract_change_order_user_id ?? ""}
+                      onChange={(e) => setSettings((prev) => prev ? ({ ...prev, default_prime_contract_change_order_user_id: e.target.value || null }) : prev)}
+                    >
+                      <option value="">Select A Person...</option>
+                      {members.map((m) => <option key={`co-${m.user_id}`} value={m.user_id}>{formatMemberName(m)}</option>)}
+                    </select>
+
+                    <label>Prime Contract Potential Change Order:</label>
+                    <select
+                      className="border border-gray-300 bg-white px-2 py-1"
+                      value={settings.default_prime_contract_potential_change_order_user_id ?? ""}
+                      onChange={(e) => setSettings((prev) => prev ? ({ ...prev, default_prime_contract_potential_change_order_user_id: e.target.value || null }) : prev)}
+                    >
+                      <option value="">Select A Person...</option>
+                      {members.map((m) => <option key={`pco-${m.user_id}`} value={m.user_id}>{formatMemberName(m)}</option>)}
+                    </select>
+                  </div>
+                </section>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={saveSettings}
+                    disabled={settingsSaving}
+                    className="px-6 py-2 bg-gray-700 text-white rounded disabled:opacity-60"
+                  >
+                    {settingsSaving ? "Updating..." : "Update"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
