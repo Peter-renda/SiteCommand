@@ -17,13 +17,38 @@ const CHANGE_REASONS = [
 ];
 
 const STATUSES = [
-  "Draft",
   "Approved",
+  "Draft",
+  "No Charge",
   "Pending - In Review",
+  "Pending - Not Pricing",
+  "Pending - Not Proceeding",
+  "Pending - Pricing",
+  "Pending - Proceeding",
   "Pending - Revised",
   "Rejected",
   "Void",
 ];
+
+/** Strip HTML tags and decode common entities from rich-text fields. */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+}
+
+type DirectoryContact = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+};
 
 type Commitment = {
   id: string;
@@ -60,6 +85,7 @@ export default function NewCommitmentCOClient({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sourceEventIds, setSourceEventIds] = useState<string[]>([]);
   const [budgetCodes, setBudgetCodes] = useState<string[]>([]);
+  const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
 
   // Form fields
   const [revision, setRevision] = useState("0");
@@ -90,6 +116,14 @@ export default function NewCommitmentCOClient({
       .then((data) => setCommitment(data))
       .catch(() => {});
   }, [projectId, commitmentId]);
+
+  // Fetch project directory for reviewer dropdown
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/directory`)
+      .then((r) => r.json())
+      .then((data) => setDirectoryContacts(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [projectId]);
 
   // Fetch next CO number
   useEffect(() => {
@@ -127,9 +161,11 @@ export default function NewCommitmentCOClient({
 
         if (events.length === 1) {
           setTitle(events[0].title);
+          const rawDesc = events[0].description?.trim() ?? "";
           setDescription(
-            events[0].description?.trim() ||
-              `CE #${String(events[0].number).padStart(3, "0")} - ${events[0].title}`
+            rawDesc
+              ? stripHtml(rawDesc)
+              : `CE #${String(events[0].number).padStart(3, "0")} - ${events[0].title}`
           );
         } else {
           setTitle(events.map((e) => `CE #${String(e.number).padStart(3, "0")}`).join(", "));
@@ -323,12 +359,19 @@ export default function NewCommitmentCOClient({
                 }
                 right={
                   <Field label="Private:">
-                    <input
-                      type="checkbox"
-                      checked={isPrivate}
-                      onChange={(e) => setIsPrivate(e.target.checked)}
-                      className="rounded border-gray-300 accent-blue-600"
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isPrivate}
+                        onChange={(e) => setIsPrivate(e.target.checked)}
+                        className="rounded border-gray-300 accent-blue-600"
+                      />
+                      {isPrivate && (
+                        <span className="text-xs text-gray-400 italic">
+                          Visible to your organization only
+                        </span>
+                      )}
+                    </div>
                   </Field>
                 }
               />
@@ -395,22 +438,32 @@ export default function NewCommitmentCOClient({
               <FormRow
                 left={
                   <Field label="Designated Reviewer:">
-                    <input
+                    <select
                       value={designatedReviewer}
                       onChange={(e) => setDesignatedReviewer(e.target.value)}
-                      placeholder="Select…"
                       className="w-52 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
+                    >
+                      <option value="">Select…</option>
+                      {directoryContacts.map((c) => {
+                        const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "";
+                        return name ? <option key={c.id} value={name}>{name}</option> : null;
+                      })}
+                    </select>
                   </Field>
                 }
                 right={
                   <Field label="Request Received From:">
-                    <input
+                    <select
                       value={requestReceivedFrom}
                       onChange={(e) => setRequestReceivedFrom(e.target.value)}
-                      placeholder="Select…"
                       className="w-52 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
+                    >
+                      <option value="">Select…</option>
+                      {directoryContacts.map((c) => {
+                        const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "";
+                        return name ? <option key={c.id} value={name}>{name}</option> : null;
+                      })}
+                    </select>
                   </Field>
                 }
               />

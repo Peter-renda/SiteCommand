@@ -63,7 +63,14 @@ export default function ChangeOrdersClient({
   }, [projectId, activeTab]);
 
   const total = orders.reduce((s, o) => s + (o.amount ?? 0), 0);
-  const pendingReviewStatuses = new Set(["Pending - In Review", "Pending - Revised"]);
+  const pendingReviewStatuses = new Set([
+    "Pending - In Review",
+    "Pending - Revised",
+    "Pending - Pricing",
+    "Pending - Not Pricing",
+    "Pending - Proceeding",
+    "Pending - Not Proceeding",
+  ]);
 
   async function updateStatus(orderId: string, status: string) {
     setUpdatingId(orderId);

@@ -17,13 +17,25 @@ const CHANGE_REASONS = [
 ];
 
 const STATUSES = [
-  "Draft",
   "Approved",
+  "Draft",
+  "No Charge",
   "Pending - In Review",
+  "Pending - Not Pricing",
+  "Pending - Not Proceeding",
+  "Pending - Pricing",
+  "Pending - Proceeding",
   "Pending - Revised",
   "Rejected",
   "Void",
 ];
+
+type DirectoryContact = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+};
 
 type ChangeOrder = {
   id: string;
@@ -77,6 +89,7 @@ export default function ChangeOrderDetailClient({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
 
   // Editable fields
   const [revision, setRevision] = useState("");
@@ -93,6 +106,13 @@ export default function ChangeOrderDetailClient({
   const [reviewDate, setReviewDate] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("0.00");
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/directory`)
+      .then((r) => r.json())
+      .then((data) => setDirectoryContacts(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [projectId]);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`)
@@ -388,12 +408,19 @@ export default function ChangeOrderDetailClient({
                 }
                 right={
                   <Field label="Private:">
-                    <input
-                      type="checkbox"
-                      checked={isPrivate}
-                      onChange={(e) => setIsPrivate(e.target.checked)}
-                      className="rounded border-gray-300 accent-blue-600"
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isPrivate}
+                        onChange={(e) => setIsPrivate(e.target.checked)}
+                        className="rounded border-gray-300 accent-blue-600"
+                      />
+                      {isPrivate && (
+                        <span className="text-xs text-gray-400 italic">
+                          Visible to your organization only
+                        </span>
+                      )}
+                    </div>
                   </Field>
                 }
               />
@@ -460,22 +487,32 @@ export default function ChangeOrderDetailClient({
               <FormRow
                 left={
                   <Field label="Designated Reviewer:">
-                    <input
+                    <select
                       value={designatedReviewer}
                       onChange={(e) => setDesignatedReviewer(e.target.value)}
-                      placeholder="Select…"
                       className="w-52 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
+                    >
+                      <option value="">Select…</option>
+                      {directoryContacts.map((c) => {
+                        const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "";
+                        return name ? <option key={c.id} value={name}>{name}</option> : null;
+                      })}
+                    </select>
                   </Field>
                 }
                 right={
                   <Field label="Request Received From:">
-                    <input
+                    <select
                       value={requestReceivedFrom}
                       onChange={(e) => setRequestReceivedFrom(e.target.value)}
-                      placeholder="Select…"
                       className="w-52 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
+                    >
+                      <option value="">Select…</option>
+                      {directoryContacts.map((c) => {
+                        const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "";
+                        return name ? <option key={c.id} value={name}>{name}</option> : null;
+                      })}
+                    </select>
                   </Field>
                 }
               />
