@@ -26,9 +26,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .eq("type", "commitment")
     .is("deleted_at", null);
 
-  // Draft + pending review statuses all count toward Pending Budget Changes.
+  // All "in-flight" statuses count toward Pending Budget Changes.
   // Only Approved flows into Committed Costs.
-  const pendingStatuses = new Set(["draft", "pending - in review", "pending - revised"]);
+  // Rejected, Void, No Charge, and Pending-Not-Proceeding do not affect the budget.
+  const pendingStatuses = new Set([
+    "draft",
+    "pending - in review",
+    "pending - revised",
+    "pending - pricing",
+    "pending - not pricing",
+    "pending - proceeding",
+  ]);
   const approvedStatuses = new Set(["approved"]);
   const agg = new Map<string, { pending: number; committed: number }>();
 
