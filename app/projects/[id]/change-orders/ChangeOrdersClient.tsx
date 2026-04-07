@@ -33,7 +33,7 @@ function fmtDate(d: string | null) {
   return `${(dt.getMonth() + 1).toString().padStart(2, "0")}/${dt.getDate().toString().padStart(2, "0")}/${dt.getFullYear().toString().slice(2)}`;
 }
 
-type Tab = "prime" | "commitments";
+type Tab = "prime" | "commitment";
 
 export default function ChangeOrdersClient({
   projectId,
@@ -108,9 +108,9 @@ export default function ChangeOrdersClient({
               Prime Contract
             </button>
             <button
-              onClick={() => setActiveTab("commitments")}
+              onClick={() => setActiveTab("commitment")}
               className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "commitments"
+                activeTab === "commitment"
                   ? "border-gray-900 text-gray-900"
                   : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
@@ -231,7 +231,7 @@ export default function ChangeOrdersClient({
                     <td className="px-3 py-2 text-right text-gray-700 whitespace-nowrap">{fmt(order.amount)}</td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1">
-                        {activeTab === "commitments" &&
+                        {activeTab === "commitment" &&
                           pendingReviewStatuses.has(order.status) &&
                           order.designated_reviewer?.trim().toLowerCase() === username.trim().toLowerCase() && (
                             <>

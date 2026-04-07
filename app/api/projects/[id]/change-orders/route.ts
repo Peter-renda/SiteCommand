@@ -84,6 +84,9 @@ export async function POST(
       prime_contract_change_order: body.prime_contract_change_order || "none",
       source_change_event_ids: Array.isArray(body.source_change_event_ids) ? body.source_change_event_ids : [],
       budget_codes: Array.isArray(body.budget_codes) ? body.budget_codes : [],
+      invoiced_date: body.invoiced_date || null,
+      paid_date: body.paid_date || null,
+      reviewer: body.reviewer || "",
     })
     .select()
     .single();
