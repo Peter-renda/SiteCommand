@@ -509,6 +509,10 @@ export default function ChangeEventsClient({
                             className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
                             onClick={() => {
                               setQuickActionsOpen(false);
+                              if (navSuffix === "?action=co") {
+                                router.push(`/projects/${projectId}/commitments/${c.id}/change-orders/new?eventIds=${eventIds}`);
+                                return;
+                              }
                               router.push(`/projects/${projectId}/commitments/${c.id}${navSuffix}${navSuffix.includes("?") ? "&" : "?"}eventIds=${eventIds}`);
                             }}
                           >
@@ -544,6 +548,10 @@ export default function ChangeEventsClient({
                             className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
                             onClick={() => {
                               setQuickActionsOpen(false);
+                              if (navSuffix === "?action=co") {
+                                router.push(`/projects/${projectId}/commitments/${c.id}/change-orders/new?eventIds=${eventIds}`);
+                                return;
+                              }
                               router.push(`/projects/${projectId}/commitments/${c.id}${navSuffix}${navSuffix.includes("?") ? "&" : "?"}eventIds=${eventIds}`);
                             }}
                           >

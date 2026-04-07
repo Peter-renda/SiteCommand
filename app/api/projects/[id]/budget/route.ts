@@ -17,7 +17,46 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+  const rows = data || [];
+
+  const { data: commitmentCos } = await supabase
+    .from("change_orders")
+    .select("status, amount, budget_codes")
+    .eq("project_id", projectId)
+    .eq("type", "commitment")
+    .is("deleted_at", null);
+
+  const pendingStatuses = new Set(["draft"]);
+  const approvedStatuses = new Set(["approved"]);
+  const agg = new Map<string, { pending: number; committed: number }>();
+
+  (commitmentCos || []).forEach((co: { status?: string; amount?: number; budget_codes?: string[] }) => {
+    const normalized = String(co.status || "").trim().toLowerCase();
+    const amount = Number(co.amount || 0);
+    if (!Array.isArray(co.budget_codes) || co.budget_codes.length === 0 || !amount) return;
+    for (const code of co.budget_codes) {
+      if (!code) continue;
+      const key = code.trim();
+      if (!key) continue;
+      const curr = agg.get(key) || { pending: 0, committed: 0 };
+      if (pendingStatuses.has(normalized)) curr.pending += amount;
+      if (approvedStatuses.has(normalized)) curr.committed += amount;
+      agg.set(key, curr);
+    }
+  });
+
+  const enriched = rows.map((row) => {
+    const key = String(row.cost_code || "").trim();
+    const rollup = agg.get(key);
+    if (!rollup) return row;
+    return {
+      ...row,
+      pending_budget_changes: Number(row.pending_budget_changes || 0) + rollup.pending,
+      committed_costs: Number(row.committed_costs || 0) + rollup.committed,
+    };
+  });
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
