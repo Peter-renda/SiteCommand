@@ -849,7 +849,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                     Create Submittal
                   </button>
                   <a
-                    href={`/projects/${projectId}/transmittals/new?type=Submittal%20Package`}
+                    href={`/projects/${projectId}/submittal-packages/new`}
                     onClick={() => setShowCreateMenu(false)}
                     className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
