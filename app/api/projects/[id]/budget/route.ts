@@ -26,19 +26,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .eq("type", "commitment")
     .is("deleted_at", null);
 
-  // All "in-flight" statuses count toward Pending Budget Changes.
-  // Only Approved flows into Committed Costs.
-  // Rejected, Void, No Charge, and Pending-Not-Proceeding do not affect the budget.
+  // In-flight statuses → Pending Budget Changes column.
+  // Approved → Approved Change Orders (approved_cos) column.
+  // Rejected, Void, No Charge, Pending-Not-Proceeding do not affect the budget.
   const pendingStatuses = new Set([
     "draft",
     "pending - in review",
-    "pending - revised",
-    "pending - pricing",
     "pending - not pricing",
+    "pending - not proceeding",
+    "pending - pricing",
     "pending - proceeding",
+    "pending - revised",
   ]);
-  const approvedStatuses = new Set(["approved"]);
-  const agg = new Map<string, { pending: number; committed: number }>();
+  const agg = new Map<string, { pending: number; approved: number }>();
 
   (commitmentCos || []).forEach((co: { status?: string; amount?: number; budget_codes?: string[] }) => {
     const normalized = String(co.status || "").trim().toLowerCase();
@@ -48,9 +48,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       if (!code) continue;
       const key = code.trim();
       if (!key) continue;
-      const curr = agg.get(key) || { pending: 0, committed: 0 };
+      const curr = agg.get(key) || { pending: 0, approved: 0 };
       if (pendingStatuses.has(normalized)) curr.pending += amount;
-      if (approvedStatuses.has(normalized)) curr.committed += amount;
+      if (normalized === "approved") curr.approved += amount;
       agg.set(key, curr);
     }
   });
@@ -62,7 +62,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return {
       ...row,
       pending_budget_changes: Number(row.pending_budget_changes || 0) + rollup.pending,
-      committed_costs: Number(row.committed_costs || 0) + rollup.committed,
+      approved_cos: Number(row.approved_cos || 0) + rollup.approved,
     };
   });
 
