@@ -30,7 +30,50 @@ export async function GET(
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+  const rows = data || [];
+
+  // Dynamically aggregate commitment COs by commitment_id so the
+  // pending_change_orders and approved_change_orders columns are always
+  // current without manual updates.
+  const { data: cos } = await supabase
+    .from("change_orders")
+    .select("commitment_id, status, amount")
+    .eq("project_id", projectId)
+    .eq("type", "commitment")
+    .is("deleted_at", null);
+
+  const pendingStatuses = new Set([
+    "draft",
+    "pending - in review",
+    "pending - not pricing",
+    "pending - not proceeding",
+    "pending - pricing",
+    "pending - proceeding",
+    "pending - revised",
+  ]);
+
+  const agg = new Map<string, { pending: number; approved: number }>();
+  for (const co of cos || []) {
+    if (!co.commitment_id) continue;
+    const normalized = String(co.status ?? "").trim().toLowerCase();
+    const amount = Number(co.amount ?? 0);
+    const curr = agg.get(co.commitment_id) ?? { pending: 0, approved: 0 };
+    if (pendingStatuses.has(normalized)) curr.pending += amount;
+    if (normalized === "approved") curr.approved += amount;
+    agg.set(co.commitment_id, curr);
+  }
+
+  const enriched = rows.map((row) => {
+    const totals = agg.get(row.id);
+    if (!totals) return row;
+    return {
+      ...row,
+      pending_change_orders: totals.pending,
+      approved_change_orders: totals.approved,
+    };
+  });
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(
