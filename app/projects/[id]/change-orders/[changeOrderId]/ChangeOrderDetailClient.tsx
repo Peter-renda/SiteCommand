@@ -25,44 +25,61 @@ const STATUSES = [
   "Void",
 ];
 
-type Commitment = {
+type ChangeOrder = {
   id: string;
-  number: number;
+  type: "prime" | "commitment";
+  number: string;
+  revision: number;
   title: string;
+  status: string;
+  contract_name: string;
   contract_company: string;
+  change_reason: string;
+  description: string;
+  is_private: boolean;
+  due_date: string | null;
+  invoiced_date: string | null;
+  paid_date: string | null;
+  designated_reviewer: string | null;
+  reviewer: string | null;
+  review_date: string | null;
+  request_received_from: string | null;
+  amount: number;
+  date_initiated: string | null;
+  budget_codes: string[];
+  commitment_id: string | null;
+  prime_contract_id: string | null;
 };
 
-type ChangeEvent = {
-  id: string;
-  number: number;
-  title: string;
-  description?: string;
-  line_items?: Array<{ budget_code?: string | null; cost_rom?: number | null }>;
-};
+function fmtDateTime(iso: string) {
+  const d = new Date(iso);
+  return (
+    d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" }) +
+    " at " +
+    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase()
+  );
+}
 
-export default function NewCommitmentCOClient({
+export default function ChangeOrderDetailClient({
   projectId,
-  commitmentId,
-  eventIds,
-  createdBy,
+  changeOrderId,
+  username,
   role,
 }: {
   projectId: string;
-  commitmentId: string;
-  eventIds: string;
-  createdBy: string;
+  changeOrderId: string;
+  username: string;
   role?: string;
 }) {
   const router = useRouter();
-  const [commitment, setCommitment] = useState<Commitment | null>(null);
-  const [nextNumber, setNextNumber] = useState("001");
+  const [co, setCo] = useState<ChangeOrder | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [sourceEventIds, setSourceEventIds] = useState<string[]>([]);
-  const [budgetCodes, setBudgetCodes] = useState<string[]>([]);
+  const [saved, setSaved] = useState(false);
 
-  // Form fields
-  const [revision, setRevision] = useState("0");
+  // Editable fields
+  const [revision, setRevision] = useState("");
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("Draft");
   const [changeReason, setChangeReason] = useState("");
@@ -77,108 +94,65 @@ export default function NewCommitmentCOClient({
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("0.00");
 
-  const now = new Date();
-  const dateCreated =
-    now.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" }) +
-    " at " +
-    now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
-
-  // Fetch commitment details
   useEffect(() => {
-    fetch(`/api/projects/${projectId}/commitments/${commitmentId}`)
+    fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`)
       .then((r) => r.json())
-      .then((data) => setCommitment(data))
-      .catch(() => {});
-  }, [projectId, commitmentId]);
-
-  // Fetch next CO number
-  useEffect(() => {
-    fetch(`/api/projects/${projectId}/change-orders?type=commitment`)
-      .then((r) => r.json())
-      .then((data: { number: string }[]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const max = Math.max(...data.map((co) => parseInt(co.number, 10) || 0));
-          setNextNumber(String(max + 1).padStart(3, "0"));
-        }
+      .then((data: ChangeOrder) => {
+        setCo(data);
+        setRevision(String(data.revision ?? 0));
+        setTitle(data.title ?? "");
+        setStatus(data.status ?? "Draft");
+        setChangeReason(data.change_reason ?? "");
+        setIsPrivate(data.is_private ?? true);
+        setDueDate(data.due_date ?? "");
+        setInvoicedDate(data.invoiced_date ?? "");
+        setPaidDate(data.paid_date ?? "");
+        setDesignatedReviewer(data.designated_reviewer ?? "");
+        setRequestReceivedFrom(data.request_received_from ?? "");
+        setReviewer(data.reviewer ?? "");
+        setReviewDate(data.review_date ?? "");
+        setDescription(data.description ?? "");
+        setAmount(String(data.amount ?? "0.00"));
+        setLoading(false);
       })
-      .catch(() => {});
-  }, [projectId]);
+      .catch(() => setLoading(false));
+  }, [projectId, changeOrderId]);
 
-  // Pre-populate from change events
-  useEffect(() => {
-    if (!eventIds) return;
-    const ids = eventIds.split(",").filter(Boolean);
-    if (ids.length === 0) return;
+  const isReviewer =
+    username.trim().toLowerCase() === designatedReviewer.trim().toLowerCase();
+  const pendingReview = status === "Pending - In Review" || status === "Pending - Revised";
 
-    Promise.all(ids.map((id) => fetch(`/api/projects/${projectId}/change-events/${id}`).then((r) => r.json())))
-      .then((events: ChangeEvent[]) => {
-        setSourceEventIds(events.map((e) => e.id));
-
-        const allCodes = new Set<string>();
-        let total = 0;
-        events.forEach((ev) => {
-          ev.line_items?.forEach((li) => {
-            if (li.budget_code?.trim()) allCodes.add(li.budget_code.trim());
-            total += Number(li.cost_rom ?? 0);
-          });
-        });
-        setBudgetCodes(Array.from(allCodes));
-        setAmount(total.toFixed(2));
-
-        if (events.length === 1) {
-          setTitle(events[0].title);
-          setDescription(
-            events[0].description?.trim() ||
-              `CE #${String(events[0].number).padStart(3, "0")} - ${events[0].title}`
-          );
-        } else {
-          setTitle(events.map((e) => `CE #${String(e.number).padStart(3, "0")}`).join(", "));
-          setDescription(events.map((e) => `CE #${String(e.number).padStart(3, "0")} - ${e.title}`).join("\n"));
-        }
-      })
-      .catch(() => {});
-  }, [eventIds, projectId]);
-
-  async function handleCreate() {
+  async function handleSave() {
     setSaving(true);
     setSaveError(null);
+    setSaved(false);
     try {
-      const res = await fetch(`/api/projects/${projectId}/change-orders`, {
-        method: "POST",
+      const res = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          commitment_id: commitmentId,
-          type: "commitment",
-          contract_name: commitment
-            ? `${String(commitment.number).padStart(3, "0")} - ${commitment.title}`
-            : "",
           revision: parseInt(revision, 10) || 0,
           title,
           status,
-          contract_company: commitment?.contract_company || "",
           change_reason: changeReason,
           description,
           is_private: isPrivate,
-          designated_reviewer: designatedReviewer || null,
-          reviewer: reviewer || "",
-          review_date: reviewDate || null,
           due_date: dueDate || null,
           invoiced_date: invoicedDate || null,
           paid_date: paidDate || null,
+          designated_reviewer: designatedReviewer || null,
+          reviewer: reviewer || "",
+          review_date: reviewDate || null,
           request_received_from: requestReceivedFrom || "",
           amount: Number(amount || 0),
-          source_change_event_ids: sourceEventIds,
-          budget_codes: budgetCodes,
         }),
       });
-
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        setSaveError(errData?.error || `Server error (${res.status})`);
+        const err = await res.json().catch(() => ({}));
+        setSaveError(err?.error || `Server error (${res.status})`);
         return;
       }
-
-      router.push(`/projects/${projectId}/change-orders`);
+      setSaved(true);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
@@ -186,9 +160,57 @@ export default function NewCommitmentCOClient({
     }
   }
 
-  const contractLabel = commitment
-    ? `SC-${String(commitment.number).padStart(3, "0")} - ${commitment.title}`
-    : "Loading…";
+  async function handleReview(newStatus: "Approved" | "Rejected") {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: newStatus,
+          reviewer: username,
+          review_date: new Date().toISOString().slice(0, 10),
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setStatus(updated.status);
+        setReviewer(updated.reviewer ?? username);
+        setReviewDate(updated.review_date ?? new Date().toISOString().slice(0, 10));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSaveError(err?.error || `Server error (${res.status})`);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-screen bg-white">
+        <ProjectNav projectId={projectId} role={role} />
+        <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+          Loading…
+        </div>
+      </div>
+    );
+  }
+
+  if (!co) {
+    return (
+      <div className="flex flex-col h-screen bg-white">
+        <ProjectNav projectId={projectId} role={role} />
+        <div className="flex-1 flex items-center justify-center text-sm text-red-500">
+          Change order not found.
+        </div>
+      </div>
+    );
+  }
+
+  const isCommitment = co.type === "commitment";
+  const dateCreatedDisplay = co.date_initiated ? fmtDateTime(co.date_initiated) : "—";
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white">
@@ -197,28 +219,75 @@ export default function NewCommitmentCOClient({
 
         {/* Breadcrumb */}
         <div className="px-6 pt-4 pb-1 text-xs text-gray-500 flex items-center gap-1.5 shrink-0">
+          {isCommitment ? (
+            <>
+              <button
+                onClick={() => router.push(`/projects/${projectId}/commitments`)}
+                className="hover:text-blue-600 transition-colors"
+              >
+                Commitments
+              </button>
+              <span>›</span>
+              {co.commitment_id && (
+                <>
+                  <button
+                    onClick={() => router.push(`/projects/${projectId}/commitments/${co.commitment_id}`)}
+                    className="hover:text-blue-600 transition-colors"
+                  >
+                    {co.contract_name}
+                  </button>
+                  <span>›</span>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => router.push(`/projects/${projectId}/prime-contracts`)}
+                className="hover:text-blue-600 transition-colors"
+              >
+                Prime Contracts
+              </button>
+              <span>›</span>
+            </>
+          )}
           <button
-            onClick={() => router.push(`/projects/${projectId}/commitments`)}
+            onClick={() => router.push(`/projects/${projectId}/change-orders`)}
             className="hover:text-blue-600 transition-colors"
           >
-            Commitments
+            Change Orders
           </button>
           <span>›</span>
-          <button
-            onClick={() => router.push(`/projects/${projectId}/commitments/${commitmentId}`)}
-            className="hover:text-blue-600 transition-colors"
-          >
-            {commitment ? `Contract #SC-${String(commitment.number).padStart(3, "0")}` : "…"}
-          </button>
-          <span>›</span>
-          <span>Change Orders</span>
-          <span>›</span>
-          <span className="text-gray-700 font-medium">New Commitment Change Order</span>
+          <span className="text-gray-700 font-medium">
+            {isCommitment ? "Commitment Change Order" : "Potential Change Order"} #{co.number}
+          </span>
         </div>
 
         {/* Page title */}
-        <div className="px-6 py-3 shrink-0">
-          <h1 className="text-2xl font-normal text-gray-900">New Commitment Change Order</h1>
+        <div className="px-6 py-3 shrink-0 flex items-center justify-between">
+          <h1 className="text-2xl font-normal text-gray-900">
+            {isCommitment ? "Commitment Change Order" : "Potential Change Order"} #{co.number}
+          </h1>
+          {/* Reviewer actions shown when current user is the designated reviewer and status is pending */}
+          {isCommitment && isReviewer && pendingReview && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-amber-600 font-medium">Awaiting your review</span>
+              <button
+                disabled={saving}
+                onClick={() => handleReview("Approved")}
+                className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                Approve
+              </button>
+              <button
+                disabled={saving}
+                onClick={() => handleReview("Rejected")}
+                className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+              >
+                Reject
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Tab bar */}
@@ -241,16 +310,12 @@ export default function NewCommitmentCOClient({
               <FormRow
                 left={
                   <Field label="#">
-                    <input
-                      readOnly
-                      value={nextNumber}
-                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50"
-                    />
+                    <span className="text-xs text-gray-700">{co.number}</span>
                   </Field>
                 }
                 right={
                   <Field label="Date Created:">
-                    <span className="text-xs text-gray-700">{dateCreated}</span>
+                    <span className="text-xs text-gray-700">{dateCreatedDisplay}</span>
                   </Field>
                 }
               />
@@ -267,29 +332,29 @@ export default function NewCommitmentCOClient({
                   </Field>
                 }
                 right={
-                  <Field label="Created By:">
-                    <span className="text-xs text-gray-700">{createdBy}</span>
+                  <Field label="Contract Company:">
+                    <span className="text-xs text-gray-700">{co.contract_company || "—"}</span>
                   </Field>
                 }
               />
 
-              {/* Row: Contract Company / Contract */}
+              {/* Row: Contract */}
               <FormRow
-                left={
-                  <Field label="Contract Company:">
-                    <span className="text-xs text-gray-700">
-                      {commitment?.contract_company || "—"}
-                    </span>
-                  </Field>
-                }
+                left={null}
                 right={
                   <Field label="Contract:">
-                    <button
-                      onClick={() => router.push(`/projects/${projectId}/commitments/${commitmentId}`)}
-                      className="text-xs text-blue-600 hover:underline text-left"
-                    >
-                      {contractLabel}
-                    </button>
+                    {isCommitment && co.commitment_id ? (
+                      <button
+                        onClick={() =>
+                          router.push(`/projects/${projectId}/commitments/${co.commitment_id}`)
+                        }
+                        className="text-xs text-blue-600 hover:underline text-left"
+                      >
+                        {co.contract_name}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-700">{co.contract_name || "—"}</span>
+                    )}
                   </Field>
                 }
               />
@@ -376,7 +441,7 @@ export default function NewCommitmentCOClient({
                 }
               />
 
-              {/* Row: (empty left) / Paid Date */}
+              {/* Row: (empty) / Paid Date */}
               <FormRow
                 left={null}
                 right={
@@ -419,22 +484,12 @@ export default function NewCommitmentCOClient({
               <FormRow
                 left={
                   <Field label="Reviewer:">
-                    <input
-                      value={reviewer}
-                      onChange={(e) => setReviewer(e.target.value)}
-                      placeholder="—"
-                      className="w-52 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
+                    <span className="text-xs text-gray-700">{reviewer || "—"}</span>
                   </Field>
                 }
                 right={
                   <Field label="Review Date:">
-                    <input
-                      type="date"
-                      value={reviewDate}
-                      onChange={(e) => setReviewDate(e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
+                    <span className="text-xs text-gray-700">{reviewDate || "—"}</span>
                   </Field>
                 }
               />
@@ -511,7 +566,9 @@ export default function NewCommitmentCOClient({
                 right={
                   <Field label="Budget Codes:">
                     <span className="text-xs text-gray-700">
-                      {budgetCodes.length ? budgetCodes.join(", ") : <span className="text-gray-400">None linked</span>}
+                      {co.budget_codes?.length
+                        ? co.budget_codes.join(", ")
+                        : <span className="text-gray-400">None linked</span>}
                     </span>
                   </Field>
                 }
@@ -526,19 +583,24 @@ export default function NewCommitmentCOClient({
             Error: {saveError}
           </div>
         )}
+        {saved && (
+          <div className="px-6 py-2 bg-green-50 border-t border-green-200 text-xs text-green-700 shrink-0">
+            Changes saved.
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push(`/projects/${projectId}/change-orders`)}
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
           >
-            Cancel
+            Back
           </button>
           <button
             disabled={saving}
-            onClick={handleCreate}
+            onClick={handleSave}
             className="px-4 py-2 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-50"
           >
-            {saving ? "Creating…" : "Create"}
+            {saving ? "Saving…" : "Save Changes"}
           </button>
         </div>
       </div>

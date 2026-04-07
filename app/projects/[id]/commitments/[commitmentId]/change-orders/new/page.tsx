@@ -21,6 +21,7 @@ export default async function NewCommitmentCOPage({
       commitmentId={commitmentId}
       eventIds={eventIds ?? ""}
       createdBy={(session as any).username ?? ""}
+      role={session.role}
     />
   );
 }
