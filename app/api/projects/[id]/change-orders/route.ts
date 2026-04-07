@@ -54,6 +54,7 @@ export async function POST(
     .insert({
       project_id: projectId,
       prime_contract_id: body.prime_contract_id || null,
+      commitment_id: body.commitment_id || null,
       type: body.type || "prime",
       contract_name: body.contract_name || "",
       number: String(nextNumber).padStart(3, "0"),
@@ -81,6 +82,8 @@ export async function POST(
       field_change: body.field_change ?? false,
       paid_in_full: body.paid_in_full ?? false,
       prime_contract_change_order: body.prime_contract_change_order || "none",
+      source_change_event_ids: Array.isArray(body.source_change_event_ids) ? body.source_change_event_ids : [],
+      budget_codes: Array.isArray(body.budget_codes) ? body.budget_codes : [],
     })
     .select()
     .single();

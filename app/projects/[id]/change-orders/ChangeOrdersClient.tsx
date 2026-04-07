@@ -20,6 +20,7 @@ type ChangeOrder = {
   amount: number;
   has_attachments: boolean;
   is_locked: boolean;
+  type?: "prime" | "commitment";
 };
 
 function fmt(val: number) {
@@ -48,6 +49,7 @@ export default function ChangeOrdersClient({
   const [orders, setOrders] = useState<ChangeOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -61,6 +63,26 @@ export default function ChangeOrdersClient({
   }, [projectId, activeTab]);
 
   const total = orders.reduce((s, o) => s + (o.amount ?? 0), 0);
+  const pendingReviewStatuses = new Set(["Pending - In Review", "Pending - Revised"]);
+
+  async function updateStatus(orderId: string, status: string) {
+    setUpdatingId(orderId);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/change-orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status,
+          review_date: new Date().toISOString().slice(0, 10),
+        }),
+      });
+      if (res.ok) {
+        setOrders((curr) => curr.map((o) => (o.id === orderId ? { ...o, status, review_date: new Date().toISOString().slice(0, 10) } : o)));
+      }
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -209,6 +231,28 @@ export default function ChangeOrdersClient({
                     <td className="px-3 py-2 text-right text-gray-700 whitespace-nowrap">{fmt(order.amount)}</td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1">
+                        {activeTab === "commitments" &&
+                          pendingReviewStatuses.has(order.status) &&
+                          order.designated_reviewer?.trim().toLowerCase() === username.trim().toLowerCase() && (
+                            <>
+                              <button
+                                disabled={updatingId === order.id}
+                                onClick={() => updateStatus(order.id, "Approved")}
+                                className="px-2 py-0.5 border border-green-200 text-green-700 rounded hover:bg-green-50 disabled:opacity-50"
+                                title="Approve"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                disabled={updatingId === order.id}
+                                onClick={() => updateStatus(order.id, "Rejected")}
+                                className="px-2 py-0.5 border border-red-200 text-red-700 rounded hover:bg-red-50 disabled:opacity-50"
+                                title="Reject"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
                         <button className="text-gray-400 hover:text-gray-600 transition-colors" title="Documents">
                           <FileText className="w-3.5 h-3.5" />
                         </button>
