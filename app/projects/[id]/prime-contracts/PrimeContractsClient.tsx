@@ -128,6 +128,11 @@ export default function PrimeContractsClient({
   const [contracts, setContracts] = useState<PrimeContract[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedOwnerClient, setSelectedOwnerClient] = useState("");
+  const [selectedErpStatus, setSelectedErpStatus] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedExecuted, setSelectedExecuted] = useState("");
 
   // Sage sync
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -286,15 +291,33 @@ export default function PrimeContractsClient({
     return fullName || u.username || u.email || "Unnamed user";
   }
 
+  const ownerClientOptions = Array.from(new Set(contracts.map((c) => c.owner_client).filter(Boolean))).sort();
+  const erpStatusOptions = Array.from(new Set(contracts.map((c) => c.erp_status).filter(Boolean))).sort();
+  const statusOptions = Array.from(new Set(contracts.map((c) => c.status).filter(Boolean))).sort();
+
   const filtered = contracts.filter((c) => {
     const q = search.toLowerCase();
-    return (
+    const matchesSearch = (
       !q ||
       String(c.contract_number ?? "").toLowerCase().includes(q) ||
       (c.title ?? "").toLowerCase().includes(q) ||
       (c.owner_client ?? "").toLowerCase().includes(q)
     );
+
+    const matchesOwnerClient = !selectedOwnerClient || c.owner_client === selectedOwnerClient;
+    const matchesErpStatus = !selectedErpStatus || (c.erp_status ?? "") === selectedErpStatus;
+    const matchesStatus = !selectedStatus || c.status === selectedStatus;
+    const matchesExecuted = !selectedExecuted || String(c.executed) === selectedExecuted;
+
+    return matchesSearch && matchesOwnerClient && matchesErpStatus && matchesStatus && matchesExecuted;
   });
+
+  function clearAllFilters() {
+    setSelectedOwnerClient("");
+    setSelectedErpStatus("");
+    setSelectedStatus("");
+    setSelectedExecuted("");
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -353,7 +376,10 @@ export default function PrimeContractsClient({
               className="pl-7 pr-3 py-1 text-xs border border-gray-300 rounded w-44 focus:outline-none focus:ring-1 focus:ring-blue-400"
             />
           </div>
-          <button className="flex items-center gap-1.5 px-3 py-1 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
+          <button
+            onClick={() => setShowFilters(true)}
+            className="flex items-center gap-1.5 px-3 py-1 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
+          >
             <SlidersHorizontal className="w-3 h-3" />
             Filters
           </button>
@@ -370,6 +396,62 @@ export default function PrimeContractsClient({
           </button>
         </div>
       </div>
+
+      {showFilters && (
+        <div className="fixed inset-0 z-40">
+          <button
+            aria-label="Close filters"
+            className="absolute inset-0 bg-black/10"
+            onClick={() => setShowFilters(false)}
+          />
+          <div className="absolute left-0 top-0 h-full w-full max-w-sm bg-white border-r border-gray-200 shadow-xl">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
+              <h2 className="text-3xl font-semibold text-gray-900">Filters</h2>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={clearAllFilters}
+                  className="text-lg font-semibold text-gray-900 hover:text-gray-700 transition-colors"
+                >
+                  Clear All Filters
+                </button>
+                <button onClick={() => setShowFilters(false)} className="text-gray-700 hover:text-gray-900">
+                  <X className="w-7 h-7" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 space-y-5">
+              <FilterSelect
+                label="Owner/Client"
+                value={selectedOwnerClient}
+                onChange={setSelectedOwnerClient}
+                options={ownerClientOptions}
+              />
+              <FilterSelect
+                label="ERP Status"
+                value={selectedErpStatus}
+                onChange={setSelectedErpStatus}
+                options={erpStatusOptions}
+              />
+              <FilterSelect
+                label="Status"
+                value={selectedStatus}
+                onChange={setSelectedStatus}
+                options={statusOptions}
+              />
+              <FilterSelect
+                label="Executed"
+                value={selectedExecuted}
+                onChange={setSelectedExecuted}
+                options={[
+                  { label: "Yes", value: "true" },
+                  { label: "No", value: "false" },
+                ]}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="flex-1 overflow-x-auto">
@@ -727,6 +809,39 @@ export default function PrimeContractsClient({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<string | { label: string; value: string }>;
+}) {
+  return (
+    <div>
+      <label className="block text-2xl font-semibold text-gray-900 mb-2">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-4 py-3 text-xl border border-gray-300 rounded-md text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+      >
+        <option value="">Select Values</option>
+        {options.map((option) => {
+          const normalized = typeof option === "string" ? { value: option, label: option } : option;
+          return (
+            <option key={normalized.value} value={normalized.value}>
+              {normalized.label}
+            </option>
+          );
+        })}
+      </select>
     </div>
   );
 }
