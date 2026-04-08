@@ -346,6 +346,7 @@ function DrawingPdfViewerModal({
   const isDrawingRef = useRef(false);
   const currentStrokeRef = useRef<AnnotationStroke | null>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
   const selectedStrokeIdRef = useRef<string | null>(null);
   const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
@@ -396,21 +397,54 @@ function DrawingPdfViewerModal({
   }, [annotationsLoaded, drawing.id, projectId, userName]);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  // Redraw annotations when visibility toggles
   useEffect(() => {
     if (!annotationsVisible) return;
-    function resize() {
-      const canvas = annotationCanvasRef.current;
-      const container = containerRef.current;
-      if (!canvas || !container) return;
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
-      redrawCanvas();
-    }
-    resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    requestAnimationFrame(() => redrawCanvas());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotationsVisible]);
+
+  // Render PDF page using PDF.js and size both canvases to match
+  useEffect(() => {
+    let cancelled = false;
+    async function renderPdf() {
+      setLoading(true);
+      try {
+        await ensurePdfJs();
+        const { getDocument } = await import("pdfjs-dist");
+        const url = `${supabaseUrl}/storage/v1/object/public/project-drawings/${drawing.storage_path}`;
+        const pdf = await getDocument(url).promise;
+        if (cancelled) return;
+        const page = await pdf.getPage(drawing.viewer_page ?? 1);
+        if (cancelled) return;
+        const containerW = (containerRef.current?.clientWidth ?? 900) - 32;
+        const baseVp = page.getViewport({ scale: 1 });
+        const scale = containerW / baseVp.width;
+        const vp = page.getViewport({ scale });
+        const pdfCanvas = pdfCanvasRef.current;
+        if (!pdfCanvas || cancelled) return;
+        pdfCanvas.width = vp.width;
+        pdfCanvas.height = vp.height;
+        const ctx = pdfCanvas.getContext("2d");
+        if (!ctx) return;
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        if (cancelled) return;
+        const annoCanvas = annotationCanvasRef.current;
+        if (annoCanvas) {
+          annoCanvas.width = vp.width;
+          annoCanvas.height = vp.height;
+          redrawCanvas();
+        }
+      } catch (err) {
+        console.error("[Drawing] PDF render error:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    renderPdf();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawing.id, drawing.storage_path, drawing.viewer_page]);
 
   function toRel(canvas: HTMLCanvasElement, clientX: number, clientY: number) {
     const rect = canvas.getBoundingClientRect();
@@ -834,8 +868,8 @@ function DrawingPdfViewerModal({
         </div>
       </div>
 
-      {/* PDF iframe with annotation canvas overlay */}
-      <div ref={containerRef} className="relative flex-1">
+      {/* PDF canvas + annotation overlay in a scrollable container */}
+      <div ref={containerRef} className="relative flex-1 overflow-auto bg-gray-950">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-950 z-10">
             <svg className="w-8 h-8 text-gray-500 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -844,22 +878,26 @@ function DrawingPdfViewerModal({
             </svg>
           </div>
         )}
-        <iframe src={pdfUrl} className="w-full h-full border-0" onLoad={() => setLoading(false)} title={name} />
-        {annotationsVisible && (
-          <canvas
-            ref={annotationCanvasRef}
-            className="absolute inset-0 w-full h-full"
-            style={{
-              cursor: annotationMode ? (activeTool === "eraser" ? "cell" : activeTool === "select" ? (selectedStrokeId ? "grabbing" : "grab") : canAnnotate ? "crosshair" : "default") : "default",
-              zIndex: 10,
-              pointerEvents: annotationMode && canAnnotate ? "auto" : "none",
-            }}
-            onMouseDown={annotationMode ? startDraw : undefined}
-            onMouseMove={annotationMode ? draw : undefined}
-            onMouseUp={annotationMode ? endDraw : undefined}
-            onMouseLeave={annotationMode ? endDraw : undefined}
-          />
-        )}
+        <div className="flex justify-center p-4">
+          <div className="relative">
+            <canvas ref={pdfCanvasRef} className="block shadow-xl" />
+            {annotationsVisible && (
+              <canvas
+                ref={annotationCanvasRef}
+                className="absolute top-0 left-0"
+                style={{
+                  cursor: annotationMode ? (activeTool === "eraser" ? "cell" : activeTool === "select" ? (selectedStrokeId ? "grabbing" : "grab") : canAnnotate ? "crosshair" : "default") : "default",
+                  zIndex: 10,
+                  pointerEvents: annotationMode && canAnnotate ? "auto" : "none",
+                }}
+                onMouseDown={annotationMode ? startDraw : undefined}
+                onMouseMove={annotationMode ? draw : undefined}
+                onMouseUp={annotationMode ? endDraw : undefined}
+                onMouseLeave={annotationMode ? endDraw : undefined}
+              />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
