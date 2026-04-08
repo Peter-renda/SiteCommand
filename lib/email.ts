@@ -271,3 +271,29 @@ export async function sendContractorInviteEmail(
   });
   if (error) throw new Error(error.message);
 }
+
+export async function sendDocumentTrackingEmail(
+  to: string,
+  documentName: string,
+  action: string,
+  details: string,
+  changedByName: string,
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // silent — email is optional for tracking notifications
+
+  const resend = new Resend(apiKey);
+  await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `Document Update: ${action} — ${documentName}`,
+    html: `
+      <p style="font-size:14px;">A document you are tracking has been updated on SiteCommand.</p>
+      <p style="font-size:16px;font-weight:600;">${documentName}</p>
+      <p style="font-size:13px;color:#555;"><strong>Action:</strong> ${action}</p>
+      <p style="font-size:13px;color:#555;">${details}</p>
+      <p style="font-size:13px;color:#555;"><strong>By:</strong> ${changedByName}</p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you enabled tracking on this document or folder.</p>
+    `,
+  });
+}

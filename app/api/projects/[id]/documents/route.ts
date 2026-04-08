@@ -1,6 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { SupabaseClient } from "@supabase/supabase-js";
+import { sendDocumentTrackingEmail } from "@/lib/email";
+
+async function getChangedByName(supabase: SupabaseClient, userId: string): Promise<string> {
+  const { data } = await supabase
+    .from("users")
+    .select("first_name, last_name, username")
+    .eq("id", userId)
+    .single();
+  if (!data) return "Unknown";
+  return [data.first_name, data.last_name].filter(Boolean).join(" ") || data.username || "Unknown";
+}
+
+async function logAndNotifyParentTrackers(
+  supabase: SupabaseClient,
+  newDocId: string,
+  parentId: string | null,
+  projectId: string,
+  userId: string,
+  changedByName: string,
+  docName: string,
+  docType: "file" | "folder",
+) {
+  // Log creation on the new document itself
+  await supabase.from("document_change_history").insert({
+    document_id: newDocId,
+    project_id: projectId,
+    changed_by: userId,
+    changed_by_name: changedByName,
+    action: docType === "folder" ? "Folder created" : "File uploaded",
+    details: `"${docName}" was ${docType === "folder" ? "created" : "uploaded"}`,
+  });
+
+  // Notify trackers on the parent folder (if any)
+  if (!parentId) return;
+  const { data: trackers } = await supabase
+    .from("document_tracking")
+    .select("user_email")
+    .eq("document_id", parentId)
+    .eq("project_id", projectId)
+    .neq("user_id", userId);
+
+  const action = docType === "folder" ? "New folder added" : "New file added";
+  const details = `"${docName}" was added to this folder`;
+
+  for (const tracker of trackers || []) {
+    try {
+      await sendDocumentTrackingEmail(tracker.user_email, docName, action, details, changedByName);
+    } catch {
+      // Non-fatal
+    }
+  }
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -115,6 +168,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
 
+    const changedByName = await getChangedByName(supabase, session.id);
+    await logAndNotifyParentTrackers(supabase, docId, parentId, projectId, session.id, changedByName, file.name, "file");
+
     return NextResponse.json({
       ...data,
       url: supabase.storage.from("project-documents").getPublicUrl(path).data.publicUrl,
@@ -149,6 +205,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
 
+    const changedByName = await getChangedByName(supabase, session.id);
+    await logAndNotifyParentTrackers(supabase, docId, parent_id || null, projectId, session.id, changedByName, name, "file");
+
     return NextResponse.json({
       ...data,
       url: supabase.storage.from("project-documents").getPublicUrl(storage_path).data.publicUrl,
@@ -166,6 +225,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
     .select()
     .single();
+
+  if (data) {
+    const changedByName = await getChangedByName(supabase, session.id);
+    await logAndNotifyParentTrackers(supabase, data.id, parent_id || null, projectId, session.id, changedByName, name, "folder");
+  }
 
   return NextResponse.json({ ...data, url: null });
 }
