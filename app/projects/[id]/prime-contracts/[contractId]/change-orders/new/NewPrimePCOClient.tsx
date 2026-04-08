@@ -16,8 +16,6 @@ const CHANGE_REASONS = [
   "Other",
 ];
 
-const STATUSES = ["Draft", "Under Review", "Approved", "Rejected", "Void"];
-
 type Contract = {
   id: string;
   contract_number: number;
@@ -63,9 +61,18 @@ export default function NewPrimePCOClient({
   const [reference, setReference] = useState("");
   const [primeCOOption, setPrimeCOOption] = useState<"none" | "add_to_existing" | "create_new">("none");
   const [signedDate, setSignedDate] = useState("");
+  const [invoicedDate, setInvoicedDate] = useState("");
+  const [paidDate, setPaidDate] = useState("");
   const [location, setLocation] = useState("");
   const [fieldChange, setFieldChange] = useState(false);
   const [paidInFull, setPaidInFull] = useState(false);
+  const [newSubstantialCompletionDate, setNewSubstantialCompletionDate] = useState("");
+  const [signer, setSigner] = useState("");
+  const [workflow, setWorkflow] = useState("Owner Change Order Workflow");
+  const [accountant, setAccountant] = useState("");
+  const [noUser, setNoUser] = useState("");
+  const [projectManager, setProjectManager] = useState("");
+  const [distribution, setDistribution] = useState("");
 
   const now = new Date();
   const dateCreated = now.toLocaleDateString("en-US", {
@@ -179,10 +186,6 @@ export default function NewPrimePCOClient({
     }
   }
 
-  const contractLabel = contract
-    ? `${contract.contract_number} - ${contract.title}`
-    : "Loading…";
-
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white">
       <ProjectNav projectId={projectId} role={role} />
@@ -205,12 +208,12 @@ export default function NewPrimePCOClient({
           <span>›</span>
           <span>Change Orders</span>
           <span>›</span>
-          <span className="text-gray-700 font-medium">New Potential Change Order</span>
+          <span className="text-gray-700 font-medium">New Prime Contract Change Order</span>
         </div>
 
         {/* ── Page title ── */}
         <div className="px-6 py-3 shrink-0">
-          <h1 className="text-2xl font-normal text-gray-900">New Potential Change Order</h1>
+          <h1 className="text-4xl font-normal text-gray-700">New Prime Contract Change Order</h1>
         </div>
 
         {/* ── Tab bar ── */}
@@ -267,31 +270,6 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Contract Company / Contract */}
-              <FormRow
-                left={
-                  <Field label="Contract Company:">
-                    <input
-                      value={contractCompany}
-                      onChange={(e) => setContractCompany(e.target.value)}
-                      className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
-                  </Field>
-                }
-                right={
-                  <Field label="Contract:">
-                    <button
-                      onClick={() =>
-                        router.push(`/projects/${projectId}/prime-contracts/${contractId}`)
-                      }
-                      className="text-xs text-blue-600 hover:underline text-left"
-                    >
-                      {contractLabel}
-                    </button>
-                  </Field>
-                }
-              />
-
               {/* Row: Title (full width) */}
               <div className="px-4 py-3">
                 <div className="flex items-start gap-4">
@@ -304,64 +282,14 @@ export default function NewPrimePCOClient({
                 </div>
               </div>
 
-              {/* Row: Status / Prime Contract Change Order */}
+              {/* Row: Status / Private */}
               <FormRow
                 left={
                   <Field label="Status:">
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="w-44 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    >
-                      {STATUSES.map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
+                    <span className="text-xs text-gray-700">Status is set via workflow.</span>
                   </Field>
                 }
                 right={
-                  <Field label="Prime Contract Change Order:">
-                    <div className="flex items-center gap-4">
-                      {(["none", "add_to_existing", "create_new"] as const).map((opt) => (
-                        <label key={opt} className="flex items-center gap-1 text-xs text-gray-700 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="primeCO"
-                            value={opt}
-                            checked={primeCOOption === opt}
-                            onChange={() => setPrimeCOOption(opt)}
-                            className="accent-blue-600"
-                          />
-                          {opt === "none" ? "None" : opt === "add_to_existing" ? "Add To Existing" : "Create New"}
-                        </label>
-                      ))}
-                    </div>
-                  </Field>
-                }
-              />
-
-              {/* Row: Change Reason */}
-              <FormRow
-                left={
-                  <Field label="Change Reason:">
-                    <select
-                      value={changeReason}
-                      onChange={(e) => setChangeReason(e.target.value)}
-                      className="w-44 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    >
-                      <option value="">Select…</option>
-                      {CHANGE_REASONS.map((r) => (
-                        <option key={r}>{r}</option>
-                      ))}
-                    </select>
-                  </Field>
-                }
-                right={null}
-              />
-
-              {/* Row: Private */}
-              <FormRow
-                left={
                   <Field label="Private:">
                     <input
                       type="checkbox"
@@ -371,7 +299,36 @@ export default function NewPrimePCOClient({
                     />
                   </Field>
                 }
-                right={null}
+              />
+
+              {/* Row: Invoiced Date */}
+              <FormRow
+                left={null}
+                right={
+                  <Field label="Invoiced Date:">
+                    <input
+                      type="date"
+                      value={invoicedDate}
+                      onChange={(e) => setInvoicedDate(e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </Field>
+                }
+              />
+
+              {/* Row: Paid Date */}
+              <FormRow
+                left={null}
+                right={
+                  <Field label="Paid Date:">
+                    <input
+                      type="date"
+                      value={paidDate}
+                      onChange={(e) => setPaidDate(e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </Field>
+                }
               />
 
               {/* Row: Description (full width) */}
@@ -438,80 +395,63 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Request Received From / Location */}
-              <FormRow
-                left={
-                  <Field label="Request Received From:">
-                    <input
-                      value={requestReceivedFrom}
-                      onChange={(e) => setRequestReceivedFrom(e.target.value)}
-                      className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      placeholder="Select…"
-                    />
-                  </Field>
-                }
-                right={
-                  <Field label="Location:">
+              {/* Row: Potential Change Orders (full width) */}
+              <div className="px-4 py-3">
+                <div className="flex items-start gap-4">
+                  <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Potential Change Orders:</label>
+                  <div className="flex-1 space-y-2">
                     <select
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      className="w-48 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      value={changeReason}
+                      onChange={(e) => setChangeReason(e.target.value)}
+                      className="w-48 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
                     >
-                      <option value="">Select a Location</option>
+                      <option value="">Select a PCO to Add...</option>
+                      {CHANGE_REASONS.map((r) => (
+                        <option key={r}>{r}</option>
+                      ))}
                     </select>
-                  </Field>
-                }
-              />
-
-              {/* Row: Schedule Impact / Field Change */}
-              <FormRow
-                left={
-                  <Field label="Schedule Impact:">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={scheduleImpact}
-                        onChange={(e) => setScheduleImpact(e.target.value)}
-                        className="w-24 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      />
-                      <span className="text-xs text-gray-600">days</span>
+                    <div className="border border-gray-200 rounded overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">#</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600">Title</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-24">Date Initiated</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">Status</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-24">Schedule Impact</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t border-gray-100">
+                            <td className="px-2 py-1 text-gray-500">—</td>
+                            <td className="px-2 py-1 text-gray-500">No potential change orders selected</td>
+                            <td className="px-2 py-1 text-gray-500">—</td>
+                            <td className="px-2 py-1 text-gray-500">—</td>
+                            <td className="px-2 py-1 text-gray-500">0 days</td>
+                            <td className="px-2 py-1 text-gray-500">$0.00</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
-                  </Field>
-                }
-                right={
-                  <Field label="Field Change:">
-                    <input
-                      type="checkbox"
-                      checked={fieldChange}
-                      onChange={(e) => setFieldChange(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                  </Field>
-                }
-              />
+                  </div>
+                </div>
+              </div>
 
-              {/* Row: Reference / Paid In Full */}
-              <FormRow
-                left={
-                  <Field label="Reference:">
+              {/* Row: Schedule Impact */}
+              <div className="px-4 py-3">
+                <Field label="Schedule Impact:">
+                  <div className="flex items-center gap-2">
                     <input
-                      value={reference}
-                      onChange={(e) => setReference(e.target.value)}
-                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      type="number"
+                      value={scheduleImpact}
+                      onChange={(e) => setScheduleImpact(e.target.value)}
+                      className="w-24 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
-                  </Field>
-                }
-                right={
-                  <Field label="Paid In Full:">
-                    <input
-                      type="checkbox"
-                      checked={paidInFull}
-                      onChange={(e) => setPaidInFull(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                  </Field>
-                }
-              />
+                    <span className="text-xs text-gray-600">days</span>
+                  </div>
+                </Field>
+              </div>
 
               {/* Row: Attachments */}
               <div className="px-4 py-3">
@@ -527,6 +467,129 @@ export default function NewPrimePCOClient({
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="mt-8 border-t border-gray-200 pt-4">
+              <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
+                Additional Fields
+              </p>
+              <div className="border border-gray-200 rounded divide-y divide-gray-200">
+                <FormRow
+                  left={
+                    <Field label="New Date of Substantial Completion:">
+                      <input
+                        type="date"
+                        value={newSubstantialCompletionDate}
+                        onChange={(e) => setNewSubstantialCompletionDate(e.target.value)}
+                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      />
+                    </Field>
+                  }
+                  right={
+                    <Field label="Project Executive or Project Manager Signer:">
+                      <input
+                        value={signer}
+                        onChange={(e) => setSigner(e.target.value)}
+                        className="w-80 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      />
+                    </Field>
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="mt-8 border-t border-gray-200 pt-4">
+              <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
+                Workflow Setup
+              </p>
+              <div className="border border-gray-200 rounded divide-y divide-gray-200">
+                <FormRow
+                  left={
+                    <Field label="Workflow:">
+                      <input
+                        value={workflow}
+                        onChange={(e) => setWorkflow(e.target.value)}
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      />
+                    </Field>
+                  }
+                  right={null}
+                />
+                <FormRow
+                  left={
+                    <Field label="Accountant:">
+                      <input
+                        value={accountant}
+                        onChange={(e) => setAccountant(e.target.value)}
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      />
+                    </Field>
+                  }
+                  right={null}
+                />
+                <FormRow
+                  left={
+                    <Field label="No User:">
+                      <input
+                        value={noUser}
+                        onChange={(e) => setNoUser(e.target.value)}
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      />
+                    </Field>
+                  }
+                  right={null}
+                />
+                <FormRow
+                  left={
+                    <Field label="Project Manager:">
+                      <input
+                        value={projectManager}
+                        onChange={(e) => setProjectManager(e.target.value)}
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      />
+                    </Field>
+                  }
+                  right={null}
+                />
+                <FormRow
+                  left={
+                    <Field label="Distribution:">
+                      <input
+                        value={distribution}
+                        onChange={(e) => setDistribution(e.target.value)}
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                        placeholder="Select A Person..."
+                      />
+                    </Field>
+                  }
+                  right={null}
+                />
+                <div className="h-6 border-t border-gray-100" />
+                <FormRow
+                  left={
+                    <ReminderRow label="PM Creates PCCO:" />
+                  }
+                  right={
+                    <ReminderRow label="Owner/Architect Review:" />
+                  }
+                />
+                <FormRow
+                  left={
+                    <ReminderRow label="PCCO Approved:" />
+                  }
+                  right={
+                    <ReminderRow label="PCCO Rejected:" />
+                  }
+                />
+                <FormRow
+                  left={
+                    <ReminderRow label="Cost Codes Changed:" />
+                  }
+                  right={
+                    <ReminderRow label="PCCO Editing:" />
+                  }
+                />
               </div>
             </div>
           </div>
@@ -567,7 +630,7 @@ export default function NewPrimePCOClient({
 
 /* ── Layout helpers ── */
 
-function FormRow({ left, right }: { left: React.ReactNode; right: React.ReactNode | null }) {
+function FormRow({ left, right }: { left: React.ReactNode | null; right: React.ReactNode | null }) {
   return (
     <div className="flex divide-x divide-gray-200">
       <div className="flex-1 px-4 py-3">{left}</div>
@@ -581,6 +644,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="flex items-center gap-4">
       <label className="text-xs text-gray-600 w-40 shrink-0">{label}</label>
       <div>{children}</div>
+    </div>
+  );
+}
+
+function ReminderRow({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-700 w-40 shrink-0">{label}</span>
+      <span className="text-xs text-gray-600 whitespace-nowrap">Start sending reminder emails after</span>
+      <input className="w-8 border border-gray-300 rounded px-1 py-1 text-xs" />
+      <select className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-700">
+        <option>business days</option>
+      </select>
     </div>
   );
 }
