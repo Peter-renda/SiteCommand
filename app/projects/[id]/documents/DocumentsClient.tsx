@@ -166,6 +166,33 @@ function genId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function getHandlePositions(stroke: AnnotationStroke): Record<string, { x: number; y: number }> {
+  if (stroke.tool === "rect" || stroke.tool === "circle") {
+    const x = stroke.x ?? 0, y = stroke.y ?? 0, w = stroke.w ?? 0, h = stroke.h ?? 0;
+    return {
+      nw: { x, y },
+      ne: { x: x + w, y },
+      sw: { x, y: y + h },
+      se: { x: x + w, y: y + h },
+    };
+  }
+  if (stroke.tool === "line") {
+    return {
+      p1: { x: stroke.x1 ?? 0, y: stroke.y1 ?? 0 },
+      p2: { x: stroke.x2 ?? 0, y: stroke.y2 ?? 0 },
+    };
+  }
+  return {};
+}
+
+function findHandleNear(stroke: AnnotationStroke, rx: number, ry: number): string | null {
+  const THRESHOLD = 0.025;
+  for (const [name, pos] of Object.entries(getHandlePositions(stroke))) {
+    if (Math.abs(pos.x - rx) < THRESHOLD && Math.abs(pos.y - ry) < THRESHOLD) return name;
+  }
+  return null;
+}
+
 function findStrokeNear(strokes: AnnotationStroke[], rx: number, ry: number): string | null {
   const THRESHOLD = 0.04;
   for (const stroke of [...strokes].reverse()) {
@@ -236,6 +263,7 @@ function PdfViewerModal({
   const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
   const selectedStrokeIdRef = useRef<string | null>(null);
   const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
+  const dragHandleRef = useRef<string | null>(null);
 
   // Ref mirrors — always up-to-date, used for synchronous canvas drawing
   const strokesRef = useRef<AnnotationStroke[]>([]);
@@ -388,6 +416,21 @@ function PdfViewerModal({
       ctx.strokeRect(minX - PAD, minY - PAD, maxX - minX + PAD * 2, maxY - minY + PAD * 2);
     }
 
+    // Draw resize handles at corners/endpoints
+    const handles = getHandlePositions(stroke);
+    if (Object.keys(handles).length > 0) {
+      const HANDLE = 7;
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#555555";
+      for (const pos of Object.values(handles)) {
+        const ax = pos.x * cw, ay = pos.y * ch;
+        ctx.fillRect(ax - HANDLE / 2, ay - HANDLE / 2, HANDLE, HANDLE);
+        ctx.strokeRect(ax - HANDLE / 2, ay - HANDLE / 2, HANDLE, HANDLE);
+      }
+    }
+
     ctx.restore();
   }
 
@@ -449,10 +492,26 @@ function PdfViewerModal({
     const rel = toRel(canvas, e.clientX, e.clientY);
 
     if (activeTool === "select") {
+      // Check if clicking a resize handle on the currently selected stroke
+      const currentSelId = selectedStrokeIdRef.current;
+      if (currentSelId) {
+        const selStroke = strokesRef.current.find((s) => s.id === currentSelId);
+        if (selStroke) {
+          const handle = findHandleNear(selStroke, rel.x, rel.y);
+          if (handle) {
+            dragHandleRef.current = handle;
+            dragOffsetRef.current = null;
+            isDrawingRef.current = true;
+            redrawCanvas();
+            return;
+          }
+        }
+      }
       const foundId = findStrokeNear(strokesRef.current, rel.x, rel.y);
       if (foundId) {
         setSelectedStrokeId(foundId);
         selectedStrokeIdRef.current = foundId;
+        dragHandleRef.current = null;
         const stroke = strokesRef.current.find((s) => s.id === foundId);
         if (stroke) {
           let anchorX = 0;
@@ -469,6 +528,7 @@ function PdfViewerModal({
         setSelectedStrokeId(null);
         selectedStrokeIdRef.current = null;
         dragOffsetRef.current = null;
+        dragHandleRef.current = null;
         redrawCanvas();
       }
       return;
@@ -539,28 +599,50 @@ function PdfViewerModal({
     const rel = toRel(canvas, e.clientX, e.clientY);
 
     const movingId = selectedStrokeIdRef.current;
-    if (activeTool === "select" && movingId && dragOffsetRef.current) {
-      const { dx, dy } = dragOffsetRef.current;
-      const nx = rel.x - dx;
-      const ny = rel.y - dy;
-      strokesRef.current = strokesRef.current.map((s) => {
-        if (s.id !== movingId) return s;
-        if (s.tool === "text") return { ...s, tx: nx, ty: ny };
-        if (s.tool === "rect" || s.tool === "circle") return { ...s, x: nx, y: ny };
-        if (s.tool === "line") {
-          const origDx = (s.x2 ?? 0) - (s.x1 ?? 0);
-          const origDy = (s.y2 ?? 0) - (s.y1 ?? 0);
-          return { ...s, x1: nx, y1: ny, x2: nx + origDx, y2: ny + origDy };
-        }
-        if (s.tool === "pen" && s.points?.length) {
-          const ox = s.points[0].x;
-          const oy = s.points[0].y;
-          return { ...s, points: s.points.map((p) => ({ x: p.x + (nx - ox), y: p.y + (ny - oy) })) };
-        }
-        return s;
-      });
-      redrawCanvas();
-      return;
+    if (activeTool === "select" && movingId) {
+      if (dragHandleRef.current) {
+        const handle = dragHandleRef.current;
+        strokesRef.current = strokesRef.current.map((s) => {
+          if (s.id !== movingId) return s;
+          if (s.tool === "rect" || s.tool === "circle") {
+            const right = (s.x ?? 0) + (s.w ?? 0), bottom = (s.y ?? 0) + (s.h ?? 0);
+            if (handle === "nw") return { ...s, x: rel.x, y: rel.y, w: right - rel.x, h: bottom - rel.y };
+            if (handle === "ne") return { ...s, y: rel.y, w: rel.x - (s.x ?? 0), h: bottom - rel.y };
+            if (handle === "sw") return { ...s, x: rel.x, w: right - rel.x, h: rel.y - (s.y ?? 0) };
+            if (handle === "se") return { ...s, w: rel.x - (s.x ?? 0), h: rel.y - (s.y ?? 0) };
+          }
+          if (s.tool === "line") {
+            if (handle === "p1") return { ...s, x1: rel.x, y1: rel.y };
+            if (handle === "p2") return { ...s, x2: rel.x, y2: rel.y };
+          }
+          return s;
+        });
+        redrawCanvas();
+        return;
+      }
+      if (dragOffsetRef.current) {
+        const { dx, dy } = dragOffsetRef.current;
+        const nx = rel.x - dx;
+        const ny = rel.y - dy;
+        strokesRef.current = strokesRef.current.map((s) => {
+          if (s.id !== movingId) return s;
+          if (s.tool === "text") return { ...s, tx: nx, ty: ny };
+          if (s.tool === "rect" || s.tool === "circle") return { ...s, x: nx, y: ny };
+          if (s.tool === "line") {
+            const origDx = (s.x2 ?? 0) - (s.x1 ?? 0);
+            const origDy = (s.y2 ?? 0) - (s.y1 ?? 0);
+            return { ...s, x1: nx, y1: ny, x2: nx + origDx, y2: ny + origDy };
+          }
+          if (s.tool === "pen" && s.points?.length) {
+            const ox = s.points[0].x;
+            const oy = s.points[0].y;
+            return { ...s, points: s.points.map((p) => ({ x: p.x + (nx - ox), y: p.y + (ny - oy) })) };
+          }
+          return s;
+        });
+        redrawCanvas();
+        return;
+      }
     }
 
     if (!currentStrokeRef.current) return;
@@ -592,9 +674,8 @@ function PdfViewerModal({
 
     if (activeTool === "select") {
       dragOffsetRef.current = null;
-      // Sync state with ref after drag completes
+      dragHandleRef.current = null;
       setStrokes([...strokesRef.current]);
-      // Redraw to show dotted selection border at the new position
       redrawCanvas();
       return;
     }
