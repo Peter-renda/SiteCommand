@@ -326,10 +326,12 @@ function DrawingPdfViewerModal({
   userName: string;
 }) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const pdfUrl = `${supabaseUrl}/storage/v1/object/public/project-drawings/${drawing.storage_path}#page=${drawing.viewer_page}`;
+  const safeViewerPage = drawing.viewer_page > 0 ? drawing.viewer_page : 1;
+  const pdfUrl = `${supabaseUrl}/storage/v1/object/public/project-drawings/${drawing.storage_path}#page=${safeViewerPage}`;
   const name = drawingLabel(drawing);
 
   const [loading, setLoading] = useState(true);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   // ── Annotation state ──────────────────────────────────────────────────────
   const [annotationMode, setAnnotationMode] = useState(false);
@@ -416,6 +418,7 @@ function DrawingPdfViewerModal({
     let cancelled = false;
     async function renderPdf() {
       setLoading(true);
+      setRenderError(null);
       setPdfDataUrl(null);
       try {
         await ensurePdfJs();
@@ -423,7 +426,7 @@ function DrawingPdfViewerModal({
         const url = `${supabaseUrl}/storage/v1/object/public/project-drawings/${drawing.storage_path}`;
         const pdf = await getDocument(url).promise;
         if (cancelled) return;
-        const page = await pdf.getPage(drawing.viewer_page ?? 1);
+        const page = await pdf.getPage(safeViewerPage);
         if (cancelled) return;
         const containerW = Math.max((containerRef.current?.clientWidth ?? 900) - 32, 200);
         const baseVp = page.getViewport({ scale: 1 });
@@ -447,6 +450,7 @@ function DrawingPdfViewerModal({
         }
       } catch (err) {
         console.error("[Drawing] PDF render error:", err);
+        setRenderError("Could not render PDF preview. Showing browser fallback.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -454,7 +458,7 @@ function DrawingPdfViewerModal({
     renderPdf();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawing.id, drawing.storage_path, drawing.viewer_page]);
+  }, [drawing.id, drawing.storage_path, safeViewerPage, supabaseUrl]);
 
   function toRel(canvas: HTMLCanvasElement, clientX: number, clientY: number) {
     const rect = canvas.getBoundingClientRect();
@@ -892,6 +896,20 @@ function DrawingPdfViewerModal({
           <div className="relative inline-block">
             {pdfDataUrl && (
               <img src={pdfDataUrl} alt={name} className="block max-w-full shadow-xl" draggable={false} />
+            )}
+            {!pdfDataUrl && !loading && (
+              <div className="w-[min(92vw,1100px)] h-[80vh] bg-white rounded overflow-hidden shadow-xl border border-gray-300">
+                <iframe
+                  src={pdfUrl}
+                  title={name}
+                  className="w-full h-full"
+                />
+              </div>
+            )}
+            {renderError && (
+              <div className="absolute top-2 left-2 right-2 z-20 rounded bg-yellow-100 text-yellow-900 border border-yellow-300 px-3 py-2 text-xs">
+                {renderError}
+              </div>
             )}
             {annotationsVisible && (
               <canvas
