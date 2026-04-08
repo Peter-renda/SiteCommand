@@ -34,10 +34,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .limit(1)
     .single();
 
-  const nextNumber = (maxRow?.item_number ?? 0) + 1;
+  const autoNumber = (maxRow?.item_number ?? 0) + 1;
 
   const body = await req.json();
   const {
+    item_number,
     title,
     status,
     punch_item_manager_id,
@@ -58,11 +59,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     attachments,
   } = body;
 
+  const resolvedNumber = (item_number && Number.isInteger(Number(item_number))) ? Number(item_number) : autoNumber;
+
   const { data, error } = await supabase
     .from("punch_list_items")
     .insert({
       project_id: projectId,
-      item_number: nextNumber,
+      item_number: resolvedNumber,
       title: (title ?? "").toString().trim() || "Untitled",
       status: status || "open",
       punch_item_manager_id: punch_item_manager_id || null,

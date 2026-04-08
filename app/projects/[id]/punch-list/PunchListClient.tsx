@@ -6,6 +6,7 @@ import EmptyState from "@/app/components/EmptyState";
 import { SkeletonTable } from "@/app/components/Skeleton";
 
 type DirContact = { id: string; name: string; email: string | null };
+type BudgetItem = { id: string; cost_code: string; description: string };
 type DirectoryContact = {
   id: string;
   type: string;
@@ -148,14 +149,72 @@ function SingleContactPicker({
   );
 }
 
+function CostCodePicker({
+  options, selected, onChange,
+}: {
+  options: BudgetItem[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+  const filtered = options.filter(
+    (o) => !selected.includes(o.cost_code) &&
+      (o.cost_code.toLowerCase().includes(search.toLowerCase()) ||
+        o.description.toLowerCase().includes(search.toLowerCase()))
+  );
+  function add(code: string) { onChange([...selected, code]); setSearch(""); }
+  function remove(code: string) { onChange(selected.filter((s) => s !== code)); }
+  return (
+    <div ref={ref} className="relative">
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {selected.map((code) => (
+            <span key={code} className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 bg-gray-100 text-xs text-gray-700 rounded-full">
+              {code}
+              <button type="button" onClick={() => remove(code)} className="text-gray-400 hover:text-gray-700 ml-0.5">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder="Search cost codes..." className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+      {open && filtered.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg max-h-40 overflow-y-auto z-20">
+          {filtered.map((o) => (
+            <button key={o.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => add(o.cost_code)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+              <span className="font-medium text-gray-900">{o.cost_code}</span>
+              {o.description && <span className="text-gray-400 text-xs">{o.description}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      {open && search && filtered.length === 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg px-3 py-2 z-20"><p className="text-xs text-gray-400">No matching cost codes</p></div>
+      )}
+    </div>
+  );
+}
+
 function CreatePunchListModal({
-  nextNumber, directory, onConfirm, onCancel,
+  nextNumber, directory, budgetItems, onConfirm, onCancel,
 }: {
   nextNumber: number;
   directory: DirectoryContact[];
+  budgetItems: BudgetItem[];
   onConfirm: (data: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
+  const [itemNumber, setItemNumber] = useState(String(nextNumber));
   const [title, setTitle] = useState("");
   const [punchItemManagerId, setPunchItemManagerId] = useState<string | null>(null);
   const [type, setType] = useState("");
@@ -169,22 +228,25 @@ function CreatePunchListModal({
   const [reference, setReference] = useState("");
   const [scheduleImpact, setScheduleImpact] = useState("");
   const [costImpact, setCostImpact] = useState("");
-  const [costCodes, setCostCodes] = useState("");
+  const [selectedCostCodes, setSelectedCostCodes] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(false);
   const [description, setDescription] = useState("");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const usersOnly = directory.filter((c) => c.type === "user");
+
   function buildData() {
     return {
+      item_number: itemNumber ? Number(itemNumber) : undefined,
       title, punch_item_manager_id: punchItemManagerId, type: type || null,
       assignees, due_date: dueDate || null, final_approver_id: finalApproverId,
       distribution_list: distributionList, location: location || null,
       priority: priority || null, trade: trade || null, reference: reference || null,
       schedule_impact: scheduleImpact || null, cost_impact: costImpact || null,
-      cost_codes: costCodes || null, private: isPrivate,
-      description: description || null, attachmentFile, attachments: [],
+      cost_codes: selectedCostCodes.length > 0 ? selectedCostCodes.join(", ") : null,
+      private: isPrivate, description: description || null, attachmentFile, attachments: [],
     };
   }
 
@@ -207,7 +269,7 @@ function CreatePunchListModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Number <span className="text-red-500">*</span></label>
-              <input type="text" readOnly value={nextNumber} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
+              <input type="text" value={itemNumber} onChange={(e) => setItemNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
             </div>
           </div>
 
@@ -215,11 +277,11 @@ function CreatePunchListModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Punch Item Manager <span className="text-red-500">*</span></label>
-              <SingleContactPicker directory={directory} selectedId={punchItemManagerId} onChange={setPunchItemManagerId} placeholder="Select..." />
+              <SingleContactPicker directory={usersOnly} selectedId={punchItemManagerId} onChange={setPunchItemManagerId} placeholder="Select..." />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Final Approver <span className="text-red-500">*</span></label>
-              <SingleContactPicker directory={directory} selectedId={finalApproverId} onChange={setFinalApproverId} placeholder="Select..." />
+              <SingleContactPicker directory={usersOnly} selectedId={finalApproverId} onChange={setFinalApproverId} placeholder="Select..." />
             </div>
           </div>
 
@@ -241,7 +303,7 @@ function CreatePunchListModal({
           {/* Assignees */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Assignee(s)</label>
-            <MultiContactPicker directory={directory} selected={assignees} onChange={setAssignees} placeholder="Select assignees..." />
+            <MultiContactPicker directory={usersOnly} selected={assignees} onChange={setAssignees} placeholder="Select assignees..." />
           </div>
 
           {/* Due Date / Trade */}
@@ -272,24 +334,34 @@ function CreatePunchListModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Schedule Impact</label>
-              <input type="text" value={scheduleImpact} onChange={(e) => setScheduleImpact(e.target.value)} placeholder="Schedule impact" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+              <select value={scheduleImpact} onChange={(e) => setScheduleImpact(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                <option value="">Select...</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="TBD">TBD</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Cost Impact</label>
-              <input type="text" value={costImpact} onChange={(e) => setCostImpact(e.target.value)} placeholder="Cost impact" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+              <select value={costImpact} onChange={(e) => setCostImpact(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                <option value="">Select...</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="TBD">TBD</option>
+              </select>
             </div>
           </div>
 
           {/* Cost Codes */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Cost Codes</label>
-            <input type="text" value={costCodes} onChange={(e) => setCostCodes(e.target.value)} placeholder="Cost codes" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            <CostCodePicker options={budgetItems} selected={selectedCostCodes} onChange={setSelectedCostCodes} />
           </div>
 
           {/* Distribution List */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Distribution List</label>
-            <MultiContactPicker directory={directory} selected={distributionList} onChange={setDistributionList} placeholder="Search directory..." />
+            <MultiContactPicker directory={usersOnly} selected={distributionList} onChange={setDistributionList} placeholder="Search directory..." />
           </div>
 
           {/* Private */}
@@ -360,6 +432,7 @@ function exportPunchListPDF(items: PunchListItem[], directory: DirectoryContact[
 export default function PunchListClient({ projectId, role, username, userId }: { projectId: string; role: string; username: string; userId: string }) {
   const [items, setItems] = useState<PunchListItem[]>([]);
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -368,9 +441,11 @@ export default function PunchListClient({ projectId, role, username, userId }: {
     Promise.all([
       fetch(`/api/projects/${projectId}/punch-list`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/directory`).then((r) => r.json()),
-    ]).then(([itemsData, dirData]) => {
+      fetch(`/api/projects/${projectId}/budget`).then((r) => r.json()),
+    ]).then(([itemsData, dirData, budgetData]) => {
       setItems(Array.isArray(itemsData) ? itemsData : []);
       setDirectory(Array.isArray(dirData) ? dirData : []);
+      setBudgetItems(Array.isArray(budgetData) ? budgetData : []);
       setLoading(false);
     });
   }, [projectId]);
@@ -504,6 +579,7 @@ export default function PunchListClient({ projectId, role, username, userId }: {
         <CreatePunchListModal
           nextNumber={nextNumber}
           directory={directory}
+          budgetItems={budgetItems}
           onConfirm={handleCreate}
           onCancel={() => setShowCreate(false)}
         />
