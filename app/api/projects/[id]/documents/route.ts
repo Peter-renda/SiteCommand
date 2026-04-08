@@ -49,18 +49,35 @@ async function logAndNotifyParentTrackers(
     details: `"${docName}" was ${docType === "folder" ? "created" : "uploaded"}`,
   });
 
-  // Notify trackers on the parent folder (if any)
+  // Notify trackers on the full ancestor chain (direct parent + all ancestors)
   if (!parentId) return;
+
+  const ancestorIds: string[] = [];
+  let currentId: string | null = parentId;
+  while (currentId) {
+    ancestorIds.push(currentId);
+    const { data: parentDoc } = await supabase
+      .from("documents")
+      .select("parent_id")
+      .eq("id", currentId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+
+    currentId = parentDoc?.parent_id ?? null;
+  }
+
   const { data: trackers } = await supabase
     .from("document_tracking")
     .select("user_email")
-    .eq("document_id", parentId)
+    .in("document_id", ancestorIds)
     .eq("project_id", projectId)
     .neq("user_id", userId);
 
-  for (const tracker of trackers || []) {
+  const uniqueEmails = [...new Set((trackers || []).map((t) => t.user_email).filter(Boolean))];
+
+  for (const email of uniqueEmails) {
     try {
-      await sendDocumentTrackingEmail(tracker.user_email, docName, action, details, changedByName);
+      await sendDocumentTrackingEmail(email, docName, action, details, changedByName);
     } catch {
       // Non-fatal
     }
