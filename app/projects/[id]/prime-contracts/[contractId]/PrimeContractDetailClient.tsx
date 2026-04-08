@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { ArrowLeft, Settings, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Mail, ChevronDown, ChevronUp } from "lucide-react";
 
 type SovItem = {
   id: string;
@@ -193,6 +193,7 @@ export default function PrimeContractDetailClient({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/prime-contracts/${contractId}`)
@@ -248,12 +249,10 @@ export default function PrimeContractDetailClient({
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push(`/projects/${projectId}/prime-contracts`)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            Prime Contracts
           </button>
-          <Settings className="w-4 h-4 text-gray-400" />
-          <span className="text-xs text-gray-400">Prime Contracts</span>
           <span className="text-gray-300">/</span>
           <span className="text-sm font-semibold text-gray-900">
             Contract #{contract.contract_number}{contract.title ? ` — ${contract.title}` : ""}
@@ -261,14 +260,40 @@ export default function PrimeContractDetailClient({
           <StatusBadge status={contract.status} />
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/edit`)}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Edit
-          </button>
-          <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
-            Export <ChevronDown className="w-3 h-3" />
+          <div className="relative">
+            <button
+              onClick={() => setCreateMenuOpen((open) => !open)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-600 text-white rounded hover:bg-orange-500 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Create
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            {createMenuOpen && (
+              <div className="absolute right-0 top-[calc(100%+6px)] min-w-[210px] bg-white border border-gray-200 rounded-md shadow-md z-10 py-1">
+                <button
+                  onClick={() => {
+                    setCreateMenuOpen(false);
+                    router.push(`/projects/${projectId}/change-events/new`);
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  Create Change Event
+                </button>
+                <button
+                  onClick={() => {
+                    setCreateMenuOpen(false);
+                    router.push(`/projects/${projectId}/prime-contracts/${contractId}/change-orders/new`);
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  Create Prime Contract CO
+                </button>
+              </div>
+            )}
+          </div>
+          <button className="flex items-center justify-center px-2.5 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
+            <Mail className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -293,7 +318,8 @@ export default function PrimeContractDetailClient({
       </div>
 
       {/* Tab bar */}
-      <div className="bg-white border-b border-gray-200 px-6 flex shrink-0">
+      <div className="bg-white border-b border-gray-200 px-6 flex items-center justify-between shrink-0">
+        <div className="flex">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -307,6 +333,18 @@ export default function PrimeContractDetailClient({
             {t.label}
           </button>
         ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/edit`)}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Edit
+          </button>
+          <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
+            Export <ChevronDown className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
       {/* Tab content */}
