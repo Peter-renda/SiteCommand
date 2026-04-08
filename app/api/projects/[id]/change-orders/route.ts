@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 
+type ScheduleOfValueLine = {
+  budget_code?: string | null;
+  description?: string | null;
+  amount?: number | string | null;
+};
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -14,7 +20,7 @@ export async function GET(
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type") || "prime"; // "prime" | "commitment"
 
-  let query = supabase
+  const query = supabase
     .from("change_orders")
     .select("*")
     .eq("project_id", projectId)
@@ -37,6 +43,15 @@ export async function POST(
   const { id: projectId } = await params;
   const supabase = getSupabase();
   const body = await req.json();
+  const normalizedSov = Array.isArray(body.schedule_of_values)
+    ? body.schedule_of_values
+        .map((line: ScheduleOfValueLine) => ({
+          budget_code: String(line?.budget_code || "").trim(),
+          description: String(line?.description || "").trim(),
+          amount: Number(line?.amount || 0),
+        }))
+        .filter((line) => line.budget_code || line.description || line.amount)
+    : [];
 
   // Get next number for this project + type
   const { data: existing } = await supabase
@@ -84,6 +99,7 @@ export async function POST(
       prime_contract_change_order: body.prime_contract_change_order || "none",
       source_change_event_ids: Array.isArray(body.source_change_event_ids) ? body.source_change_event_ids : [],
       budget_codes: Array.isArray(body.budget_codes) ? body.budget_codes : [],
+      schedule_of_values: normalizedSov,
       invoiced_date: body.invoiced_date || null,
       paid_date: body.paid_date || null,
       reviewer: body.reviewer || "",

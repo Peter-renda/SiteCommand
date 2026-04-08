@@ -22,6 +22,12 @@ type CommitmentRow = {
   deleted_at: string | null;
 };
 
+type CommitmentCOSovLine = {
+  budget_code?: string | null;
+  description?: string | null;
+  amount?: number | string | null;
+};
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -86,21 +92,49 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data: changeOrders, error: changeOrderError } = await supabase
     .from("change_orders")
-    .select("id, number, title, contract_company, amount, commitment_id")
+    .select("id, number, title, contract_company, amount, commitment_id, budget_codes, schedule_of_values")
     .eq("project_id", projectId)
     .eq("type", "commitment")
     .eq("status", "approved")
-    .contains("budget_codes", [costCode])
     .is("deleted_at", null)
     .order("number", { ascending: true })
     .order("revision", { ascending: true });
 
   if (changeOrderError) return NextResponse.json({ error: changeOrderError.message }, { status: 500 });
 
+  const filteredCommitmentCos = (changeOrders || [])
+    .map((co: {
+      id: string;
+      number: string;
+      title: string;
+      contract_company: string;
+      amount: number;
+      commitment_id: string | null;
+      budget_codes?: string[] | null;
+      schedule_of_values?: CommitmentCOSovLine[] | null;
+    }) => {
+      const sovLines = Array.isArray(co.schedule_of_values) ? co.schedule_of_values : [];
+      const matchingAmount = sovLines.reduce((sum, line) => {
+        if (String(line?.budget_code || "").trim() !== costCode) return sum;
+        return sum + Number(line?.amount || 0);
+      }, 0);
+      const hasLegacyBudgetCode = Array.isArray(co.budget_codes) && co.budget_codes.some((c) => c?.trim() === costCode);
+      if (matchingAmount <= 0 && !hasLegacyBudgetCode) return null;
+      return {
+        id: co.id,
+        number: co.number,
+        title: co.title,
+        contract_company: co.contract_company,
+        commitment_id: co.commitment_id,
+        amount: matchingAmount > 0 ? matchingAmount : Number(co.amount || 0),
+      };
+    })
+    .filter(Boolean);
+
   return NextResponse.json({
     cost_code: costCode,
     subcontracts: detailed.filter((c) => c.type === "subcontract"),
     purchase_orders: detailed.filter((c) => c.type === "purchase_order"),
-    commitment_change_orders: changeOrders || [],
+    commitment_change_orders: filteredCommitmentCos,
   });
 }
