@@ -270,23 +270,18 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Title (full width) */}
-              <div className="px-4 py-3">
-                <div className="flex items-start gap-4">
-                  <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Title:</label>
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                  />
-                </div>
-              </div>
-
-              {/* Row: Status / Private */}
+              {/* Row: Contract / Private */}
               <FormRow
                 left={
-                  <Field label="Status:">
-                    <span className="text-xs text-gray-700">Status is set via workflow.</span>
+                  <Field label="Contract:">
+                    <button
+                      onClick={() =>
+                        router.push(`/projects/${projectId}/prime-contracts/${contractId}`)
+                      }
+                      className="text-xs text-blue-600 hover:underline text-left"
+                    >
+                      {contractLabel}
+                    </button>
                   </Field>
                 }
                 right={
@@ -301,9 +296,25 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Invoiced Date */}
+              {/* Row: Title (full width) */}
+              <div className="px-4 py-3">
+                <div className="flex items-start gap-4">
+                  <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Title:</label>
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  />
+                </div>
+              </div>
+
+              {/* Row: Status / Invoiced Date */}
               <FormRow
-                left={null}
+                left={
+                  <Field label="Status:">
+                    <span className="text-xs text-gray-700">Status is set via workflow.</span>
+                  </Field>
+                }
                 right={
                   <Field label="Invoiced Date:">
                     <input
@@ -316,15 +327,48 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Paid Date */}
+              {/* Row: Prime Contract Change Order / Paid Date */}
               <FormRow
-                left={null}
+                left={
+                  <Field label="Prime Contract Change Order:">
+                    <div className="flex items-center gap-4">
+                      {(["none", "add_to_existing", "create_new"] as const).map((opt) => (
+                        <label key={opt} className="flex items-center gap-1 text-xs text-gray-700 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="primeCO"
+                            value={opt}
+                            checked={primeCOOption === opt}
+                            onChange={() => setPrimeCOOption(opt)}
+                            className="accent-blue-600"
+                          />
+                          {opt === "none" ? "None" : opt === "add_to_existing" ? "Add To Existing" : "Create New"}
+                        </label>
+                      ))}
+                    </div>
+                  </Field>
+                }
                 right={
                   <Field label="Paid Date:">
                     <input
                       type="date"
                       value={paidDate}
                       onChange={(e) => setPaidDate(e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </Field>
+                }
+              />
+
+              {/* Row: Invoiced Date */}
+              <FormRow
+                left={null}
+                right={
+                  <Field label="Invoiced Date:">
+                    <input
+                      type="date"
+                      value={invoicedDate}
+                      onChange={(e) => setInvoicedDate(e.target.value)}
                       className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
                   </Field>
@@ -564,31 +608,6 @@ export default function NewPrimePCOClient({
                     </Field>
                   }
                   right={null}
-                />
-                <div className="h-6 border-t border-gray-100" />
-                <FormRow
-                  left={
-                    <ReminderRow label="PM Creates PCCO:" />
-                  }
-                  right={
-                    <ReminderRow label="Owner/Architect Review:" />
-                  }
-                />
-                <FormRow
-                  left={
-                    <ReminderRow label="PCCO Approved:" />
-                  }
-                  right={
-                    <ReminderRow label="PCCO Rejected:" />
-                  }
-                />
-                <FormRow
-                  left={
-                    <ReminderRow label="Cost Codes Changed:" />
-                  }
-                  right={
-                    <ReminderRow label="PCCO Editing:" />
-                  }
                 />
               </div>
             </div>
