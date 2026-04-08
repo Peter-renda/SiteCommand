@@ -62,7 +62,17 @@ type ChangeEvent = {
   number: number;
   title: string;
   description?: string;
-  line_items?: Array<{ budget_code?: string | null; cost_rom?: number | null }>;
+  line_items?: Array<{
+    budget_code?: string | null;
+    description?: string | null;
+    cost_rom?: number | null;
+  }>;
+};
+
+type CommitmentCOSovLine = {
+  budget_code: string;
+  description: string;
+  amount: number;
 };
 
 export default function NewCommitmentCOClient({
@@ -85,6 +95,7 @@ export default function NewCommitmentCOClient({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sourceEventIds, setSourceEventIds] = useState<string[]>([]);
   const [budgetCodes, setBudgetCodes] = useState<string[]>([]);
+  const [scheduleOfValues, setScheduleOfValues] = useState<CommitmentCOSovLine[]>([]);
   const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
 
   // Form fields
@@ -150,13 +161,22 @@ export default function NewCommitmentCOClient({
 
         const allCodes = new Set<string>();
         let total = 0;
+        const sovLines: CommitmentCOSovLine[] = [];
         events.forEach((ev) => {
           ev.line_items?.forEach((li) => {
-            if (li.budget_code?.trim()) allCodes.add(li.budget_code.trim());
-            total += Number(li.cost_rom ?? 0);
+            const budgetCode = li.budget_code?.trim() || "";
+            if (budgetCode) allCodes.add(budgetCode);
+            const lineAmount = Number(li.cost_rom ?? 0);
+            total += lineAmount;
+            sovLines.push({
+              budget_code: budgetCode,
+              description: li.description?.trim() || "",
+              amount: lineAmount,
+            });
           });
         });
         setBudgetCodes(Array.from(allCodes));
+        setScheduleOfValues(sovLines.filter((line) => line.budget_code || line.description || line.amount));
         setAmount(total.toFixed(2));
 
         if (events.length === 1) {
@@ -205,6 +225,7 @@ export default function NewCommitmentCOClient({
           amount: Number(amount || 0),
           source_change_event_ids: sourceEventIds,
           budget_codes: budgetCodes,
+          schedule_of_values: scheduleOfValues,
         }),
       });
 

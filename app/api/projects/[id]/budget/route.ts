@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 
+type CommitmentCOSovLine = {
+  budget_code?: string | null;
+  amount?: number | string | null;
+};
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: commitmentCos } = await supabase
     .from("change_orders")
-    .select("status, amount, budget_codes")
+    .select("status, amount, budget_codes, schedule_of_values")
     .eq("project_id", projectId)
     .eq("type", "commitment")
     .is("deleted_at", null);
@@ -40,8 +45,28 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ]);
   const agg = new Map<string, { pending: number; approved: number }>();
 
-  (commitmentCos || []).forEach((co: { status?: string; amount?: number; budget_codes?: string[] }) => {
+  (commitmentCos || []).forEach((co: {
+    status?: string;
+    amount?: number;
+    budget_codes?: string[];
+    schedule_of_values?: CommitmentCOSovLine[];
+  }) => {
     const normalized = String(co.status || "").trim().toLowerCase();
+    const sovLines = Array.isArray(co.schedule_of_values) ? co.schedule_of_values : [];
+
+    if (sovLines.length > 0) {
+      for (const line of sovLines) {
+        const key = String(line?.budget_code || "").trim();
+        const lineAmount = Number(line?.amount || 0);
+        if (!key || !lineAmount) continue;
+        const curr = agg.get(key) || { pending: 0, approved: 0 };
+        if (pendingStatuses.has(normalized)) curr.pending += lineAmount;
+        if (normalized === "approved") curr.approved += lineAmount;
+        agg.set(key, curr);
+      }
+      return;
+    }
+
     const amount = Number(co.amount || 0);
     if (!Array.isArray(co.budget_codes) || co.budget_codes.length === 0 || !amount) return;
     for (const code of co.budget_codes) {
