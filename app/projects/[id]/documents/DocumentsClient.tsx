@@ -987,16 +987,107 @@ function MoveModal({
   );
 }
 
+// ── Change History Modal ─────────────────────────────────────────────────────
+
+type ChangeHistoryEntry = {
+  id: string;
+  action: string;
+  details: string | null;
+  changed_by_name: string | null;
+  created_at: string;
+};
+
+function ChangeHistoryModal({
+  folder,
+  projectId,
+  onClose,
+}: {
+  folder: DocItem;
+  projectId: string;
+  onClose: () => void;
+}) {
+  const [entries, setEntries] = useState<ChangeHistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/documents/${folder.id}/history`);
+        if (res.ok) {
+          const data = await res.json();
+          setEntries(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        setEntries([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [folder.id, projectId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[80vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Change History</h2>
+            <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{folder.name}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+            </div>
+          ) : entries.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">No changes recorded yet.</p>
+          ) : (
+            <ol className="relative border-l border-gray-200 space-y-6 ml-2">
+              {entries.map((entry) => (
+                <li key={entry.id} className="ml-4">
+                  <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border-2 border-white bg-gray-400" />
+                  <p className="text-sm font-medium text-gray-900">{entry.action}</p>
+                  {entry.details && (
+                    <p className="text-xs text-gray-500 mt-0.5">{entry.details}</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    {entry.changed_by_name ?? "Unknown"} &middot; {formatDate(entry.created_at)}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Folder info panel ────────────────────────────────────────────────────────
 
 function FolderInfoPanel({
   folder,
+  projectId,
   projectName,
   breadcrumb,
   onClose,
   onTogglePrivate,
 }: {
   folder: DocItem;
+  projectId: string;
   projectName: string;
   breadcrumb: BreadcrumbItem[];
   onClose: () => void;
@@ -1004,12 +1095,29 @@ function FolderInfoPanel({
 }) {
   const [permissionsOpen, setPermissionsOpen] = useState(true);
   const [trackingOpen, setTrackingOpen] = useState(false);
-  const [changeHistoryOpen, setChangeHistoryOpen] = useState(false);
-  const [emailsOpen, setEmailsOpen] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isTracking, setIsTracking] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [showChangeHistory, setShowChangeHistory] = useState(false);
 
   const locationPath = breadcrumb.map((b) => b.name).join(" / ") + " / " + folder.name;
+
+  // Load tracking state when panel opens or folder changes
+  useEffect(() => {
+    async function loadTracking() {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/documents/${folder.id}/tracking`);
+        if (res.ok) {
+          const data = await res.json();
+          setIsTracking(!!data.tracking);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadTracking();
+  }, [folder.id, projectId]);
 
   async function handleToggle() {
     setSaving(true);
@@ -1017,160 +1125,184 @@ function FolderInfoPanel({
     setSaving(false);
   }
 
-  return (
-    <div className="fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col overflow-hidden">
-      {/* Panel header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <svg className="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-          </svg>
-          <span className="text-sm font-semibold text-gray-900 truncate">{folder.name}</span>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors shrink-0"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+  async function handleTrackingToggle() {
+    setTrackingLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/documents/${folder.id}/tracking`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsTracking(!!data.tracking);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setTrackingLoading(false);
+    }
+  }
 
-      <div className="flex-1 overflow-y-auto">
-        {/* General Information */}
-        <div className="px-4 py-4 border-b border-gray-100">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">General Information</h3>
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs text-gray-400 mb-0.5">Title</p>
-              <p className="text-sm text-gray-900">{folder.name}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 mb-0.5">Created On</p>
-              <p className="text-sm text-gray-900">{formatDate(folder.created_at, folder.created_by_name)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 mb-0.5">Location</p>
-              <p className="text-sm text-gray-900 break-words">{locationPath}</p>
+  return (
+    <>
+      <div className="fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col overflow-hidden">
+        {/* Panel header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <svg className="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+            </svg>
+            <span className="text-sm font-semibold text-gray-900 truncate">{folder.name}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* General Information */}
+          <div className="px-4 py-4 border-b border-gray-100">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">General Information</h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-gray-400 mb-0.5">Title</p>
+                <p className="text-sm text-gray-900">{folder.name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-0.5">Created On</p>
+                <p className="text-sm text-gray-900">{formatDate(folder.created_at, folder.created_by_name)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-0.5">Location</p>
+                <p className="text-sm text-gray-900 break-words">{locationPath}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Permissions */}
-        <div className="border-b border-gray-100">
-          <button
-            onClick={() => setPermissionsOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-          >
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Permissions</span>
-            <svg
-              className={`w-4 h-4 text-gray-400 transition-transform ${permissionsOpen ? "rotate-180" : ""}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          {/* Permissions */}
+          <div className="border-b border-gray-100">
+            <button
+              onClick={() => setPermissionsOpen((o) => !o)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Permissions</span>
+              <svg
+                className={`w-4 h-4 text-gray-400 transition-transform ${permissionsOpen ? "rotate-180" : ""}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-          {permissionsOpen && (
-            <div className="px-4 pb-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm text-gray-700 font-medium">Make Private</span>
-                  <div className="relative">
-                    <button
-                      onMouseEnter={() => setTooltipVisible(true)}
-                      onMouseLeave={() => setTooltipVisible(false)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                      type="button"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </button>
-                    {tooltipVisible && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-gray-900 text-white text-xs rounded-md px-2.5 py-1.5 shadow-lg z-50 pointer-events-none">
-                        Private folders are only visible to you. No other project members can see them.
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                      </div>
-                    )}
+            {permissionsOpen && (
+              <div className="px-4 pb-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-gray-700 font-medium">Make Private</span>
+                    <div className="relative">
+                      <button
+                        onMouseEnter={() => setTooltipVisible(true)}
+                        onMouseLeave={() => setTooltipVisible(false)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        type="button"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </button>
+                      {tooltipVisible && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-gray-900 text-white text-xs rounded-md px-2.5 py-1.5 shadow-lg z-50 pointer-events-none">
+                          Private folders are only visible to you. No other project members can see them.
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <button
-                  onClick={handleToggle}
-                  disabled={saving}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 disabled:opacity-50 ${
-                    folder.is_private ? "bg-gray-900" : "bg-gray-200"
-                  }`}
-                  role="switch"
-                  aria-checked={folder.is_private}
-                >
-                  <span
-                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                      folder.is_private ? "translate-x-[18px]" : "translate-x-[2px]"
+                  <button
+                    onClick={handleToggle}
+                    disabled={saving}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 disabled:opacity-50 ${
+                      folder.is_private ? "bg-gray-900" : "bg-gray-200"
                     }`}
-                  />
-                </button>
+                    role="switch"
+                    aria-checked={folder.is_private}
+                  >
+                    <span
+                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                        folder.is_private ? "translate-x-[18px]" : "translate-x-[2px]"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  {folder.is_private
+                    ? "This folder is private. Only you can view it."
+                    : `This folder is visible to everyone in: ${projectName}`}
+                </p>
               </div>
+            )}
+          </div>
 
-              <p className="text-xs text-gray-400 leading-relaxed">
-                {folder.is_private
-                  ? "This folder is private. Only you can view it."
-                  : `This folder is visible to everyone in: ${projectName}`}
-              </p>
-            </div>
-          )}
-        </div>
+          {/* Tracking */}
+          <div className="border-b border-gray-100">
+            <button
+              onClick={() => setTrackingOpen((o) => !o)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tracking</span>
+              <svg className={`w-4 h-4 text-gray-400 transition-transform ${trackingOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {trackingOpen && (
+              <div className="px-4 pb-4 space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isTracking}
+                    onChange={handleTrackingToggle}
+                    disabled={trackingLoading}
+                    className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:opacity-50 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-700 font-medium">Enable email notifications</span>
+                </label>
+                <p className="text-xs text-gray-400 leading-relaxed pl-7">
+                  {isTracking
+                    ? "You will be emailed when this folder is updated or new files are added."
+                    : "Check the box to receive email updates for any changes to this folder."}
+                </p>
+              </div>
+            )}
+          </div>
 
-        {/* Tracking */}
-        <div className="border-b border-gray-100">
-          <button
-            onClick={() => setTrackingOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-          >
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tracking</span>
-            <svg className={`w-4 h-4 text-gray-400 transition-transform ${trackingOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {trackingOpen && (
-            <div className="px-4 pb-4"><p className="text-xs text-gray-400">No tracking data available.</p></div>
-          )}
-        </div>
-
-        {/* Change History */}
-        <div className="border-b border-gray-100">
-          <button
-            onClick={() => setChangeHistoryOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-          >
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Change History</span>
-            <svg className={`w-4 h-4 text-gray-400 transition-transform ${changeHistoryOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {changeHistoryOpen && (
-            <div className="px-4 pb-4"><p className="text-xs text-gray-400">No changes recorded.</p></div>
-          )}
-        </div>
-
-        {/* Emails */}
-        <div className="border-b border-gray-100">
-          <button
-            onClick={() => setEmailsOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-          >
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Emails</span>
-            <svg className={`w-4 h-4 text-gray-400 transition-transform ${emailsOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {emailsOpen && (
-            <div className="px-4 pb-4"><p className="text-xs text-gray-400">No emails sent.</p></div>
-          )}
+          {/* Change History */}
+          <div className="border-b border-gray-100">
+            <button
+              onClick={() => setShowChangeHistory(true)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Change History</span>
+              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {showChangeHistory && (
+        <ChangeHistoryModal
+          folder={folder}
+          projectId={projectId}
+          onClose={() => setShowChangeHistory(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -1901,6 +2033,7 @@ export default function DocumentsClient({
       {infoPanelFolder && (
         <FolderInfoPanel
           folder={infoPanelFolder}
+          projectId={projectId}
           projectName={projectName}
           breadcrumb={breadcrumb}
           onClose={() => setInfoPanelFolder(null)}
