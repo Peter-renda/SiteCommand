@@ -687,6 +687,16 @@ export default function PhotosClient({
                   {savingDetail ? "Saving…" : "Save"}
                 </button>
 
+                <a
+                  href={selectedPhoto.url}
+                  download={selectedPhoto.filename}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors text-center"
+                >
+                  Download
+                </a>
+
                 {deleteConfirm ? (
                   <div className="flex gap-2">
                     <button
