@@ -44,7 +44,7 @@ async function logChange(
 
 async function notifyTrackers(
   supabase: SupabaseClient,
-  documentId: string,
+  documentIds: string[],
   projectId: string,
   documentName: string,
   action: string,
@@ -52,20 +52,45 @@ async function notifyTrackers(
   changedByName: string,
   excludeUserId: string,
 ) {
+  if (documentIds.length === 0) return;
+
   const { data: trackers } = await supabase
     .from("document_tracking")
     .select("user_email")
-    .eq("document_id", documentId)
+    .in("document_id", documentIds)
     .eq("project_id", projectId)
     .neq("user_id", excludeUserId);
 
-  for (const tracker of trackers || []) {
+  const uniqueEmails = [...new Set((trackers || []).map((t) => t.user_email).filter(Boolean))];
+
+  for (const email of uniqueEmails) {
     try {
-      await sendDocumentTrackingEmail(tracker.user_email, documentName, action, details, changedByName);
+      await sendDocumentTrackingEmail(email, documentName, action, details, changedByName);
     } catch {
       // Non-fatal: continue if email fails
     }
   }
+}
+
+async function getTrackingScopeIds(supabase: SupabaseClient, projectId: string, documentId: string): Promise<string[]> {
+  const ids: string[] = [documentId];
+
+  let currentId: string | null = documentId;
+  while (currentId) {
+    const { data: current } = await supabase
+      .from("documents")
+      .select("parent_id")
+      .eq("id", currentId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+
+    const parentId = current?.parent_id ?? null;
+    if (!parentId) break;
+    ids.push(parentId);
+    currentId = parentId;
+  }
+
+  return ids;
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string; docId: string }> }) {
@@ -88,6 +113,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq("id", docId)
     .single();
 
+  const trackingScopeIds = await getTrackingScopeIds(supabase, projectId, docId);
+
   const { data, error } = await supabase
     .from("documents")
     .update(update)
@@ -103,19 +130,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (oldDoc && body.name !== undefined && body.name !== oldDoc.name) {
     const details = `Renamed from "${oldDoc.name}" to "${body.name}"`;
     await logChange(supabase, docId, projectId, session.id, changedByName, "Renamed", details);
-    await notifyTrackers(supabase, docId, projectId, body.name, "Renamed", details, changedByName, session.id);
+    await notifyTrackers(supabase, trackingScopeIds, projectId, body.name, "Renamed", details, changedByName, session.id);
   }
 
   if (oldDoc && body.parent_id !== undefined && body.parent_id !== oldDoc.parent_id) {
     const details = "Moved to a different folder";
     await logChange(supabase, docId, projectId, session.id, changedByName, "Moved", details);
-    await notifyTrackers(supabase, docId, projectId, data.name, "Moved", details, changedByName, session.id);
+    const movedScopeIds = new Set(trackingScopeIds);
+    if (oldDoc.parent_id) movedScopeIds.add(oldDoc.parent_id);
+    if (data.parent_id) movedScopeIds.add(data.parent_id);
+    await notifyTrackers(supabase, [...movedScopeIds], projectId, data.name, "Moved", details, changedByName, session.id);
   }
 
   if (oldDoc && body.is_private !== undefined && Boolean(body.is_private) !== oldDoc.is_private) {
     const details = body.is_private ? "Folder set to private" : "Folder set to public";
     await logChange(supabase, docId, projectId, session.id, changedByName, "Permission changed", details);
-    await notifyTrackers(supabase, docId, projectId, data.name, "Permission changed", details, changedByName, session.id);
+    await notifyTrackers(supabase, trackingScopeIds, projectId, data.name, "Permission changed", details, changedByName, session.id);
   }
 
   return NextResponse.json(data);
@@ -130,9 +160,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { data: doc } = await supabase
     .from("documents")
-    .select("name, type")
+    .select("name, type, parent_id")
     .eq("id", docId)
     .single();
+
+  const trackingScopeIds = await getTrackingScopeIds(supabase, projectId, docId);
 
   const paths = await collectFilePaths(supabase, docId);
   if (paths.length > 0) await supabase.storage.from("project-documents").remove(paths);
@@ -141,7 +173,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const changedByName = await getChangedByName(supabase, session.id);
     const details = `${doc.type === "folder" ? "Folder" : "File"} "${doc.name}" was deleted`;
     await logChange(supabase, docId, projectId, session.id, changedByName, "Deleted", details);
-    await notifyTrackers(supabase, docId, projectId, doc.name, "Deleted", details, changedByName, session.id);
+    await notifyTrackers(supabase, trackingScopeIds, projectId, doc.name, "Deleted", details, changedByName, session.id);
   }
 
   await supabase.from("documents").delete().eq("id", docId).eq("project_id", projectId);
