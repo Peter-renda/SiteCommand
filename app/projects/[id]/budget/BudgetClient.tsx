@@ -29,6 +29,41 @@ type BudgetSnapshot = {
   created_at: string;
 };
 
+type CommitmentSovRow = {
+  id: string;
+  description: string;
+  qty: number;
+  uom: string;
+  unit_cost: number;
+  amount: number;
+};
+
+type CommitmentSummary = {
+  id: string;
+  type: "subcontract" | "purchase_order";
+  number: number;
+  title: string;
+  contract_company: string;
+  total_amount: number;
+  lines: CommitmentSovRow[];
+};
+
+type CommitmentChangeOrderSummary = {
+  id: string;
+  number: string;
+  title: string;
+  contract_company: string;
+  amount: number;
+  commitment_id: string | null;
+};
+
+type CommittedCostsDetail = {
+  cost_code: string;
+  subcontracts: CommitmentSummary[];
+  purchase_orders: CommitmentSummary[];
+  commitment_change_orders: CommitmentChangeOrderSummary[];
+};
+
 // ── Calculated helpers ────────────────────────────────────────────────────────
 
 function calc(item: BudgetLineItem) {
@@ -552,6 +587,10 @@ export default function BudgetClient({
   const [editingItem, setEditingItem] = useState<BudgetLineItem | null>(null);
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
   const [showErpModal, setShowErpModal] = useState(false);
+  const [showCommittedCostsModal, setShowCommittedCostsModal] = useState(false);
+  const [committedCostsLoading, setCommittedCostsLoading] = useState(false);
+  const [committedCostsError, setCommittedCostsError] = useState<string | null>(null);
+  const [committedCostsData, setCommittedCostsData] = useState<CommittedCostsDetail | null>(null);
 
   // Dropdown refs
   const createRef = useRef<HTMLDivElement>(null);
@@ -656,6 +695,25 @@ export default function BudgetClient({
   function handleErpResend() {
     // Placeholder: integrate with ERP API
     setShowErpModal(false);
+  }
+
+  async function openCommittedCostsModal(item: BudgetLineItem) {
+    setShowCommittedCostsModal(true);
+    setCommittedCostsLoading(true);
+    setCommittedCostsError(null);
+    setCommittedCostsData(null);
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/budget/committed-costs?costCode=${encodeURIComponent(item.cost_code)}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to load committed costs");
+      setCommittedCostsData(data);
+    } catch (err) {
+      setCommittedCostsError(err instanceof Error ? err.message : "Failed to load committed costs");
+    } finally {
+      setCommittedCostsLoading(false);
+    }
   }
 
   async function handleLogout() {
@@ -802,7 +860,16 @@ export default function BudgetClient({
       case "revised_budget": return fmt(c.revisedBudget);
       case "pending_budget_changes": return fmt(item!.pending_budget_changes);
       case "projected_budget": return fmt(c.projectedBudget);
-      case "committed_costs": return fmt(item!.committed_costs);
+      case "committed_costs":
+        return (
+          <button
+            type="button"
+            onClick={() => openCommittedCostsModal(item)}
+            className="text-blue-600 hover:text-blue-800 underline underline-offset-2 decoration-blue-200"
+          >
+            {fmt(item!.committed_costs)}
+          </button>
+        );
       case "direct_costs": return fmt(c.directCosts);
       case "job_to_date_costs": return <span className="text-blue-600">{fmt(item!.job_to_date_costs)}</span>;
       case "pending_cost_changes": return fmt(item!.pending_cost_changes);
@@ -1051,6 +1118,163 @@ export default function BudgetClient({
       )}
       {showErpModal && (
         <ErpConfirmModal onConfirm={handleErpResend} onCancel={() => setShowErpModal(false)} />
+      )}
+      {showCommittedCostsModal && (
+        <CommittedCostsModal
+          loading={committedCostsLoading}
+          error={committedCostsError}
+          data={committedCostsData}
+          onClose={() => {
+            setShowCommittedCostsModal(false);
+            setCommittedCostsData(null);
+            setCommittedCostsError(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CommittedCostsModal({
+  loading,
+  error,
+  data,
+  onClose,
+}: {
+  loading: boolean;
+  error: string | null;
+  data: CommittedCostsDetail | null;
+  onClose: () => void;
+}) {
+  const sectionTitleClass = "text-sm font-semibold text-gray-900";
+  const sectionCountClass = "text-xs text-gray-500";
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-5xl max-h-[90vh] bg-white rounded-xl shadow-xl overflow-hidden">
+        <div className="bg-gray-800 text-white px-4 py-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">
+            Committed Costs {data?.cost_code ? `for ${data.cost_code}` : ""}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white/80 hover:text-white text-xl leading-none"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-4 overflow-auto max-h-[calc(90vh-58px)]">
+          {loading && <p className="text-sm text-gray-500">Loading committed cost details…</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {!loading && !error && data && (
+            <div className="space-y-6">
+              <CommitmentSection
+                title="Approved Subcontracts"
+                items={data.subcontracts}
+                sectionTitleClass={sectionTitleClass}
+                sectionCountClass={sectionCountClass}
+              />
+              <CommitmentSection
+                title="Approved Purchase Order Contracts"
+                items={data.purchase_orders}
+                sectionTitleClass={sectionTitleClass}
+                sectionCountClass={sectionCountClass}
+              />
+              <div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <h3 className={sectionTitleClass}>Approved Commitment Change Orders</h3>
+                  <span className={sectionCountClass}>{data.commitment_change_orders.length} items</span>
+                </div>
+                {data.commitment_change_orders.length === 0 ? (
+                  <p className="text-xs text-gray-500">No approved commitment change orders for this cost code.</p>
+                ) : (
+                  <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
+                    <thead className="bg-gray-50 text-gray-700">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold">Change Order</th>
+                        <th className="px-3 py-2 text-left font-semibold">Company</th>
+                        <th className="px-3 py-2 text-left font-semibold">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.commitment_change_orders.map((co) => (
+                        <tr key={co.id} className="border-t border-gray-100">
+                          <td className="px-3 py-2">
+                            {co.number} - {co.title || "Untitled"}
+                          </td>
+                          <td className="px-3 py-2">{co.contract_company || "—"}</td>
+                          <td className="px-3 py-2">{fmt(co.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CommitmentSection({
+  title,
+  items,
+  sectionTitleClass,
+  sectionCountClass,
+}: {
+  title: string;
+  items: CommitmentSummary[];
+  sectionTitleClass: string;
+  sectionCountClass: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2">
+        <h3 className={sectionTitleClass}>{title}</h3>
+        <span className={sectionCountClass}>{items.length} items</span>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-xs text-gray-500">No matching approved commitments for this cost code.</p>
+      ) : (
+        <div className="space-y-3">
+          {items.map((commitment) => (
+            <div key={commitment.id} className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-50 px-3 py-2 flex items-center justify-between gap-3 text-xs">
+                <div className="min-w-0">
+                  <p className="text-blue-700">#{commitment.number} - {commitment.title || "Untitled Commitment"}</p>
+                  <p className="text-gray-500 truncate">{commitment.contract_company || "—"}</p>
+                </div>
+                <div className="font-semibold text-gray-900 whitespace-nowrap">{fmt(commitment.total_amount)}</div>
+              </div>
+              <table className="w-full text-xs">
+                <thead className="bg-white text-gray-700">
+                  <tr className="border-t border-gray-200">
+                    <th className="px-3 py-2 text-left font-semibold">Description</th>
+                    <th className="px-3 py-2 text-left font-semibold">QTY</th>
+                    <th className="px-3 py-2 text-left font-semibold">UOM</th>
+                    <th className="px-3 py-2 text-left font-semibold">Unit Cost</th>
+                    <th className="px-3 py-2 text-left font-semibold">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commitment.lines.map((line) => (
+                    <tr key={line.id} className="border-t border-gray-100">
+                      <td className="px-3 py-2">{line.description || "—"}</td>
+                      <td className="px-3 py-2">{line.qty}</td>
+                      <td className="px-3 py-2">{line.uom || "—"}</td>
+                      <td className="px-3 py-2">{fmt(line.unit_cost)}</td>
+                      <td className="px-3 py-2">{fmt(line.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
