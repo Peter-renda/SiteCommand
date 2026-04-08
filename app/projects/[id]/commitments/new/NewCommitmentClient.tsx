@@ -15,6 +15,12 @@ type DirectoryContact = {
   email: string | null;
 };
 
+type BudgetItem = {
+  id: string;
+  cost_code: string;
+  description: string | null;
+};
+
 type SovLine = {
   _key: string; // client-side key
   is_group_header: boolean;
@@ -322,6 +328,7 @@ function AttachmentZone({
 function SovTable({
   lines,
   method,
+  budgetItems,
   onMethodChange,
   onAdd,
   onAddGroup,
@@ -330,6 +337,7 @@ function SovTable({
 }: {
   lines: SovLine[];
   method: "unit_quantity" | "amount";
+  budgetItems: BudgetItem[];
   onMethodChange: (m: "unit_quantity" | "amount") => void;
   onAdd: () => void;
   onAddGroup: () => void;
@@ -491,14 +499,21 @@ function SovTable({
                         />
                       </td>
                       <td className={cellCls}>
-                        <input
-                          type="text"
+                        <select
                           value={line.budget_code}
                           onChange={(e) =>
                             onUpdate(line._key, "budget_code", e.target.value)
                           }
-                          className="w-full min-w-[90px] focus:outline-none bg-transparent"
-                        />
+                          className="w-full min-w-[150px] focus:outline-none bg-transparent"
+                        >
+                          <option value="">Select code…</option>
+                          {budgetItems.map((item) => (
+                            <option key={item.id} value={item.cost_code}>
+                              {item.cost_code}
+                              {item.description ? ` — ${item.description}` : ""}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className={cellCls}>
                         <input
@@ -643,6 +658,7 @@ export default function NewCommitmentClient({
   const [shipVia, setShipVia] = useState("");
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
 
   // Contract Dates
   const [deliveryDate, setDeliveryDate] = useState("");
@@ -688,6 +704,15 @@ export default function NewCommitmentClient({
         : [];
       setNextNumber(String(nums.length > 0 ? Math.max(...nums) + 1 : 1));
     });
+  }, [projectId]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/budget`)
+      .then((r) => r.json())
+      .then((data) => {
+        setBudgetItems(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
   }, [projectId]);
 
   useEffect(() => {
@@ -1013,6 +1038,7 @@ export default function NewCommitmentClient({
           <SovTable
             lines={sovLines}
             method={sovMethod}
+            budgetItems={budgetItems}
             onMethodChange={setSovMethod}
             onAdd={addSovLine}
             onAddGroup={addSovGroup}
