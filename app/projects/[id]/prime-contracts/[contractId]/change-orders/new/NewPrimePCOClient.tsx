@@ -186,10 +186,6 @@ export default function NewPrimePCOClient({
     }
   }
 
-  const contractLabel = contract
-    ? `${contract.contract_number} - ${contract.title}`
-    : "Loading…";
-
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white">
       <ProjectNav projectId={projectId} role={role} />
@@ -364,23 +360,19 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Change Reason */}
+              {/* Row: Invoiced Date */}
               <FormRow
-                left={
-                  <Field label="Change Reason:">
-                    <select
-                      value={changeReason}
-                      onChange={(e) => setChangeReason(e.target.value)}
-                      className="w-44 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    >
-                      <option value="">Select…</option>
-                      {CHANGE_REASONS.map((r) => (
-                        <option key={r}>{r}</option>
-                      ))}
-                    </select>
+                left={null}
+                right={
+                  <Field label="Invoiced Date:">
+                    <input
+                      type="date"
+                      value={invoicedDate}
+                      onChange={(e) => setInvoicedDate(e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
                   </Field>
                 }
-                right={null}
               />
 
               {/* Row: Description (full width) */}
@@ -447,80 +439,63 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Request Received From / Location */}
-              <FormRow
-                left={
-                  <Field label="Request Received From:">
-                    <input
-                      value={requestReceivedFrom}
-                      onChange={(e) => setRequestReceivedFrom(e.target.value)}
-                      className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      placeholder="Select…"
-                    />
-                  </Field>
-                }
-                right={
-                  <Field label="Location:">
+              {/* Row: Potential Change Orders (full width) */}
+              <div className="px-4 py-3">
+                <div className="flex items-start gap-4">
+                  <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Potential Change Orders:</label>
+                  <div className="flex-1 space-y-2">
                     <select
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      className="w-48 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      value={changeReason}
+                      onChange={(e) => setChangeReason(e.target.value)}
+                      className="w-48 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
                     >
-                      <option value="">Select a Location</option>
+                      <option value="">Select a PCO to Add...</option>
+                      {CHANGE_REASONS.map((r) => (
+                        <option key={r}>{r}</option>
+                      ))}
                     </select>
-                  </Field>
-                }
-              />
-
-              {/* Row: Schedule Impact / Field Change */}
-              <FormRow
-                left={
-                  <Field label="Schedule Impact:">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={scheduleImpact}
-                        onChange={(e) => setScheduleImpact(e.target.value)}
-                        className="w-24 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      />
-                      <span className="text-xs text-gray-600">days</span>
+                    <div className="border border-gray-200 rounded overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">#</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600">Title</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-24">Date Initiated</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">Status</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-24">Schedule Impact</th>
+                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t border-gray-100">
+                            <td className="px-2 py-1 text-gray-500">—</td>
+                            <td className="px-2 py-1 text-gray-500">No potential change orders selected</td>
+                            <td className="px-2 py-1 text-gray-500">—</td>
+                            <td className="px-2 py-1 text-gray-500">—</td>
+                            <td className="px-2 py-1 text-gray-500">0 days</td>
+                            <td className="px-2 py-1 text-gray-500">$0.00</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
-                  </Field>
-                }
-                right={
-                  <Field label="Field Change:">
-                    <input
-                      type="checkbox"
-                      checked={fieldChange}
-                      onChange={(e) => setFieldChange(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                  </Field>
-                }
-              />
+                  </div>
+                </div>
+              </div>
 
-              {/* Row: Reference / Paid In Full */}
-              <FormRow
-                left={
-                  <Field label="Reference:">
+              {/* Row: Schedule Impact */}
+              <div className="px-4 py-3">
+                <Field label="Schedule Impact:">
+                  <div className="flex items-center gap-2">
                     <input
-                      value={reference}
-                      onChange={(e) => setReference(e.target.value)}
-                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      type="number"
+                      value={scheduleImpact}
+                      onChange={(e) => setScheduleImpact(e.target.value)}
+                      className="w-24 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
-                  </Field>
-                }
-                right={
-                  <Field label="Paid In Full:">
-                    <input
-                      type="checkbox"
-                      checked={paidInFull}
-                      onChange={(e) => setPaidInFull(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                  </Field>
-                }
-              />
+                    <span className="text-xs text-gray-600">days</span>
+                  </div>
+                </Field>
+              </div>
 
               {/* Row: Attachments */}
               <div className="px-4 py-3">
@@ -674,7 +649,7 @@ export default function NewPrimePCOClient({
 
 /* ── Layout helpers ── */
 
-function FormRow({ left, right }: { left: React.ReactNode; right: React.ReactNode | null }) {
+function FormRow({ left, right }: { left: React.ReactNode | null; right: React.ReactNode | null }) {
   return (
     <div className="flex divide-x divide-gray-200">
       <div className="flex-1 px-4 py-3">{left}</div>
@@ -688,6 +663,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="flex items-center gap-4">
       <label className="text-xs text-gray-600 w-40 shrink-0">{label}</label>
       <div>{children}</div>
+    </div>
+  );
+}
+
+function ReminderRow({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-700 w-40 shrink-0">{label}</span>
+      <span className="text-xs text-gray-600 whitespace-nowrap">Start sending reminder emails after</span>
+      <input className="w-8 border border-gray-300 rounded px-1 py-1 text-xs" />
+      <select className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-700">
+        <option>business days</option>
+      </select>
     </div>
   );
 }
