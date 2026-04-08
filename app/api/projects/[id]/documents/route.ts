@@ -24,7 +24,22 @@ async function logAndNotifyParentTrackers(
   docName: string,
   docType: "file" | "folder",
 ) {
-  // Log creation on the new document itself
+  const action = docType === "folder" ? "New folder added" : "New file added";
+  const details = `"${docName}" was added by ${changedByName}`;
+
+  // Log the addition on the parent folder so it shows in the folder's change history
+  if (parentId) {
+    await supabase.from("document_change_history").insert({
+      document_id: parentId,
+      project_id: projectId,
+      changed_by: userId,
+      changed_by_name: changedByName,
+      action,
+      details,
+    });
+  }
+
+  // Also log creation on the new document itself
   await supabase.from("document_change_history").insert({
     document_id: newDocId,
     project_id: projectId,
@@ -42,9 +57,6 @@ async function logAndNotifyParentTrackers(
     .eq("document_id", parentId)
     .eq("project_id", projectId)
     .neq("user_id", userId);
-
-  const action = docType === "folder" ? "New folder added" : "New file added";
-  const details = `"${docName}" was added to this folder`;
 
   for (const tracker of trackers || []) {
     try {
