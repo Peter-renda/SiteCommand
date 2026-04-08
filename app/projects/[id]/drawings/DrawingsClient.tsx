@@ -346,7 +346,8 @@ function DrawingPdfViewerModal({
   const isDrawingRef = useRef(false);
   const currentStrokeRef = useRef<AnnotationStroke | null>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
-  const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfDimsRef = useRef<{ w: number; h: number } | null>(null);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
   const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
   const selectedStrokeIdRef = useRef<string | null>(null);
   const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
@@ -397,18 +398,25 @@ function DrawingPdfViewerModal({
   }, [annotationsLoaded, drawing.id, projectId, userName]);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  // Redraw annotations when visibility toggles
+  // When annotation canvas is toggled on, restore its dimensions and redraw
   useEffect(() => {
     if (!annotationsVisible) return;
+    const dims = pdfDimsRef.current;
+    const annoCanvas = annotationCanvasRef.current;
+    if (dims && annoCanvas) {
+      annoCanvas.width = dims.w;
+      annoCanvas.height = dims.h;
+    }
     requestAnimationFrame(() => redrawCanvas());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotationsVisible]);
 
-  // Render PDF page using PDF.js and size both canvases to match
+  // Render PDF via PDF.js into an offscreen canvas → data URL → stable <img>
   useEffect(() => {
     let cancelled = false;
     async function renderPdf() {
       setLoading(true);
+      setPdfDataUrl(null);
       try {
         await ensurePdfJs();
         const { getDocument } = await import("pdfjs-dist");
@@ -417,18 +425,20 @@ function DrawingPdfViewerModal({
         if (cancelled) return;
         const page = await pdf.getPage(drawing.viewer_page ?? 1);
         if (cancelled) return;
-        const containerW = (containerRef.current?.clientWidth ?? 900) - 32;
+        const containerW = Math.max((containerRef.current?.clientWidth ?? 900) - 32, 200);
         const baseVp = page.getViewport({ scale: 1 });
         const scale = containerW / baseVp.width;
         const vp = page.getViewport({ scale });
-        const pdfCanvas = pdfCanvasRef.current;
-        if (!pdfCanvas || cancelled) return;
-        pdfCanvas.width = vp.width;
-        pdfCanvas.height = vp.height;
-        const ctx = pdfCanvas.getContext("2d");
-        if (!ctx) return;
+        // Render to an offscreen canvas — never touched by React
+        const offscreen = document.createElement("canvas");
+        offscreen.width = vp.width;
+        offscreen.height = vp.height;
+        const ctx = offscreen.getContext("2d");
+        if (!ctx || cancelled) return;
         await page.render({ canvasContext: ctx, viewport: vp }).promise;
         if (cancelled) return;
+        pdfDimsRef.current = { w: vp.width, h: vp.height };
+        setPdfDataUrl(offscreen.toDataURL());
         const annoCanvas = annotationCanvasRef.current;
         if (annoCanvas) {
           annoCanvas.width = vp.width;
@@ -879,14 +889,18 @@ function DrawingPdfViewerModal({
           </div>
         )}
         <div className="flex justify-center p-4">
-          <div className="relative">
-            <canvas ref={pdfCanvasRef} className="block shadow-xl" />
+          <div className="relative inline-block">
+            {pdfDataUrl && (
+              <img src={pdfDataUrl} alt={name} className="block max-w-full shadow-xl" draggable={false} />
+            )}
             {annotationsVisible && (
               <canvas
                 ref={annotationCanvasRef}
-                className="absolute top-0 left-0"
+                className="absolute inset-0"
                 style={{
                   cursor: annotationMode ? (activeTool === "eraser" ? "cell" : activeTool === "select" ? (selectedStrokeId ? "grabbing" : "grab") : canAnnotate ? "crosshair" : "default") : "default",
+                  width: "100%",
+                  height: "100%",
                   zIndex: 10,
                   pointerEvents: annotationMode && canAnnotate ? "auto" : "none",
                 }}
