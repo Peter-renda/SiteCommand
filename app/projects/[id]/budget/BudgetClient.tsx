@@ -1009,14 +1009,16 @@ export default function BudgetClient({
           <SkeletonTable rows={6} cols={8} />
         ) : (
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-[70vh]">
               <table className="w-full text-xs">
-                <thead>
+                <thead className="sticky top-0 z-20">
                   <tr className="border-b border-gray-100 bg-gray-50">
                     {COLS.map((col) => (
                       <th
                         key={col.key}
-                        className={`text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap ${col.width}`}
+                        className={`text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50 ${col.width} ${
+                          col.key === "description" ? "sticky left-0 z-30" : ""
+                        }`}
                       >
                         {col.tooltip ? (
                           <ColumnTooltip label={col.label} tooltip={col.tooltip} />
@@ -1025,7 +1027,7 @@ export default function BudgetClient({
                         )}
                       </th>
                     ))}
-                    <th className="px-3 py-3 w-10" />
+                    <th className="px-3 py-3 w-10 bg-gray-50" />
                   </tr>
                 </thead>
                 <tbody>
@@ -1046,7 +1048,12 @@ export default function BudgetClient({
                         className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 group"
                       >
                         {COLS.map((col) => (
-                          <td key={col.key} className="px-3 py-3 text-xs whitespace-nowrap">
+                          <td
+                            key={col.key}
+                            className={`px-3 py-3 text-xs whitespace-nowrap ${
+                              col.key === "description" ? "sticky left-0 z-10 bg-white" : ""
+                            }`}
+                          >
                             {renderCell(item, col.key)}
                           </td>
                         ))}
@@ -1087,13 +1094,18 @@ export default function BudgetClient({
                   )}
 
                   {/* Totals row */}
-                  <tr className="border-t border-gray-200 bg-gray-50">
+                  <tr className="border-t border-gray-200 bg-gray-50 sticky bottom-0 z-20">
                     {COLS.map((col) => (
-                      <td key={col.key} className="px-3 py-3 text-xs whitespace-nowrap">
+                      <td
+                        key={col.key}
+                        className={`px-3 py-3 text-xs whitespace-nowrap bg-gray-50 ${
+                          col.key === "description" ? "sticky left-0 z-30" : ""
+                        }`}
+                      >
                         {renderCell(null, col.key)}
                       </td>
                     ))}
-                    <td />
+                    <td className="bg-gray-50" />
                   </tr>
                 </tbody>
               </table>
