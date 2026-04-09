@@ -7,6 +7,7 @@ export const TOOL_SECTIONS = [
       { name: "Documents", slug: "documents" },
       { name: "Directory", slug: "directory" },
       { name: "Tasks", slug: "tasks" },
+      { name: "Quick Notes", slug: "quick-notes" },
       { name: "Admin", slug: "admin" },
     ],
   },
