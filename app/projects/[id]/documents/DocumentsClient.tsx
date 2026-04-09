@@ -1229,17 +1229,17 @@ function ChangeHistoryModal({
   );
 }
 
-// ── Folder info panel ────────────────────────────────────────────────────────
+// ── Item info panel ──────────────────────────────────────────────────────────
 
-function FolderInfoPanel({
-  folder,
+function ItemInfoPanel({
+  item,
   projectId,
   projectName,
   breadcrumb,
   onClose,
   onTogglePrivate,
 }: {
-  folder: DocItem;
+  item: DocItem;
   projectId: string;
   projectName: string;
   breadcrumb: BreadcrumbItem[];
@@ -1254,13 +1254,14 @@ function FolderInfoPanel({
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [showChangeHistory, setShowChangeHistory] = useState(false);
 
-  const locationPath = breadcrumb.map((b) => b.name).join(" / ") + " / " + folder.name;
+  const locationPath = breadcrumb.map((b) => b.name).join(" / ") + " / " + item.name;
 
   // Load tracking state when panel opens or folder changes
   useEffect(() => {
+    if (item.type !== "folder") return;
     async function loadTracking() {
       try {
-        const res = await fetch(`/api/projects/${projectId}/documents/${folder.id}/tracking`);
+        const res = await fetch(`/api/projects/${projectId}/documents/${item.id}/tracking`);
         if (res.ok) {
           const data = await res.json();
           setIsTracking(!!data.tracking);
@@ -1270,18 +1271,18 @@ function FolderInfoPanel({
       }
     }
     loadTracking();
-  }, [folder.id, projectId]);
+  }, [item.id, item.type, projectId]);
 
   async function handleToggle() {
     setSaving(true);
-    onTogglePrivate(folder.id, !folder.is_private);
+    onTogglePrivate(item.id, !item.is_private);
     setSaving(false);
   }
 
   async function handleTrackingToggle() {
     setTrackingLoading(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/documents/${folder.id}/tracking`, {
+      const res = await fetch(`/api/projects/${projectId}/documents/${item.id}/tracking`, {
         method: "POST",
       });
       if (res.ok) {
@@ -1302,9 +1303,13 @@ function FolderInfoPanel({
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <svg className="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+              {item.type === "folder" ? (
+                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+              ) : (
+                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+              )}
             </svg>
-            <span className="text-sm font-semibold text-gray-900 truncate">{folder.name}</span>
+            <span className="text-sm font-semibold text-gray-900 truncate">{item.name}</span>
           </div>
           <button
             onClick={onClose}
@@ -1323,21 +1328,28 @@ function FolderInfoPanel({
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Title</p>
-                <p className="text-sm text-gray-900">{folder.name}</p>
+                <p className="text-sm text-gray-900">{item.name}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Created On</p>
-                <p className="text-sm text-gray-900">{formatDate(folder.created_at, folder.created_by_name)}</p>
+                <p className="text-sm text-gray-900">{formatDate(item.created_at, item.created_by_name)}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Location</p>
                 <p className="text-sm text-gray-900 break-words">{locationPath}</p>
               </div>
+              {item.type === "file" && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Type</p>
+                  <p className="text-sm text-gray-900">{item.mime_type || "Unknown"}</p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Permissions */}
-          <div className="border-b border-gray-100">
+          {item.type === "folder" && (
+            <div className="border-b border-gray-100">
             <button
               onClick={() => setPermissionsOpen((o) => !o)}
               className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
@@ -1379,30 +1391,32 @@ function FolderInfoPanel({
                     onClick={handleToggle}
                     disabled={saving}
                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 disabled:opacity-50 ${
-                      folder.is_private ? "bg-gray-900" : "bg-gray-200"
+                      item.is_private ? "bg-gray-900" : "bg-gray-200"
                     }`}
                     role="switch"
-                    aria-checked={folder.is_private}
+                    aria-checked={item.is_private}
                   >
                     <span
                       className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                        folder.is_private ? "translate-x-[18px]" : "translate-x-[2px]"
+                        item.is_private ? "translate-x-[18px]" : "translate-x-[2px]"
                       }`}
                     />
                   </button>
                 </div>
 
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  {folder.is_private
+                  {item.is_private
                     ? "This folder is private. Only you can view it."
                     : `This folder is visible to everyone in: ${projectName}`}
                 </p>
               </div>
             )}
-          </div>
+            </div>
+          )}
 
           {/* Tracking */}
-          <div className="border-b border-gray-100">
+          {item.type === "folder" && (
+            <div className="border-b border-gray-100">
             <button
               onClick={() => setTrackingOpen((o) => !o)}
               className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
@@ -1431,7 +1445,8 @@ function FolderInfoPanel({
                 </p>
               </div>
             )}
-          </div>
+            </div>
+          )}
 
           {/* Change History */}
           <div className="border-b border-gray-100">
@@ -1450,7 +1465,7 @@ function FolderInfoPanel({
 
       {showChangeHistory && (
         <ChangeHistoryModal
-          folder={folder}
+          folder={item}
           projectId={projectId}
           onClose={() => setShowChangeHistory(false)}
         />
@@ -1486,7 +1501,7 @@ export default function DocumentsClient({
   const [moveTarget, setMoveTarget] = useState<DocItem | null>(null);
   const [allFolders, setAllFolders] = useState<{ id: string; name: string; parent_id: string | null }[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [infoPanelFolder, setInfoPanelFolder] = useState<DocItem | null>(null);
+  const [infoPanelItem, setInfoPanelItem] = useState<DocItem | null>(null);
   const [pdfPreview, setPdfPreview] = useState<DocItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -1544,7 +1559,7 @@ export default function DocumentsClient({
   }
 
   function openFolder(folder: DocItem) {
-    setInfoPanelFolder(null);
+    setInfoPanelItem(null);
     setBreadcrumb((prev) => [...prev, { id: folder.id, name: folder.name }]);
     setCurrentParentId(folder.id);
     loadItems(folder.id);
@@ -1554,7 +1569,7 @@ export default function DocumentsClient({
     const crumb = breadcrumb[index];
     setBreadcrumb((prev) => prev.slice(0, index + 1));
     setCurrentParentId(crumb.id);
-    setInfoPanelFolder(null);
+    setInfoPanelItem(null);
     loadItems(crumb.id);
   }
 
@@ -1702,7 +1717,7 @@ export default function DocumentsClient({
       setItems((prev) =>
         prev.map((item) => (item.id === renameTarget.id ? { ...item, name } : item))
       );
-      setInfoPanelFolder((prev) =>
+      setInfoPanelItem((prev) =>
         prev?.id === renameTarget.id ? { ...prev, name } : prev
       );
     }
@@ -1735,7 +1750,7 @@ export default function DocumentsClient({
       method: "DELETE",
     });
     setItems((prev) => prev.filter((item) => item.id !== id));
-    if (infoPanelFolder?.id === id) setInfoPanelFolder(null);
+    if (infoPanelItem?.id === id) setInfoPanelItem(null);
   }
 
   async function handleDownload(item: DocItem) {
@@ -1798,7 +1813,7 @@ export default function DocumentsClient({
       setItems((prev) =>
         prev.map((item) => (item.id === folderId ? { ...item, is_private: isPrivate } : item))
       );
-      setInfoPanelFolder((prev) =>
+      setInfoPanelItem((prev) =>
         prev?.id === folderId ? { ...prev, is_private: isPrivate } : prev
       );
     }
@@ -1859,8 +1874,8 @@ export default function DocumentsClient({
 
       <ProjectNav projectId={projectId} />
 
-      <main className={`mx-auto px-6 py-8 transition-all ${infoPanelFolder ? "max-w-4xl" : "max-w-6xl"}`}
-        style={infoPanelFolder ? { marginRight: "320px" } : undefined}>
+      <main className={`mx-auto px-6 py-8 transition-all ${infoPanelItem ? "max-w-4xl" : "max-w-6xl"}`}
+        style={infoPanelItem ? { marginRight: "320px" } : undefined}>
         {/* Page title + breadcrumb + add button */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -2029,20 +2044,6 @@ export default function DocumentsClient({
                                 Private
                               </span>
                             )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setInfoPanelFolder(infoPanelFolder?.id === item.id ? null : item);
-                              }}
-                              title="Folder info"
-                              className={`p-0.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0 ${
-                                infoPanelFolder?.id === item.id ? "text-gray-700 bg-gray-100" : ""
-                              }`}
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                            </button>
                           </>
                         )}
                       </div>
@@ -2073,6 +2074,20 @@ export default function DocumentsClient({
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInfoPanelItem(infoPanelItem?.id === item.id ? null : item);
+                          }}
+                          title="Info"
+                          className={`p-1.5 rounded-md hover:bg-gray-100 transition-colors ${
+                            infoPanelItem?.id === item.id ? "text-gray-700 bg-gray-100" : "text-gray-400 hover:text-gray-700"
+                          }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </button>
 
@@ -2182,14 +2197,14 @@ export default function DocumentsClient({
         );
       })()}
 
-      {/* Folder info panel */}
-      {infoPanelFolder && (
-        <FolderInfoPanel
-          folder={infoPanelFolder}
+      {/* Item info panel */}
+      {infoPanelItem && (
+        <ItemInfoPanel
+          item={infoPanelItem}
           projectId={projectId}
           projectName={projectName}
           breadcrumb={breadcrumb}
-          onClose={() => setInfoPanelFolder(null)}
+          onClose={() => setInfoPanelItem(null)}
           onTogglePrivate={handleTogglePrivate}
         />
       )}
