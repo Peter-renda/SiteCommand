@@ -149,12 +149,18 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   }, [projectId, rfiId]);
 
   useEffect(() => {
-    if (activeTab === "history" && !historyLoaded) {
-      fetch(`/api/projects/${projectId}/rfis/${rfiId}/history`)
-        .then((r) => r.json())
-        .then((d) => { setHistory(Array.isArray(d) ? d : []); setHistoryLoaded(true); });
-    }
-  }, [activeTab, historyLoaded, projectId, rfiId]);
+    if (historyLoaded) return;
+    fetch(`/api/projects/${projectId}/rfis/${rfiId}/history`)
+      .then((r) => r.json())
+      .then((d) => {
+        setHistory(Array.isArray(d) ? d : []);
+        setHistoryLoaded(true);
+      })
+      .catch(() => {
+        setHistory([]);
+        setHistoryLoaded(true);
+      });
+  }, [historyLoaded, projectId, rfiId]);
 
   useEffect(() => {
     function onDocumentMouseDown(e: MouseEvent) {
@@ -314,6 +320,10 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     );
   }
 
+  const relatedItemsCount = 0;
+  const emailsCount = 0;
+  const historyCount = history.length;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Site header */}
@@ -413,9 +423,9 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
         <nav className="flex gap-0 -mb-px">
           {[
             { id: "general", label: "General" },
-            { id: "related", label: "Related Items (0)" },
-            { id: "emails", label: "Emails (0)" },
-            { id: "history", label: `Change History` },
+            { id: "related", label: `Related Items (${relatedItemsCount})` },
+            { id: "emails", label: `Emails (${emailsCount})` },
+            { id: "history", label: `Change History (${historyCount})` },
           ].map((tab) => (
             <button
               key={tab.id}
