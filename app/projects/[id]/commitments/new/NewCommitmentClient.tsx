@@ -21,10 +21,29 @@ type BudgetItem = {
   description: string | null;
 };
 
+type ChangeEventSovOption = {
+  id: string;
+  label: string;
+  budget_code: string;
+  description: string;
+  qty: string;
+  uom: string;
+  unit_cost: string;
+  amount: string;
+};
+
+type ChangeEventOption = {
+  id: string;
+  label: string;
+  lineItems: ChangeEventSovOption[];
+};
+
 type SovLine = {
   _key: string; // client-side key
   is_group_header: boolean;
   group_name: string;
+  change_event_id: string;
+  change_event_line_item_id: string;
   change_event_line_item: string;
   budget_code: string;
   description: string;
@@ -329,6 +348,7 @@ function SovTable({
   lines,
   method,
   budgetItems,
+  changeEvents,
   onMethodChange,
   onAdd,
   onAddGroup,
@@ -338,6 +358,7 @@ function SovTable({
   lines: SovLine[];
   method: "unit_quantity" | "amount";
   budgetItems: BudgetItem[];
+  changeEvents: ChangeEventOption[];
   onMethodChange: (m: "unit_quantity" | "amount") => void;
   onAdd: () => void;
   onAddGroup: () => void;
@@ -489,14 +510,53 @@ function SovTable({
                     <tr key={line._key} className="hover:bg-gray-50 group">
                       <td className={cellCls + " text-gray-400"}>{lineNum}</td>
                       <td className={cellCls}>
-                        <input
-                          type="text"
-                          value={line.change_event_line_item}
-                          onChange={(e) =>
-                            onUpdate(line._key, "change_event_line_item", e.target.value)
-                          }
-                          className="w-full min-w-[120px] focus:outline-none bg-transparent"
-                        />
+                        <div className="min-w-[240px] space-y-1">
+                          <select
+                            value={line.change_event_id}
+                            onChange={(e) => {
+                              onUpdate(line._key, "change_event_id", e.target.value);
+                              onUpdate(line._key, "change_event_line_item_id", "");
+                              onUpdate(line._key, "change_event_line_item", "");
+                            }}
+                            className="w-full border border-gray-200 rounded px-1.5 py-1 bg-white focus:outline-none"
+                          >
+                            <option value="">Select change event…</option>
+                            {changeEvents.map((event) => (
+                              <option key={event.id} value={event.id}>
+                                {event.label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={line.change_event_line_item_id}
+                            onChange={(e) => {
+                              const selectedEvent = changeEvents.find(
+                                (event) => event.id === line.change_event_id
+                              );
+                              const selectedLineItem = selectedEvent?.lineItems.find(
+                                (item) => item.id === e.target.value
+                              );
+                              onUpdate(line._key, "change_event_line_item_id", e.target.value);
+                              if (!selectedLineItem) return;
+                              onUpdate(line._key, "change_event_line_item", selectedLineItem.label);
+                              onUpdate(line._key, "budget_code", selectedLineItem.budget_code);
+                              onUpdate(line._key, "description", selectedLineItem.description);
+                              onUpdate(line._key, "qty", selectedLineItem.qty);
+                              onUpdate(line._key, "uom", selectedLineItem.uom);
+                              onUpdate(line._key, "unit_cost", selectedLineItem.unit_cost);
+                              onUpdate(line._key, "amount", selectedLineItem.amount);
+                            }}
+                            className="w-full border border-gray-200 rounded px-1.5 py-1 bg-white focus:outline-none"
+                            disabled={!line.change_event_id}
+                          >
+                            <option value="">Select SOV line item…</option>
+                            {(changeEvents.find((event) => event.id === line.change_event_id)?.lineItems ?? []).map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
                       <td className={cellCls}>
                         <select
@@ -659,6 +719,7 @@ export default function NewCommitmentClient({
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
+  const [changeEvents, setChangeEvents] = useState<ChangeEventOption[]>([]);
 
   // Contract Dates
   const [deliveryDate, setDeliveryDate] = useState("");
@@ -716,6 +777,45 @@ export default function NewCommitmentClient({
   }, [projectId]);
 
   useEffect(() => {
+    fetch(`/api/projects/${projectId}/change-events`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!Array.isArray(data)) {
+          setChangeEvents([]);
+          return;
+        }
+        const mapped: ChangeEventOption[] = data.map((event: Record<string, unknown>) => {
+          const eventId = String(event.id ?? "");
+          const eventNumber = event.number != null ? `#${event.number}` : "#";
+          const eventTitle = String(event.title ?? "Untitled Change Event");
+          const rawLineItems = Array.isArray(event.line_items) ? event.line_items : [];
+          const lineItems: ChangeEventSovOption[] = rawLineItems.map((item: Record<string, unknown>) => {
+            const qtyNum = Number(item.rev_unit_qty ?? 0);
+            const unitCostNum = Number(item.rev_unit_cost ?? 0);
+            const amountNum = Number(item.rev_rom ?? qtyNum * unitCostNum);
+            return {
+              id: String(item.id ?? ""),
+              label: `${item.budget_code ?? "No Budget Code"} - ${item.description ?? "No Description"}`,
+              budget_code: String(item.budget_code ?? ""),
+              description: String(item.description ?? ""),
+              qty: item.rev_unit_qty == null ? "" : String(item.rev_unit_qty),
+              uom: String(item.unit_of_measure ?? ""),
+              unit_cost: item.rev_unit_cost == null ? "" : String(item.rev_unit_cost),
+              amount: item.rev_rom == null ? String(amountNum) : String(item.rev_rom),
+            };
+          });
+          return {
+            id: eventId,
+            label: `${eventNumber} - ${eventTitle}`,
+            lineItems,
+          };
+        });
+        setChangeEvents(mapped);
+      })
+      .catch(() => setChangeEvents([]));
+  }, [projectId]);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (accessDropdownRef.current && !accessDropdownRef.current.contains(e.target as Node)) {
         setAccessDropdownOpen(false);
@@ -738,6 +838,8 @@ export default function NewCommitmentClient({
         _key: uid(),
         is_group_header: false,
         group_name: "",
+        change_event_id: "",
+        change_event_line_item_id: "",
         change_event_line_item: "",
         budget_code: "",
         description: "",
@@ -756,6 +858,8 @@ export default function NewCommitmentClient({
         _key: uid(),
         is_group_header: true,
         group_name: "",
+        change_event_id: "",
+        change_event_line_item_id: "",
         change_event_line_item: "",
         budget_code: "",
         description: "",
@@ -1039,6 +1143,7 @@ export default function NewCommitmentClient({
             lines={sovLines}
             method={sovMethod}
             budgetItems={budgetItems}
+            changeEvents={commitmentType === "subcontract" ? changeEvents : []}
             onMethodChange={setSovMethod}
             onAdd={addSovLine}
             onAddGroup={addSovGroup}
