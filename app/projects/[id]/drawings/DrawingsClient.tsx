@@ -87,8 +87,8 @@ async function ensurePdfJs() {
       try { return new URL(url, base); } catch { return null; }
     };
   }
-  const { GlobalWorkerOptions } = await import("pdfjs-dist");
-  GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+  const { GlobalWorkerOptions } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   pdfJsLoaded = true;
 }
 
@@ -124,7 +124,7 @@ function parseIsoDate(str: string): string {
 
 async function extractMetaFromPage(storagePath: string, pageNumber: number): Promise<ExtractedMeta> {
   await ensurePdfJs();
-  const { getDocument } = await import("pdfjs-dist");
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) return {};
@@ -400,6 +400,7 @@ function DrawingPdfViewerModal({
   }, [annotationsLoaded, drawing.id, projectId, userName]);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const previewSurfaceRef = useRef<HTMLDivElement>(null);
   // When annotation canvas is toggled on, restore its dimensions and redraw
   useEffect(() => {
     if (!annotationsVisible) return;
@@ -413,6 +414,32 @@ function DrawingPdfViewerModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotationsVisible]);
 
+  // Keep annotation canvas in sync with whatever surface is currently visible
+  // (rendered PDF image or browser iframe fallback).
+  useEffect(() => {
+    if (!annotationsVisible) return;
+    const surface = previewSurfaceRef.current;
+    if (!surface) return;
+
+    const syncCanvasSize = () => {
+      const annoCanvas = annotationCanvasRef.current;
+      if (!annoCanvas) return;
+      const nextW = Math.max(Math.round(surface.clientWidth), 1);
+      const nextH = Math.max(Math.round(surface.clientHeight), 1);
+      if (annoCanvas.width !== nextW || annoCanvas.height !== nextH) {
+        annoCanvas.width = nextW;
+        annoCanvas.height = nextH;
+      }
+      requestAnimationFrame(() => redrawCanvas());
+    };
+
+    syncCanvasSize();
+    const observer = new ResizeObserver(syncCanvasSize);
+    observer.observe(surface);
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotationsVisible, pdfDataUrl, loading, renderError]);
+
   // Render PDF via PDF.js into an offscreen canvas → data URL → stable <img>
   useEffect(() => {
     let cancelled = false;
@@ -422,7 +449,7 @@ function DrawingPdfViewerModal({
       setPdfDataUrl(null);
       try {
         await ensurePdfJs();
-        const { getDocument } = await import("pdfjs-dist");
+        const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
         const url = `${supabaseUrl}/storage/v1/object/public/project-drawings/${drawing.storage_path}`;
         const pdf = await getDocument(url).promise;
         if (cancelled) return;
@@ -893,7 +920,7 @@ function DrawingPdfViewerModal({
           </div>
         )}
         <div className="flex justify-center p-4">
-          <div className="relative inline-block">
+          <div ref={previewSurfaceRef} className="relative inline-block">
             {pdfDataUrl && (
               <img src={pdfDataUrl} alt={name} className="block max-w-full shadow-xl" draggable={false} />
             )}
@@ -1025,7 +1052,7 @@ export default function DrawingsClient({
 
     async function renderAll() {
       await ensurePdfJs();
-      const { getDocument } = await import("pdfjs-dist");
+      const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (!supabaseUrl) return;
