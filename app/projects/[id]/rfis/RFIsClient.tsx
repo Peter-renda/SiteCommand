@@ -36,6 +36,13 @@ type RFI = {
   created_at: string;
 };
 
+type RFIResponse = {
+  id: string;
+  body: string;
+  created_by_name: string | null;
+  created_at: string;
+};
+
 
 const STATUSES = ["open", "closed", "draft"];
 const COLUMN_KEYS = ["rfi_number", "subject", "due_date", "status", "rfi_manager", "received_from", "assignees", "distribution", "responsible_contractor", "specification", "drawing_number", "created_at"] as const;
@@ -346,35 +353,124 @@ function formatDate(d: string | null): string {
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function exportRFIsPDF(rfis: RFI[], directory: DirectoryContact[], specifications: Specification[], visibleColumns: readonly string[]) {
-  const headers = visibleColumns.map((k) => COLUMN_LABELS[k as typeof COLUMN_KEYS[number]] || k);
-  const rows = rfis.map((r) =>
-    visibleColumns.map((key) => {
-      switch (key) {
-        case "rfi_number": return r.rfi_number;
-        case "subject": return (r.subject ?? "").slice(0, 50);
-        case "due_date": return formatDate(r.due_date);
-        case "status": return r.status;
-        case "rfi_manager": return getContactNameById(directory, r.rfi_manager_id);
-        case "received_from": return getContactNameById(directory, r.received_from_id);
-        case "assignees": return (r.assignees ?? []).map((a) => a.name).join(", ") || "—";
-        case "distribution": return (r.distribution_list ?? []).map((d) => d.name).join(", ") || "—";
-        case "responsible_contractor": return getContactNameById(directory, r.responsible_contractor_id);
-        case "specification": return getSpecName(specifications, r.specification_id);
-        case "drawing_number": return r.drawing_number ?? "—";
-        case "created_at": return formatDate(r.created_at);
-        default: return "—";
+function formatDateTime(d: string | null): string {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+async function exportRFIsPDF(
+  projectId: string,
+  rfis: RFI[],
+  directory: DirectoryContact[],
+  specifications: Specification[],
+  visibleColumns: readonly string[]
+) {
+  const { default: jsPDF } = await import("jspdf");
+
+  const responseEntries = await Promise.all(
+    rfis.map(async (rfi) => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/rfis/${rfi.id}/responses`);
+        if (!res.ok) return [rfi.id, []] as const;
+        const data = await res.json();
+        return [rfi.id, Array.isArray(data) ? (data as RFIResponse[]) : []] as const;
+      } catch {
+        return [rfi.id, []] as const;
       }
     })
   );
-  const tableRows = rows.map((row) => `<tr>${row.map((cell) => `<td>${String(cell).replace(/</g, "&lt;")}</td>`).join("")}</tr>`).join("");
-  const thRow = headers.map((h) => `<th>${h}</th>`).join("");
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>RFIs</title>
-    <style>body{font-family:Arial,sans-serif;font-size:11px;padding:20px;}h1{font-size:16px;margin-bottom:16px;}table{width:100%;border-collapse:collapse;}th{background:#f3f4f6;text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;}td{padding:8px 10px;border-bottom:1px solid #e5e7eb;}@media print{body{padding:0;}}</style></head><body>
-    <h1>RFIs</h1><table><thead><tr>${thRow}</tr></thead><tbody>${tableRows}</tbody></table>
-    <script>window.onload=()=>{window.print();}<\\/script></body></html>`;
-  const win = window.open("", "_blank");
-  if (win) { win.document.write(html); win.document.close(); }
+
+  const responsesByRfi = new Map<string, RFIResponse[]>(responseEntries);
+  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
+  const margin = 40;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const lineHeight = 13;
+  let y = margin;
+
+  const ensureSpace = (minBottomSpace = 30) => {
+    if (y > pageHeight - minBottomSpace) {
+      doc.addPage();
+      y = margin;
+    }
+  };
+
+  const writeWrapped = (text: string, indent = 0) => {
+    const lines = doc.splitTextToSize(text, pageWidth - margin * 2 - indent);
+    lines.forEach((line: string) => {
+      ensureSpace();
+      doc.text(line, margin + indent, y);
+      y += lineHeight;
+    });
+  };
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("RFI Export", margin, y);
+  y += 24;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`Generated ${new Date().toLocaleString("en-US")}`, margin, y);
+  doc.setTextColor(0);
+  y += 24;
+
+  for (const rfi of rfis) {
+    ensureSpace(120);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(`RFI #${rfi.rfi_number} — ${rfi.subject ?? "Untitled"}`, margin, y);
+    y += 18;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    visibleColumns.forEach((key) => {
+      let value = "—";
+      switch (key) {
+        case "rfi_number": value = String(rfi.rfi_number); break;
+        case "subject": value = rfi.subject ?? "—"; break;
+        case "due_date": value = formatDate(rfi.due_date); break;
+        case "status": value = rfi.status; break;
+        case "rfi_manager": value = getContactNameById(directory, rfi.rfi_manager_id); break;
+        case "received_from": value = getContactNameById(directory, rfi.received_from_id); break;
+        case "assignees": value = (rfi.assignees ?? []).map((a) => a.name).join(", ") || "—"; break;
+        case "distribution": value = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
+        case "responsible_contractor": value = getContactNameById(directory, rfi.responsible_contractor_id); break;
+        case "specification": value = getSpecName(specifications, rfi.specification_id); break;
+        case "drawing_number": value = rfi.drawing_number ?? "—"; break;
+        case "created_at": value = formatDate(rfi.created_at); break;
+      }
+      const label = COLUMN_LABELS[key as typeof COLUMN_KEYS[number]] ?? key;
+      writeWrapped(`${label}: ${value}`);
+    });
+
+    writeWrapped(`Question: ${rfi.question ?? "—"}`);
+    y += 6;
+
+    const responses = responsesByRfi.get(rfi.id) ?? [];
+    doc.setFont("helvetica", "bold");
+    writeWrapped("Responses:");
+    doc.setFont("helvetica", "normal");
+
+    if (responses.length === 0) {
+      writeWrapped("No responses.", 10);
+    } else {
+      responses.forEach((response, idx) => {
+        writeWrapped(`${idx + 1}. ${response.created_by_name ?? "Unknown"} — ${formatDateTime(response.created_at)}`, 10);
+        writeWrapped(response.body || "—", 20);
+        y += 4;
+      });
+    }
+
+    y += 12;
+    ensureSpace(40);
+    doc.setDrawColor(230, 230, 230);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 16;
+  }
+
+  doc.save("rfi_export.pdf");
 }
 
 export default function RFIsClient({ projectId, role, username, userId }: { projectId: string; role: string; username: string; userId: string }) {
@@ -387,6 +483,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showColumnConfig, setShowColumnConfig] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<readonly string[]>(() => [...COLUMN_KEYS]);
   const exportRef = useRef<HTMLDivElement>(null);
   const columnRef = useRef<HTMLDivElement>(null);
@@ -533,13 +630,25 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
               )}
             </div>
             <div ref={exportRef} className="relative">
-              <button onClick={() => setShowExportMenu((o) => !o)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
-                Export RFI as PDF
+                <button onClick={() => setShowExportMenu((o) => !o)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
+                {exportingPdf ? "Exporting PDF..." : "Export RFI as PDF"}
                 <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showExportMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
               </button>
               {showExportMenu && (
                 <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
-                  <button onClick={() => { exportRFIsPDF(rfis, directory, specifications, visibleColumns); setShowExportMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2">
+                  <button
+                    disabled={exportingPdf}
+                    onClick={async () => {
+                      setShowExportMenu(false);
+                      setExportingPdf(true);
+                      try {
+                        await exportRFIsPDF(projectId, rfis, directory, specifications, visibleColumns);
+                      } finally {
+                        setExportingPdf(false);
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
                     Export all as PDF
                   </button>
                 </div>
