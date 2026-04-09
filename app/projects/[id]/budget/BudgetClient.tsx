@@ -65,6 +65,14 @@ type CommittedCostsDetail = {
   commitment_change_orders: CommitmentChangeOrderSummary[];
 };
 
+type ForecastMethod = "automatic" | "manual" | "lump_sum" | "monitored_resources";
+
+type ForecastEdit = {
+  method: ForecastMethod;
+  amount: number | null;
+  notes: string;
+};
+
 // ── Calculated helpers ────────────────────────────────────────────────────────
 
 function calc(item: BudgetLineItem) {
@@ -145,10 +153,49 @@ function fmtWithArrow(n: number): string {
   return n < 0 ? `${arrow} ($${formatted})` : `${arrow} $${formatted}`;
 }
 
+function calcWithForecastOverride(item: BudgetLineItem, overrideAmount?: number | null) {
+  const base = calc(item);
+  if (overrideAmount === undefined || overrideAmount === null) {
+    return base;
+  }
+  const forecastToComplete = Math.max(0, overrideAmount);
+  const estimatedCostAtCompletion = base.projectedCosts + forecastToComplete;
+  const projectedOverUnder = base.projectedBudget - estimatedCostAtCompletion;
+  return {
+    ...base,
+    forecastToComplete,
+    estimatedCostAtCompletion,
+    projectedOverUnder,
+  };
+}
+
 // ── PDF Export ────────────────────────────────────────────────────────────────
 
-function exportPDF(items: BudgetLineItem[]) {
-  const totals = sumItems(items);
+function exportPDF(items: BudgetLineItem[], forecastEdits: Record<string, ForecastEdit>) {
+  const totals = items.reduce(
+    (acc, item) => {
+      const edit = forecastEdits[item.id];
+      const useOverride = edit && (edit.method === "manual" || edit.method === "lump_sum");
+      const c = calcWithForecastOverride(item, useOverride ? edit.amount : null);
+      acc.original_budget_amount += item.original_budget_amount;
+      acc.budget_modifications += item.budget_modifications;
+      acc.approved_cos += item.approved_cos;
+      acc.pending_budget_changes += item.pending_budget_changes;
+      acc.committed_costs += item.committed_costs;
+      acc.job_to_date_costs += item.job_to_date_costs;
+      acc.commitments_invoiced += item.commitments_invoiced;
+      acc.pending_cost_changes += item.pending_cost_changes;
+      acc.revisedBudget += c.revisedBudget;
+      acc.projectedBudget += c.projectedBudget;
+      acc.directCosts += c.directCosts;
+      acc.projectedCosts += c.projectedCosts;
+      acc.forecastToComplete += c.forecastToComplete;
+      acc.estimatedCostAtCompletion += c.estimatedCostAtCompletion;
+      acc.projectedOverUnder += c.projectedOverUnder;
+      return acc;
+    },
+    sumItems([])
+  );
 
   const headerRow = `
     <tr>
@@ -191,7 +238,9 @@ function exportPDF(items: BudgetLineItem[]) {
 
   const rows = items
     .map((item) => {
-      const c = calc(item);
+      const edit = forecastEdits[item.id];
+      const useOverride = edit && (edit.method === "manual" || edit.method === "lump_sum");
+      const c = calcWithForecastOverride(item, useOverride ? edit.amount : null);
       return `<tr>
         <td>
           <strong>${item.cost_code}</strong><br/>
@@ -592,6 +641,8 @@ export default function BudgetClient({
   const [committedCostsLoading, setCommittedCostsLoading] = useState(false);
   const [committedCostsError, setCommittedCostsError] = useState<string | null>(null);
   const [committedCostsData, setCommittedCostsData] = useState<CommittedCostsDetail | null>(null);
+  const [forecastEdits, setForecastEdits] = useState<Record<string, ForecastEdit>>({});
+  const [selectedForecastItemId, setSelectedForecastItemId] = useState<string | null>(null);
 
   // Dropdown refs
   const createRef = useRef<HTMLDivElement>(null);
@@ -722,7 +773,51 @@ export default function BudgetClient({
     window.location.href = "/";
   }
 
-  const totals = sumItems(items);
+  function getItemCalc(item: BudgetLineItem) {
+    const edit = forecastEdits[item.id];
+    const useOverride = edit && (edit.method === "manual" || edit.method === "lump_sum");
+    return calcWithForecastOverride(item, useOverride ? edit.amount : null);
+  }
+
+  const totals = items.reduce(
+    (acc, item) => {
+      const c = getItemCalc(item);
+      acc.original_budget_amount += item.original_budget_amount;
+      acc.budget_modifications += item.budget_modifications;
+      acc.approved_cos += item.approved_cos;
+      acc.pending_budget_changes += item.pending_budget_changes;
+      acc.committed_costs += item.committed_costs;
+      acc.job_to_date_costs += item.job_to_date_costs;
+      acc.commitments_invoiced += item.commitments_invoiced;
+      acc.pending_cost_changes += item.pending_cost_changes;
+      acc.revisedBudget += c.revisedBudget;
+      acc.projectedBudget += c.projectedBudget;
+      acc.directCosts += c.directCosts;
+      acc.projectedCosts += c.projectedCosts;
+      acc.forecastToComplete += c.forecastToComplete;
+      acc.estimatedCostAtCompletion += c.estimatedCostAtCompletion;
+      acc.projectedOverUnder += c.projectedOverUnder;
+      return acc;
+    },
+    sumItems([])
+  );
+  const selectedForecastItem = items.find((item) => item.id === selectedForecastItemId) ?? null;
+  const selectedForecastEdit = selectedForecastItem
+    ? forecastEdits[selectedForecastItem.id] ?? { method: "automatic" as ForecastMethod, amount: null, notes: "" }
+    : null;
+
+  function updateForecastEdit(itemId: string, updates: Partial<ForecastEdit>) {
+    setForecastEdits((prev) => {
+      const current = prev[itemId] ?? { method: "automatic" as ForecastMethod, amount: null, notes: "" };
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          ...updates,
+        },
+      };
+    });
+  }
 
   const COLS: Array<{
     key: string;
@@ -846,7 +941,7 @@ export default function BudgetClient({
       }
     }
 
-    const c = calc(item!);
+    const c = getItemCalc(item!);
     switch (key) {
       case "description":
         return (
@@ -875,7 +970,16 @@ export default function BudgetClient({
       case "job_to_date_costs": return <span className="text-blue-600">{fmt(item!.job_to_date_costs)}</span>;
       case "pending_cost_changes": return fmt(item!.pending_cost_changes);
       case "projected_costs": return fmt(c.projectedCosts);
-      case "forecast_to_complete": return fmtWithArrow(c.forecastToComplete);
+      case "forecast_to_complete":
+        return (
+          <button
+            type="button"
+            onClick={() => setSelectedForecastItemId(item.id)}
+            className="text-blue-600 hover:text-blue-800 underline underline-offset-2 decoration-blue-200"
+          >
+            {fmtWithArrow(c.forecastToComplete)}
+          </button>
+        );
       case "estimated_cost_at_completion": return fmt(c.estimatedCostAtCompletion);
       case "projected_over_under":
         return (
@@ -991,7 +1095,7 @@ export default function BudgetClient({
               {showExportMenu && (
                 <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
                   <button
-                    onClick={() => { exportPDF(items); setShowExportMenu(false); }}
+                    onClick={() => { exportPDF(items, forecastEdits); setShowExportMenu(false); }}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -1114,6 +1218,105 @@ export default function BudgetClient({
           </div>
         )}
       </main>
+
+      {selectedForecastItem && selectedForecastEdit && (
+        <section className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-300 bg-white shadow-[0_-8px_24px_rgba(0,0,0,0.12)]">
+          <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="text-[28px] leading-none font-semibold text-gray-700">
+              Forecast To Complete for {selectedForecastItem.cost_code}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setSelectedForecastItemId(null)}
+              className="text-4xl leading-none text-gray-700 hover:text-black"
+              aria-label="Close forecast editor"
+            >
+              ×
+            </button>
+          </div>
+          <div className="px-5 py-3 max-h-[38vh] overflow-auto">
+            <p className="text-lg font-semibold text-gray-900 mb-2">Calculation Method:</p>
+            <div className="space-y-0.5 text-base leading-tight">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="forecast-method"
+                  checked={selectedForecastEdit.method === "automatic"}
+                  onChange={() => updateForecastEdit(selectedForecastItem.id, { method: "automatic", amount: null })}
+                />
+                <span>
+                  Automatic Calculation{" "}
+                  <span className="font-semibold">{fmt(calc(selectedForecastItem).forecastToComplete)}</span>
+                </span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="forecast-method"
+                  checked={selectedForecastEdit.method === "manual"}
+                  onChange={() =>
+                    updateForecastEdit(selectedForecastItem.id, {
+                      method: "manual",
+                      amount: selectedForecastEdit.amount ?? calc(selectedForecastItem).forecastToComplete,
+                    })
+                  }
+                />
+                <span>Manual Entry</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="forecast-method"
+                  checked={selectedForecastEdit.method === "lump_sum"}
+                  onChange={() =>
+                    updateForecastEdit(selectedForecastItem.id, {
+                      method: "lump_sum",
+                      amount: selectedForecastEdit.amount ?? calc(selectedForecastItem).forecastToComplete,
+                    })
+                  }
+                />
+                <span>Lump Sum Entry</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="forecast-method"
+                  checked={selectedForecastEdit.method === "monitored_resources"}
+                  onChange={() =>
+                    updateForecastEdit(selectedForecastItem.id, { method: "monitored_resources", amount: null })
+                  }
+                />
+                <span>Monitored Resources</span>
+              </label>
+            </div>
+
+            {(selectedForecastEdit.method === "manual" || selectedForecastEdit.method === "lump_sum") && (
+              <div className="mt-3 max-w-sm">
+                <label className="block text-lg font-semibold text-gray-900 mb-1">New Forecast Amount:</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={selectedForecastEdit.amount !== null ? String(selectedForecastEdit.amount) : ""}
+                  onChange={(e) =>
+                    updateForecastEdit(selectedForecastItem.id, { amount: numVal(e.target.value) })
+                  }
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+            )}
+
+            <div className="mt-3 max-w-md">
+              <label className="block text-lg font-semibold text-gray-900 mb-1">Notes:</label>
+              <textarea
+                value={selectedForecastEdit.notes}
+                onChange={(e) => updateForecastEdit(selectedForecastItem.id, { notes: e.target.value })}
+                className="w-full h-24 border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Modals */}
       {showLineItemModal && (
