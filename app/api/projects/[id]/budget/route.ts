@@ -7,6 +7,10 @@ type CommitmentCOSovLine = {
   amount?: number | string | null;
 };
 
+function isMissingScheduleOfValuesColumn(message?: string) {
+  return (message || "").includes("column change_orders.schedule_of_values does not exist");
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,12 +28,25 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const rows = data || [];
 
-  const { data: commitmentCos } = await supabase
+  let { data: commitmentCos, error: commitmentCosError } = await supabase
     .from("change_orders")
     .select("status, amount, budget_codes, schedule_of_values")
     .eq("project_id", projectId)
     .eq("type", "commitment")
     .is("deleted_at", null);
+
+  if (isMissingScheduleOfValuesColumn(commitmentCosError?.message)) {
+    const fallback = await supabase
+      .from("change_orders")
+      .select("status, amount, budget_codes")
+      .eq("project_id", projectId)
+      .eq("type", "commitment")
+      .is("deleted_at", null);
+    commitmentCos = fallback.data;
+    commitmentCosError = fallback.error;
+  }
+
+  if (commitmentCosError) return NextResponse.json({ error: commitmentCosError.message }, { status: 500 });
 
   // In-flight statuses → Pending Budget Changes column.
   // Approved → Approved Change Orders (approved_cos) column.
