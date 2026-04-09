@@ -28,6 +28,10 @@ type CommitmentCOSovLine = {
   amount?: number | string | null;
 };
 
+function isMissingScheduleOfValuesColumn(message?: string) {
+  return (message || "").includes("column change_orders.schedule_of_values does not exist");
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -90,7 +94,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     };
   });
 
-  const { data: changeOrders, error: changeOrderError } = await supabase
+  let { data: changeOrders, error: changeOrderError } = await supabase
     .from("change_orders")
     .select("id, number, title, contract_company, amount, commitment_id, budget_codes, schedule_of_values")
     .eq("project_id", projectId)
@@ -99,6 +103,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .is("deleted_at", null)
     .order("number", { ascending: true })
     .order("revision", { ascending: true });
+
+  if (isMissingScheduleOfValuesColumn(changeOrderError?.message)) {
+    const fallback = await supabase
+      .from("change_orders")
+      .select("id, number, title, contract_company, amount, commitment_id, budget_codes")
+      .eq("project_id", projectId)
+      .eq("type", "commitment")
+      .eq("status", "approved")
+      .is("deleted_at", null)
+      .order("number", { ascending: true })
+      .order("revision", { ascending: true });
+    changeOrders = fallback.data;
+    changeOrderError = fallback.error;
+  }
 
   if (changeOrderError) return NextResponse.json({ error: changeOrderError.message }, { status: 500 });
 

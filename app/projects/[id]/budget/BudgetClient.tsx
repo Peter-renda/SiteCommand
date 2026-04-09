@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import ProjectNav from "@/components/ProjectNav";
 import { SkeletonTable } from "@/app/components/Skeleton";
 
@@ -1133,6 +1134,7 @@ export default function BudgetClient({
       )}
       {showCommittedCostsModal && (
         <CommittedCostsModal
+          projectId={projectId}
           loading={committedCostsLoading}
           error={committedCostsError}
           data={committedCostsData}
@@ -1148,11 +1150,13 @@ export default function BudgetClient({
 }
 
 function CommittedCostsModal({
+  projectId,
   loading,
   error,
   data,
   onClose,
 }: {
+  projectId: string;
   loading: boolean;
   error: string | null;
   data: CommittedCostsDetail | null;
@@ -1183,12 +1187,14 @@ function CommittedCostsModal({
           {!loading && !error && data && (
             <div className="space-y-6">
               <CommitmentSection
+                projectId={projectId}
                 title="Approved Subcontracts"
                 items={data.subcontracts}
                 sectionTitleClass={sectionTitleClass}
                 sectionCountClass={sectionCountClass}
               />
               <CommitmentSection
+                projectId={projectId}
                 title="Approved Purchase Order Contracts"
                 items={data.purchase_orders}
                 sectionTitleClass={sectionTitleClass}
@@ -1214,7 +1220,12 @@ function CommittedCostsModal({
                       {data.commitment_change_orders.map((co) => (
                         <tr key={co.id} className="border-t border-gray-100">
                           <td className="px-3 py-2">
-                            {co.number} - {co.title || "Untitled"}
+                            <Link
+                              href={`/projects/${projectId}/change-orders/${co.id}`}
+                              className="text-blue-700 hover:text-blue-900 hover:underline"
+                            >
+                              {co.number} - {co.title || "Untitled"}
+                            </Link>
                           </td>
                           <td className="px-3 py-2">{co.contract_company || "—"}</td>
                           <td className="px-3 py-2">{fmt(co.amount)}</td>
@@ -1233,11 +1244,13 @@ function CommittedCostsModal({
 }
 
 function CommitmentSection({
+  projectId,
   title,
   items,
   sectionTitleClass,
   sectionCountClass,
 }: {
+  projectId: string;
   title: string;
   items: CommitmentSummary[];
   sectionTitleClass: string;
@@ -1257,7 +1270,12 @@ function CommitmentSection({
             <div key={commitment.id} className="border border-gray-200 rounded-lg overflow-hidden">
               <div className="bg-gray-50 px-3 py-2 flex items-center justify-between gap-3 text-xs">
                 <div className="min-w-0">
-                  <p className="text-blue-700">#{commitment.number} - {commitment.title || "Untitled Commitment"}</p>
+                  <Link
+                    href={`/projects/${projectId}/commitments/${commitment.id}`}
+                    className="text-blue-700 hover:text-blue-900 hover:underline"
+                  >
+                    #{commitment.number} - {commitment.title || "Untitled Commitment"}
+                  </Link>
                   <p className="text-gray-500 truncate">{commitment.contract_company || "—"}</p>
                 </div>
                 <div className="font-semibold text-gray-900 whitespace-nowrap">{fmt(commitment.total_amount)}</div>
