@@ -23,6 +23,7 @@ const ALLOWED_KEYS = [
   "QBO_CLIENT_SECRET",
   "XERO_CLIENT_ID",
   "XERO_CLIENT_SECRET",
+  "ELEVENLABS_API_KEY",
 ] as const;
 
 export async function GET() {

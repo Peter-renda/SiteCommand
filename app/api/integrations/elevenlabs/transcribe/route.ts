@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { getSupabase } from "@/lib/supabase";
 
 const ELEVENLABS_TRANSCRIBE_URL = "https://api.elevenlabs.io/v1/speech-to-text";
 
@@ -7,7 +8,21 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const apiKey = process.env.ELEVENLABS_API_KEY;
+  // Lookup order: platform_settings → env var
+  let apiKey: string | undefined;
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "ELEVENLABS_API_KEY")
+      .single();
+    apiKey = data?.value ?? undefined;
+  } catch {
+    // DB unavailable – fall through to env var
+  }
+  apiKey ??= process.env.ELEVENLABS_API_KEY;
+
   if (!apiKey) {
     return NextResponse.json(
       { error: "Missing ELEVENLABS_API_KEY. Add it to your server environment to enable transcription." },
