@@ -312,7 +312,7 @@ export async function POST(req: NextRequest) {
   try {
     const genai = new GoogleGenAI({ apiKey });
     const result = await genai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash-lite",
       contents: `You are a construction project assistant for SiteCommand.
 Use ONLY the provided context to answer the user's question.
 If information is uncertain or missing, explicitly say what is unknown and ask the user to confirm.
