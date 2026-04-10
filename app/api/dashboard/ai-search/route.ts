@@ -309,10 +309,11 @@ export async function POST(req: NextRequest) {
 
   const context = ranked.map((s) => `[${s.index}] ${s.title}\n${s.snippet}`).join("\n\n");
 
-  const genai = new GoogleGenAI({ apiKey });
-  const result = await genai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: `You are a construction project assistant for SiteCommand.
+  try {
+    const genai = new GoogleGenAI({ apiKey });
+    const result = await genai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: `You are a construction project assistant for SiteCommand.
 Use ONLY the provided context to answer the user's question.
 If information is uncertain or missing, explicitly say what is unknown and ask the user to confirm.
 When possible, include a clear location reference (example: page number, drawing number, RFI number, log date).
@@ -324,17 +325,21 @@ ${userQuestion}
 
 Context:
 ${context}`,
-  });
+    });
 
-  const answer = (result.text ?? "").trim() || "I could not find enough information to answer this confidently. Please confirm.";
-  const cited = citedIndexes(answer);
-  const selectedSources = (cited.length > 0
-    ? ranked.filter((s) => cited.includes(s.index))
-    : ranked.slice(0, 6)
-  ).slice(0, 8);
+    const answer = (result.text ?? "").trim() || "I could not find enough information to answer this confidently. Please confirm.";
+    const cited = citedIndexes(answer);
+    const selectedSources = (cited.length > 0
+      ? ranked.filter((s) => cited.includes(s.index))
+      : ranked.slice(0, 6)
+    ).slice(0, 8);
 
-  return NextResponse.json({
-    answer,
-    sources: selectedSources.map((s) => ({ id: s.id, title: s.title, href: s.href })),
-  });
+    return NextResponse.json({
+      answer,
+      sources: selectedSources.map((s) => ({ id: s.id, title: s.title, href: s.href })),
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "AI generation failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
