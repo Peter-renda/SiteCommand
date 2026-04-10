@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { GoogleGenAI } from "@google/genai";
 
+function parseModelError(err: unknown): { message: string; shouldFallback: boolean } {
+  const record = err && typeof err === "object" ? (err as Record<string, unknown>) : null;
+  const nested = record?.error && typeof record.error === "object" ? (record.error as Record<string, unknown>) : null;
+  const code = nested?.code ?? record?.code;
+  const status = String(nested?.status ?? record?.status ?? "").toUpperCase();
+  const rawMessage =
+    typeof nested?.message === "string"
+      ? nested.message
+      : typeof record?.message === "string"
+        ? record.message
+        : err instanceof Error
+          ? err.message
+          : JSON.stringify(err);
+  const message = rawMessage || "AI generation failed";
+  const lower = message.toLowerCase();
+  const shouldFallback =
+    code === 404 ||
+    status.includes("NOT_FOUND") ||
+    lower.includes("not_found") ||
+    lower.includes("no longer available") ||
+    lower.includes("model not found");
+  return { message, shouldFallback };
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,11 +62,32 @@ Requirements:
 - Do not use bullet points or headers — write in paragraph form only
 - Do not include any preamble like "Here is a scope..." — just provide the scope text directly`;
 
-    const result = await genai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt,
-    });
-    const text = (result.text ?? "").trim();
+    const preferredModels = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash"].filter(
+      (value): value is string => Boolean(value)
+    );
+    let text = "";
+    let lastError = "";
+    for (const model of preferredModels) {
+      try {
+        const result = await genai.models.generateContent({
+          model,
+          contents: prompt,
+        });
+        text = (result.text ?? "").trim();
+        if (text) break;
+      } catch (err: unknown) {
+        const { message, shouldFallback } = parseModelError(err);
+        lastError = message;
+        if (shouldFallback) {
+          continue;
+        }
+        break;
+      }
+    }
+
+    if (!text && lastError) {
+      return NextResponse.json({ error: lastError }, { status: 502 });
+    }
 
     return NextResponse.json({ text });
   } catch (err: unknown) {
