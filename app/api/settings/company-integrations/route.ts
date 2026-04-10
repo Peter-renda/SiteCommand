@@ -39,7 +39,9 @@ const XERO_KEYS = [
   "XERO_REFRESH_TOKEN",
 ] as const;
 
-const ALL_KEYS = [...SAGE_KEYS, ...QBO_KEYS, ...XERO_KEYS] as const;
+const ELEVENLABS_KEYS = ["ELEVENLABS_API_KEY"] as const;
+
+const ALL_KEYS = [...SAGE_KEYS, ...QBO_KEYS, ...XERO_KEYS, ...ELEVENLABS_KEYS] as const;
 type AllKey = (typeof ALL_KEYS)[number];
 
 async function requireSuperAdmin() {
@@ -58,9 +60,10 @@ export async function GET(req: NextRequest) {
   const integration = searchParams.get("integration"); // optional filter
 
   let keysToFetch: readonly string[];
-  if (integration === "quickbooks") keysToFetch = QBO_KEYS;
-  else if (integration === "xero")   keysToFetch = XERO_KEYS;
-  else if (integration === "sage")   keysToFetch = SAGE_KEYS;
+  if (integration === "quickbooks")   keysToFetch = QBO_KEYS;
+  else if (integration === "xero")    keysToFetch = XERO_KEYS;
+  else if (integration === "sage")    keysToFetch = SAGE_KEYS;
+  else if (integration === "elevenlabs") keysToFetch = ELEVENLABS_KEYS;
   else                                keysToFetch = ALL_KEYS;
 
   const supabase = getSupabase();

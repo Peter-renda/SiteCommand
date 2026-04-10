@@ -928,6 +928,94 @@ function XeroAppSection() {
   );
 }
 
+// ── ElevenLabs section (company super_admin) ─────────────────────────────────
+
+function ElevenLabsCompanySection() {
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [form, setForm] = useState({ ELEVENLABS_API_KEY: "" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/settings/company-integrations?integration=elevenlabs")
+      .then((r) => r.json())
+      .then((data: { ELEVENLABS_API_KEY: string | null }) => {
+        setApiKey(data.ELEVENLABS_API_KEY);
+        setForm({ ELEVENLABS_API_KEY: data.ELEVENLABS_API_KEY ?? "" });
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true); setError(""); setSaved(false);
+
+    const payload: Record<string, string> = {};
+    if (form.ELEVENLABS_API_KEY.trim()) payload.ELEVENLABS_API_KEY = form.ELEVENLABS_API_KEY.trim();
+
+    const res = await fetch("/api/settings/company-integrations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    setSaving(false);
+
+    if (!res.ok) { setError(data.error ?? "Failed to save settings"); return; }
+
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+    setApiKey(form.ELEVENLABS_API_KEY.trim() || null);
+  }
+
+  const configured = !!apiKey;
+
+  if (loading) return <div className="text-xs text-gray-400 py-8 text-center">Loading...</div>;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">ElevenLabs</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Enables audio transcription in Quick Notes via ElevenLabs Speech-to-Text.
+          </p>
+        </div>
+        <span
+          className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ml-4 ${
+            configured ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
+          }`}
+        >
+          {configured ? "Configured" : "Not configured"}
+        </span>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-4">
+        <div>
+          <label htmlFor="elevenlabs-company-api-key" className="block text-xs font-medium text-gray-700 mb-1">
+            API Key
+          </label>
+          <MaskedInput
+            id="elevenlabs-company-api-key"
+            value={form.ELEVENLABS_API_KEY}
+            onChange={(v) => setForm({ ELEVENLABS_API_KEY: v })}
+            placeholder={apiKey ? "••••••••••••••••" : "sk_..."}
+          />
+          <p className="text-xs text-gray-400 mt-1">Found in your ElevenLabs account under Profile → API Keys.</p>
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        <div className="pt-1">
+          <SaveButton saving={saving} saved={saved} />
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ── ElevenLabs section (site_admin only) ─────────────────────────────────────
 
 function ElevenLabsSection() {
@@ -1054,6 +1142,7 @@ export default function IntegrationsClient({ isSiteAdmin }: { isSiteAdmin: boole
           <SageSection />
           <QuickBooksSection />
           <XeroSection />
+          <ElevenLabsCompanySection />
         </>
       )}
     </div>

@@ -8,19 +8,36 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Lookup order: platform_settings → env var
+  // Lookup order: company_integrations → platform_settings → env var
   let apiKey: string | undefined;
   try {
     const supabase = getSupabase();
-    const { data } = await supabase
-      .from("platform_settings")
-      .select("value")
-      .eq("key", "ELEVENLABS_API_KEY")
-      .single();
-    apiKey = data?.value ?? undefined;
+
+    // 1. Company-level key (set by company super_admin)
+    if (session.company_id) {
+      const { data } = await supabase
+        .from("company_integrations")
+        .select("value")
+        .eq("company_id", session.company_id)
+        .eq("key", "ELEVENLABS_API_KEY")
+        .single();
+      apiKey = data?.value ?? undefined;
+    }
+
+    // 2. Platform-level key (set by site admin)
+    if (!apiKey) {
+      const { data } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "ELEVENLABS_API_KEY")
+        .single();
+      apiKey = data?.value ?? undefined;
+    }
   } catch {
     // DB unavailable – fall through to env var
   }
+
+  // 3. Environment variable fallback
   apiKey ??= process.env.ELEVENLABS_API_KEY;
 
   if (!apiKey) {
