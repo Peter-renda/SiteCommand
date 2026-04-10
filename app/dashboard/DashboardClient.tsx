@@ -366,7 +366,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
   }, []);
 
   const searchQuery = dashboardSearch.trim().toLowerCase();
-  const dashboardSearchResults = searchQuery.length < 2
+  const dashboardSearchResults = searchQuery.length < 1
     ? []
     : [
       ...projects
@@ -605,7 +605,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
               placeholder="Search portal or ask AI..."
               className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
-            {showDashboardSearch && searchQuery.length >= 2 && (
+            {showDashboardSearch && dashboardSearch.trim().length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto">
                 <div className="px-3 py-2 border-b border-gray-100 bg-gray-50/80">
                   <button
