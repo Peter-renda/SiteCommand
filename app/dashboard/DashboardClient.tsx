@@ -358,12 +358,15 @@ export default function DashboardClient({ username, email, role, companyRole, us
         setCompanyMenuOpen(false);
       }
       if (dashboardSearchRef.current && !dashboardSearchRef.current.contains(e.target as Node)) {
-        setShowDashboardSearch(false);
+        // Keep the dropdown open while the AI is loading so the answer can be displayed
+        if (!aiSearchLoading) {
+          setShowDashboardSearch(false);
+        }
       }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  }, [aiSearchLoading]);
 
   const searchQuery = dashboardSearch.trim().toLowerCase();
   const dashboardSearchResults = searchQuery.length < 1
@@ -443,7 +446,12 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
   async function askAi() {
     const question = dashboardSearch.trim();
-    if (question.length < 3 || aiSearchLoading) return;
+    if (aiSearchLoading) return;
+    if (question.length < 3) {
+      setAiSearchError("Type at least 3 characters to use AI search.");
+      setShowDashboardSearch(true);
+      return;
+    }
     setAiSearchLoading(true);
     setAiSearchError("");
     setAiSearchAnswer("");
