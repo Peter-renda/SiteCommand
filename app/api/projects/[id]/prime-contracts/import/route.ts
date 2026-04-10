@@ -80,7 +80,6 @@ ${pdfText.slice(0, 10000)}`;
       contents: prompt,
     });
 
-    let text = (result.text ?? "").trim();
     // Strip markdown code fences if present
     text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
 
