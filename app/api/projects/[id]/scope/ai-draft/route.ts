@@ -38,11 +38,32 @@ Requirements:
 - Do not use bullet points or headers — write in paragraph form only
 - Do not include any preamble like "Here is a scope..." — just provide the scope text directly`;
 
-    const result = await genai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt,
-    });
-    const text = (result.text ?? "").trim();
+    const preferredModels = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash"].filter(
+      (value): value is string => Boolean(value)
+    );
+    let text = "";
+    let lastError = "";
+    for (const model of preferredModels) {
+      try {
+        const result = await genai.models.generateContent({
+          model,
+          contents: prompt,
+        });
+        text = (result.text ?? "").trim();
+        if (text) break;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "AI generation failed";
+        lastError = message;
+        if (message.toLowerCase().includes("not_found") || message.toLowerCase().includes("no longer available")) {
+          continue;
+        }
+        break;
+      }
+    }
+
+    if (!text && lastError) {
+      return NextResponse.json({ error: lastError }, { status: 502 });
+    }
 
     return NextResponse.json({ text });
   } catch (err: unknown) {
