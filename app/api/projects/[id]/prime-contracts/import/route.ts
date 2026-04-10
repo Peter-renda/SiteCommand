@@ -99,32 +99,10 @@ Return ONLY a valid JSON object — no markdown, no explanation — with exactly
 Document text:
 ${pdfText.slice(0, 10000)}`;
 
-    const preferredModels = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash"].filter(
-      (value): value is string => Boolean(value)
-    );
-    let text = "";
-    let lastError = "";
-    for (const model of preferredModels) {
-      try {
-        const result = await genai.models.generateContent({
-          model,
-          contents: prompt,
-        });
-        text = (result.text ?? "").trim();
-        if (text) break;
-      } catch (err: unknown) {
-        const { message, shouldFallback } = parseModelError(err);
-        lastError = message;
-        if (shouldFallback) {
-          continue;
-        }
-        break;
-      }
-    }
-
-    if (!text && lastError) {
-      return NextResponse.json({ error: lastError }, { status: 502 });
-    }
+    const result = await genai.models.generateContent({
+      model: "gemini-2.0-flash-lite",
+      contents: prompt,
+    });
 
     // Strip markdown code fences if present
     text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");

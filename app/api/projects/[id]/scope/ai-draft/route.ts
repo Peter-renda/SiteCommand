@@ -62,32 +62,11 @@ Requirements:
 - Do not use bullet points or headers — write in paragraph form only
 - Do not include any preamble like "Here is a scope..." — just provide the scope text directly`;
 
-    const preferredModels = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash"].filter(
-      (value): value is string => Boolean(value)
-    );
-    let text = "";
-    let lastError = "";
-    for (const model of preferredModels) {
-      try {
-        const result = await genai.models.generateContent({
-          model,
-          contents: prompt,
-        });
-        text = (result.text ?? "").trim();
-        if (text) break;
-      } catch (err: unknown) {
-        const { message, shouldFallback } = parseModelError(err);
-        lastError = message;
-        if (shouldFallback) {
-          continue;
-        }
-        break;
-      }
-    }
-
-    if (!text && lastError) {
-      return NextResponse.json({ error: lastError }, { status: 502 });
-    }
+    const result = await genai.models.generateContent({
+      model: "gemini-2.0-flash-lite",
+      contents: prompt,
+    });
+    const text = (result.text ?? "").trim();
 
     return NextResponse.json({ text });
   } catch (err: unknown) {

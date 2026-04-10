@@ -69,30 +69,6 @@ function citedIndexes(answer: string) {
   return [...new Set(matches.map((m) => Number(m[1])).filter((n) => Number.isFinite(n)))];
 }
 
-function parseModelError(err: unknown): { message: string; shouldFallback: boolean } {
-  const record = err && typeof err === "object" ? (err as Record<string, unknown>) : null;
-  const nested = record?.error && typeof record.error === "object" ? (record.error as Record<string, unknown>) : null;
-  const code = nested?.code ?? record?.code;
-  const status = String(nested?.status ?? record?.status ?? "").toUpperCase();
-  const rawMessage =
-    typeof nested?.message === "string"
-      ? nested.message
-      : typeof record?.message === "string"
-        ? record.message
-        : err instanceof Error
-          ? err.message
-          : JSON.stringify(err);
-  const message = rawMessage || "Unknown model error";
-  const lower = message.toLowerCase();
-  const shouldFallback =
-    code === 404 ||
-    status.includes("NOT_FOUND") ||
-    lower.includes("not_found") ||
-    lower.includes("no longer available") ||
-    lower.includes("model not found");
-  return { message, shouldFallback };
-}
-
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -333,8 +309,11 @@ export async function POST(req: NextRequest) {
 
   const context = ranked.map((s) => `[${s.index}] ${s.title}\n${s.snippet}`).join("\n\n");
 
-  const genai = new GoogleGenAI({ apiKey });
-  const prompt = `You are a construction project assistant for SiteCommand.
+  try {
+    const genai = new GoogleGenAI({ apiKey });
+    const result = await genai.models.generateContent({
+      model: "gemini-2.0-flash-lite",
+      contents: `You are a construction project assistant for SiteCommand.
 Use ONLY the provided context to answer the user's question.
 If information is uncertain or missing, explicitly say what is unknown and ask the user to confirm.
 When possible, include a clear location reference (example: page number, drawing number, RFI number, log date).
@@ -345,48 +324,22 @@ User question:
 ${userQuestion}
 
 Context:
-${context}`;
+${context}`,
+    });
 
-  const preferredModels = [
-    process.env.GEMINI_MODEL,
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-  ].filter((value): value is string => Boolean(value));
+    const answer = (result.text ?? "").trim() || "I could not find enough information to answer this confidently. Please confirm.";
+    const cited = citedIndexes(answer);
+    const selectedSources = (cited.length > 0
+      ? ranked.filter((s) => cited.includes(s.index))
+      : ranked.slice(0, 6)
+    ).slice(0, 8);
 
-  let answer = "";
-  let lastError = "";
-
-  for (const model of preferredModels) {
-    try {
-      const result = await genai.models.generateContent({
-        model,
-        contents: prompt,
-      });
-      answer = (result.text ?? "").trim();
-      if (answer) break;
-    } catch (err: unknown) {
-      const { message, shouldFallback } = parseModelError(err);
-      lastError = message;
-      if (shouldFallback) {
-        continue;
-      }
-      break;
-    }
+    return NextResponse.json({
+      answer,
+      sources: selectedSources.map((s) => ({ id: s.id, title: s.title, href: s.href })),
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "AI generation failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  if (!answer && lastError) {
-    return NextResponse.json({ error: `AI model request failed: ${lastError}` }, { status: 502 });
-  }
-
-  answer = answer || "I could not find enough information to answer this confidently. Please confirm.";
-  const cited = citedIndexes(answer);
-  const selectedSources = (cited.length > 0
-    ? ranked.filter((s) => cited.includes(s.index))
-    : ranked.slice(0, 6)
-  ).slice(0, 8);
-
-  return NextResponse.json({
-    answer,
-    sources: selectedSources.map((s) => ({ id: s.id, title: s.title, href: s.href })),
-  });
 }
