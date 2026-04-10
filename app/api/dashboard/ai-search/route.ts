@@ -339,7 +339,11 @@ ${context}`,
       sources: selectedSources.map((s) => ({ id: s.id, title: s.title, href: s.href })),
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "AI generation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const raw = err instanceof Error ? err.message : String(err);
+    const isQuota = raw.includes("429") || raw.includes("RESOURCE_EXHAUSTED") || raw.includes("quota");
+    const message = isQuota
+      ? "AI search quota exceeded. The Gemini API key has reached its free-tier limit (limit: 0). Please create a new API key at aistudio.google.com/apikey using 'Create API key in new project', then update GEMINI_API_KEY."
+      : "AI generation failed. Please try again.";
+    return NextResponse.json({ error: message }, { status: isQuota ? 503 : 500 });
   }
 }
