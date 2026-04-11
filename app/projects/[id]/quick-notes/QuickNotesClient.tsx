@@ -40,6 +40,7 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [fontSize, setFontSize] = useState<(typeof FONT_SIZES)[number]["value"]>("3");
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -99,6 +100,7 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
     const next = createNote(`Note ${notes.length + 1}`);
     setNotes((prev) => [next, ...prev]);
     setActiveId(next.id);
+    setIsEditing(true);
   }
 
   function deleteActiveNote() {
@@ -223,7 +225,7 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
                 <button
                   key={note.id}
                   type="button"
-                  onClick={() => setActiveId(note.id)}
+                  onClick={() => { setActiveId(note.id); setIsEditing(false); }}
                   className={`w-full text-left p-2.5 rounded-md border transition ${
                     note.id === activeId
                       ? "bg-blue-50 border-blue-200"
@@ -243,78 +245,108 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
             ) : (
               <>
                 <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => runCommand("bold")}
-                    className="px-2.5 py-1.5 border border-gray-300 rounded text-sm font-semibold"
-                  >
-                    B
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => runCommand("underline")}
-                    className="px-2.5 py-1.5 border border-gray-300 rounded text-sm underline"
-                  >
-                    U
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => runCommand("insertUnorderedList")}
-                    className="px-2.5 py-1.5 border border-gray-300 rounded text-sm"
-                  >
-                    • List
-                  </button>
+                  {isEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => runCommand("bold")}
+                        className="px-2.5 py-1.5 border border-gray-300 rounded text-sm font-semibold"
+                      >
+                        B
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => runCommand("underline")}
+                        className="px-2.5 py-1.5 border border-gray-300 rounded text-sm underline"
+                      >
+                        U
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => runCommand("insertUnorderedList")}
+                        className="px-2.5 py-1.5 border border-gray-300 rounded text-sm"
+                      >
+                        • List
+                      </button>
 
-                  <select
-                    value={fontSize}
-                    onChange={(e) => {
-                      const value = e.target.value as (typeof FONT_SIZES)[number]["value"];
-                      setFontSize(value);
-                      runCommand("fontSize", value);
-                    }}
-                    className="px-2.5 py-1.5 border border-gray-300 rounded text-sm"
-                  >
-                    {FONT_SIZES.map((size) => (
-                      <option key={size.value} value={size.value}>
-                        {size.label}
-                      </option>
-                    ))}
-                  </select>
+                      <select
+                        value={fontSize}
+                        onChange={(e) => {
+                          const value = e.target.value as (typeof FONT_SIZES)[number]["value"];
+                          setFontSize(value);
+                          runCommand("fontSize", value);
+                        }}
+                        className="px-2.5 py-1.5 border border-gray-300 rounded text-sm"
+                      >
+                        {FONT_SIZES.map((size) => (
+                          <option key={size.value} value={size.value}>
+                            {size.label}
+                          </option>
+                        ))}
+                      </select>
 
-                  <button
-                    type="button"
-                    onClick={toggleRecording}
-                    disabled={transcribing}
-                    className={`px-3 py-1.5 rounded text-sm font-medium ${
-                      recording ? "bg-red-600 text-white" : "bg-indigo-600 text-white"
-                    } disabled:opacity-50`}
-                  >
-                    {recording ? "Stop Recording" : "Record with ElevenLabs"}
-                  </button>
+                      <button
+                        type="button"
+                        onClick={toggleRecording}
+                        disabled={transcribing}
+                        className={`px-3 py-1.5 rounded text-sm font-medium ${
+                          recording ? "bg-red-600 text-white" : "bg-indigo-600 text-white"
+                        } disabled:opacity-50`}
+                      >
+                        {recording ? "Stop Recording" : "Record with ElevenLabs"}
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={deleteActiveNote}
-                    className="ml-auto px-3 py-1.5 rounded border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    Delete note
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(false)}
+                        className="ml-auto px-3 py-1.5 rounded bg-gray-900 text-white text-sm font-medium hover:bg-black"
+                      >
+                        Save
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(true)}
+                        className="px-3 py-1.5 rounded bg-gray-900 text-white text-sm font-medium hover:bg-black"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={deleteActiveNote}
+                        className="ml-auto px-3 py-1.5 rounded border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Delete note
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 <input
                   type="text"
                   value={activeNote.title}
                   onChange={(e) => updateActive({ title: e.target.value })}
-                  className="mt-3 px-3 py-2 border border-gray-200 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  readOnly={!isEditing}
+                  className={`mt-3 px-3 py-2 border border-gray-200 rounded-md text-sm font-medium focus:outline-none ${
+                    isEditing
+                      ? "focus:ring-2 focus:ring-gray-900"
+                      : "bg-gray-50 cursor-default text-gray-700"
+                  }`}
                   placeholder="Note title"
                 />
 
                 <div
                   ref={editorRef}
-                  contentEditable
+                  contentEditable={isEditing}
                   suppressContentEditableWarning
-                  onInput={() => updateActive({ content: editorRef.current?.innerHTML ?? "" })}
-                  className="mt-3 flex-1 border border-gray-200 rounded-md p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 overflow-y-auto"
+                  onInput={() => isEditing && updateActive({ content: editorRef.current?.innerHTML ?? "" })}
+                  className={`mt-3 flex-1 border border-gray-200 rounded-md p-3 text-sm text-gray-900 overflow-y-auto ${
+                    isEditing
+                      ? "focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      : "bg-gray-50 cursor-default"
+                  }`}
                   style={{ lineHeight: 1.6 }}
                 />
 
