@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import ProjectNav from "@/components/ProjectNav";
 import { SkeletonTable } from "@/app/components/Skeleton";
+import * as XLSX from "xlsx";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -759,6 +760,7 @@ export default function BudgetClient({
   const exportRef = useRef<HTMLDivElement>(null);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // Row action menu
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
