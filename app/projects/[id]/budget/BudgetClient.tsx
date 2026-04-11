@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import ProjectNav from "@/components/ProjectNav";
 import { SkeletonTable } from "@/app/components/Skeleton";
+import * as XLSX from "xlsx";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -333,10 +334,12 @@ function MoneyInput({
   value,
   onChange,
   placeholder,
+  disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   return (
     <input
@@ -345,17 +348,20 @@ function MoneyInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "0.00"}
-      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+      disabled={disabled}
+      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
     />
   );
 }
 
 function LineItemModal({
   initial,
+  lockOriginalBudgetAmount = false,
   onConfirm,
   onCancel,
 }: {
   initial?: BudgetLineItem;
+  lockOriginalBudgetAmount?: boolean;
   onConfirm: (data: LineItemFormData) => void;
   onCancel: () => void;
 }) {
@@ -434,7 +440,16 @@ function LineItemModal({
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Budget</p>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Original Budget Amount">
-              <MoneyInput value={form.original_budget_amount} onChange={(v) => set("original_budget_amount", v)} />
+              <MoneyInput
+                value={form.original_budget_amount}
+                onChange={(v) => set("original_budget_amount", v)}
+                disabled={lockOriginalBudgetAmount}
+              />
+              {lockOriginalBudgetAmount && (
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Original Budget Amount is locked for this budget.
+                </p>
+              )}
             </Field>
             <Field label="Budget Modifications">
               <MoneyInput value={form.budget_modifications} onChange={(v) => set("budget_modifications", v)} />
@@ -535,6 +550,76 @@ function SnapshotModal({
             Create Snapshot
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BudgetChangeModal({
+  items,
+  onConfirm,
+  onCancel,
+}: {
+  items: BudgetLineItem[];
+  onConfirm: (payload: { itemId: string; amount: number }) => void;
+  onCancel: () => void;
+}) {
+  const [itemId, setItemId] = useState(items[0]?.id ?? "");
+  const [amount, setAmount] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!itemId) return;
+    onConfirm({ itemId, amount: numVal(amount) });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md bg-white rounded-xl shadow-2xl">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900">Create Budget Change</h2>
+          <button onClick={onCancel} className="text-gray-400 hover:text-gray-700 transition-colors" aria-label="Close">
+            ×
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Budget Line Item</label>
+            <select
+              value={itemId}
+              onChange={(e) => setItemId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            >
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.cost_code} — {item.description || "No description"}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Budget Change Amount</label>
+            <MoneyInput value={amount} onChange={setAmount} />
+            <p className="mt-1 text-[11px] text-gray-500">
+              This updates the selected line item&apos;s Pending Budget Changes.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Create Budget Change
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -660,6 +745,7 @@ export default function BudgetClient({
   const [showLineItemModal, setShowLineItemModal] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetLineItem | null>(null);
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
+  const [showBudgetChangeModal, setShowBudgetChangeModal] = useState(false);
   const [showErpModal, setShowErpModal] = useState(false);
   const [showCommittedCostsModal, setShowCommittedCostsModal] = useState(false);
   const [committedCostsLoading, setCommittedCostsLoading] = useState(false);
@@ -667,12 +753,14 @@ export default function BudgetClient({
   const [committedCostsData, setCommittedCostsData] = useState<CommittedCostsDetail | null>(null);
   const [forecastEdits, setForecastEdits] = useState<Record<string, ForecastEdit>>({});
   const [selectedForecastItemId, setSelectedForecastItemId] = useState<string | null>(null);
+  const [isBudgetLocked, setIsBudgetLocked] = useState(false);
 
   // Dropdown refs
   const createRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // Row action menu
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
@@ -732,7 +820,9 @@ export default function BudgetClient({
       body: JSON.stringify({
         cost_code: data.cost_code,
         description: data.description,
-        original_budget_amount: numVal(data.original_budget_amount),
+        original_budget_amount: isBudgetLocked
+          ? editingItem.original_budget_amount
+          : numVal(data.original_budget_amount),
         budget_modifications: numVal(data.budget_modifications),
         approved_cos: numVal(data.approved_cos),
         pending_budget_changes: numVal(data.pending_budget_changes),
@@ -747,6 +837,15 @@ export default function BudgetClient({
       setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
     }
     setEditingItem(null);
+  }
+
+  function handleLockBudget() {
+    if (isBudgetLocked) return;
+    const confirmed = window.confirm(
+      "Lock budget? Once locked, Original Budget Amount values can no longer be edited."
+    );
+    if (!confirmed) return;
+    setIsBudgetLocked(true);
   }
 
   async function handleDeleteItem(id: string) {
@@ -766,6 +865,94 @@ export default function BudgetClient({
       setSnapshots((prev) => [snap, ...prev]);
     }
     setShowSnapshotModal(false);
+  }
+
+  async function handleCreateBudgetChange(payload: { itemId: string; amount: number }) {
+    const targetItem = items.find((item) => item.id === payload.itemId);
+    if (!targetItem) return;
+    const res = await fetch(`/api/projects/${projectId}/budget/${payload.itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cost_code: targetItem.cost_code,
+        description: targetItem.description,
+        original_budget_amount: targetItem.original_budget_amount,
+        budget_modifications: targetItem.budget_modifications,
+        approved_cos: targetItem.approved_cos,
+        pending_budget_changes: targetItem.pending_budget_changes + payload.amount,
+        committed_costs: targetItem.committed_costs,
+        job_to_date_costs: targetItem.job_to_date_costs,
+        commitments_invoiced: targetItem.commitments_invoiced,
+        pending_cost_changes: targetItem.pending_cost_changes,
+      }),
+    });
+    if (res.ok) {
+      const updated: BudgetLineItem = await res.json();
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setShowBudgetChangeModal(false);
+    }
+  }
+
+  async function handleImportBudgetFile(file: File) {
+    const arrayBuffer = await file.arrayBuffer();
+    const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+
+    const normalize = (v: unknown) => String(v ?? "").trim().toLowerCase();
+    const toBool = (v: unknown) => {
+      const value = normalize(v);
+      return value === "true" || value === "1" || value === "yes";
+    };
+    const toNumber = (v: unknown) => {
+      const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const importedItems: BudgetLineItem[] = [];
+    for (let i = 0; i < rawRows.length; i += 1) {
+      const row = rawRows[i];
+      const costCode = String(row["Cost Code"] ?? "").trim();
+      if (!costCode) continue;
+
+      const manualCalculation = toBool(row["Manual Calculation"]);
+      const budgetAmount = manualCalculation
+        ? toNumber(row["Budget Amount"])
+        : toNumber(row["Unit Quantity"]) * toNumber(row["Unit Cost"]);
+
+      const res = await fetch(`/api/projects/${projectId}/budget`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cost_code: costCode,
+          description: String(row["Description"] ?? "").trim(),
+          original_budget_amount: budgetAmount,
+          budget_modifications: 0,
+          approved_cos: 0,
+          pending_budget_changes: 0,
+          committed_costs: 0,
+          job_to_date_costs: 0,
+          commitments_invoiced: 0,
+          pending_cost_changes: 0,
+          sort_order: items.length + importedItems.length,
+        }),
+      });
+      if (res.ok) {
+        const created: BudgetLineItem = await res.json();
+        importedItems.push(created);
+      }
+    }
+
+    if (importedItems.length > 0) {
+      setItems((prev) => [...prev, ...importedItems]);
+    }
+  }
+
+  async function handlePickImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleImportBudgetFile(file);
+    e.target.value = "";
   }
 
   function handleErpResend() {
@@ -1044,7 +1231,56 @@ export default function BudgetClient({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-stretch gap-2 min-w-[220px]">
+            <button
+              onClick={handleLockBudget}
+              disabled={isBudgetLocked}
+              className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                isBudgetLocked
+                  ? "bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed"
+                  : "text-white bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              {isBudgetLocked ? "Budget Locked" : "Lock Budget"}
+            </button>
+
+            <button
+              onClick={() => setShowSnapshotModal(true)}
+              className="px-3 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+            >
+              Create Snapshot
+            </button>
+
+            <button
+              onClick={() => setShowBudgetChangeModal(true)}
+              disabled={!isBudgetLocked || items.length === 0}
+              className="px-3 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors disabled:bg-orange-200 disabled:cursor-not-allowed"
+            >
+              Create Budget Change
+            </button>
+
+            <a
+              href="#"
+              onClick={(e) => e.preventDefault()}
+              className="text-sm text-blue-600 hover:text-blue-800 underline underline-offset-2"
+            >
+              Download Budget Import Template
+            </a>
+
+            <button
+              onClick={() => importInputRef.current?.click()}
+              className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+            >
+              Import
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handlePickImportFile}
+            />
+
             {/* Create dropdown */}
             <div ref={createRef} className="relative">
               <button
@@ -1349,12 +1585,20 @@ export default function BudgetClient({
       {editingItem && (
         <LineItemModal
           initial={editingItem}
+          lockOriginalBudgetAmount={isBudgetLocked}
           onConfirm={handleEditLineItem}
           onCancel={() => setEditingItem(null)}
         />
       )}
       {showSnapshotModal && (
         <SnapshotModal onConfirm={handleCreateSnapshot} onCancel={() => setShowSnapshotModal(false)} />
+      )}
+      {showBudgetChangeModal && (
+        <BudgetChangeModal
+          items={items}
+          onConfirm={handleCreateBudgetChange}
+          onCancel={() => setShowBudgetChangeModal(false)}
+        />
       )}
       {showErpModal && (
         <ErpConfirmModal onConfirm={handleErpResend} onCancel={() => setShowErpModal(false)} />
