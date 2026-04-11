@@ -893,68 +893,6 @@ export default function BudgetClient({
     }
   }
 
-  async function handleImportBudgetFile(file: File) {
-    const arrayBuffer = await file.arrayBuffer();
-    const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-
-    const normalize = (v: unknown) => String(v ?? "").trim().toLowerCase();
-    const toBool = (v: unknown) => {
-      const value = normalize(v);
-      return value === "true" || value === "1" || value === "yes";
-    };
-    const toNumber = (v: unknown) => {
-      const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
-      return Number.isFinite(n) ? n : 0;
-    };
-
-    const importedItems: BudgetLineItem[] = [];
-    for (let i = 0; i < rawRows.length; i += 1) {
-      const row = rawRows[i];
-      const costCode = String(row["Cost Code"] ?? "").trim();
-      if (!costCode) continue;
-
-      const manualCalculation = toBool(row["Manual Calculation"]);
-      const budgetAmount = manualCalculation
-        ? toNumber(row["Budget Amount"])
-        : toNumber(row["Unit Quantity"]) * toNumber(row["Unit Cost"]);
-
-      const res = await fetch(`/api/projects/${projectId}/budget`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cost_code: costCode,
-          description: String(row["Description"] ?? "").trim(),
-          original_budget_amount: budgetAmount,
-          budget_modifications: 0,
-          approved_cos: 0,
-          pending_budget_changes: 0,
-          committed_costs: 0,
-          job_to_date_costs: 0,
-          commitments_invoiced: 0,
-          pending_cost_changes: 0,
-          sort_order: items.length + importedItems.length,
-        }),
-      });
-      if (res.ok) {
-        const created: BudgetLineItem = await res.json();
-        importedItems.push(created);
-      }
-    }
-
-    if (importedItems.length > 0) {
-      setItems((prev) => [...prev, ...importedItems]);
-    }
-  }
-
-  async function handlePickImportFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await handleImportBudgetFile(file);
-    e.target.value = "";
-  }
-
   function handleErpResend() {
     // Placeholder: integrate with ERP API
     setShowErpModal(false);
@@ -1231,7 +1169,7 @@ export default function BudgetClient({
             )}
           </div>
 
-          <div className="flex flex-col items-stretch gap-2 min-w-[220px]">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleLockBudget}
               disabled={isBudgetLocked}
@@ -1246,7 +1184,7 @@ export default function BudgetClient({
 
             <button
               onClick={() => setShowSnapshotModal(true)}
-              className="px-3 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+              className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
             >
               Create Snapshot
             </button>
@@ -1258,28 +1196,6 @@ export default function BudgetClient({
             >
               Create Budget Change
             </button>
-
-            <a
-              href="#"
-              onClick={(e) => e.preventDefault()}
-              className="text-sm text-blue-600 hover:text-blue-800 underline underline-offset-2"
-            >
-              Download Budget Import Template
-            </a>
-
-            <button
-              onClick={() => importInputRef.current?.click()}
-              className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
-            >
-              Import
-            </button>
-            <input
-              ref={importInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={handlePickImportFile}
-            />
 
             {/* Create dropdown */}
             <div ref={createRef} className="relative">
