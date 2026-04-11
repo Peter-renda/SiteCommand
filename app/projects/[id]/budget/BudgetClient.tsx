@@ -592,15 +592,30 @@ type ColTooltip = {
 
 function ColumnTooltip({ label, tooltip }: { label: string; tooltip: ColTooltip }) {
   const [show, setShow] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+
+  function handleEnter() {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setShow(true);
+  }
+
   return (
     <div
-      className="relative inline-block"
-      onMouseEnter={() => setShow(true)}
+      ref={triggerRef}
+      className="inline-block"
+      onMouseEnter={handleEnter}
       onMouseLeave={() => setShow(false)}
     >
       <span className="cursor-default select-none">{label}</span>
-      {show && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg bg-gray-900 text-white shadow-xl p-3 text-xs pointer-events-none">
+      {show && pos && (
+        <div
+          className="fixed z-[100] w-64 rounded-lg bg-gray-900 text-white shadow-xl p-3 text-xs pointer-events-none"
+          style={{ top: pos.top, left: pos.left }}
+        >
           <div className="font-semibold text-sm leading-tight">
             {label}
             {tooltip.subtitle && (
@@ -1039,7 +1054,7 @@ export default function BudgetClient({
                 </svg>
               </button>
               {showCreateMenu && (
-                <div className="absolute left-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                <div className="absolute left-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
                   <button
                     onClick={() => { setShowLineItemModal(true); setShowCreateMenu(false); }}
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
@@ -1093,7 +1108,7 @@ export default function BudgetClient({
                 </svg>
               </button>
               {showExportMenu && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
                   <button
                     onClick={() => { exportPDF(items, forecastEdits); setShowExportMenu(false); }}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
