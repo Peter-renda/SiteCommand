@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import ProjectNav from "@/components/ProjectNav";
 import { SkeletonTable } from "@/app/components/Skeleton";
@@ -594,6 +595,9 @@ function ColumnTooltip({ label, tooltip }: { label: string; tooltip: ColTooltip 
   const [show, setShow] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   function handleEnter() {
     if (triggerRef.current) {
@@ -603,17 +607,10 @@ function ColumnTooltip({ label, tooltip }: { label: string; tooltip: ColTooltip 
     setShow(true);
   }
 
-  return (
-    <div
-      ref={triggerRef}
-      className="inline-block"
-      onMouseEnter={handleEnter}
-      onMouseLeave={() => setShow(false)}
-    >
-      <span className="cursor-default select-none">{label}</span>
-      {show && pos && (
+  const tooltipEl = show && pos && mounted
+    ? createPortal(
         <div
-          className="fixed z-[100] w-64 rounded-lg bg-gray-900 text-white shadow-xl p-3 text-xs pointer-events-none"
+          className="fixed z-[200] w-64 rounded-lg bg-gray-900 text-white shadow-xl p-3 text-xs pointer-events-none"
           style={{ top: pos.top, left: pos.left }}
         >
           <div className="font-semibold text-sm leading-tight">
@@ -626,8 +623,20 @@ function ColumnTooltip({ label, tooltip }: { label: string; tooltip: ColTooltip 
           <div className="border-t border-gray-700 pt-2 space-y-1 leading-relaxed">
             {tooltip.body}
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div
+      ref={triggerRef}
+      className="inline-block"
+      onMouseEnter={handleEnter}
+      onMouseLeave={() => setShow(false)}
+    >
+      <span className="cursor-default select-none">{label}</span>
+      {tooltipEl}
     </div>
   );
 }
