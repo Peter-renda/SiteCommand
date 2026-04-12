@@ -1414,20 +1414,13 @@ export default function BudgetClient({
               onClick={() => setShowLineItemModal(true)}
               className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
             >
-              + Create Budget Code
+              + Create Budget Line Item
             </button>
             <button
               onClick={() => setShowSnapshotModal(true)}
               className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
             >
               + Create Snapshot
-            </button>
-            <button
-              onClick={() => setShowBudgetChangeModal(true)}
-              disabled={!isBudgetLocked || items.length === 0}
-              className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors disabled:bg-orange-200 disabled:cursor-not-allowed text-left"
-            >
-              + Create Budget Change
             </button>
             <button
               onClick={handleLockBudget}
