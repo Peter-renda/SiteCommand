@@ -29,11 +29,6 @@ type Contact = {
   email: string | null;
 };
 
-type ContactOption = {
-  id: string;
-  label: string;
-};
-
 type RecipientRow = {
   change_event_id: string;
   change_event_line_item_id: string;
@@ -69,19 +64,6 @@ export default function SendRFQsClient({
   const [distributionContactId, setDistributionContactId] = useState("");
   const [rows, setRows] = useState<RecipientRow[]>([]);
   const [error, setError] = useState("");
-  const contactOptions = useMemo<ContactOption[]>(() => {
-    return contacts
-      .map((c) => {
-        const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim();
-        const label = fullName || (c.email ?? "").trim();
-        return { id: c.id, label };
-      })
-      .filter((c) => Boolean(c.label));
-  }, [contacts]);
-  const contactOptionIds = useMemo(
-    () => new Set(contactOptions.map((c) => c.id)),
-    [contactOptions],
-  );
 
   useEffect(() => {
     let mounted = true;
@@ -131,12 +113,7 @@ export default function SendRFQsClient({
           });
         }
       }
-      setRows(
-        builtRows.map((row) => ({
-          ...row,
-          recipient_contact_id: contactOptionIds.has(row.recipient_contact_id) ? row.recipient_contact_id : "",
-        }))
-      );
+      setRows(builtRows);
       setLoading(false);
     }
     load().catch(() => {
@@ -147,7 +124,7 @@ export default function SendRFQsClient({
     return () => {
       mounted = false;
     };
-  }, [projectId, selectedIds, contactOptionIds]);
+  }, [projectId, selectedIds]);
 
   function contactLabel(id: string) {
     const c = contacts.find((x) => x.id === id);
@@ -221,11 +198,14 @@ export default function SendRFQsClient({
                 <label className="text-sm text-gray-700">Distribution</label>
                 <select value={distributionContactId} onChange={(e) => setDistributionContactId(e.target.value)} className="h-10 px-3 border border-gray-300 rounded text-sm w-full md:w-[420px]">
                   <option value="">Select A Person...</option>
-                  {contactOptions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
+                  {contacts.map((c) => {
+                    const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim();
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {fullName || c.email || "Unnamed Contact"}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </section>
@@ -268,11 +248,14 @@ export default function SendRFQsClient({
                             className="h-9 px-2 border border-gray-300 rounded min-w-56"
                           >
                             <option value="">Select recipient...</option>
-                            {contactOptions.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.label}
-                              </option>
-                            ))}
+                            {contacts.map((c) => {
+                              const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim();
+                              return (
+                                <option key={c.id} value={c.id}>
+                                  {fullName || c.email || "Unnamed Contact"}
+                                </option>
+                              );
+                            })}
                           </select>
                           {row.recipient_contact_id && (
                             <p className="text-xs text-gray-500 mt-1">{contactLabel(row.recipient_contact_id)}</p>
