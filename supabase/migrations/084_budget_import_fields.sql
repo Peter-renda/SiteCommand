@@ -1,0 +1,11 @@
+-- Add import-specific fields to budget_line_items for the Excel import workflow
+
+ALTER TABLE budget_line_items
+  ADD COLUMN IF NOT EXISTS cost_type TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS manual_calculation BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS unit_qty NUMERIC(15,4) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS unit_of_measure TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS unit_cost NUMERIC(15,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS start_date DATE,
+  ADD COLUMN IF NOT EXISTS end_date DATE,
+  ADD COLUMN IF NOT EXISTS curve TEXT NOT NULL DEFAULT '';

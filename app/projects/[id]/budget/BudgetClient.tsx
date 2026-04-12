@@ -13,7 +13,12 @@ type BudgetLineItem = {
   id: string;
   project_id: string;
   cost_code: string;
+  cost_type: string;
   description: string;
+  manual_calculation: boolean;
+  unit_qty: number;
+  unit_of_measure: string;
+  unit_cost: number;
   original_budget_amount: number;
   budget_modifications: number;
   approved_cos: number;
@@ -22,6 +27,9 @@ type BudgetLineItem = {
   job_to_date_costs: number;
   commitments_invoiced: number;
   pending_cost_changes: number;
+  start_date: string | null;
+  end_date: string | null;
+  curve: string;
   sort_order: number;
   created_at: string;
 };
@@ -330,6 +338,34 @@ function readNumber(value: unknown): number {
   if (typeof value === "number") return value;
   if (typeof value === "string") return numVal(value);
   return 0;
+}
+
+function readBool(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const lower = value.trim().toLowerCase();
+    return lower === "true" || lower === "yes" || lower === "1";
+  }
+  return false;
+}
+
+function readDate(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date) return value.toISOString().split("T")[0];
+  if (typeof value === "number") {
+    // Excel 1900 date serial → JS timestamp
+    const ms = Math.round((value - 25569) * 86400 * 1000);
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const d = new Date(trimmed);
+    return isNaN(d.getTime()) ? trimmed : d.toISOString().split("T")[0];
+  }
+  return null;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -770,6 +806,10 @@ export default function BudgetClient({
   const exportRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const createMenuRef = useRef<HTMLDivElement>(null);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const reportsMenuRef = useRef<HTMLDivElement>(null);
+  const [showReportsMenu, setShowReportsMenu] = useState(false);
 
   // Row action menu
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
@@ -779,6 +819,8 @@ export default function BudgetClient({
     function handleClick(e: MouseEvent) {
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExportMenu(false);
       if (rowMenuRef.current && !rowMenuRef.current.contains(e.target as Node)) setRowMenuId(null);
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) setShowCreateMenu(false);
+      if (reportsMenuRef.current && !reportsMenuRef.current.contains(e.target as Node)) setShowReportsMenu(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -906,12 +948,47 @@ export default function BudgetClient({
     setShowErpModal(false);
   }
 
+  function handleDownloadTemplate() {
+    const headers = [
+      "Cost Code",
+      "Cost Type",
+      "Description",
+      "Manual Calculation",
+      "Unit Qty",
+      "Unit of Measure",
+      "Unit Cost",
+      "Budget Amount",
+      "Start Date",
+      "End Date",
+      "Curve",
+    ];
+    const sample = [
+      "01-100",
+      "Labor",
+      "Site Preparation",
+      "false",
+      100,
+      "HR",
+      75.00,
+      "",
+      "2024-01-01",
+      "2024-03-31",
+      "Linear",
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    // Set column widths for readability
+    ws["!cols"] = headers.map(() => ({ wch: 22 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Budget Template");
+    XLSX.writeFile(wb, "budget_template.xlsx");
+  }
+
   async function handleImportBudgetFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
       const firstSheetName = workbook.SheetNames[0];
       if (!firstSheetName) {
         window.alert("The selected file has no worksheet.");
@@ -925,32 +1002,46 @@ export default function BudgetClient({
       }
 
       const importedItems = rows
-        .map((row) => ({
-          cost_code: readString(row.cost_code ?? row["Cost Code"] ?? row["cost code"]),
-          description: readString(row.description ?? row.Description),
-          original_budget_amount: readNumber(
-            row.original_budget_amount ?? row["Original Budget Amount"] ?? row["original budget amount"]
-          ),
-          budget_modifications: readNumber(
-            row.budget_modifications ?? row["Budget Modifications"] ?? row["budget modifications"]
-          ),
-          approved_cos: readNumber(row.approved_cos ?? row["Approved COs"] ?? row["approved cos"]),
-          pending_budget_changes: readNumber(
-            row.pending_budget_changes ?? row["Pending Budget Changes"] ?? row["pending budget changes"]
-          ),
-          committed_costs: readNumber(row.committed_costs ?? row["Committed Costs"] ?? row["committed costs"]),
-          job_to_date_costs: readNumber(row.job_to_date_costs ?? row["Job to Date Costs"] ?? row["job to date costs"]),
-          commitments_invoiced: readNumber(
-            row.commitments_invoiced ?? row["Commitments Invoiced"] ?? row["commitments invoiced"]
-          ),
-          pending_cost_changes: readNumber(
-            row.pending_cost_changes ?? row["Pending Cost Changes"] ?? row["pending cost changes"]
-          ),
-        }))
+        .map((row) => {
+          const costCode = readString(row["Cost Code"] ?? row.cost_code ?? row["cost code"]);
+          const costType = readString(row["Cost Type"] ?? row.cost_type ?? row["cost type"]);
+          const description = readString(row.Description ?? row.description);
+          const manualCalculation = readBool(
+            row["Manual Calculation"] ?? row.manual_calculation ?? row["manual calculation"]
+          );
+          const unitQty = readNumber(row["Unit Qty"] ?? row.unit_qty ?? row["unit qty"]);
+          const unitOfMeasure = readString(
+            row["Unit of Measure"] ?? row.unit_of_measure ?? row["unit of measure"]
+          );
+          const unitCost = readNumber(row["Unit Cost"] ?? row.unit_cost ?? row["unit cost"]);
+          const budgetAmountRaw = readNumber(
+            row["Budget Amount"] ?? row.budget_amount ?? row["budget amount"]
+          );
+
+          // If manual_calculation = true, use the provided budget amount directly.
+          // If false, calculate from unit_qty × unit_cost.
+          const originalBudgetAmount = manualCalculation
+            ? budgetAmountRaw
+            : unitQty * unitCost;
+
+          return {
+            cost_code: costCode,
+            cost_type: costType,
+            description,
+            manual_calculation: manualCalculation,
+            unit_qty: unitQty,
+            unit_of_measure: unitOfMeasure,
+            unit_cost: unitCost,
+            original_budget_amount: originalBudgetAmount,
+            start_date: readDate(row["Start Date"] ?? row.start_date ?? row["start date"]),
+            end_date: readDate(row["End Date"] ?? row.end_date ?? row["end date"]),
+            curve: readString(row.Curve ?? row.curve),
+          };
+        })
         .filter((row) => row.cost_code || row.description);
 
       if (importedItems.length === 0) {
-        window.alert("No valid budget rows found. Include at least a cost code or description per row.");
+        window.alert("No valid budget rows found. Include at least a Cost Code or Description per row.");
         return;
       }
 
@@ -1252,6 +1343,40 @@ export default function BudgetClient({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Create dropdown — shown when budget is locked */}
+            {isBudgetLocked && (
+              <div ref={createMenuRef} className="relative">
+                <button
+                  onClick={() => setShowCreateMenu((o) => !o)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+                >
+                  + Create
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showCreateMenu && (
+                  <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
+                    <button
+                      onClick={() => { setShowLineItemModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Budget Line Item
+                    </button>
+                    <button
+                      onClick={() => { setShowSnapshotModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Snapshot
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Resend to ERP */}
             <button
               onClick={() => setShowErpModal(true)}
@@ -1294,10 +1419,57 @@ export default function BudgetClient({
                 </div>
               )}
             </div>
+
+            {/* Three-dot reports menu */}
+            <div ref={reportsMenuRef} className="relative">
+              <button
+                onClick={() => setShowReportsMenu((o) => !o)}
+                className={`p-2 text-gray-600 border rounded-md transition-colors hover:bg-gray-50 ${showReportsMenu ? "border-gray-400 bg-gray-50" : "border-gray-200 bg-white"}`}
+                aria-label="Reports"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
+                </svg>
+              </button>
+              {showReportsMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
+                  <div className="group relative">
+                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                      Budget Reports
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <div className="absolute right-full top-0 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 hidden group-hover:block">
+                      {["Budget Modifications", "Buyout Summary Report", "Legacy Budget Detail", "Monitored Resources Report"].map((report) => (
+                        <button
+                          key={report}
+                          onClick={() => setShowReportsMenu(false)}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          {report}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="group relative">
+                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                      Custom Reports
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <div className="absolute right-full top-0 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 hidden group-hover:block">
+                      <p className="px-4 py-2 text-sm text-gray-400 italic">No custom reports</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-4 items-start">
+        <div className={`grid grid-cols-1 gap-4 items-start ${!isBudgetLocked ? "xl:grid-cols-[minmax(0,1fr)_280px]" : ""}`}>
           <section>
             {/* Table */}
             {loading ? (
@@ -1409,25 +1581,19 @@ export default function BudgetClient({
             )}
           </section>
 
+          {!isBudgetLocked && (
           <aside className="bg-white border border-gray-100 rounded-xl p-4 space-y-2">
             <button
               onClick={() => setShowLineItemModal(true)}
               className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
             >
-              + Create Budget Code
+              + Create Budget Line Item
             </button>
             <button
               onClick={() => setShowSnapshotModal(true)}
               className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
             >
               + Create Snapshot
-            </button>
-            <button
-              onClick={() => setShowBudgetChangeModal(true)}
-              disabled={!isBudgetLocked || items.length === 0}
-              className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors disabled:bg-orange-200 disabled:cursor-not-allowed text-left"
-            >
-              + Create Budget Change
             </button>
             <button
               onClick={handleLockBudget}
@@ -1443,7 +1609,7 @@ export default function BudgetClient({
             <div className="pt-4 space-y-3">
               <a
                 href="#"
-                onClick={(e) => e.preventDefault()}
+                onClick={(e) => { e.preventDefault(); handleDownloadTemplate(); }}
                 className="block text-sm text-blue-600 hover:text-blue-800 underline underline-offset-2"
               >
                 Download Excel Template
@@ -1464,6 +1630,7 @@ export default function BudgetClient({
               </button>
             </div>
           </aside>
+          )}
         </div>
       </main>
 
