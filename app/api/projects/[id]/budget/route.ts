@@ -121,7 +121,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await req.json();
   const {
     cost_code,
+    cost_type,
     description,
+    manual_calculation,
+    unit_qty,
+    unit_of_measure,
+    unit_cost,
     original_budget_amount,
     budget_modifications,
     approved_cos,
@@ -130,6 +135,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     job_to_date_costs,
     commitments_invoiced,
     pending_cost_changes,
+    start_date,
+    end_date,
+    curve,
     sort_order,
   } = body;
 
@@ -142,7 +150,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .insert({
       project_id: projectId,
       cost_code: cost_code || "",
+      cost_type: cost_type || "",
       description: description || "",
+      manual_calculation: manual_calculation ?? false,
+      unit_qty: unit_qty ?? 0,
+      unit_of_measure: unit_of_measure || "",
+      unit_cost: unit_cost ?? 0,
       original_budget_amount: original_budget_amount ?? 0,
       budget_modifications: budget_modifications ?? 0,
       approved_cos: approved_cos ?? 0,
@@ -151,6 +164,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       job_to_date_costs: job_to_date_costs ?? 0,
       commitments_invoiced: commitments_invoiced ?? 0,
       pending_cost_changes: pending_cost_changes ?? 0,
+      start_date: start_date || null,
+      end_date: end_date || null,
+      curve: curve || "",
       sort_order: sort_order ?? 0,
     })
     .select()
