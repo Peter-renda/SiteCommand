@@ -114,6 +114,28 @@ export default function ChangeOrdersClient({
     }
   }
 
+  async function deleteOrder(order: ChangeOrder) {
+    if (String(order.status || "").trim().toLowerCase() === "approved") {
+      window.alert("Approved change orders cannot be deleted.");
+      return;
+    }
+
+    const confirmed = window.confirm("Are you sure you want to delete this change order?");
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${order.id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      window.alert(payload.error || "Failed to delete change order.");
+      return;
+    }
+
+    setOrders((curr) => curr.filter((o) => o.id !== order.id));
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <ProjectNav projectId={projectId} />
@@ -294,7 +316,12 @@ export default function ChangeOrdersClient({
                             <Lock className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <button className="text-gray-300 hover:text-red-400 transition-colors" title="Void">
+                        <button
+                          onClick={() => deleteOrder(order)}
+                          disabled={String(order.status || "").trim().toLowerCase() === "approved"}
+                          className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={String(order.status || "").trim().toLowerCase() === "approved" ? "Approved change orders cannot be deleted" : "Delete"}
+                        >
                           <XCircle className="w-3.5 h-3.5" />
                         </button>
                       </div>
