@@ -1657,7 +1657,14 @@ export default function BudgetClient({
                       >
                         Budget Modifications
                       </a>
-                      {["Buyout Summary Report", "Legacy Budget Detail", "Monitored Resources Report"].map((report) => (
+                      <a
+                        href={`/projects/${projectId}/reporting/buyout-summary`}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowReportsMenu(false)}
+                      >
+                        Buyout Summary Report
+                      </a>
+                      {["Legacy Budget Detail", "Monitored Resources Report"].map((report) => (
                         <button
                           key={report}
                           onClick={() => setShowReportsMenu(false)}
