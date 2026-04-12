@@ -219,6 +219,42 @@ export async function sendSubmittalCreatedEmail(
   });
 }
 
+export async function sendChangeEventRFQEmail(
+  to: string,
+  recipientName: string,
+  projectName: string,
+  rfqTitle: string,
+  dueDate: string | null,
+  requestDetails: string | null,
+  portalUrl: string,
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  const resend = new Resend(apiKey);
+  const dueLine = dueDate
+    ? `<p style="font-size:13px;color:#555;"><strong>Due Date:</strong> ${new Date(dueDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>`
+    : "";
+  const detailsLine = requestDetails
+    ? `<p style="font-size:13px;color:#555;white-space:pre-wrap;">${requestDetails}</p>`
+    : "";
+
+  await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `New RFQ: ${rfqTitle} — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
+      <p style="font-size:14px;">You have received a new RFQ on <strong>${projectName}</strong>.</p>
+      <p style="font-size:15px;font-weight:600;">${rfqTitle}</p>
+      ${dueLine}
+      ${detailsLine}
+      <p><a href="${portalUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open Subcontractor Portal</a></p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you were selected as an RFQ recipient in SiteCommand.</p>
+    `,
+  });
+}
+
 export async function sendRFIResponseEmail(
   to: string,
   recipientName: string,
