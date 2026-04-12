@@ -770,6 +770,10 @@ export default function BudgetClient({
   const exportRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const createMenuRef = useRef<HTMLDivElement>(null);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const reportsMenuRef = useRef<HTMLDivElement>(null);
+  const [showReportsMenu, setShowReportsMenu] = useState(false);
 
   // Row action menu
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
@@ -779,6 +783,8 @@ export default function BudgetClient({
     function handleClick(e: MouseEvent) {
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExportMenu(false);
       if (rowMenuRef.current && !rowMenuRef.current.contains(e.target as Node)) setRowMenuId(null);
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) setShowCreateMenu(false);
+      if (reportsMenuRef.current && !reportsMenuRef.current.contains(e.target as Node)) setShowReportsMenu(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -1252,6 +1258,40 @@ export default function BudgetClient({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Create dropdown — shown when budget is locked */}
+            {isBudgetLocked && (
+              <div ref={createMenuRef} className="relative">
+                <button
+                  onClick={() => setShowCreateMenu((o) => !o)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+                >
+                  + Create
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showCreateMenu && (
+                  <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
+                    <button
+                      onClick={() => { setShowLineItemModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Budget Line Item
+                    </button>
+                    <button
+                      onClick={() => { setShowSnapshotModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Snapshot
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Resend to ERP */}
             <button
               onClick={() => setShowErpModal(true)}
@@ -1294,10 +1334,57 @@ export default function BudgetClient({
                 </div>
               )}
             </div>
+
+            {/* Three-dot reports menu */}
+            <div ref={reportsMenuRef} className="relative">
+              <button
+                onClick={() => setShowReportsMenu((o) => !o)}
+                className={`p-2 text-gray-600 border rounded-md transition-colors hover:bg-gray-50 ${showReportsMenu ? "border-gray-400 bg-gray-50" : "border-gray-200 bg-white"}`}
+                aria-label="Reports"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
+                </svg>
+              </button>
+              {showReportsMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
+                  <div className="group relative">
+                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                      Budget Reports
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <div className="absolute right-full top-0 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 hidden group-hover:block">
+                      {["Budget Modifications", "Buyout Summary Report", "Legacy Budget Detail", "Monitored Resources Report"].map((report) => (
+                        <button
+                          key={report}
+                          onClick={() => setShowReportsMenu(false)}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          {report}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="group relative">
+                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                      Custom Reports
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <div className="absolute right-full top-0 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 hidden group-hover:block">
+                      <p className="px-4 py-2 text-sm text-gray-400 italic">No custom reports</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-4 items-start">
+        <div className={`grid grid-cols-1 gap-4 items-start ${!isBudgetLocked ? "xl:grid-cols-[minmax(0,1fr)_280px]" : ""}`}>
           <section>
             {/* Table */}
             {loading ? (
@@ -1409,6 +1496,7 @@ export default function BudgetClient({
             )}
           </section>
 
+          {!isBudgetLocked && (
           <aside className="bg-white border border-gray-100 rounded-xl p-4 space-y-2">
             <button
               onClick={() => setShowLineItemModal(true)}
@@ -1457,6 +1545,7 @@ export default function BudgetClient({
               </button>
             </div>
           </aside>
+          )}
         </div>
       </main>
 
