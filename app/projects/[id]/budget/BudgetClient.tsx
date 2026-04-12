@@ -1123,6 +1123,26 @@ export default function BudgetClient({
       }
     }
     setItems(items.map((i) => updatedMap.get(i.id) ?? i));
+
+    // Save audit records (fire-and-forget; don't block the UI)
+    const validRows = rows.filter((r) => r.fromId && r.toId && r.amount !== 0);
+    if (validRows.length > 0) {
+      fetch(`/api/projects/${projectId}/budget/modifications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows: validRows.map((r) => ({
+            fromId: r.fromId,
+            toId: r.toId,
+            fromCostCode: updatedMap.get(r.fromId)?.cost_code ?? "",
+            toCostCode: updatedMap.get(r.toId)?.cost_code ?? "",
+            amount: r.amount,
+            notes: r.notes,
+          })),
+        }),
+      });
+    }
+
     setShowBudgetModificationModal(false);
   }
 
@@ -1630,7 +1650,14 @@ export default function BudgetClient({
                       </svg>
                     </button>
                     <div className="absolute right-full top-0 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 hidden group-hover:block">
-                      {["Budget Modifications", "Buyout Summary Report", "Legacy Budget Detail", "Monitored Resources Report"].map((report) => (
+                      <a
+                        href={`/projects/${projectId}/reporting/budget-modifications`}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowReportsMenu(false)}
+                      >
+                        Budget Modifications
+                      </a>
+                      {["Buyout Summary Report", "Legacy Budget Detail", "Monitored Resources Report"].map((report) => (
                         <button
                           key={report}
                           onClick={() => setShowReportsMenu(false)}
