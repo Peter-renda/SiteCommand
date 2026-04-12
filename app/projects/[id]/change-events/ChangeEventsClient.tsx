@@ -233,6 +233,19 @@ export default function ChangeEventsClient({
     });
   }
 
+  function toggleExpandAll() {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      const allExpandedOnPage = pageEvents.length > 0 && pageEvents.every((ev) => next.has(ev.id));
+      if (allExpandedOnPage) {
+        pageEvents.forEach((ev) => next.delete(ev.id));
+      } else {
+        pageEvents.forEach((ev) => next.add(ev.id));
+      }
+      return next;
+    });
+  }
+
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -250,7 +263,7 @@ export default function ChangeEventsClient({
   }
 
   const allSelected = pageEvents.length > 0 && selectedIds.size === pageEvents.length;
-
+  const allExpandedOnPage = pageEvents.length > 0 && pageEvents.every((ev) => expandedIds.has(ev.id));
 
   function openRomPopup(
     e: { currentTarget: HTMLElement },
@@ -949,7 +962,21 @@ export default function ChangeEventsClient({
               {/* Column group headers */}
               <tr className="border-b border-gray-100 bg-white">
                 {/* Expand + checkbox + title area */}
-                <th colSpan={3} className="px-2 py-1" />
+                <th colSpan={3} className="px-2 py-1">
+                  <button
+                    onClick={toggleExpandAll}
+                    disabled={pageEvents.length === 0}
+                    className="inline-flex items-center text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors"
+                    title={allExpandedOnPage ? "Collapse all" : "Expand all"}
+                    aria-label={allExpandedOnPage ? "Collapse all change events" : "Expand all change events"}
+                  >
+                    {allExpandedOnPage ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </th>
                 {/* Revenue group */}
                 <th colSpan={5} className="px-2 py-1 text-center text-xs font-semibold text-gray-600 border-b border-gray-200">
                   Revenue
