@@ -36,6 +36,26 @@ export async function PATCH(
   const supabase = getSupabase();
   const body = await req.json();
 
+  const { data: existing, error: existingError } = await supabase
+    .from("change_orders")
+    .select("id, type, erp_status")
+    .eq("id", changeOrderId)
+    .eq("project_id", projectId)
+    .is("deleted_at", null)
+    .single();
+
+  if (existingError || !existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  if (
+    String(existing.type || "").trim().toLowerCase() === "commitment" &&
+    String(existing.erp_status || "").trim().toLowerCase() === "synced"
+  ) {
+    return NextResponse.json(
+      { error: "This commitment change order is synced to ERP and cannot be edited." },
+      { status: 400 }
+    );
+  }
+
   const { data, error } = await supabase
     .from("change_orders")
     .update(body)
@@ -46,4 +66,38 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string; changeOrderId: string }> }
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id: projectId, changeOrderId } = await params;
+  const supabase = getSupabase();
+
+  const { data: existing, error: existingError } = await supabase
+    .from("change_orders")
+    .select("id, status")
+    .eq("id", changeOrderId)
+    .eq("project_id", projectId)
+    .is("deleted_at", null)
+    .single();
+
+  if (existingError || !existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  if (String(existing.status || "").trim().toLowerCase() === "approved") {
+    return NextResponse.json({ error: "Approved change orders cannot be deleted." }, { status: 400 });
+  }
+
+  const { error } = await supabase
+    .from("change_orders")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", changeOrderId)
+    .eq("project_id", projectId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
 }
