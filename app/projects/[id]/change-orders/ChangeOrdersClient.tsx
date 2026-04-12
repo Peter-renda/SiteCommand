@@ -23,6 +23,13 @@ type ChangeOrder = {
   type?: "prime" | "commitment";
 };
 
+type DirectoryContact = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+};
+
 function fmt(val: number) {
   return val.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 }
@@ -37,7 +44,6 @@ type Tab = "prime" | "commitment";
 
 export default function ChangeOrdersClient({
   projectId,
-  role,
   username,
 }: {
   projectId: string;
@@ -47,6 +53,7 @@ export default function ChangeOrdersClient({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("prime");
   const [orders, setOrders] = useState<ChangeOrder[]>([]);
+  const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -61,6 +68,22 @@ export default function ChangeOrdersClient({
       })
       .catch(() => setLoading(false));
   }, [projectId, activeTab]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/directory`)
+      .then((r) => r.json())
+      .then((data) => setDirectoryContacts(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [projectId]);
+
+  function getContactNameByEmail(email: string | null) {
+    const normalized = String(email || "").trim().toLowerCase();
+    if (!normalized) return "";
+    const contact = directoryContacts.find((c) => String(c.email || "").trim().toLowerCase() === normalized);
+    if (!contact) return email || "";
+    const fullName = [contact.first_name, contact.last_name].filter(Boolean).join(" ").trim();
+    return fullName || contact.email || "";
+  }
 
   const total = orders.reduce((s, o) => s + (o.amount ?? 0), 0);
   const pendingReviewStatuses = new Set([
@@ -230,7 +253,9 @@ export default function ChangeOrdersClient({
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.date_initiated)}</td>
                     <td className="px-3 py-2 text-gray-700">{order.contract_company ?? ""}</td>
                     <td className="px-3 py-2 text-gray-700">
-                      {order.designated_reviewer ?? <span className="text-gray-400">Unassigned</span>}
+                      {order.designated_reviewer
+                        ? getContactNameByEmail(order.designated_reviewer)
+                        : <span className="text-gray-400">Unassigned</span>}
                     </td>
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.due_date)}</td>
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.review_date)}</td>
