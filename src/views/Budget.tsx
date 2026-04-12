@@ -218,6 +218,7 @@ function LineItemModal({
 
 export default function Budget() {
   const { id } = useParams();
+  const [activeTab, setActiveTab] = useState<"budget" | "budget_details">("budget");
   const [items, setItems] = useState<BudgetLineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -348,6 +349,22 @@ export default function Budget() {
     { key: "projected_over_under", label: "Proj. Over/Under", width: "min-w-[120px]" },
   ] as const;
 
+  const budgetDetailsColumns = [
+    { key: "budget_code", label: "Budget Code", width: "min-w-[220px]" },
+    { key: "vendor", label: "Vendor", width: "min-w-[130px]" },
+    { key: "item", label: "Item", width: "min-w-[130px]" },
+    { key: "description", label: "Description", width: "min-w-[140px]" },
+    { key: "detail_type", label: "Detail Type", width: "min-w-[170px]" },
+    { key: "original_budget_amount", label: "Original Budget Amount", width: "min-w-[140px]" },
+    { key: "budget_modifications", label: "Budget Modifications", width: "min-w-[130px]" },
+    { key: "approved_cos", label: "Approved COs", width: "min-w-[110px]" },
+    { key: "pending_budget_changes", label: "Pending Budget Changes", width: "min-w-[130px]" },
+    { key: "committed_costs", label: "Committed Costs", width: "min-w-[130px]" },
+    { key: "job_to_date_costs", label: "Job to Date Costs", width: "min-w-[120px]" },
+    { key: "pending_cost_changes", label: "Pending Cost Changes", width: "min-w-[120px]" },
+    { key: "forecast_to_complete", label: "Forecast To Complete", width: "min-w-[120px]" },
+  ] as const;
+
   function renderCell(item: BudgetLineItem | null, key: (typeof COLS)[number]["key"]) {
     if (item === null) {
       switch (key) {
@@ -409,38 +426,69 @@ export default function Budget() {
       <main className="px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Budget</h1>
-          <div ref={createRef} className="relative">
-            <button
-              onClick={() => setShowCreateMenu((o) => !o)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Create
-              <svg
-                className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          {activeTab === "budget" ? (
+            <div ref={createRef} className="relative">
+              <button
+                onClick={() => setShowCreateMenu((o) => !o)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Create
+                <svg
+                  className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showCreateMenu && (
+                <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                  <button
+                    onClick={() => { setShowModal(true); setShowCreateMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Add Budget Line Item
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
+              Export
+              <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 011.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z" clipRule="evenodd" />
               </svg>
             </button>
-            {showCreateMenu && (
-              <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
-                <button
-                  onClick={() => { setShowModal(true); setShowCreateMenu(false); }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Add Budget Line Item
-                </button>
-              </div>
-            )}
+          )}
+        </div>
+
+        <div className="mb-4 border-b border-gray-200">
+          <div className="flex items-end gap-6">
+            <button
+              onClick={() => setActiveTab("budget")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "budget" ? "text-gray-900 border-gray-900" : "text-gray-500 border-transparent hover:text-gray-700"}`}
+            >
+              Budget
+            </button>
+            <button
+              onClick={() => setActiveTab("budget_details")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "budget_details" ? "text-gray-900 border-gray-900" : "text-gray-500 border-transparent hover:text-gray-700"}`}
+            >
+              Budget Details
+            </button>
+            {["Forecasting", "Project Status Snapshots", "Change History"].map((tab) => (
+              <span key={tab} className="pb-2 text-sm text-gray-400 select-none">
+                {tab}
+              </span>
+            ))}
           </div>
         </div>
 
         {loading ? (
           <p className="text-sm text-gray-400">Loading...</p>
-        ) : (
+        ) : activeTab === "budget" ? (
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -514,6 +562,86 @@ export default function Budget() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-4 bg-blue-50 border border-blue-100 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 text-blue-600">ℹ️</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Calculated Columns on Budget Detail are not supported</p>
+                  <p className="text-sm text-gray-600">
+                    Views applied on the Budget Detail tab will not include Calculated Columns, only Standard and Source columns will be displayed.
+                  </p>
+                </div>
+              </div>
+              <button className="text-sm font-medium text-gray-700 bg-gray-100 rounded-md px-3 py-2 hover:bg-gray-200">
+                Do not show again
+              </button>
+            </div>
+
+            <div className="bg-white border border-gray-100 rounded-xl p-3">
+              <div className="flex flex-wrap items-end gap-3 mb-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">View</p>
+                  <button className="text-sm text-left px-3 py-2 bg-white border border-gray-200 rounded-md min-w-[230px]">Procore ERP Budget</button>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Group</p>
+                  <button className="text-sm text-left px-3 py-2 bg-white border border-gray-200 rounded-md min-w-[230px] text-gray-400">Add Group</button>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Filter</p>
+                  <button className="text-sm text-left px-3 py-2 bg-white border border-gray-200 rounded-md min-w-[100px]">Add filter</button>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      {budgetDetailsColumns.map((col) => (
+                        <th key={col.key} className={`text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap ${col.width}`}>
+                          {col.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.length === 0 ? (
+                      <tr>
+                        <td colSpan={budgetDetailsColumns.length} className="px-3 py-12 text-center text-gray-400">
+                          Add budget line items to view budget details.
+                        </td>
+                      </tr>
+                    ) : (
+                      items.map((item) => {
+                        const c = calc(item);
+                        return (
+                          <tr key={`details-${item.id}`} className="border-b border-gray-100">
+                            <td className="px-3 py-2 text-gray-700">
+                              <p>{item.cost_code || "—"}</p>
+                              <p className="text-gray-400">{item.description || ""}</p>
+                            </td>
+                            <td className="px-3 py-2">None</td>
+                            <td className="px-3 py-2">—</td>
+                            <td className="px-3 py-2">—</td>
+                            <td className="px-3 py-2">Automatic Forecast</td>
+                            <td className="px-3 py-2">{fmt(item.original_budget_amount)}</td>
+                            <td className="px-3 py-2">{item.budget_modifications === 0 ? "—" : fmt(item.budget_modifications)}</td>
+                            <td className="px-3 py-2">{item.approved_cos === 0 ? "—" : fmt(item.approved_cos)}</td>
+                            <td className="px-3 py-2">{item.pending_budget_changes === 0 ? "—" : fmt(item.pending_budget_changes)}</td>
+                            <td className="px-3 py-2">{item.committed_costs === 0 ? "—" : fmt(item.committed_costs)}</td>
+                            <td className="px-3 py-2">{c.jobToDateCosts === 0 ? "—" : fmt(c.jobToDateCosts)}</td>
+                            <td className="px-3 py-2">{item.pending_cost_changes === 0 ? "—" : fmt(item.pending_cost_changes)}</td>
+                            <td className="px-3 py-2">{fmt(item.forecast_to_complete)}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
