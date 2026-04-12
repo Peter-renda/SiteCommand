@@ -24,6 +24,7 @@ type Commitment = {
 
 type Contact = {
   id: string;
+  type?: "user" | "company" | "distribution_group" | null;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
@@ -64,6 +65,15 @@ export default function SendRFQsClient({
   const [distributionContactId, setDistributionContactId] = useState("");
   const [rows, setRows] = useState<RecipientRow[]>([]);
   const [error, setError] = useState("");
+
+  const selectableContacts = useMemo(() => {
+    return contacts.filter((c) => {
+      if (c.type && c.type !== "user") return false;
+      const hasName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim().length > 0;
+      const hasEmail = Boolean(String(c.email ?? "").trim());
+      return hasName || hasEmail;
+    });
+  }, [contacts]);
 
   useEffect(() => {
     let mounted = true;
@@ -113,7 +123,25 @@ export default function SendRFQsClient({
           });
         }
       }
-      setRows(builtRows);
+      const selectableContactIds = new Set(
+        allContacts
+          .filter((c) => {
+            if (c.type && c.type !== "user") return false;
+            const hasName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim().length > 0;
+            const hasEmail = Boolean(String(c.email ?? "").trim());
+            return hasName || hasEmail;
+          })
+          .map((c) => c.id)
+      );
+
+      setRows(
+        builtRows.map((row) => ({
+          ...row,
+          recipient_contact_id: selectableContactIds.has(row.recipient_contact_id)
+            ? row.recipient_contact_id
+            : "",
+        }))
+      );
       setLoading(false);
     }
     load().catch(() => {
@@ -198,7 +226,7 @@ export default function SendRFQsClient({
                 <label className="text-sm text-gray-700">Distribution</label>
                 <select value={distributionContactId} onChange={(e) => setDistributionContactId(e.target.value)} className="h-10 px-3 border border-gray-300 rounded text-sm w-full md:w-[420px]">
                   <option value="">Select A Person...</option>
-                  {contacts.map((c) => {
+                  {selectableContacts.map((c) => {
                     const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim();
                     return (
                       <option key={c.id} value={c.id}>
@@ -248,7 +276,7 @@ export default function SendRFQsClient({
                             className="h-9 px-2 border border-gray-300 rounded min-w-56"
                           >
                             <option value="">Select recipient...</option>
-                            {contacts.map((c) => {
+                            {selectableContacts.map((c) => {
                               const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim();
                               return (
                                 <option key={c.id} value={c.id}>
