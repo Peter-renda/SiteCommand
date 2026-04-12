@@ -83,6 +83,14 @@ type ForecastEdit = {
   notes: string;
 };
 
+type ModificationRow = {
+  id: string;
+  fromId: string;
+  toId: string;
+  amount: string;
+  notes: string;
+};
+
 // ── Calculated helpers ────────────────────────────────────────────────────────
 
 function calc(item: BudgetLineItem) {
@@ -672,6 +680,137 @@ function BudgetChangeModal({
   );
 }
 
+// ── Budget Modification Modal ─────────────────────────────────────────────────
+
+function BudgetModificationModal({
+  items,
+  onConfirm,
+  onCancel,
+}: {
+  items: BudgetLineItem[];
+  onConfirm: (rows: { fromId: string; toId: string; amount: number; notes: string }[]) => void;
+  onCancel: () => void;
+}) {
+  function makeRow(): ModificationRow {
+    return { id: Math.random().toString(36).slice(2), fromId: "", toId: "", amount: "", notes: "" };
+  }
+
+  const [rows, setRows] = useState<ModificationRow[]>(() => [makeRow(), makeRow(), makeRow(), makeRow()]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onCancel(); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  function updateRow(id: string, updates: Partial<ModificationRow>) {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates } : r)));
+  }
+
+  function handleSubmit() {
+    const validRows = rows
+      .filter((r) => r.fromId && r.toId && numVal(r.amount) !== 0)
+      .map((r) => ({ fromId: r.fromId, toId: r.toId, amount: numVal(r.amount), notes: r.notes }));
+    if (validRows.length === 0) return;
+    onConfirm(validRows);
+  }
+
+  const selectClass =
+    "w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900">Create Budget Modifications</h2>
+          <button onClick={onCancel} className="text-gray-500 hover:text-gray-900 text-xl leading-none" aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div className="px-6 py-4">
+          <div className="grid grid-cols-[1fr_1fr_160px_1fr_36px] gap-3 mb-2">
+            <span className="text-xs font-medium text-gray-600">From</span>
+            <span className="text-xs font-medium text-gray-600">To</span>
+            <span className="text-xs font-medium text-gray-600">Transfer Amount</span>
+            <span className="text-xs font-medium text-gray-600">Notes</span>
+            <span />
+          </div>
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div key={row.id} className="grid grid-cols-[1fr_1fr_160px_1fr_36px] gap-3 items-center">
+                <select
+                  value={row.fromId}
+                  onChange={(e) => updateRow(row.id, { fromId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Select a Line Item</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.cost_code}{item.description ? ` - ${item.description}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={row.toId}
+                  onChange={(e) => updateRow(row.id, { toId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Select a Line Item</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.cost_code}{item.description ? ` - ${item.description}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <MoneyInput value={row.amount} onChange={(v) => updateRow(row.id, { amount: v })} placeholder="$0.00" />
+                <input
+                  type="text"
+                  value={row.notes}
+                  onChange={(e) => updateRow(row.id, { notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <button
+                  type="button"
+                  onClick={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
+                  className="flex items-center justify-center w-7 h-7 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors flex-shrink-0"
+                  aria-label="Remove row"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setRows((prev) => [...prev, makeRow()])}
+            className="mt-4 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            + Add Line Item
+          </button>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-800 transition-colors"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ERP Resend Confirm Modal ──────────────────────────────────────────────────
 
 function ErpConfirmModal({
@@ -793,6 +932,7 @@ export default function BudgetClient({
   const [editingItem, setEditingItem] = useState<BudgetLineItem | null>(null);
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
   const [showBudgetChangeModal, setShowBudgetChangeModal] = useState(false);
+  const [showBudgetModificationModal, setShowBudgetModificationModal] = useState(false);
   const [showErpModal, setShowErpModal] = useState(false);
   const [showCommittedCostsModal, setShowCommittedCostsModal] = useState(false);
   const [committedCostsLoading, setCommittedCostsLoading] = useState(false);
@@ -830,9 +970,11 @@ export default function BudgetClient({
     Promise.all([
       fetch(`/api/projects/${projectId}/budget`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/budget/snapshots`).then((r) => r.json()),
-    ]).then(([itemsData, snapshotsData]) => {
+      fetch(`/api/projects/${projectId}/budget/lock`).then((r) => r.json()),
+    ]).then(([itemsData, snapshotsData, lockData]) => {
       setItems(Array.isArray(itemsData) ? itemsData : []);
       setSnapshots(Array.isArray(snapshotsData) ? snapshotsData : []);
+      setIsBudgetLocked(lockData?.locked === true);
       setLoading(false);
     });
   }, [projectId]);
@@ -889,13 +1031,14 @@ export default function BudgetClient({
     setEditingItem(null);
   }
 
-  function handleLockBudget() {
+  async function handleLockBudget() {
     if (isBudgetLocked) return;
     const confirmed = window.confirm(
       "Lock budget? Once locked, Original Budget Amount values can no longer be edited."
     );
     if (!confirmed) return;
-    setIsBudgetLocked(true);
+    const res = await fetch(`/api/projects/${projectId}/budget/lock`, { method: "POST" });
+    if (res.ok) setIsBudgetLocked(true);
   }
 
   async function handleDeleteItem(id: string) {
@@ -941,6 +1084,46 @@ export default function BudgetClient({
       setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       setShowBudgetChangeModal(false);
     }
+  }
+
+  async function handleCreateBudgetModification(
+    rows: { fromId: string; toId: string; amount: number; notes: string }[]
+  ) {
+    // Aggregate net delta per line item so each item is only PATCHed once
+    const deltas = new Map<string, number>();
+    for (const row of rows) {
+      if (!row.fromId || !row.toId || row.amount === 0) continue;
+      deltas.set(row.fromId, (deltas.get(row.fromId) ?? 0) - row.amount);
+      deltas.set(row.toId, (deltas.get(row.toId) ?? 0) + row.amount);
+    }
+
+    const updatedMap = new Map(items.map((i) => [i.id, i]));
+    for (const [itemId, delta] of deltas) {
+      const item = updatedMap.get(itemId);
+      if (!item) continue;
+      const res = await fetch(`/api/projects/${projectId}/budget/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cost_code: item.cost_code,
+          description: item.description,
+          original_budget_amount: item.original_budget_amount,
+          budget_modifications: item.budget_modifications + delta,
+          approved_cos: item.approved_cos,
+          pending_budget_changes: item.pending_budget_changes,
+          committed_costs: item.committed_costs,
+          job_to_date_costs: item.job_to_date_costs,
+          commitments_invoiced: item.commitments_invoiced,
+          pending_cost_changes: item.pending_cost_changes,
+        }),
+      });
+      if (res.ok) {
+        const updated: BudgetLineItem = await res.json();
+        updatedMap.set(updated.id, updated);
+      }
+    }
+    setItems(items.map((i) => updatedMap.get(i.id) ?? i));
+    setShowBudgetModificationModal(false);
   }
 
   function handleErpResend() {
@@ -1359,12 +1542,18 @@ export default function BudgetClient({
                   </svg>
                 </button>
                 {showCreateMenu && (
-                  <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
+                  <div className="absolute left-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
                     <button
                       onClick={() => { setShowLineItemModal(true); setShowCreateMenu(false); }}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Budget Line Item
+                    </button>
+                    <button
+                      onClick={() => { setShowBudgetModificationModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Budget Modification
                     </button>
                     <button
                       onClick={() => { setShowSnapshotModal(true); setShowCreateMenu(false); }}
@@ -1753,6 +1942,13 @@ export default function BudgetClient({
           items={items}
           onConfirm={handleCreateBudgetChange}
           onCancel={() => setShowBudgetChangeModal(false)}
+        />
+      )}
+      {showBudgetModificationModal && (
+        <BudgetModificationModal
+          items={items}
+          onConfirm={handleCreateBudgetModification}
+          onCancel={() => setShowBudgetModificationModal(false)}
         />
       )}
       {showErpModal && (
