@@ -22,6 +22,7 @@ type Company = {
 
 // Human-readable labels for section slugs
 const SECTION_LABELS: Record<string, string> = {
+  rfqs: "RFQs",
   rfis: "RFIs",
   submittals: "Submittals",
   documents: "Documents",

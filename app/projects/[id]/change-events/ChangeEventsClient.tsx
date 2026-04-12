@@ -626,7 +626,7 @@ export default function ChangeEventsClient({
                           router.push(`/projects/${projectId}/commitments/new?type=${action.commitmentType}&eventIds=${eventIds}`);
                         } else if (action.type === "rfq") {
                           setQuickActionsOpen(false);
-                          router.push(`/projects/${projectId}/bid-management?eventIds=${eventIds}`);
+                          router.push(`/projects/${projectId}/change-events/send-rfqs?eventIds=${eventIds}`);
                         }
                         // commitment-submenu and prime-submenu stay open (arrow-based)
                       }}
