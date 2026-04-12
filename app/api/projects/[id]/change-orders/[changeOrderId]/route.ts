@@ -36,6 +36,26 @@ export async function PATCH(
   const supabase = getSupabase();
   const body = await req.json();
 
+  const { data: existing, error: existingError } = await supabase
+    .from("change_orders")
+    .select("id, type, erp_status")
+    .eq("id", changeOrderId)
+    .eq("project_id", projectId)
+    .is("deleted_at", null)
+    .single();
+
+  if (existingError || !existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  if (
+    String(existing.type || "").trim().toLowerCase() === "commitment" &&
+    String(existing.erp_status || "").trim().toLowerCase() === "synced"
+  ) {
+    return NextResponse.json(
+      { error: "This commitment change order is synced to ERP and cannot be edited." },
+      { status: 400 }
+    );
+  }
+
   const { data, error } = await supabase
     .from("change_orders")
     .update(body)
