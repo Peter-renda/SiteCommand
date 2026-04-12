@@ -44,37 +44,11 @@ export async function PATCH(
     .is("deleted_at", null)
     .single();
 
-  let existingRecord = existing as { id: string; type: string; erp_status?: string | null } | null;
-
-  if (existingError) {
-    // Backward compatibility for environments where erp_status may not exist yet.
-    const missingErpStatusColumn = /erp_status/i.test(existingError.message || "");
-    if (missingErpStatusColumn) {
-      const { data: fallbackExisting, error: fallbackError } = await supabase
-        .from("change_orders")
-        .select("id, type")
-        .eq("id", changeOrderId)
-        .eq("project_id", projectId)
-        .is("deleted_at", null)
-        .single();
-
-      if (fallbackError || !fallbackExisting) {
-        return NextResponse.json(
-          { error: fallbackError?.message || "Not found" },
-          { status: fallbackError ? 500 : 404 }
-        );
-      }
-      existingRecord = { ...fallbackExisting, erp_status: null };
-    } else {
-      return NextResponse.json({ error: existingError.message }, { status: 500 });
-    }
-  }
-
-  if (!existingRecord) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (existingError || !existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (
-    String(existingRecord.type || "").trim().toLowerCase() === "commitment" &&
-    String(existingRecord.erp_status || "").trim().toLowerCase() === "synced"
+    String(existing.type || "").trim().toLowerCase() === "commitment" &&
+    String(existing.erp_status || "").trim().toLowerCase() === "synced"
   ) {
     return NextResponse.json(
       { error: "This commitment change order is synced to ERP and cannot be edited." },
