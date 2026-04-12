@@ -36,7 +36,7 @@ export async function PATCH(
   const supabase = getSupabase();
   const body = await req.json();
 
-  const { data: existing, error: existingError } = await supabase
+  const { data: initialExisting, error: existingError } = await supabase
     .from("change_orders")
     .select("id, type, erp_status")
     .eq("id", changeOrderId)
@@ -44,7 +44,33 @@ export async function PATCH(
     .is("deleted_at", null)
     .single();
 
-  if (existingError || !existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  let existing = initialExisting as { id: string; type: string; erp_status?: string | null } | null;
+
+  if (existingError) {
+    // If the error is about the erp_status column not existing, retry without it.
+    if (/erp_status/i.test(existingError.message || "")) {
+      const { data: fallback, error: fallbackError } = await supabase
+        .from("change_orders")
+        .select("id, type")
+        .eq("id", changeOrderId)
+        .eq("project_id", projectId)
+        .is("deleted_at", null)
+        .single();
+
+      if (fallbackError || !fallback) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      existing = { ...fallback, erp_status: null };
+    } else if (existingError.code === "PGRST116") {
+      // No rows matched — genuine not found.
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    } else {
+      // Unexpected DB error — surface it rather than masking as "Not found".
+      return NextResponse.json({ error: existingError.message }, { status: 500 });
+    }
+  }
+
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (
     String(existing.type || "").trim().toLowerCase() === "commitment" &&
