@@ -81,6 +81,10 @@ export default function NewPrimePCOClient({
     year: "2-digit",
   }) + " at " + now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
 
+  const contractLabel = contract
+    ? `Prime Contract #${contract.contract_number} - ${contract.title}`
+    : "Loading…";
+
   // Fetch contract
   useEffect(() => {
     fetch(`/api/projects/${projectId}/prime-contracts/${contractId}`)
