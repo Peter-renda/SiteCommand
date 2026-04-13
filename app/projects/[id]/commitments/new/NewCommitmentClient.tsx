@@ -825,9 +825,7 @@ export default function NewCommitmentClient({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const companies = directory.filter(
-    (c) => c.type === "company" || c.type === "user"
-  );
+  const companies = directory.filter((c) => c.type === "company");
   const users = directory.filter((c) => c.type === "user");
 
   // SOV helpers

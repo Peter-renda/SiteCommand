@@ -587,7 +587,7 @@ export default function EditCommitmentClient({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const companies = directory.filter((c) => c.type === "company" || c.type === "user");
+  const companies = directory.filter((c) => c.type === "company");
 
   function addSovLine() {
     setSovLines((prev) => [...prev, {
