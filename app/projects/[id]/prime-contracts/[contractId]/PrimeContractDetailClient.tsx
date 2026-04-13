@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import { Plus, Mail, ChevronDown, ChevronUp } from "lucide-react";
@@ -49,6 +49,17 @@ type Contract = {
   sov_items: SovItem[];
 };
 
+type ChangeOrder = {
+  id: string;
+  number: string;
+  title: string;
+  status: string;
+  amount: number;
+  date_initiated: string | null;
+  due_date: string | null;
+  designated_reviewer: string | null;
+};
+
 const STATUS_COLORS: Record<string, string> = {
   Draft: "border-gray-400 text-gray-600",
   "Out for Bid": "border-yellow-500 text-yellow-600",
@@ -56,6 +67,14 @@ const STATUS_COLORS: Record<string, string> = {
   Approved: "border-green-500 text-green-600",
   Complete: "border-blue-500 text-blue-600",
   Terminated: "border-red-400 text-red-600",
+};
+
+const CO_STATUS_COLORS: Record<string, string> = {
+  Draft: "bg-gray-100 text-gray-600",
+  "In Review": "bg-yellow-50 text-yellow-700",
+  Approved: "bg-green-50 text-green-700",
+  Rejected: "bg-red-50 text-red-600",
+  Void: "bg-gray-100 text-gray-400",
 };
 
 function fmt(val: number | null | undefined) {
@@ -83,15 +102,6 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
     <div>
       <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
       <p className="text-sm text-gray-800">{value || <span className="text-gray-400">—</span>}</p>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-white border-b border-gray-200 px-8 py-6">
-      <h2 className="text-sm font-semibold text-gray-900 mb-5">{title}</h2>
-      {children}
     </div>
   );
 }
@@ -143,7 +153,7 @@ function ContractSummaryTile({
   ];
 
   return (
-    <div className="bg-white border-b border-gray-200 px-8 py-5">
+    <div id="contract-summary" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-5">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 mb-4"
@@ -177,7 +187,16 @@ function ContractSummaryTile({
   );
 }
 
-type Tab = "overview" | "sov" | "inclusions" | "dates";
+type Tab = "general" | "change_orders" | "emails" | "change_history" | "financial_markup" | "advanced_settings";
+
+const GENERAL_SECTIONS = [
+  { id: "general-info", label: "General Information" },
+  { id: "contract-summary", label: "Contract Summary" },
+  { id: "schedule-of-values", label: "Schedule of Values" },
+  { id: "inclusions-exclusions", label: "Inclusions & Exclusions" },
+  { id: "contract-dates", label: "Contract Dates" },
+  { id: "contract-privacy", label: "Contract Privacy" },
+];
 
 export default function PrimeContractDetailClient({
   projectId,
@@ -190,10 +209,13 @@ export default function PrimeContractDetailClient({
 }) {
   const router = useRouter();
   const [contract, setContract] = useState<Contract | null>(null);
+  const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>("general");
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("general-info");
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/prime-contracts/${contractId}`)
@@ -203,7 +225,51 @@ export default function PrimeContractDetailClient({
         setLoading(false);
       })
       .catch(() => { setError("Failed to load contract."); setLoading(false); });
+
+    fetch(`/api/projects/${projectId}/change-orders?type=prime`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setChangeOrders(data.filter((co: ChangeOrder & { prime_contract_id?: string }) => co.prime_contract_id === contractId));
+        }
+      })
+      .catch(() => {});
   }, [projectId, contractId]);
+
+  // Track active sidebar section based on scroll position
+  useEffect(() => {
+    if (tab !== "general") return;
+    const container = contentRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const sectionEls = GENERAL_SECTIONS.map((s) => ({
+        id: s.id,
+        el: container.querySelector(`#${s.id}`),
+      }));
+      for (let i = sectionEls.length - 1; i >= 0; i--) {
+        const { id, el } = sectionEls[i];
+        if (el && (el as HTMLElement).offsetTop - container.scrollTop <= 60) {
+          setActiveSection(id);
+          return;
+        }
+      }
+      setActiveSection("general-info");
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [tab]);
+
+  function scrollToSection(id: string) {
+    setActiveSection(id);
+    const container = contentRef.current;
+    if (!container) return;
+    const el = container.querySelector(`#${id}`);
+    if (el) {
+      (el as HTMLElement).scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
 
   if (loading) {
     return (
@@ -234,10 +300,12 @@ export default function PrimeContractDetailClient({
   const sovRemaining = sovTotal - sovBilled;
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: "overview", label: "Overview" },
-    { key: "sov", label: `Schedule of Values${contract.sov_items.length > 0 ? ` (${contract.sov_items.length})` : ""}` },
-    { key: "inclusions", label: "Inclusions & Exclusions" },
-    { key: "dates", label: "Dates & Privacy" },
+    { key: "general", label: "General" },
+    { key: "change_orders", label: `Change Orders (${changeOrders.length})` },
+    { key: "emails", label: "Emails" },
+    { key: "change_history", label: "Change History" },
+    { key: "financial_markup", label: "Financial Markup" },
+    { key: "advanced_settings", label: "Advanced Settings" },
   ];
 
   return (
@@ -255,9 +323,8 @@ export default function PrimeContractDetailClient({
           </button>
           <span className="text-gray-300">/</span>
           <span className="text-sm font-semibold text-gray-900">
-            Contract #{contract.contract_number}{contract.title ? ` — ${contract.title}` : ""}
+            Prime Contract #{contract.contract_number}
           </span>
-          <StatusBadge status={contract.status} />
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -298,205 +365,366 @@ export default function PrimeContractDetailClient({
         </div>
       </div>
 
-      {/* Financial summary bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-0 flex shrink-0 overflow-x-auto">
-        {[
-          { label: "Original Contract Amount", value: fmt(contract.original_contract_amount) },
-          { label: "Approved Change Orders", value: fmt(contract.approved_change_orders) },
-          { label: "Revised Contract Amount", value: fmt(revised) },
-          { label: "Pending Change Orders", value: fmt(contract.pending_change_orders) },
-          { label: "Invoiced", value: fmt(contract.invoiced) },
-          { label: "Payments Received", value: fmt(contract.payments_received) },
-          { label: "% Paid", value: `${pctPaid}%` },
-          { label: "Remaining Balance", value: fmt(remaining) },
-        ].map((m) => (
-          <div key={m.label} className="flex flex-col items-start justify-center px-5 py-3 border-r border-gray-100 shrink-0 min-w-[120px]">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">{m.label}</p>
-            <p className="text-sm font-semibold text-gray-800 mt-0.5">{m.value}</p>
-          </div>
-        ))}
+      {/* Contract title + status */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold text-gray-900">{contract.title || `Prime Contract #${contract.contract_number}`}</h1>
+          <StatusBadge status={contract.status} />
+        </div>
       </div>
 
       {/* Tab bar */}
-      <div className="bg-white border-b border-gray-200 px-6 flex items-center justify-between shrink-0">
+      <div className="bg-white border-b border-gray-200 px-6 flex items-center shrink-0">
         <div className="flex">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
-              tab === t.key
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/edit`)}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Edit
-          </button>
-          <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
-            Export <ChevronDown className="w-3 h-3" />
-          </button>
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+                tab === t.key
+                  ? "border-orange-500 text-orange-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden flex">
 
-        {/* ── Overview ── */}
-        {tab === "overview" && (
-          <div className="space-y-px">
-            <Section title="General Information">
-              <div className="grid grid-cols-3 gap-x-8 gap-y-5 mb-6">
-                <Field label="Contract #" value={contract.contract_number} />
-                <Field label="Owner / Client" value={contract.owner_client} />
-                <Field label="Title" value={contract.title} />
-                <Field label="Status" value={<StatusBadge status={contract.status} />} />
-                <Field label="Executed" value={contract.executed ? "Yes" : "No"} />
-                <Field label="Default Retainage" value={contract.default_retainage != null ? `${contract.default_retainage}%` : null} />
-                <Field label="Contractor" value={contract.contractor} />
-                <Field label="Architect / Engineer" value={contract.architect_engineer} />
-                <Field label="ERP Status" value={contract.erp_status} />
+        {/* ── General ── */}
+        {tab === "general" && (
+          <>
+            {/* Left sidebar */}
+            <div className="w-48 shrink-0 bg-white border-r border-gray-200 py-4 flex flex-col gap-0.5 overflow-y-auto">
+              {GENERAL_SECTIONS.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => scrollToSection(s.id)}
+                  className={`w-full text-left px-4 py-1.5 text-xs transition-colors ${
+                    activeSection === s.id
+                      ? "text-gray-900 font-medium"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Main content */}
+            <div ref={contentRef} className="flex-1 overflow-y-auto">
+              {/* Export / Edit Contract actions */}
+              <div className="flex justify-end gap-2 px-8 pt-4 pb-2 bg-gray-50">
+                <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 transition-colors">
+                  Export <ChevronDown className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/edit`)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Edit Contract
+                </button>
               </div>
-              {contract.description && (
-                <div>
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Description</p>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{contract.description}</p>
+
+              {/* General Information */}
+              <div id="general-info" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                    <h2 className="text-sm font-semibold text-gray-900">General Information</h2>
+                  </div>
+                  <button
+                    onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/edit`)}
+                    className="px-3 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
+                  >
+                    Edit
+                  </button>
                 </div>
-              )}
-            </Section>
-            <ContractSummaryTile
-              original={contract.original_contract_amount}
-              approvedCO={contract.approved_change_orders}
-              pendingCO={contract.pending_change_orders}
-              draftCO={contract.draft_change_orders}
-              invoiced={contract.invoiced}
-              paymentsReceived={contract.payments_received}
-              revised={revised}
-              pendingRevised={pendingRevised}
-              remaining={remaining}
-              pctPaid={pctPaid}
-            />
-          </div>
+                {contract.id && (
+                  <p className="text-xs text-gray-400 mb-5">
+                    Created by — on {fmtDate(contract.start_date || null)}
+                  </p>
+                )}
+                <div className="grid grid-cols-3 gap-x-8 gap-y-5 mb-6">
+                  <Field label="Contract #" value={contract.contract_number} />
+                  <Field label="Owner / Client" value={contract.owner_client} />
+                  <Field label="Title" value={contract.title} />
+                  <Field label="Status" value={<StatusBadge status={contract.status} />} />
+                  <Field
+                    label="Executed"
+                    value={
+                      contract.executed
+                        ? <span className="inline-flex items-center gap-1 text-sm text-gray-700">✓</span>
+                        : <span className="text-gray-400 text-sm">⊘</span>
+                    }
+                  />
+                  <Field label="Default Retainage" value={contract.default_retainage != null ? `${contract.default_retainage}%` : null} />
+                  <Field
+                    label="Contractor"
+                    value={
+                      contract.contractor
+                        ? <span className="text-orange-600 text-sm">{contract.contractor}</span>
+                        : null
+                    }
+                  />
+                  <Field label="Architect / Engineer" value={contract.architect_engineer} />
+                </div>
+                {contract.description && (
+                  <div className="mb-4">
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Description</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{contract.description}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Attachments</p>
+                  <p className="text-sm text-gray-400 italic">No attachments.</p>
+                </div>
+              </div>
+
+              {/* Contract Summary */}
+              <ContractSummaryTile
+                original={contract.original_contract_amount}
+                approvedCO={contract.approved_change_orders}
+                pendingCO={contract.pending_change_orders}
+                draftCO={contract.draft_change_orders}
+                invoiced={contract.invoiced}
+                paymentsReceived={contract.payments_received}
+                revised={revised}
+                pendingRevised={pendingRevised}
+                remaining={remaining}
+                pctPaid={pctPaid}
+              />
+
+              {/* Schedule of Values */}
+              <div id="schedule-of-values" className="scroll-mt-2 bg-white border-b border-gray-200">
+                <div className="px-8 py-5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                    <h2 className="text-sm font-semibold text-gray-900">Schedule of Values</h2>
+                  </div>
+                </div>
+                {contract.sov_items.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-400 border-t border-gray-100">
+                    <p className="text-sm font-medium text-gray-500 mb-1">No schedule of values items</p>
+                    <p className="text-xs">SOV items can be added when editing this contract.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50">
+                          <th className="px-4 py-2.5 text-left font-medium text-gray-500 w-8">#</th>
+                          <th className="px-4 py-2.5 text-left font-medium text-gray-500">Budget Code</th>
+                          <th className="px-4 py-2.5 text-left font-medium text-gray-500">Description</th>
+                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Scheduled Value</th>
+                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Prev Billed</th>
+                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">This Period</th>
+                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Materials Stored</th>
+                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Billed to Date</th>
+                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">% Complete</th>
+                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Retainage</th>
+                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Balance</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {contract.sov_items.map((item, i) => {
+                          const balance = (item.scheduled_value ?? 0) - (item.billed_to_date ?? 0);
+                          const pct = item.scheduled_value > 0
+                            ? ((item.billed_to_date / item.scheduled_value) * 100).toFixed(1)
+                            : "0.0";
+                          return (
+                            <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="px-4 py-2 text-gray-400">{i + 1}</td>
+                              <td className="px-4 py-2 text-gray-600">{item.budget_code || "—"}</td>
+                              <td className="px-4 py-2 text-gray-800 max-w-xs">{item.description || "—"}</td>
+                              <td className="px-4 py-2 text-right text-gray-700">{fmt(item.scheduled_value)}</td>
+                              <td className="px-4 py-2 text-right text-gray-600">{fmt(item.work_completed_prev)}</td>
+                              <td className="px-4 py-2 text-right text-gray-600">{fmt(item.work_completed_this_period)}</td>
+                              <td className="px-4 py-2 text-right text-gray-600">{fmt(item.materials_stored)}</td>
+                              <td className="px-4 py-2 text-right text-gray-700">{fmt(item.billed_to_date)}</td>
+                              <td className="px-4 py-2 text-right text-gray-700">{pct}%</td>
+                              <td className="px-4 py-2 text-right text-gray-600">{fmt(item.retainage_amount)}</td>
+                              <td className="px-4 py-2 text-right text-gray-700">{fmt(balance)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
+                          <td colSpan={3} className="px-4 py-2.5 text-xs text-gray-600">Totals</td>
+                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovTotal)}</td>
+                          <td className="px-4 py-2.5" />
+                          <td className="px-4 py-2.5" />
+                          <td className="px-4 py-2.5" />
+                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovBilled)}</td>
+                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">
+                            {sovTotal > 0 ? ((sovBilled / sovTotal) * 100).toFixed(1) : "0.0"}%
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovRetainage)}</td>
+                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovRemaining)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Inclusions & Exclusions */}
+              <div id="inclusions-exclusions" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <h2 className="text-sm font-semibold text-gray-900">Inclusions &amp; Exclusions</h2>
+                </div>
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Inclusions</p>
+                    {contract.inclusions
+                      ? <p className="text-sm text-gray-700 whitespace-pre-wrap">{contract.inclusions}</p>
+                      : <p className="text-sm text-gray-400 italic">No inclusions specified.</p>}
+                  </div>
+                  <div className="border-t border-gray-100 pt-6">
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Exclusions</p>
+                    {contract.exclusions
+                      ? <p className="text-sm text-gray-700 whitespace-pre-wrap">{contract.exclusions}</p>
+                      : <p className="text-sm text-gray-400 italic">No exclusions specified.</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Contract Dates */}
+              <div id="contract-dates" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <h2 className="text-sm font-semibold text-gray-900">Contract Dates</h2>
+                </div>
+                <div className="grid grid-cols-3 gap-x-8 gap-y-5">
+                  <Field label="Start Date" value={fmtDate(contract.start_date)} />
+                  <Field label="Estimated Completion" value={fmtDate(contract.estimated_completion_date)} />
+                  <Field label="Actual Completion" value={fmtDate(contract.actual_completion_date)} />
+                  <Field label="Signed Contract Received" value={fmtDate(contract.signed_contract_received_date)} />
+                  <Field label="Contract Termination" value={fmtDate(contract.contract_termination_date)} />
+                </div>
+              </div>
+
+              {/* Contract Privacy */}
+              <div id="contract-privacy" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <h2 className="text-sm font-semibold text-gray-900">Contract Privacy</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                  <Field label="Private" value={contract.is_private ? "Yes — visible to admins and select users only" : "No — visible to all project members"} />
+                  <Field label="Allow Non-Admin SOV View" value={contract.sov_view_allowed ? "Yes" : "No"} />
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
-        {/* ── Schedule of Values ── */}
-        {tab === "sov" && (
-          <div className="bg-white">
-            {contract.sov_items.length === 0 ? (
+        {/* ── Change Orders ── */}
+        {tab === "change_orders" && (
+          <div className="flex-1 overflow-y-auto bg-white">
+            <div className="flex items-center justify-between px-8 py-4 border-b border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900">Change Orders</h2>
+              <button
+                onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/change-orders/new`)}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-600 text-white rounded hover:bg-orange-500 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                New Change Order
+              </button>
+            </div>
+            {changeOrders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-                <p className="text-sm font-medium text-gray-500 mb-1">No schedule of values items</p>
-                <p className="text-xs">SOV items can be added when editing this contract.</p>
+                <p className="text-sm font-medium text-gray-500 mb-1">No change orders</p>
+                <p className="text-xs">Change orders created for this contract will appear here.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="px-4 py-2.5 text-left font-medium text-gray-500 w-8">#</th>
-                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">Budget Code</th>
-                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">Description</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-gray-500">Scheduled Value</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-gray-500">Prev Billed</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-gray-500">This Period</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-gray-500">Materials Stored</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-gray-500">Billed to Date</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-gray-500">% Complete</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-gray-500">Retainage</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-gray-500">Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {contract.sov_items.map((item, i) => {
-                      const balance = (item.scheduled_value ?? 0) - (item.billed_to_date ?? 0);
-                      const pct = item.scheduled_value > 0
-                        ? ((item.billed_to_date / item.scheduled_value) * 100).toFixed(1)
-                        : "0.0";
-                      return (
-                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-4 py-2 text-gray-400">{i + 1}</td>
-                          <td className="px-4 py-2 text-gray-600">{item.budget_code || "—"}</td>
-                          <td className="px-4 py-2 text-gray-800 max-w-xs">{item.description || "—"}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{fmt(item.scheduled_value)}</td>
-                          <td className="px-4 py-2 text-right text-gray-600">{fmt(item.work_completed_prev)}</td>
-                          <td className="px-4 py-2 text-right text-gray-600">{fmt(item.work_completed_this_period)}</td>
-                          <td className="px-4 py-2 text-right text-gray-600">{fmt(item.materials_stored)}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{fmt(item.billed_to_date)}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{pct}%</td>
-                          <td className="px-4 py-2 text-right text-gray-600">{fmt(item.retainage_amount)}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{fmt(balance)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
-                      <td colSpan={3} className="px-4 py-2.5 text-xs text-gray-600">Totals</td>
-                      <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovTotal)}</td>
-                      <td className="px-4 py-2.5" />
-                      <td className="px-4 py-2.5" />
-                      <td className="px-4 py-2.5" />
-                      <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovBilled)}</td>
-                      <td className="px-4 py-2.5 text-right text-xs text-gray-800">
-                        {sovTotal > 0 ? ((sovBilled / sovTotal) * 100).toFixed(1) : "0.0"}%
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovRetainage)}</td>
-                      <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovRemaining)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">#</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">Title</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">Status</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-gray-500">Amount</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">Date Initiated</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">Due Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {changeOrders.map((co) => {
+                    const statusCls = CO_STATUS_COLORS[co.status] ?? "bg-gray-100 text-gray-600";
+                    return (
+                      <tr
+                        key={co.id}
+                        className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/change-orders/${co.id}`)}
+                      >
+                        <td className="px-4 py-2.5 text-gray-600 font-medium">{co.number}</td>
+                        <td className="px-4 py-2.5 text-gray-800">{co.title || "—"}</td>
+                        <td className="px-4 py-2.5">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${statusCls}`}>
+                            {co.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-gray-700">{fmt(co.amount)}</td>
+                        <td className="px-4 py-2.5 text-gray-600">{fmtDate(co.date_initiated)}</td>
+                        <td className="px-4 py-2.5 text-gray-600">{fmtDate(co.due_date)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
         )}
 
-        {/* ── Inclusions & Exclusions ── */}
-        {tab === "inclusions" && (
-          <div className="space-y-px">
-            <Section title="Inclusions & Exclusions">
-              <div className="space-y-6">
-                <div>
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Inclusions</p>
-                  {contract.inclusions
-                    ? <p className="text-sm text-gray-700 whitespace-pre-wrap">{contract.inclusions}</p>
-                    : <p className="text-sm text-gray-400 italic">No inclusions specified.</p>}
-                </div>
-                <div className="border-t border-gray-100 pt-6">
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Exclusions</p>
-                  {contract.exclusions
-                    ? <p className="text-sm text-gray-700 whitespace-pre-wrap">{contract.exclusions}</p>
-                    : <p className="text-sm text-gray-400 italic">No exclusions specified.</p>}
-                </div>
-              </div>
-            </Section>
+        {/* ── Emails ── */}
+        {tab === "emails" && (
+          <div className="flex-1 overflow-y-auto bg-white flex flex-col items-center justify-center py-24 text-gray-400">
+            <Mail className="w-8 h-8 mb-3 text-gray-300" />
+            <p className="text-sm font-medium text-gray-500 mb-1">No emails yet</p>
+            <p className="text-xs">Emails sent or received for this contract will appear here.</p>
           </div>
         )}
 
-        {/* ── Dates & Privacy ── */}
-        {tab === "dates" && (
-          <div className="space-y-px">
-            <Section title="Contract Dates">
-              <div className="grid grid-cols-3 gap-x-8 gap-y-5">
-                <Field label="Start Date" value={fmtDate(contract.start_date)} />
-                <Field label="Estimated Completion" value={fmtDate(contract.estimated_completion_date)} />
-                <Field label="Actual Completion" value={fmtDate(contract.actual_completion_date)} />
-                <Field label="Signed Contract Received" value={fmtDate(contract.signed_contract_received_date)} />
-                <Field label="Contract Termination" value={fmtDate(contract.contract_termination_date)} />
-              </div>
-            </Section>
-            <Section title="Privacy">
-              <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                <Field label="Private" value={contract.is_private ? "Yes — visible to admins and select users only" : "No — visible to all project members"} />
-                <Field label="Allow Non-Admin SOV View" value={contract.sov_view_allowed ? "Yes" : "No"} />
-              </div>
-            </Section>
+        {/* ── Change History ── */}
+        {tab === "change_history" && (
+          <div className="flex-1 overflow-y-auto bg-white flex flex-col items-center justify-center py-24 text-gray-400">
+            <p className="text-sm font-medium text-gray-500 mb-1">No history yet</p>
+            <p className="text-xs">Changes made to this contract will be logged here.</p>
+          </div>
+        )}
+
+        {/* ── Financial Markup ── */}
+        {tab === "financial_markup" && (
+          <div className="flex-1 overflow-y-auto bg-white">
+            <div className="px-8 py-6 border-b border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900 mb-1">Financial Markup</h2>
+              <p className="text-xs text-gray-400">Configure markup rates applied to this contract&apos;s change orders and invoices.</p>
+            </div>
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <p className="text-sm font-medium text-gray-500 mb-1">No markup configured</p>
+              <p className="text-xs">Financial markup settings for this contract will appear here.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Advanced Settings ── */}
+        {tab === "advanced_settings" && (
+          <div className="flex-1 overflow-y-auto bg-white">
+            <div className="px-8 py-6 border-b border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900 mb-1">Advanced Settings</h2>
+              <p className="text-xs text-gray-400">Configure advanced options for this prime contract.</p>
+            </div>
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <p className="text-sm font-medium text-gray-500 mb-1">No advanced settings available</p>
+              <p className="text-xs">Advanced configuration options will appear here.</p>
+            </div>
           </div>
         )}
 
