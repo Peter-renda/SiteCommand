@@ -17,6 +17,8 @@ type ChangeEvent = {
   title: string;
 };
 
+type UserOption = { id: string; name: string };
+
 export default function NewPrimePCOClient({
   projectId,
   contractId,
@@ -53,7 +55,11 @@ export default function NewPrimePCOClient({
   const [accountant, setAccountant] = useState("");
   const [noUser, setNoUser] = useState("");
   const [projectManager, setProjectManager] = useState("");
-  const [distribution, setDistribution] = useState("");
+  const [distribution, setDistribution] = useState<string[]>([]);
+
+  // User/directory options
+  const [companyUsers, setCompanyUsers] = useState<UserOption[]>([]);
+  const [directoryContacts, setDirectoryContacts] = useState<UserOption[]>([]);
 
   const now = new Date();
   const dateCreated =
@@ -91,6 +97,43 @@ export default function NewPrimePCOClient({
           setNextNumber("001");
         }
       })
+      .catch(() => {});
+  }, [projectId]);
+
+  // Fetch company users for Accountant dropdown
+  useEffect(() => {
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then(
+        (data: { id: string; username: string; first_name: string | null; last_name: string | null }[]) => {
+          setCompanyUsers(
+            data.map((u) => ({
+              id: u.id,
+              name: [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username,
+            }))
+          );
+        }
+      )
+      .catch(() => {});
+  }, []);
+
+  // Fetch project directory for No User, Project Manager, Distribution
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/directory`)
+      .then((r) => r.json())
+      .then(
+        (data: { id: string; first_name: string | null; last_name: string | null; email: string | null }[]) => {
+          setDirectoryContacts(
+            data.map((c) => ({
+              id: c.id,
+              name:
+                [c.first_name, c.last_name].filter(Boolean).join(" ") ||
+                c.email ||
+                c.id,
+            }))
+          );
+        }
+      )
       .catch(() => {});
   }, [projectId]);
 
@@ -507,6 +550,9 @@ export default function NewPrimePCOClient({
                         className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
                       >
                         <option value=""></option>
+                        {companyUsers.map((u) => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
                       </select>
                     </Field>
                   }
@@ -521,6 +567,9 @@ export default function NewPrimePCOClient({
                         className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
                       >
                         <option value=""></option>
+                        {directoryContacts.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
                       </select>
                     </Field>
                   }
@@ -535,6 +584,9 @@ export default function NewPrimePCOClient({
                         className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
                       >
                         <option value=""></option>
+                        {directoryContacts.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
                       </select>
                     </Field>
                   }
@@ -542,15 +594,52 @@ export default function NewPrimePCOClient({
                 />
                 <FormRow
                   left={
-                    <Field label="Distribution:">
-                      <select
-                        value={distribution}
-                        onChange={(e) => setDistribution(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      >
-                        <option value="">Select A Person...</option>
-                      </select>
-                    </Field>
+                    <div className="flex items-start gap-4">
+                      <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Distribution:</label>
+                      <div className="space-y-2">
+                        {distribution.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {distribution.map((id) => {
+                              const person = directoryContacts.find((c) => c.id === id);
+                              return (
+                                <span
+                                  key={id}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs"
+                                >
+                                  {person?.name ?? id}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setDistribution((prev) => prev.filter((d) => d !== id))
+                                    }
+                                    className="hover:text-blue-900 leading-none"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val && !distribution.includes(val)) {
+                              setDistribution((prev) => [...prev, val]);
+                            }
+                          }}
+                          className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                        >
+                          <option value="">Select A Person...</option>
+                          {directoryContacts
+                            .filter((c) => !distribution.includes(c.id))
+                            .map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
                   }
                   right={null}
                 />
