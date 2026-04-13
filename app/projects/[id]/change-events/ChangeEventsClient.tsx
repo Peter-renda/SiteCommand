@@ -127,7 +127,7 @@ export default function ChangeEventsClient({
   const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null);
   const [matchingContracts, setMatchingContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
   const [allContracts, setAllContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
-  const [allCommitments, setAllCommitments] = useState<{ id: string; number: number; title: string; type: string }[]>([]);
+  const [allCommitments, setAllCommitments] = useState<{ id: string; number: number; title: string; type: string; status: string | null }[]>([]);
   const [pcoPickerOpen, setPcoPickerOpen] = useState(false);
   const [pcoPickerLoading, setPcoPickerLoading] = useState(false);
   const [pcoPickerContracts, setPcoPickerContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
@@ -487,11 +487,18 @@ export default function ChangeEventsClient({
 
           {quickActionsOpen && selectedIds.size > 0 && (() => {
             const eventIds = Array.from(selectedIds).join(",");
-            const subcontracts = allCommitments.filter((c) => c.type === "subcontract");
-            const purchaseOrders = allCommitments.filter((c) => c.type === "purchase_order");
+            const selectedEvents = events.filter((ev) => selectedIds.has(ev.id));
+            const selectedHasCostAssociation = selectedEvents.some((ev) =>
+              (ev.line_items ?? []).some((li) => Number(li.cost_commitment ?? 0) !== 0)
+            );
+            const isUnapproved = (status: string | null | undefined) => String(status ?? "").trim().toLowerCase() !== "approved";
 
             // Reusable commitment submenu shared by "Add to Unapproved Commitment" and "Create Commitment CO"
-            function CommitmentSubmenu({ navSuffix }: { navSuffix: string }) {
+            function CommitmentSubmenu({ navSuffix, unapprovedOnly = false }: { navSuffix: string; unapprovedOnly?: boolean }) {
+              const scopedCommitments = unapprovedOnly ? allCommitments.filter((c) => isUnapproved(c.status)) : allCommitments;
+              const subcontracts = scopedCommitments.filter((c) => c.type === "subcontract");
+              const purchaseOrders = scopedCommitments.filter((c) => c.type === "purchase_order");
+
               return (
                 <div
                   className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-40 w-56 py-1"
@@ -579,14 +586,14 @@ export default function ChangeEventsClient({
             }
 
             type Action =
-              | { label: string; type: "commitment-submenu"; navSuffix: string }
+              | { label: string; type: "commitment-submenu"; navSuffix: string; unapprovedOnly?: boolean; disabled?: boolean }
               | { label: string; type: "prime-submenu" }
               | { label: string; type: "prime-action" }
               | { label: string; type: "new-commitment"; commitmentType: string }
               | { label: string; type: "rfq" };
 
             const actions: Action[] = [
-              { label: "Add to Unapproved Commitment", type: "commitment-submenu", navSuffix: "" },
+              { label: "Add to Unapproved Commitment", type: "commitment-submenu", navSuffix: "", unapprovedOnly: true, disabled: selectedHasCostAssociation },
               { label: "Add to Unapproved Prime PCO", type: "prime-submenu" },
               { label: "Create Commitment CO", type: "commitment-submenu", navSuffix: "?action=co" },
               { label: "Create Prime PCO", type: "prime-action" },
@@ -605,10 +612,16 @@ export default function ChangeEventsClient({
                     onMouseLeave={() => setHoveredAction(null)}
                   >
                     <button
+                      disabled={Boolean(action.disabled)}
                       className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
-                        hoveredAction === action.label ? "bg-gray-100" : "hover:bg-gray-50"
+                        action.disabled
+                          ? "text-gray-400 bg-gray-50 cursor-not-allowed"
+                          : hoveredAction === action.label
+                            ? "bg-gray-100"
+                            : "hover:bg-gray-50"
                       }`}
                       onClick={() => {
+                        if (action.disabled) return;
                         if (action.type === "prime-action") {
                           setQuickActionsOpen(false);
                           setPcoPickerLoading(true);
@@ -638,8 +651,8 @@ export default function ChangeEventsClient({
                     </button>
 
                     {/* Commitment submenu */}
-                    {action.type === "commitment-submenu" && hoveredAction === action.label && (
-                      <CommitmentSubmenu navSuffix={action.navSuffix} />
+                    {action.type === "commitment-submenu" && hoveredAction === action.label && !action.disabled && (
+                      <CommitmentSubmenu navSuffix={action.navSuffix} unapprovedOnly={action.unapprovedOnly} />
                     )}
 
                     {/* Prime PCO submenu (matching + all prime contracts) */}
