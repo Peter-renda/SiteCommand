@@ -533,6 +533,10 @@ export default function ChangeEventsClient({
                                 router.push(`/projects/${projectId}/commitments/${c.id}/change-orders/new?eventIds=${eventIds}`);
                                 return;
                               }
+                              if (navSuffix === "") {
+                                router.push(`/projects/${projectId}/commitments/${c.id}/edit?eventIds=${eventIds}`);
+                                return;
+                              }
                               router.push(`/projects/${projectId}/commitments/${c.id}${navSuffix}${navSuffix.includes("?") ? "&" : "?"}eventIds=${eventIds}`);
                             }}
                           >
@@ -570,6 +574,10 @@ export default function ChangeEventsClient({
                               setQuickActionsOpen(false);
                               if (navSuffix === "?action=co") {
                                 router.push(`/projects/${projectId}/commitments/${c.id}/change-orders/new?eventIds=${eventIds}`);
+                                return;
+                              }
+                              if (navSuffix === "") {
+                                router.push(`/projects/${projectId}/commitments/${c.id}/edit?eventIds=${eventIds}`);
                                 return;
                               }
                               router.push(`/projects/${projectId}/commitments/${c.id}${navSuffix}${navSuffix.includes("?") ? "&" : "?"}eventIds=${eventIds}`);
