@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
+import { ChevronDown, ChevronRight, Paperclip, Pencil } from "lucide-react";
 
 type LineItem = {
   id: string;
@@ -36,6 +36,15 @@ type ChangeEvent = {
   created_at: string;
   updated_at: string;
   line_items: LineItem[];
+};
+
+type TabKey = "General" | "Related Items" | "Comments" | "Emails" | "Change History" | "Advanced Settings";
+
+type CommentItem = {
+  id: string;
+  message: string;
+  attachments: string[];
+  createdAt: string;
 };
 
 function fmt(val: number | null | undefined) {
@@ -79,6 +88,10 @@ export default function ChangeEventDetailClient({
   const [event, setEvent] = useState<ChangeEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("General");
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/change-events/${eventId}`)
@@ -117,7 +130,29 @@ export default function ChangeEventDetailClient({
 
   const totalRevRom = event.line_items.reduce((s, li) => s + (li.rev_rom ?? 0), 0);
   const totalCostRom = event.line_items.reduce((s, li) => s + (li.cost_rom ?? 0), 0);
-  const tabs = ["General", "Related Items", "Comments", "Emails", "Change History", "Advanced Settings"];
+  const tabs: TabKey[] = ["General", "Related Items", "Comments", "Emails", "Change History", "Advanced Settings"];
+  const canSendComment = newComment.trim().length > 0 || pendingFiles.length > 0;
+
+  function handleFilePick(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    setPendingFiles((prev) => [...prev, ...Array.from(fileList)]);
+  }
+
+  function handleSendComment() {
+    if (!canSendComment) return;
+
+    setComments((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        message: newComment.trim(),
+        attachments: pendingFiles.map((file) => file.name),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    setNewComment("");
+    setPendingFiles([]);
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -158,8 +193,9 @@ export default function ChangeEventDetailClient({
           {tabs.map((tab) => (
             <button
               key={tab}
+              onClick={() => setActiveTab(tab)}
               className={`pb-1.5 text-xl whitespace-nowrap ${
-                tab === "General" ? "border-b-2 border-gray-900 text-gray-900" : "text-gray-700"
+                tab === activeTab ? "border-b-2 border-gray-900 text-gray-900" : "text-gray-700"
               }`}
             >
               {tab}
@@ -169,7 +205,9 @@ export default function ChangeEventDetailClient({
       </div>
 
       <div className="flex-1 overflow-y-auto bg-[#f3f4f6] px-3 py-3 space-y-3">
-        <section className="rounded border border-gray-300 bg-white">
+        {activeTab === "General" && (
+          <>
+            <section className="rounded border border-gray-300 bg-white">
           <div className="px-4 py-3 border-b border-gray-200">
             <h2 className="text-4xl text-gray-900">General Information</h2>
           </div>
@@ -205,7 +243,7 @@ export default function ChangeEventDetailClient({
           </div>
         </section>
 
-        <section className="rounded border border-gray-300 bg-white">
+            <section className="rounded border border-gray-300 bg-white">
           <div className="px-4 py-3 border-b border-gray-200">
             <h2 className="text-4xl text-gray-900 mb-2">Line Items</h2>
             <div className="flex flex-wrap items-center gap-2">
@@ -288,6 +326,100 @@ export default function ChangeEventDetailClient({
             </div>
           )}
         </section>
+          </>
+        )}
+
+        {activeTab === "Comments" && (
+          <section className="rounded border border-gray-300 bg-white">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h2 className="text-2xl text-gray-900">Comments</h2>
+            </div>
+
+            <div className="px-4 py-4 space-y-4">
+              <div className="space-y-3 rounded border border-gray-200 bg-gray-50 p-3">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Write a comment..."
+                  className="min-h-24 w-full rounded border border-gray-300 bg-white p-3 text-sm text-gray-800 outline-none ring-blue-500 focus:ring-1"
+                />
+
+                {pendingFiles.length > 0 && (
+                  <ul className="space-y-1">
+                    {pendingFiles.map((file, idx) => (
+                      <li key={`${file.name}-${idx}`} className="flex items-center justify-between rounded border border-gray-200 bg-white px-2 py-1 text-sm text-gray-700">
+                        <span className="truncate">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingFiles((prev) => prev.filter((_, fIdx) => fIdx !== idx))}
+                          className="ml-2 text-xs text-gray-500 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+                    <Paperclip className="h-4 w-4" />
+                    Attach files
+                    <input
+                      type="file"
+                      className="hidden"
+                      multiple
+                      onChange={(e) => {
+                        handleFilePick(e.target.files);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={handleSendComment}
+                    disabled={!canSendComment}
+                    className={`rounded px-4 py-1.5 text-sm font-medium text-white ${
+                      canSendComment ? "bg-blue-600 hover:bg-blue-700" : "cursor-not-allowed bg-gray-300"
+                    }`}
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+
+              {comments.length === 0 ? (
+                <p className="text-sm italic text-gray-500">No comments yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {comments.map((comment) => (
+                    <li key={comment.id} className="rounded border border-gray-200 bg-white p-3">
+                      <p className="text-xs text-gray-500">{new Date(comment.createdAt).toLocaleString()}</p>
+                      {comment.message && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{comment.message}</p>}
+                      {comment.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {comment.attachments.map((fileName) => (
+                            <span key={`${comment.id}-${fileName}`} className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700">
+                              <Paperclip className="h-3 w-3" />
+                              {fileName}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeTab !== "General" && activeTab !== "Comments" && (
+          <section className="rounded border border-gray-300 bg-white px-4 py-6">
+            <p className="text-sm text-gray-500">{activeTab} content coming soon.</p>
+          </section>
+        )}
       </div>
     </div>
   );
