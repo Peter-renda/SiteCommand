@@ -554,13 +554,8 @@ export default function ChangeEventsClient({
             const selectedHasCostAssociation =
               associatedSelectedLineItems.length > 0 ||
               selectedEvents.some((ev) => (ev.line_items ?? []).some((li) => Number(li.cost_commitment ?? 0) !== 0));
-            const associatedCommitmentLabel = associatedSelectedLineItems[0]?.contract_number?.trim() || "";
             const addToUnapprovedCommitmentDisabledMessage =
-              associatedSelectedLineItems.length > 1 || selectedLineItems.length > 1
-                ? "One of the selected line items has already been associated with a commitment CO."
-                : associatedCommitmentLabel
-                  ? `The selected line item has already been associated with the Commitment: ${associatedCommitmentLabel}.`
-                  : "One of the selected line items has already been associated with a commitment CO.";
+              "the selected line item has already be associated with a Commitment CO";
             const isUnapproved = (status: string | null | undefined) => String(status ?? "").trim().toLowerCase() !== "approved";
 
             // Reusable commitment submenu shared by "Add to Unapproved Commitment" and "Create Commitment CO"
@@ -691,6 +686,8 @@ export default function ChangeEventsClient({
                   >
                     <button
                       disabled={Boolean(action.disabled)}
+                      title={action.label === "Add to Unapproved Commitment" && action.disabled ? addToUnapprovedCommitmentDisabledMessage : undefined}
+                      aria-label={action.label === "Add to Unapproved Commitment" && action.disabled ? addToUnapprovedCommitmentDisabledMessage : undefined}
                       className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
                         action.disabled
                           ? "text-gray-400 bg-gray-50 cursor-not-allowed"
