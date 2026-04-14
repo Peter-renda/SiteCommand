@@ -414,7 +414,9 @@ export default function ChangeEventDetailClient({
           </section>
         )}
 
-        {activeTab === "Related Items" && <RelatedItemsTab projectId={projectId} />}
+        {activeTab === "Related Items" && (
+          <RelatedItemsTab projectId={projectId} eventId={eventId} canWrite={canWrite} />
+        )}
 
         {activeTab !== "General" && activeTab !== "Comments" && activeTab !== "Related Items" && (
           <section className="rounded border border-gray-200 bg-white px-4 py-6">
