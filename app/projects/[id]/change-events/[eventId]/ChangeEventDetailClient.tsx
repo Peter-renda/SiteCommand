@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import { ChevronDown, ChevronRight, Paperclip, Pencil } from "lucide-react";
+import RelatedItemsTab from "./RelatedItemsTab";
 
 type LineItem = {
   id: string;
@@ -415,7 +416,9 @@ export default function ChangeEventDetailClient({
           </section>
         )}
 
-        {activeTab !== "General" && activeTab !== "Comments" && (
+        {activeTab === "Related Items" && <RelatedItemsTab projectId={projectId} />}
+
+        {activeTab !== "General" && activeTab !== "Comments" && activeTab !== "Related Items" && (
           <section className="rounded border border-gray-300 bg-white px-4 py-6">
             <p className="text-sm text-gray-500">{activeTab} content coming soon.</p>
           </section>
