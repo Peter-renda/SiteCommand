@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 type TypeConfig = {
@@ -167,11 +167,21 @@ const TYPE_CONFIG_MAP: Record<string, TypeConfig> = Object.fromEntries(
 type Instance = { id: string; label: string };
 
 type RelatedItem = {
-  key: string;
+  id: string;
   type: string;
   instanceId: string;
+  instanceLabel: string;
   date: string;
   notes: string;
+};
+
+type RelatedItemRow = {
+  id: string;
+  item_type: string | null;
+  item_id: string | null;
+  item_label: string | null;
+  item_date: string | null;
+  notes: string | null;
 };
 
 function todayISO() {
@@ -182,20 +192,34 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function newRow(): RelatedItem {
+function rowFromServer(row: RelatedItemRow): RelatedItem {
   return {
-    key: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Math.random()),
-    type: "",
-    instanceId: "",
-    date: todayISO(),
-    notes: "",
+    id: row.id,
+    type: row.item_type ?? "",
+    instanceId: row.item_id ?? "",
+    instanceLabel: row.item_label ?? "",
+    date: row.item_date ?? "",
+    notes: row.notes ?? "",
   };
 }
 
-export default function RelatedItemsTab({ projectId }: { projectId: string }) {
+export default function RelatedItemsTab({
+  projectId,
+  eventId,
+  canWrite,
+}: {
+  projectId: string;
+  eventId: string;
+  canWrite: boolean;
+}) {
   const [items, setItems] = useState<RelatedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [instanceCache, setInstanceCache] = useState<Record<string, Instance[]>>({});
   const [loadingTypes, setLoadingTypes] = useState<Record<string, boolean>>({});
+  const notesDebounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const baseUrl = `/api/projects/${projectId}/change-events/${eventId}/related-items`;
 
   const loadInstances = useCallback(
     async (type: string) => {
@@ -235,38 +259,138 @@ export default function RelatedItemsTab({ projectId }: { projectId: string }) {
         setLoadingTypes((prev) => ({ ...prev, [type]: false }));
       }
     },
-    [projectId, instanceCache],
+    [projectId, instanceCache, loadingTypes],
   );
 
-  function addRow() {
-    setItems((prev) => [...prev, newRow()]);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(baseUrl)
+      .then((r) => r.json())
+      .then((data: RelatedItemRow[] | { error: string }) => {
+        if (cancelled) return;
+        if (Array.isArray(data)) {
+          setItems(data.map(rowFromServer));
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [baseUrl]);
+
+  // Preload instance cache for types that already appear in the saved items
+  // so their Description dropdowns render immediately on first render.
+  useEffect(() => {
+    const neededTypes = new Set(items.map((i) => i.type).filter(Boolean));
+    neededTypes.forEach((t) => {
+      void loadInstances(t);
+    });
+  }, [items, loadInstances]);
+
+  async function addRow() {
+    if (!canWrite) return;
+    setSaving(true);
+    try {
+      const res = await fetch(baseUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_date: todayISO() }),
+      });
+      if (!res.ok) return;
+      const row: RelatedItemRow = await res.json();
+      setItems((prev) => [...prev, rowFromServer(row)]);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function updateRow(key: string, patch: Partial<RelatedItem>) {
-    setItems((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  function patchLocal(id: string, patch: Partial<RelatedItem>) {
+    setItems((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
-  function removeRow(key: string) {
-    setItems((prev) => prev.filter((r) => r.key !== key));
+  async function patchServer(id: string, body: Record<string, unknown>) {
+    try {
+      await fetch(`${baseUrl}/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      /* swallow — UI already updated optimistically */
+    }
   }
 
-  function handleTypeChange(key: string, type: string) {
-    updateRow(key, { type, instanceId: "" });
+  async function removeRow(id: string) {
+    if (!canWrite) return;
+    const prev = items;
+    setItems((cur) => cur.filter((r) => r.id !== id));
+    try {
+      const res = await fetch(`${baseUrl}/${id}`, { method: "DELETE" });
+      if (!res.ok) setItems(prev);
+    } catch {
+      setItems(prev);
+    }
+  }
+
+  function handleTypeChange(id: string, type: string) {
+    patchLocal(id, { type, instanceId: "", instanceLabel: "" });
     if (type) void loadInstances(type);
+    void patchServer(id, { item_type: type, item_id: "", item_label: "" });
+  }
+
+  function handleInstanceChange(id: string, instanceId: string) {
+    const row = items.find((r) => r.id === id);
+    const instance = row ? (instanceCache[row.type] ?? []).find((i) => i.id === instanceId) : undefined;
+    const instanceLabel = instance?.label ?? "";
+    patchLocal(id, { instanceId, instanceLabel });
+    void patchServer(id, { item_id: instanceId, item_label: instanceLabel });
+  }
+
+  function handleDateChange(id: string, date: string) {
+    patchLocal(id, { date });
+    void patchServer(id, { item_date: date });
+  }
+
+  function handleNotesChange(id: string, notes: string) {
+    patchLocal(id, { notes });
+    const timers = notesDebounceRef.current;
+    if (timers[id]) clearTimeout(timers[id]);
+    timers[id] = setTimeout(() => {
+      void patchServer(id, { notes });
+      delete timers[id];
+    }, 500);
+  }
+
+  function handleNotesBlur(id: string, notes: string) {
+    const timers = notesDebounceRef.current;
+    if (timers[id]) {
+      clearTimeout(timers[id]);
+      delete timers[id];
+    }
+    void patchServer(id, { notes });
   }
 
   return (
     <section className="rounded border border-gray-300 bg-white">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
         <h2 className="text-2xl text-gray-900 font-semibold tracking-wide">RELATED ITEMS</h2>
-        <button
-          type="button"
-          onClick={addRow}
-          className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-        >
-          <Plus className="h-4 w-4" />
-          Add an Item
-        </button>
+        {canWrite && (
+          <button
+            type="button"
+            onClick={addRow}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            Add an Item
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -281,10 +405,16 @@ export default function RelatedItemsTab({ projectId }: { projectId: string }) {
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-sm italic text-gray-400">
+                  Loading…
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-3 py-6 text-center text-sm italic text-gray-500">
-                  No related items. Click &quot;Add an Item&quot; to get started.
+                  {canWrite ? "No related items. Click \"Add an Item\" to get started." : "No related items."}
                 </td>
               </tr>
             ) : (
@@ -293,12 +423,13 @@ export default function RelatedItemsTab({ projectId }: { projectId: string }) {
                 const instances = instanceCache[row.type] ?? [];
                 const isLoading = loadingTypes[row.type];
                 return (
-                  <tr key={row.key} className="border-b border-gray-200 align-top">
+                  <tr key={row.id} className="border-b border-gray-200 align-top">
                     <td className="px-3 py-2">
                       <select
                         value={row.type}
-                        onChange={(e) => handleTypeChange(row.key, e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        onChange={(e) => handleTypeChange(row.id, e.target.value)}
+                        disabled={!canWrite}
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
                       >
                         <option value="">Select an Item:</option>
                         <option value="Change Event">Change Event</option>
@@ -349,14 +480,19 @@ export default function RelatedItemsTab({ projectId }: { projectId: string }) {
                       ) : isLoading ? (
                         <span className="text-xs italic text-gray-400">Loading…</span>
                       ) : instances.length === 0 ? (
-                        <span className="text-xs italic text-gray-400">
-                          {cfg?.endpoint ? "No items available" : "Not available for this type"}
-                        </span>
+                        row.instanceLabel ? (
+                          <span className="text-sm text-gray-700">{row.instanceLabel}</span>
+                        ) : (
+                          <span className="text-xs italic text-gray-400">
+                            {cfg?.endpoint ? "No items available" : "Not available for this type"}
+                          </span>
+                        )
                       ) : (
                         <select
                           value={row.instanceId}
-                          onChange={(e) => updateRow(row.key, { instanceId: e.target.value })}
-                          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          onChange={(e) => handleInstanceChange(row.id, e.target.value)}
+                          disabled={!canWrite}
+                          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
                         >
                           <option value="">Select…</option>
                           {instances.map((inst) => (
@@ -371,28 +507,33 @@ export default function RelatedItemsTab({ projectId }: { projectId: string }) {
                       <input
                         type="date"
                         value={row.date}
-                        onChange={(e) => updateRow(row.key, { date: e.target.value })}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        onChange={(e) => handleDateChange(row.id, e.target.value)}
+                        disabled={!canWrite}
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
                       />
                     </td>
                     <td className="px-3 py-2">
                       <textarea
                         value={row.notes}
-                        onChange={(e) => updateRow(row.key, { notes: e.target.value })}
+                        onChange={(e) => handleNotesChange(row.id, e.target.value)}
+                        onBlur={(e) => handleNotesBlur(row.id, e.target.value)}
                         placeholder="Add notes…"
                         rows={1}
-                        className="w-full min-h-[34px] resize-y border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        disabled={!canWrite}
+                        className="w-full min-h-[34px] resize-y border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
                       />
                     </td>
                     <td className="px-3 py-2 text-center">
-                      <button
-                        type="button"
-                        onClick={() => removeRow(row.key)}
-                        aria-label="Remove related item"
-                        className="text-gray-400 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canWrite && (
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row.id)}
+                          aria-label="Remove related item"
+                          className="text-gray-400 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
