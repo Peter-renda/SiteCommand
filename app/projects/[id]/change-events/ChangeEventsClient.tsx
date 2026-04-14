@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import {
@@ -194,10 +194,26 @@ export default function ChangeEventsClient({
     setPage(1);
   }, [fetchEvents]);
 
+  const selectedLineItems = useMemo(
+    () =>
+      events.flatMap((ev) =>
+        ev.line_items
+          .filter((li) => selectedLineItemIds.has(li.id))
+          .map((li) => ({ ...li, eventId: ev.id }))
+      ),
+    [events, selectedLineItemIds]
+  );
+  const selectedEventIds = useMemo(() => {
+    const ids = new Set(selectedIds);
+    selectedLineItems.forEach((li) => ids.add(li.eventId));
+    return ids;
+  }, [selectedIds, selectedLineItems]);
+  const hasSelection = selectedEventIds.size > 0;
+
   // Fetch matching prime contracts and all commitments whenever the quick actions dropdown opens
   useEffect(() => {
-    if (!quickActionsOpen || selectedIds.size === 0) return;
-    const ids = Array.from(selectedIds).join(",");
+    if (!quickActionsOpen || !hasSelection) return;
+    const ids = Array.from(selectedEventIds).join(",");
     fetch(`/api/projects/${projectId}/change-events/matching-prime-contracts?eventIds=${ids}`)
       .then((r) => r.json())
       .then((data) => {
@@ -212,7 +228,7 @@ export default function ChangeEventsClient({
       .then((r) => r.json())
       .then((data) => setAllCommitments(Array.isArray(data) ? data : []))
       .catch(() => setAllCommitments([]));
-  }, [quickActionsOpen, selectedIds, projectId]);
+  }, [quickActionsOpen, hasSelection, selectedEventIds, projectId]);
 
   // Filtering
   const filtered = events.filter((ev) =>
@@ -516,14 +532,14 @@ export default function ChangeEventsClient({
         {/* Quick Actions dropdown – write-access users only */}
         {canWrite && <div ref={quickActionsRef} className="relative">
           <button
-            disabled={selectedIds.size === 0}
+            disabled={!hasSelection}
             onClick={() => {
               setQuickActionsOpen((v) => !v);
               setHoveredAction(null);
               setHoveredSubItem(null);
             }}
             className={`flex items-center gap-1 px-3 py-1 text-xs border rounded transition-colors ${
-              selectedIds.size > 0
+              hasSelection
                 ? "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white"
                 : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
             }`}
@@ -531,12 +547,15 @@ export default function ChangeEventsClient({
             Quick Actions <ChevronDown className="w-3 h-3" />
           </button>
 
-          {quickActionsOpen && selectedIds.size > 0 && (() => {
-            const eventIds = Array.from(selectedIds).join(",");
-            const selectedEvents = events.filter((ev) => selectedIds.has(ev.id));
-            const selectedHasCostAssociation = selectedEvents.some((ev) =>
-              (ev.line_items ?? []).some((li) => Number(li.cost_commitment ?? 0) !== 0)
-            );
+          {quickActionsOpen && hasSelection && (() => {
+            const eventIds = Array.from(selectedEventIds).join(",");
+            const selectedEvents = events.filter((ev) => selectedEventIds.has(ev.id));
+            const associatedSelectedLineItems = selectedLineItems.filter((li) => (li.contract_number ?? "").trim().length > 0);
+            const selectedHasCostAssociation =
+              associatedSelectedLineItems.length > 0 ||
+              selectedEvents.some((ev) => (ev.line_items ?? []).some((li) => Number(li.cost_commitment ?? 0) !== 0));
+            const addToUnapprovedCommitmentDisabledMessage =
+              "the selected line item has already be associated with a Commitment CO";
             const isUnapproved = (status: string | null | undefined) => String(status ?? "").trim().toLowerCase() !== "approved";
 
             // Reusable commitment submenu shared by "Add to Unapproved Commitment" and "Create Commitment CO"
@@ -667,6 +686,8 @@ export default function ChangeEventsClient({
                   >
                     <button
                       disabled={Boolean(action.disabled)}
+                      title={action.label === "Add to Unapproved Commitment" && action.disabled ? addToUnapprovedCommitmentDisabledMessage : undefined}
+                      aria-label={action.label === "Add to Unapproved Commitment" && action.disabled ? addToUnapprovedCommitmentDisabledMessage : undefined}
                       className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
                         action.disabled
                           ? "text-gray-400 bg-gray-50 cursor-not-allowed"
@@ -698,8 +719,17 @@ export default function ChangeEventsClient({
                         // commitment-submenu and prime-submenu stay open (arrow-based)
                       }}
                     >
-                      <span>{action.label}</span>
-                      {(action.type === "commitment-submenu" || action.type === "prime-submenu") && (
+                      <span className="flex items-center gap-1">
+                        <span>{action.label}</span>
+                        {action.label === "Add to Unapproved Commitment" && action.disabled && (
+                          <Info
+                            className="w-3 h-3 text-gray-400"
+                            title={addToUnapprovedCommitmentDisabledMessage}
+                            aria-label={addToUnapprovedCommitmentDisabledMessage}
+                          />
+                        )}
+                      </span>
+                      {(action.type === "commitment-submenu" || action.type === "prime-submenu") && !action.disabled && (
                         <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
                       )}
                     </button>
