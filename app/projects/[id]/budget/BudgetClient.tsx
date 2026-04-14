@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import ProjectNav from "@/components/ProjectNav";
@@ -91,6 +91,30 @@ type ModificationRow = {
   notes: string;
 };
 
+type BudgetDetailRow = {
+  id: string;
+  cost_code: string;
+  cost_code_tier_1: string;
+  cost_code_tier_2: string;
+  cost_type: string;
+  budget_description: string;
+  vendor: string;
+  item: string;
+  description: string;
+  detail_type: string;
+  original_budget_amount: number | null;
+  budget_modifications: number | null;
+  approved_cos: number | null;
+  pending_budget_changes: number | null;
+  committed_costs: number | null;
+  job_to_date_costs: number | null;
+  pending_cost_changes: number | null;
+  forecast_to_complete: number | null;
+};
+
+type GroupByKey = "cost_code_tier_1" | "cost_code_tier_2" | "cost_type" | "vendor" | "detail_type";
+type FilterKey = "cost_code" | "cost_type" | "vendor" | "detail_type";
+
 // ── Calculated helpers ────────────────────────────────────────────────────────
 
 function calc(item: BudgetLineItem) {
@@ -169,6 +193,17 @@ function fmtWithArrow(n: number): string {
   });
   const arrow = n >= 0 ? "↑" : "↓";
   return n < 0 ? `${arrow} ($${formatted})` : `${arrow} $${formatted}`;
+}
+
+function parseCostCodeTiers(code: string | null | undefined) {
+  const raw = (code ?? "").trim();
+  if (!raw) return { tier1: "None", tier2: "None" };
+  const beforeDot = raw.split(".")[0] ?? raw;
+  const tier1 = beforeDot.split("-")[0] ?? beforeDot;
+  return {
+    tier1: tier1 || "None",
+    tier2: beforeDot || "None",
+  };
 }
 
 function calcWithForecastOverride(item: BudgetLineItem, overrideAmount?: number | null) {
@@ -941,6 +976,18 @@ export default function BudgetClient({
   const [forecastEdits, setForecastEdits] = useState<Record<string, ForecastEdit>>({});
   const [selectedForecastItemId, setSelectedForecastItemId] = useState<string | null>(null);
   const [isBudgetLocked, setIsBudgetLocked] = useState(false);
+  const [activeTab, setActiveTab] = useState<"budget" | "budget_details">("budget");
+  const [groupBy, setGroupBy] = useState<GroupByKey | null>(null);
+  const [showGroupMenu, setShowGroupMenu] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [activeFilterKey, setActiveFilterKey] = useState<FilterKey | null>(null);
+  const [filterSearch, setFilterSearch] = useState("");
+  const [selectedFilters, setSelectedFilters] = useState<Record<FilterKey, string[]>>({
+    cost_code: [],
+    cost_type: [],
+    vendor: [],
+    detail_type: [],
+  });
 
   // Dropdown refs
   const exportRef = useRef<HTMLDivElement>(null);
@@ -950,6 +997,8 @@ export default function BudgetClient({
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const reportsMenuRef = useRef<HTMLDivElement>(null);
   const [showReportsMenu, setShowReportsMenu] = useState(false);
+  const groupMenuRef = useRef<HTMLDivElement>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
 
   // Row action menu
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
@@ -961,6 +1010,8 @@ export default function BudgetClient({
       if (rowMenuRef.current && !rowMenuRef.current.contains(e.target as Node)) setRowMenuId(null);
       if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) setShowCreateMenu(false);
       if (reportsMenuRef.current && !reportsMenuRef.current.contains(e.target as Node)) setShowReportsMenu(false);
+      if (groupMenuRef.current && !groupMenuRef.current.contains(e.target as Node)) setShowGroupMenu(false);
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setShowFilterMenu(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -1439,6 +1490,22 @@ export default function BudgetClient({
     },
   ];
 
+  const DETAIL_COLS: Array<{ key: string; label: string; width: string }> = [
+    { key: "budget_code", label: "Budget Code", width: "min-w-[210px]" },
+    { key: "vendor", label: "Vendor", width: "min-w-[130px]" },
+    { key: "item", label: "Item", width: "min-w-[180px]" },
+    { key: "description", label: "Description", width: "min-w-[130px]" },
+    { key: "detail_type", label: "Detail Type", width: "min-w-[170px]" },
+    { key: "original_budget_amount", label: "Original Budget Amount", width: "min-w-[130px]" },
+    { key: "budget_modifications", label: "Budget Modifications", width: "min-w-[120px]" },
+    { key: "approved_cos", label: "Approved COs", width: "min-w-[110px]" },
+    { key: "pending_budget_changes", label: "Pending Budget Changes", width: "min-w-[130px]" },
+    { key: "committed_costs", label: "Committed Costs", width: "min-w-[110px]" },
+    { key: "job_to_date_costs", label: "Job to Date Costs", width: "min-w-[110px]" },
+    { key: "pending_cost_changes", label: "Pending Cost Changes", width: "min-w-[120px]" },
+    { key: "forecast_to_complete", label: "Forecast To Complete", width: "min-w-[130px]" },
+  ];
+
   function renderCell(item: BudgetLineItem | null, key: string) {
     if (item === null) {
       // Totals row
@@ -1514,6 +1581,223 @@ export default function BudgetClient({
         );
       default: return null;
     }
+  }
+
+  const budgetDetailRows: BudgetDetailRow[] = items.flatMap((item) => {
+    const c = getItemCalc(item);
+    const tiers = parseCostCodeTiers(item.cost_code);
+    const rows: BudgetDetailRow[] = [];
+    const base = {
+      cost_code: item.cost_code,
+      cost_code_tier_1: tiers.tier1,
+      cost_code_tier_2: tiers.tier2,
+      cost_type: item.cost_type?.trim() || "None",
+      budget_description: item.description,
+      vendor: "None",
+      description: item.description || "—",
+      approved_cos: null,
+      pending_budget_changes: null,
+      committed_costs: null,
+      job_to_date_costs: null,
+      pending_cost_changes: null,
+      budget_modifications: null,
+      original_budget_amount: null,
+      forecast_to_complete: null,
+    };
+
+    rows.push({
+      ...base,
+      id: `${item.id}-auto-forecast`,
+      item: "—",
+      detail_type: "Automatic Forecast",
+      forecast_to_complete: c.forecastToComplete,
+    });
+
+    rows.push({
+      ...base,
+      id: `${item.id}-original`,
+      item: "Original Budget",
+      detail_type: "Original Budget Amount",
+      original_budget_amount: item.original_budget_amount,
+    });
+
+    if (item.budget_modifications !== 0) {
+      rows.push({
+        ...base,
+        id: `${item.id}-modifications`,
+        item: "Budget Modification",
+        detail_type: "Budget Modification",
+        budget_modifications: item.budget_modifications,
+      });
+    }
+
+    if (item.approved_cos !== 0) {
+      rows.push({
+        ...base,
+        id: `${item.id}-approved-cos`,
+        item: "Prime Contract Change Order",
+        detail_type: "Approved CO",
+        approved_cos: item.approved_cos,
+      });
+    }
+
+    if (item.pending_budget_changes !== 0) {
+      rows.push({
+        ...base,
+        id: `${item.id}-pending-budget`,
+        item: "Budget Change",
+        detail_type: "Pending Budget Change",
+        pending_budget_changes: item.pending_budget_changes,
+      });
+    }
+
+    if (item.committed_costs !== 0) {
+      rows.push({
+        ...base,
+        id: `${item.id}-committed`,
+        item: "Commitment",
+        detail_type: "Commitment Contract",
+        committed_costs: item.committed_costs,
+      });
+    }
+
+    if (item.job_to_date_costs !== 0) {
+      rows.push({
+        ...base,
+        id: `${item.id}-job-to-date`,
+        item: "Direct Cost",
+        detail_type: "Direct Cost",
+        job_to_date_costs: item.job_to_date_costs,
+      });
+    }
+
+    if (item.pending_cost_changes !== 0) {
+      rows.push({
+        ...base,
+        id: `${item.id}-pending-cost`,
+        item: "Pending Cost Change",
+        detail_type: "Pending Cost Change",
+        pending_cost_changes: item.pending_cost_changes,
+      });
+    }
+
+    return rows;
+  });
+
+  const filterChoices = useMemo(() => {
+    const costCodeMap = new Map<string, string>();
+    budgetDetailRows.forEach((row) => {
+      const label = row.budget_description
+        ? `${row.cost_code} - ${row.budget_description}`
+        : row.cost_code;
+      costCodeMap.set(row.cost_code || "None", label || "None");
+    });
+    return {
+      cost_code: Array.from(costCodeMap.entries())
+        .map(([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+      cost_type: Array.from(new Set(budgetDetailRows.map((row) => row.cost_type || "None")))
+        .sort((a, b) => a.localeCompare(b))
+        .map((value) => ({ value, label: value })),
+      vendor: Array.from(new Set(budgetDetailRows.map((row) => row.vendor || "None")))
+        .sort((a, b) => a.localeCompare(b))
+        .map((value) => ({ value, label: value })),
+      detail_type: Array.from(new Set(budgetDetailRows.map((row) => row.detail_type || "None")))
+        .sort((a, b) => a.localeCompare(b))
+        .map((value) => ({ value, label: value })),
+    };
+  }, [budgetDetailRows]);
+
+  const activeFilterOptions = activeFilterKey ? filterChoices[activeFilterKey] : [];
+  const searchedFilterOptions = activeFilterOptions.filter((option) =>
+    option.label.toLowerCase().includes(filterSearch.toLowerCase())
+  );
+
+  const filteredBudgetDetailRows = useMemo(() => {
+    return budgetDetailRows.filter((row) => {
+      if (
+        selectedFilters.cost_code.length > 0 &&
+        !selectedFilters.cost_code.includes(row.cost_code || "None")
+      ) {
+        return false;
+      }
+      if (
+        selectedFilters.cost_type.length > 0 &&
+        !selectedFilters.cost_type.includes(row.cost_type || "None")
+      ) {
+        return false;
+      }
+      if (selectedFilters.vendor.length > 0 && !selectedFilters.vendor.includes(row.vendor || "None")) {
+        return false;
+      }
+      if (
+        selectedFilters.detail_type.length > 0 &&
+        !selectedFilters.detail_type.includes(row.detail_type || "None")
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [budgetDetailRows, selectedFilters]);
+
+  const groupedBudgetDetailRows = useMemo(() => {
+    if (!groupBy) return [];
+    const groups = new Map<string, BudgetDetailRow[]>();
+    filteredBudgetDetailRows.forEach((row) => {
+      const keyValue = row[groupBy] || "None";
+      const arr = groups.get(keyValue) ?? [];
+      arr.push(row);
+      groups.set(keyValue, arr);
+    });
+    return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filteredBudgetDetailRows, groupBy]);
+
+  function renderDetailCell(row: BudgetDetailRow, key: string) {
+    switch (key) {
+      case "budget_code":
+        return (
+          <div>
+            <p className="text-gray-900">{row.cost_code || "—"}</p>
+            <p className="text-gray-500">{row.budget_description || "—"}</p>
+          </div>
+        );
+      case "vendor":
+        return <span>{row.vendor || "—"}</span>;
+      case "item":
+        return <span>{row.item || "—"}</span>;
+      case "description":
+        return <span>{row.description || "—"}</span>;
+      case "detail_type":
+        return <span>{row.detail_type || "—"}</span>;
+      case "original_budget_amount":
+        return <span>{row.original_budget_amount === null ? "—" : fmt(row.original_budget_amount)}</span>;
+      case "budget_modifications":
+        return <span>{row.budget_modifications === null ? "—" : fmt(row.budget_modifications)}</span>;
+      case "approved_cos":
+        return <span>{row.approved_cos === null ? "—" : fmt(row.approved_cos)}</span>;
+      case "pending_budget_changes":
+        return <span>{row.pending_budget_changes === null ? "—" : fmt(row.pending_budget_changes)}</span>;
+      case "committed_costs":
+        return <span>{row.committed_costs === null ? "—" : fmt(row.committed_costs)}</span>;
+      case "job_to_date_costs":
+        return <span>{row.job_to_date_costs === null ? "—" : fmt(row.job_to_date_costs)}</span>;
+      case "pending_cost_changes":
+        return <span>{row.pending_cost_changes === null ? "—" : fmt(row.pending_cost_changes)}</span>;
+      case "forecast_to_complete":
+        return <span>{row.forecast_to_complete === null ? "—" : fmt(row.forecast_to_complete)}</span>;
+      default:
+        return <span className="text-gray-500">—</span>;
+    }
+  }
+
+  function toggleFilterValue(filterKey: FilterKey, value: string) {
+    setSelectedFilters((prev) => {
+      const current = prev[filterKey];
+      const next = current.includes(value)
+        ? current.filter((entry) => entry !== value)
+        : [...current, value];
+      return { ...prev, [filterKey]: next };
+    });
   }
 
   return (
@@ -1692,12 +1976,199 @@ export default function BudgetClient({
           </div>
         </div>
 
+        <div className="mb-4 border-b border-gray-200">
+          <div className="flex items-center gap-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab("budget")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "budget"
+                  ? "border-orange-500 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Budget
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("budget_details")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "budget_details"
+                  ? "border-orange-500 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Budget Details
+            </button>
+          </div>
+        </div>
+
+        {activeTab === "budget_details" && (
+          <div className="mb-4 flex items-center gap-2">
+            <div ref={groupMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowGroupMenu((v) => !v)}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+              >
+                Group
+              </button>
+              {showGroupMenu && (
+                <div className="absolute left-0 mt-2 w-60 bg-white border border-gray-200 rounded-md shadow-lg z-40">
+                  {[
+                    { key: "cost_code_tier_1" as GroupByKey, label: "Cost Code Tier 1" },
+                    { key: "cost_code_tier_2" as GroupByKey, label: "Cost Code Tier 2" },
+                    { key: "cost_type" as GroupByKey, label: "Cost Type" },
+                    { key: "vendor" as GroupByKey, label: "Vendor" },
+                    { key: "detail_type" as GroupByKey, label: "Detail Type" },
+                  ].map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => {
+                        setGroupBy(option.key);
+                        setShowGroupMenu(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                        groupBy === option.key ? "bg-gray-100" : ""
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                  <div className="border-t border-gray-200 p-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGroupBy(null);
+                        setShowGroupMenu(false);
+                      }}
+                      className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div ref={filterMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowFilterMenu((v) => !v)}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+              >
+                Filter
+              </button>
+              {showFilterMenu && (
+                <div className="absolute left-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-40 py-1">
+                  {[
+                    { key: "cost_code" as FilterKey, label: "Cost Code" },
+                    { key: "cost_type" as FilterKey, label: "Cost Type" },
+                    { key: "vendor" as FilterKey, label: "Vendor" },
+                    { key: "detail_type" as FilterKey, label: "Detail Type" },
+                  ].map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => {
+                        setActiveFilterKey(option.key);
+                        setFilterSearch("");
+                        setShowFilterMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "budget_details" && activeFilterKey && (
+          <div className="mb-4 bg-white border border-gray-200 rounded-md p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700 capitalize">
+                  {activeFilterKey.replace("_", " ")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveFilterKey(null);
+                    setFilterSearch("");
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  ×
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedFilters({
+                    cost_code: [],
+                    cost_type: [],
+                    vendor: [],
+                    detail_type: [],
+                  })
+                }
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Clear all
+              </button>
+            </div>
+            <input
+              type="text"
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              placeholder="Search"
+              className="w-full mb-2 px-3 py-2 text-sm border border-gray-300 rounded-md"
+            />
+            <label className="flex items-center gap-2 px-1 py-1 text-sm font-semibold">
+              <input
+                type="checkbox"
+                checked={
+                  searchedFilterOptions.length > 0 &&
+                  searchedFilterOptions.every((option) =>
+                    selectedFilters[activeFilterKey].includes(option.value)
+                  )
+                }
+                onChange={(e) => {
+                  const values = searchedFilterOptions.map((option) => option.value);
+                  setSelectedFilters((prev) => {
+                    const nextSet = new Set(prev[activeFilterKey]);
+                    if (e.target.checked) values.forEach((v) => nextSet.add(v));
+                    else values.forEach((v) => nextSet.delete(v));
+                    return { ...prev, [activeFilterKey]: Array.from(nextSet) };
+                  });
+                }}
+              />
+              Select all
+            </label>
+            <div className="max-h-60 overflow-auto">
+              {searchedFilterOptions.map((option) => (
+                <label key={option.value} className="flex items-center gap-2 px-1 py-1.5 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedFilters[activeFilterKey].includes(option.value)}
+                    onChange={() => toggleFilterValue(activeFilterKey, option.value)}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className={`grid grid-cols-1 gap-4 items-start ${!isBudgetLocked ? "xl:grid-cols-[minmax(0,1fr)_280px]" : ""}`}>
           <section>
             {/* Table */}
             {loading ? (
               <SkeletonTable rows={6} cols={8} />
-            ) : (
+            ) : activeTab === "budget" ? (
               <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
                 <div className="overflow-auto max-h-[70vh]">
                   <table className="w-full text-xs">
@@ -1797,6 +2268,69 @@ export default function BudgetClient({
                         ))}
                         <td className="bg-gray-50" />
                       </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                <div className="overflow-auto max-h-[70vh]">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 z-20">
+                      <tr className="border-b border-gray-100 bg-gray-50">
+                        {DETAIL_COLS.map((col) => (
+                          <th
+                            key={col.key}
+                            className={`text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50 ${col.width}`}
+                          >
+                            {col.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredBudgetDetailRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={DETAIL_COLS.length} className="px-3 py-12 text-center text-sm text-gray-400">
+                            No budget details available yet
+                          </td>
+                        </tr>
+                      ) : groupBy ? (
+                        groupedBudgetDetailRows.map(([groupName, rows]) => (
+                          <Fragment key={`group-${groupName}`}>
+                            <tr className="bg-gray-100 border-y border-gray-200">
+                              <td colSpan={DETAIL_COLS.length} className="px-3 py-2 text-xs font-semibold text-gray-700">
+                                {groupName}
+                              </td>
+                            </tr>
+                            {rows.map((row) => (
+                              <tr
+                                key={row.id}
+                                className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0"
+                              >
+                                {DETAIL_COLS.map((col) => (
+                                  <td key={col.key} className="px-3 py-3 text-xs whitespace-nowrap">
+                                    {renderDetailCell(row, col.key)}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </Fragment>
+                        ))
+                      ) : (
+                        filteredBudgetDetailRows.map((row) => (
+                          <tr
+                            key={row.id}
+                            className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0"
+                          >
+                            {DETAIL_COLS.map((col) => (
+                              <td key={col.key} className="px-3 py-3 text-xs whitespace-nowrap">
+                                {renderDetailCell(row, col.key)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
