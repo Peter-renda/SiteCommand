@@ -18,6 +18,7 @@ export const TOOL_SECTIONS = [
       { name: "RFIs", slug: "rfis" },
       { name: "Submittals", slug: "submittals" },
       { name: "Transmittals", slug: "transmittals" },
+      { name: "T&M Tickets", slug: "tm-tickets" },
       { name: "Punch List", slug: "punch-list" },
       { name: "Meetings", slug: "meetings" },
       { name: "Schedule", slug: "schedule" },

@@ -36,6 +36,7 @@ const ALL_FEATURES: { key: string; label: string; group: string }[] = [
   { key: "rfis", label: "RFIs", group: "Project Management" },
   { key: "submittals", label: "Submittals", group: "Project Management" },
   { key: "transmittals", label: "Transmittals", group: "Project Management" },
+  { key: "tm-tickets", label: "T&M Tickets", group: "Project Management" },
   { key: "punch-list", label: "Punch List", group: "Project Management" },
   { key: "meetings", label: "Meetings", group: "Project Management" },
   { key: "schedule", label: "Schedule", group: "Project Management" },
