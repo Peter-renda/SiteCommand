@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import ProjectNav from "@/components/ProjectNav";
 import { SkeletonTable } from "@/app/components/Skeleton";
+import * as XLSX from "xlsx";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -11,7 +13,12 @@ type BudgetLineItem = {
   id: string;
   project_id: string;
   cost_code: string;
+  cost_type: string;
   description: string;
+  manual_calculation: boolean;
+  unit_qty: number;
+  unit_of_measure: string;
+  unit_cost: number;
   original_budget_amount: number;
   budget_modifications: number;
   approved_cos: number;
@@ -20,6 +27,9 @@ type BudgetLineItem = {
   job_to_date_costs: number;
   commitments_invoiced: number;
   pending_cost_changes: number;
+  start_date: string | null;
+  end_date: string | null;
+  curve: string;
   sort_order: number;
   created_at: string;
 };
@@ -70,6 +80,14 @@ type ForecastMethod = "automatic" | "manual" | "lump_sum" | "monitored_resources
 type ForecastEdit = {
   method: ForecastMethod;
   amount: number | null;
+  notes: string;
+};
+
+type ModificationRow = {
+  id: string;
+  fromId: string;
+  toId: string;
+  amount: string;
   notes: string;
 };
 
@@ -319,6 +337,45 @@ function numVal(s: string): number {
   return isNaN(n) ? 0 : n;
 }
 
+function readString(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function readNumber(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return numVal(value);
+  return 0;
+}
+
+function readBool(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const lower = value.trim().toLowerCase();
+    return lower === "true" || lower === "yes" || lower === "1";
+  }
+  return false;
+}
+
+function readDate(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date) return value.toISOString().split("T")[0];
+  if (typeof value === "number") {
+    // Excel 1900 date serial → JS timestamp
+    const ms = Math.round((value - 25569) * 86400 * 1000);
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const d = new Date(trimmed);
+    return isNaN(d.getTime()) ? trimmed : d.toISOString().split("T")[0];
+  }
+  return null;
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -332,10 +389,12 @@ function MoneyInput({
   value,
   onChange,
   placeholder,
+  disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   return (
     <input
@@ -344,17 +403,20 @@ function MoneyInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "0.00"}
-      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+      disabled={disabled}
+      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
     />
   );
 }
 
 function LineItemModal({
   initial,
+  lockOriginalBudgetAmount = false,
   onConfirm,
   onCancel,
 }: {
   initial?: BudgetLineItem;
+  lockOriginalBudgetAmount?: boolean;
   onConfirm: (data: LineItemFormData) => void;
   onCancel: () => void;
 }) {
@@ -433,7 +495,16 @@ function LineItemModal({
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Budget</p>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Original Budget Amount">
-              <MoneyInput value={form.original_budget_amount} onChange={(v) => set("original_budget_amount", v)} />
+              <MoneyInput
+                value={form.original_budget_amount}
+                onChange={(v) => set("original_budget_amount", v)}
+                disabled={lockOriginalBudgetAmount}
+              />
+              {lockOriginalBudgetAmount && (
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Original Budget Amount is locked for this budget.
+                </p>
+              )}
             </Field>
             <Field label="Budget Modifications">
               <MoneyInput value={form.budget_modifications} onChange={(v) => set("budget_modifications", v)} />
@@ -539,6 +610,207 @@ function SnapshotModal({
   );
 }
 
+function BudgetChangeModal({
+  items,
+  onConfirm,
+  onCancel,
+}: {
+  items: BudgetLineItem[];
+  onConfirm: (payload: { itemId: string; amount: number }) => void;
+  onCancel: () => void;
+}) {
+  const [itemId, setItemId] = useState(items[0]?.id ?? "");
+  const [amount, setAmount] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!itemId) return;
+    onConfirm({ itemId, amount: numVal(amount) });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md bg-white rounded-xl shadow-2xl">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900">Create Budget Change</h2>
+          <button onClick={onCancel} className="text-gray-400 hover:text-gray-700 transition-colors" aria-label="Close">
+            ×
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Budget Line Item</label>
+            <select
+              value={itemId}
+              onChange={(e) => setItemId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            >
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.cost_code} — {item.description || "No description"}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Budget Change Amount</label>
+            <MoneyInput value={amount} onChange={setAmount} />
+            <p className="mt-1 text-[11px] text-gray-500">
+              This updates the selected line item&apos;s Pending Budget Changes.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Create Budget Change
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Budget Modification Modal ─────────────────────────────────────────────────
+
+function BudgetModificationModal({
+  items,
+  onConfirm,
+  onCancel,
+}: {
+  items: BudgetLineItem[];
+  onConfirm: (rows: { fromId: string; toId: string; amount: number; notes: string }[]) => void;
+  onCancel: () => void;
+}) {
+  function makeRow(): ModificationRow {
+    return { id: Math.random().toString(36).slice(2), fromId: "", toId: "", amount: "", notes: "" };
+  }
+
+  const [rows, setRows] = useState<ModificationRow[]>(() => [makeRow(), makeRow(), makeRow(), makeRow()]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onCancel(); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  function updateRow(id: string, updates: Partial<ModificationRow>) {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates } : r)));
+  }
+
+  function handleSubmit() {
+    const validRows = rows
+      .filter((r) => r.fromId && r.toId && numVal(r.amount) !== 0)
+      .map((r) => ({ fromId: r.fromId, toId: r.toId, amount: numVal(r.amount), notes: r.notes }));
+    if (validRows.length === 0) return;
+    onConfirm(validRows);
+  }
+
+  const selectClass =
+    "w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900">Create Budget Modifications</h2>
+          <button onClick={onCancel} className="text-gray-500 hover:text-gray-900 text-xl leading-none" aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div className="px-6 py-4">
+          <div className="grid grid-cols-[1fr_1fr_160px_1fr_36px] gap-3 mb-2">
+            <span className="text-xs font-medium text-gray-600">From</span>
+            <span className="text-xs font-medium text-gray-600">To</span>
+            <span className="text-xs font-medium text-gray-600">Transfer Amount</span>
+            <span className="text-xs font-medium text-gray-600">Notes</span>
+            <span />
+          </div>
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div key={row.id} className="grid grid-cols-[1fr_1fr_160px_1fr_36px] gap-3 items-center">
+                <select
+                  value={row.fromId}
+                  onChange={(e) => updateRow(row.id, { fromId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Select a Line Item</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.cost_code}{item.description ? ` - ${item.description}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={row.toId}
+                  onChange={(e) => updateRow(row.id, { toId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Select a Line Item</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.cost_code}{item.description ? ` - ${item.description}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <MoneyInput value={row.amount} onChange={(v) => updateRow(row.id, { amount: v })} placeholder="$0.00" />
+                <input
+                  type="text"
+                  value={row.notes}
+                  onChange={(e) => updateRow(row.id, { notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <button
+                  type="button"
+                  onClick={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
+                  className="flex items-center justify-center w-7 h-7 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors flex-shrink-0"
+                  aria-label="Remove row"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setRows((prev) => [...prev, makeRow()])}
+            className="mt-4 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            + Add Line Item
+          </button>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-800 transition-colors"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ERP Resend Confirm Modal ──────────────────────────────────────────────────
 
 function ErpConfirmModal({
@@ -592,15 +864,26 @@ type ColTooltip = {
 
 function ColumnTooltip({ label, tooltip }: { label: string; tooltip: ColTooltip }) {
   const [show, setShow] = useState(false);
-  return (
-    <div
-      className="relative inline-block"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
-      <span className="cursor-default select-none">{label}</span>
-      {show && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg bg-gray-900 text-white shadow-xl p-3 text-xs pointer-events-none">
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  function handleEnter() {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setShow(true);
+  }
+
+  const tooltipEl = show && pos && mounted
+    ? createPortal(
+        <div
+          className="fixed z-[200] w-64 rounded-lg bg-gray-900 text-white shadow-xl p-3 text-xs pointer-events-none"
+          style={{ top: pos.top, left: pos.left }}
+        >
           <div className="font-semibold text-sm leading-tight">
             {label}
             {tooltip.subtitle && (
@@ -611,8 +894,20 @@ function ColumnTooltip({ label, tooltip }: { label: string; tooltip: ColTooltip 
           <div className="border-t border-gray-700 pt-2 space-y-1 leading-relaxed">
             {tooltip.body}
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div
+      ref={triggerRef}
+      className="inline-block"
+      onMouseEnter={handleEnter}
+      onMouseLeave={() => setShow(false)}
+    >
+      <span className="cursor-default select-none">{label}</span>
+      {tooltipEl}
     </div>
   );
 }
@@ -636,6 +931,8 @@ export default function BudgetClient({
   const [showLineItemModal, setShowLineItemModal] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetLineItem | null>(null);
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
+  const [showBudgetChangeModal, setShowBudgetChangeModal] = useState(false);
+  const [showBudgetModificationModal, setShowBudgetModificationModal] = useState(false);
   const [showErpModal, setShowErpModal] = useState(false);
   const [showCommittedCostsModal, setShowCommittedCostsModal] = useState(false);
   const [committedCostsLoading, setCommittedCostsLoading] = useState(false);
@@ -643,12 +940,16 @@ export default function BudgetClient({
   const [committedCostsData, setCommittedCostsData] = useState<CommittedCostsDetail | null>(null);
   const [forecastEdits, setForecastEdits] = useState<Record<string, ForecastEdit>>({});
   const [selectedForecastItemId, setSelectedForecastItemId] = useState<string | null>(null);
+  const [isBudgetLocked, setIsBudgetLocked] = useState(false);
 
   // Dropdown refs
-  const createRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
-  const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const createMenuRef = useRef<HTMLDivElement>(null);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const reportsMenuRef = useRef<HTMLDivElement>(null);
+  const [showReportsMenu, setShowReportsMenu] = useState(false);
 
   // Row action menu
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
@@ -656,9 +957,10 @@ export default function BudgetClient({
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (createRef.current && !createRef.current.contains(e.target as Node)) setShowCreateMenu(false);
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExportMenu(false);
       if (rowMenuRef.current && !rowMenuRef.current.contains(e.target as Node)) setRowMenuId(null);
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) setShowCreateMenu(false);
+      if (reportsMenuRef.current && !reportsMenuRef.current.contains(e.target as Node)) setShowReportsMenu(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -668,9 +970,11 @@ export default function BudgetClient({
     Promise.all([
       fetch(`/api/projects/${projectId}/budget`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/budget/snapshots`).then((r) => r.json()),
-    ]).then(([itemsData, snapshotsData]) => {
+      fetch(`/api/projects/${projectId}/budget/lock`).then((r) => r.json()),
+    ]).then(([itemsData, snapshotsData, lockData]) => {
       setItems(Array.isArray(itemsData) ? itemsData : []);
       setSnapshots(Array.isArray(snapshotsData) ? snapshotsData : []);
+      setIsBudgetLocked(lockData?.locked === true);
       setLoading(false);
     });
   }, [projectId]);
@@ -708,7 +1012,9 @@ export default function BudgetClient({
       body: JSON.stringify({
         cost_code: data.cost_code,
         description: data.description,
-        original_budget_amount: numVal(data.original_budget_amount),
+        original_budget_amount: isBudgetLocked
+          ? editingItem.original_budget_amount
+          : numVal(data.original_budget_amount),
         budget_modifications: numVal(data.budget_modifications),
         approved_cos: numVal(data.approved_cos),
         pending_budget_changes: numVal(data.pending_budget_changes),
@@ -723,6 +1029,16 @@ export default function BudgetClient({
       setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
     }
     setEditingItem(null);
+  }
+
+  async function handleLockBudget() {
+    if (isBudgetLocked) return;
+    const confirmed = window.confirm(
+      "Lock budget? Once locked, Original Budget Amount values can no longer be edited."
+    );
+    if (!confirmed) return;
+    const res = await fetch(`/api/projects/${projectId}/budget/lock`, { method: "POST" });
+    if (res.ok) setIsBudgetLocked(true);
   }
 
   async function handleDeleteItem(id: string) {
@@ -744,9 +1060,218 @@ export default function BudgetClient({
     setShowSnapshotModal(false);
   }
 
+  async function handleCreateBudgetChange(payload: { itemId: string; amount: number }) {
+    const targetItem = items.find((item) => item.id === payload.itemId);
+    if (!targetItem) return;
+    const res = await fetch(`/api/projects/${projectId}/budget/${payload.itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cost_code: targetItem.cost_code,
+        description: targetItem.description,
+        original_budget_amount: targetItem.original_budget_amount,
+        budget_modifications: targetItem.budget_modifications,
+        approved_cos: targetItem.approved_cos,
+        pending_budget_changes: targetItem.pending_budget_changes + payload.amount,
+        committed_costs: targetItem.committed_costs,
+        job_to_date_costs: targetItem.job_to_date_costs,
+        commitments_invoiced: targetItem.commitments_invoiced,
+        pending_cost_changes: targetItem.pending_cost_changes,
+      }),
+    });
+    if (res.ok) {
+      const updated: BudgetLineItem = await res.json();
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setShowBudgetChangeModal(false);
+    }
+  }
+
+  async function handleCreateBudgetModification(
+    rows: { fromId: string; toId: string; amount: number; notes: string }[]
+  ) {
+    // Aggregate net delta per line item so each item is only PATCHed once
+    const deltas = new Map<string, number>();
+    for (const row of rows) {
+      if (!row.fromId || !row.toId || row.amount === 0) continue;
+      deltas.set(row.fromId, (deltas.get(row.fromId) ?? 0) - row.amount);
+      deltas.set(row.toId, (deltas.get(row.toId) ?? 0) + row.amount);
+    }
+
+    const updatedMap = new Map(items.map((i) => [i.id, i]));
+    for (const [itemId, delta] of deltas) {
+      const item = updatedMap.get(itemId);
+      if (!item) continue;
+      const res = await fetch(`/api/projects/${projectId}/budget/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cost_code: item.cost_code,
+          description: item.description,
+          original_budget_amount: item.original_budget_amount,
+          budget_modifications: item.budget_modifications + delta,
+          approved_cos: item.approved_cos,
+          pending_budget_changes: item.pending_budget_changes,
+          committed_costs: item.committed_costs,
+          job_to_date_costs: item.job_to_date_costs,
+          commitments_invoiced: item.commitments_invoiced,
+          pending_cost_changes: item.pending_cost_changes,
+        }),
+      });
+      if (res.ok) {
+        const updated: BudgetLineItem = await res.json();
+        updatedMap.set(updated.id, updated);
+      }
+    }
+    setItems(items.map((i) => updatedMap.get(i.id) ?? i));
+
+    // Save audit records (fire-and-forget; don't block the UI)
+    const validRows = rows.filter((r) => r.fromId && r.toId && r.amount !== 0);
+    if (validRows.length > 0) {
+      fetch(`/api/projects/${projectId}/budget/modifications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows: validRows.map((r) => ({
+            fromId: r.fromId,
+            toId: r.toId,
+            fromCostCode: updatedMap.get(r.fromId)?.cost_code ?? "",
+            toCostCode: updatedMap.get(r.toId)?.cost_code ?? "",
+            amount: r.amount,
+            notes: r.notes,
+          })),
+        }),
+      });
+    }
+
+    setShowBudgetModificationModal(false);
+  }
+
   function handleErpResend() {
     // Placeholder: integrate with ERP API
     setShowErpModal(false);
+  }
+
+  function handleDownloadTemplate() {
+    const headers = [
+      "Cost Code",
+      "Cost Type",
+      "Description",
+      "Manual Calculation",
+      "Unit Qty",
+      "Unit of Measure",
+      "Unit Cost",
+      "Budget Amount",
+      "Start Date",
+      "End Date",
+      "Curve",
+    ];
+    const sample = [
+      "01-100",
+      "Labor",
+      "Site Preparation",
+      "false",
+      100,
+      "HR",
+      75.00,
+      "",
+      "2024-01-01",
+      "2024-03-31",
+      "Linear",
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    // Set column widths for readability
+    ws["!cols"] = headers.map(() => ({ wch: 22 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Budget Template");
+    XLSX.writeFile(wb, "budget_template.xlsx");
+  }
+
+  async function handleImportBudgetFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
+      const firstSheetName = workbook.SheetNames[0];
+      if (!firstSheetName) {
+        window.alert("The selected file has no worksheet.");
+        return;
+      }
+      const sheet = workbook.Sheets[firstSheetName];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+      if (rows.length === 0) {
+        window.alert("No rows were found in the selected file.");
+        return;
+      }
+
+      const importedItems = rows
+        .map((row) => {
+          const costCode = readString(row["Cost Code"] ?? row.cost_code ?? row["cost code"]);
+          const costType = readString(row["Cost Type"] ?? row.cost_type ?? row["cost type"]);
+          const description = readString(row.Description ?? row.description);
+          const manualCalculation = readBool(
+            row["Manual Calculation"] ?? row.manual_calculation ?? row["manual calculation"]
+          );
+          const unitQty = readNumber(row["Unit Qty"] ?? row.unit_qty ?? row["unit qty"]);
+          const unitOfMeasure = readString(
+            row["Unit of Measure"] ?? row.unit_of_measure ?? row["unit of measure"]
+          );
+          const unitCost = readNumber(row["Unit Cost"] ?? row.unit_cost ?? row["unit cost"]);
+          const budgetAmountRaw = readNumber(
+            row["Budget Amount"] ?? row.budget_amount ?? row["budget amount"]
+          );
+
+          // If manual_calculation = true, use the provided budget amount directly.
+          // If false, calculate from unit_qty × unit_cost.
+          const originalBudgetAmount = manualCalculation
+            ? budgetAmountRaw
+            : unitQty * unitCost;
+
+          return {
+            cost_code: costCode,
+            cost_type: costType,
+            description,
+            manual_calculation: manualCalculation,
+            unit_qty: unitQty,
+            unit_of_measure: unitOfMeasure,
+            unit_cost: unitCost,
+            original_budget_amount: originalBudgetAmount,
+            start_date: readDate(row["Start Date"] ?? row.start_date ?? row["start date"]),
+            end_date: readDate(row["End Date"] ?? row.end_date ?? row["end date"]),
+            curve: readString(row.Curve ?? row.curve),
+          };
+        })
+        .filter((row) => row.cost_code || row.description);
+
+      if (importedItems.length === 0) {
+        window.alert("No valid budget rows found. Include at least a Cost Code or Description per row.");
+        return;
+      }
+
+      const startOrder = items.length;
+      const created: BudgetLineItem[] = [];
+      for (const [index, row] of importedItems.entries()) {
+        const res = await fetch(`/api/projects/${projectId}/budget`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...row, sort_order: startOrder + index }),
+        });
+        if (res.ok) {
+          const newItem: BudgetLineItem = await res.json();
+          created.push(newItem);
+        }
+      }
+
+      if (created.length > 0) {
+        setItems((prev) => [...prev, ...created]);
+      }
+      window.alert(`Imported ${created.length} budget row${created.length === 1 ? "" : "s"}.`);
+    } catch (error) {
+      console.error("Budget import failed", error);
+      window.alert("Failed to import this file. Please verify the format and try again.");
+    } finally {
+      e.target.value = "";
+    }
   }
 
   async function openCommittedCostsModal(item: BudgetLineItem) {
@@ -1021,48 +1546,45 @@ export default function BudgetClient({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Create dropdown */}
-            <div ref={createRef} className="relative">
-              <button
-                onClick={() => setShowCreateMenu((o) => !o)}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Create
-                <svg
-                  className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            {/* Create dropdown — shown when budget is locked */}
+            {isBudgetLocked && (
+              <div ref={createMenuRef} className="relative">
+                <button
+                  onClick={() => setShowCreateMenu((o) => !o)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {showCreateMenu && (
-                <div className="absolute left-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
-                  <button
-                    onClick={() => { setShowLineItemModal(true); setShowCreateMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  + Create
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                   >
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 14H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v5" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 19h6m-3-3v6" />
-                    </svg>
-                    Add Budget Line Item
-                  </button>
-                  <button
-                    onClick={() => { setShowSnapshotModal(true); setShowCreateMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
-                    </svg>
-                    Create Snapshot
-                  </button>
-                </div>
-              )}
-            </div>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showCreateMenu && (
+                  <div className="absolute left-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
+                    <button
+                      onClick={() => { setShowLineItemModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Budget Line Item
+                    </button>
+                    <button
+                      onClick={() => { setShowBudgetModificationModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Budget Modification
+                    </button>
+                    <button
+                      onClick={() => { setShowSnapshotModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Snapshot
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Resend to ERP */}
             <button
@@ -1093,7 +1615,7 @@ export default function BudgetClient({
                 </svg>
               </button>
               {showExportMenu && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
                   <button
                     onClick={() => { exportPDF(items, forecastEdits); setShowExportMenu(false); }}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
@@ -1106,117 +1628,233 @@ export default function BudgetClient({
                 </div>
               )}
             </div>
+
+            {/* Three-dot reports menu */}
+            <div ref={reportsMenuRef} className="relative">
+              <button
+                onClick={() => setShowReportsMenu((o) => !o)}
+                className={`p-2 text-gray-600 border rounded-md transition-colors hover:bg-gray-50 ${showReportsMenu ? "border-gray-400 bg-gray-50" : "border-gray-200 bg-white"}`}
+                aria-label="Reports"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
+                </svg>
+              </button>
+              {showReportsMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
+                  <div className="group relative">
+                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                      Budget Reports
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <div className="absolute right-full top-0 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 hidden group-hover:block">
+                      <a
+                        href={`/projects/${projectId}/reporting/budget-modifications`}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowReportsMenu(false)}
+                      >
+                        Budget Modifications
+                      </a>
+                      <a
+                        href={`/projects/${projectId}/reporting/buyout-summary`}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowReportsMenu(false)}
+                      >
+                        Buyout Summary Report
+                      </a>
+                      {["Legacy Budget Detail", "Monitored Resources Report"].map((report) => (
+                        <button
+                          key={report}
+                          onClick={() => setShowReportsMenu(false)}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          {report}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="group relative">
+                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                      Custom Reports
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <div className="absolute right-full top-0 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 hidden group-hover:block">
+                      <p className="px-4 py-2 text-sm text-gray-400 italic">No custom reports</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Table */}
-        {loading ? (
-          <SkeletonTable rows={6} cols={8} />
-        ) : (
-          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-            <div className="overflow-auto max-h-[70vh]">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 z-20">
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    {COLS.map((col) => (
-                      <th
-                        key={col.key}
-                        className={`text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50 ${col.width} ${
-                          col.key === "description" ? "sticky left-0 z-30" : ""
-                        }`}
-                      >
-                        {col.tooltip ? (
-                          <ColumnTooltip label={col.label} tooltip={col.tooltip} />
-                        ) : (
-                          col.label
-                        )}
-                      </th>
-                    ))}
-                    <th className="px-3 py-3 w-10 bg-gray-50" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Line items */}
-                  {items.length === 0 ? (
-                    <tr>
-                      <td colSpan={COLS.length + 1} className="px-3 py-12 text-center">
-                        <p className="text-sm text-gray-400">No budget line items yet</p>
-                        <p className="text-xs text-gray-300 mt-1">
-                          Click Create → Add Budget Line Item to get started
-                        </p>
-                      </td>
-                    </tr>
-                  ) : (
-                    items.map((item) => (
-                      <tr
-                        key={item.id}
-                        className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 group"
-                      >
+        <div className={`grid grid-cols-1 gap-4 items-start ${!isBudgetLocked ? "xl:grid-cols-[minmax(0,1fr)_280px]" : ""}`}>
+          <section>
+            {/* Table */}
+            {loading ? (
+              <SkeletonTable rows={6} cols={8} />
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                <div className="overflow-auto max-h-[70vh]">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 z-20">
+                      <tr className="border-b border-gray-100 bg-gray-50">
+                        {COLS.map((col) => (
+                          <th
+                            key={col.key}
+                            className={`text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50 ${col.width} ${
+                              col.key === "description" ? "sticky left-0 z-30" : ""
+                            }`}
+                          >
+                            {col.tooltip ? (
+                              <ColumnTooltip label={col.label} tooltip={col.tooltip} />
+                            ) : (
+                              col.label
+                            )}
+                          </th>
+                        ))}
+                        <th className="px-3 py-3 w-10 bg-gray-50" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Line items */}
+                      {items.length === 0 ? (
+                        <tr>
+                          <td colSpan={COLS.length + 1} className="px-3 py-12 text-center">
+                            <p className="text-sm text-gray-400">No budget line items yet</p>
+                            <p className="text-xs text-gray-300 mt-1">
+                              Use the right panel to create your first budget code.
+                            </p>
+                          </td>
+                        </tr>
+                      ) : (
+                        items.map((item) => (
+                          <tr
+                            key={item.id}
+                            className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 group"
+                          >
+                            {COLS.map((col) => (
+                              <td
+                                key={col.key}
+                                className={`px-3 py-3 text-xs whitespace-nowrap ${
+                                  col.key === "description" ? "sticky left-0 z-10 bg-white" : ""
+                                }`}
+                              >
+                                {renderCell(item, col.key)}
+                              </td>
+                            ))}
+                            {/* Row action menu */}
+                            <td className="px-3 py-3 relative">
+                              <div ref={rowMenuId === item.id ? rowMenuRef : undefined}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRowMenuId((prev) => (prev === item.id ? null : item.id));
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-all"
+                                >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                  </svg>
+                                </button>
+                                {rowMenuId === item.id && (
+                                  <div className="absolute right-0 top-8 w-36 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                                    <button
+                                      onClick={() => { setEditingItem(item); setRowMenuId(null); }}
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteItem(item.id)}
+                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+
+                      {/* Totals row */}
+                      <tr className="border-t border-gray-200 bg-gray-50 sticky bottom-0 z-20">
                         {COLS.map((col) => (
                           <td
                             key={col.key}
-                            className={`px-3 py-3 text-xs whitespace-nowrap ${
-                              col.key === "description" ? "sticky left-0 z-10 bg-white" : ""
+                            className={`px-3 py-3 text-xs whitespace-nowrap bg-gray-50 ${
+                              col.key === "description" ? "sticky left-0 z-30" : ""
                             }`}
                           >
-                            {renderCell(item, col.key)}
+                            {renderCell(null, col.key)}
                           </td>
                         ))}
-                        {/* Row action menu */}
-                        <td className="px-3 py-3 relative">
-                          <div ref={rowMenuId === item.id ? rowMenuRef : undefined}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRowMenuId((prev) => (prev === item.id ? null : item.id));
-                              }}
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-all"
-                            >
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                              </svg>
-                            </button>
-                            {rowMenuId === item.id && (
-                              <div className="absolute right-0 top-8 w-36 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
-                                <button
-                                  onClick={() => { setEditingItem(item); setRowMenuId(null); }}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteItem(item.id)}
-                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </td>
+                        <td className="bg-gray-50" />
                       </tr>
-                    ))
-                  )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
 
-                  {/* Totals row */}
-                  <tr className="border-t border-gray-200 bg-gray-50 sticky bottom-0 z-20">
-                    {COLS.map((col) => (
-                      <td
-                        key={col.key}
-                        className={`px-3 py-3 text-xs whitespace-nowrap bg-gray-50 ${
-                          col.key === "description" ? "sticky left-0 z-30" : ""
-                        }`}
-                      >
-                        {renderCell(null, col.key)}
-                      </td>
-                    ))}
-                    <td className="bg-gray-50" />
-                  </tr>
-                </tbody>
-              </table>
+          {!isBudgetLocked && (
+          <aside className="bg-white border border-gray-100 rounded-xl p-4 space-y-2">
+            <button
+              onClick={() => setShowLineItemModal(true)}
+              className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
+            >
+              + Create Budget Line Item
+            </button>
+            <button
+              onClick={() => setShowSnapshotModal(true)}
+              className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
+            >
+              + Create Snapshot
+            </button>
+            <button
+              onClick={handleLockBudget}
+              disabled={isBudgetLocked}
+              className={`w-full px-3 py-2.5 text-sm font-medium rounded-md transition-colors text-left ${
+                isBudgetLocked
+                  ? "bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed"
+                  : "text-white bg-orange-600 hover:bg-orange-700"
+              }`}
+            >
+              {isBudgetLocked ? "Budget Locked" : "Lock Budget"}
+            </button>
+            <div className="pt-4 space-y-3">
+              <a
+                href="#"
+                onClick={(e) => { e.preventDefault(); handleDownloadTemplate(); }}
+                className="block text-sm text-blue-600 hover:text-blue-800 underline underline-offset-2"
+              >
+                Download Excel Template
+              </a>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleImportBudgetFile}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => importInputRef.current?.click()}
+                className="w-full px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+              >
+                Import
+              </button>
             </div>
-          </div>
-        )}
+          </aside>
+          )}
+        </div>
       </main>
 
       {selectedForecastItem && selectedForecastEdit && (
@@ -1325,12 +1963,27 @@ export default function BudgetClient({
       {editingItem && (
         <LineItemModal
           initial={editingItem}
+          lockOriginalBudgetAmount={isBudgetLocked}
           onConfirm={handleEditLineItem}
           onCancel={() => setEditingItem(null)}
         />
       )}
       {showSnapshotModal && (
         <SnapshotModal onConfirm={handleCreateSnapshot} onCancel={() => setShowSnapshotModal(false)} />
+      )}
+      {showBudgetChangeModal && (
+        <BudgetChangeModal
+          items={items}
+          onConfirm={handleCreateBudgetChange}
+          onCancel={() => setShowBudgetChangeModal(false)}
+        />
+      )}
+      {showBudgetModificationModal && (
+        <BudgetModificationModal
+          items={items}
+          onConfirm={handleCreateBudgetModification}
+          onCancel={() => setShowBudgetModificationModal(false)}
+        />
       )}
       {showErpModal && (
         <ErpConfirmModal onConfirm={handleErpResend} onCancel={() => setShowErpModal(false)} />

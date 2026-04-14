@@ -119,6 +119,7 @@ export default function ChangeEventsClient({
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedLineItemIds, setSelectedLineItemIds] = useState<Set<string>>(new Set());
   const [showBanner, setShowBanner] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -127,7 +128,7 @@ export default function ChangeEventsClient({
   const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null);
   const [matchingContracts, setMatchingContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
   const [allContracts, setAllContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
-  const [allCommitments, setAllCommitments] = useState<{ id: string; number: number; title: string; type: string }[]>([]);
+  const [allCommitments, setAllCommitments] = useState<{ id: string; number: number; title: string; type: string; status: string | null }[]>([]);
   const [pcoPickerOpen, setPcoPickerOpen] = useState(false);
   const [pcoPickerLoading, setPcoPickerLoading] = useState(false);
   const [pcoPickerContracts, setPcoPickerContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
@@ -140,6 +141,8 @@ export default function ChangeEventsClient({
   const [romPopup, setRomPopup] = useState<RomPopup | null>(null);
   const [romSaving, setRomSaving] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
+  const pageCheckboxRef = useRef<HTMLInputElement>(null);
+
 
   // Click-outside for dropdowns and popup
   useEffect(() => {
@@ -191,10 +194,26 @@ export default function ChangeEventsClient({
     setPage(1);
   }, [fetchEvents]);
 
+  const selectedLineItems = useMemo(
+    () =>
+      events.flatMap((ev) =>
+        ev.line_items
+          .filter((li) => selectedLineItemIds.has(li.id))
+          .map((li) => ({ ...li, eventId: ev.id }))
+      ),
+    [events, selectedLineItemIds]
+  );
+  const selectedEventIds = useMemo(() => {
+    const ids = new Set(selectedIds);
+    selectedLineItems.forEach((li) => ids.add(li.eventId));
+    return ids;
+  }, [selectedIds, selectedLineItems]);
+  const hasSelection = selectedEventIds.size > 0;
+
   // Fetch matching prime contracts and all commitments whenever the quick actions dropdown opens
   useEffect(() => {
-    if (!quickActionsOpen || selectedIds.size === 0) return;
-    const ids = Array.from(selectedIds).join(",");
+    if (!quickActionsOpen || !hasSelection) return;
+    const ids = Array.from(selectedEventIds).join(",");
     fetch(`/api/projects/${projectId}/change-events/matching-prime-contracts?eventIds=${ids}`)
       .then((r) => r.json())
       .then((data) => {
@@ -209,7 +228,7 @@ export default function ChangeEventsClient({
       .then((r) => r.json())
       .then((data) => setAllCommitments(Array.isArray(data) ? data : []))
       .catch(() => setAllCommitments([]));
-  }, [quickActionsOpen, selectedIds, projectId]);
+  }, [quickActionsOpen, hasSelection, selectedEventIds, projectId]);
 
   // Filtering
   const filtered = events.filter((ev) =>
@@ -233,6 +252,19 @@ export default function ChangeEventsClient({
     });
   }
 
+  function toggleExpandAll() {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      const allExpandedOnPage = pageEvents.length > 0 && pageEvents.every((ev) => next.has(ev.id));
+      if (allExpandedOnPage) {
+        pageEvents.forEach((ev) => next.delete(ev.id));
+      } else {
+        pageEvents.forEach((ev) => next.add(ev.id));
+      }
+      return next;
+    });
+  }
+
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -241,16 +273,59 @@ export default function ChangeEventsClient({
     });
   }
 
-  function toggleSelectAll() {
-    if (selectedIds.size === pageEvents.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(pageEvents.map((e) => e.id)));
-    }
+  function toggleLineItem(id: string) {
+    setSelectedLineItemIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
 
-  const allSelected = pageEvents.length > 0 && selectedIds.size === pageEvents.length;
+  function toggleEventLineItems(ev: ChangeEvent) {
+    const lineItemIds = ev.line_items.map((li) => li.id);
+    if (lineItemIds.length === 0) {
+      toggleSelect(ev.id);
+      return;
+    }
 
+    setSelectedLineItemIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = lineItemIds.every((id) => next.has(id));
+      if (allSelected) {
+        lineItemIds.forEach((id) => next.delete(id));
+      } else {
+        lineItemIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAllLineItems() {
+    const pageLineItemIds = pageEvents.flatMap((ev) => ev.line_items.map((li) => li.id));
+    if (pageLineItemIds.length === 0) return;
+
+    setSelectedLineItemIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = pageLineItemIds.every((id) => next.has(id));
+      if (allSelected) {
+        pageLineItemIds.forEach((id) => next.delete(id));
+      } else {
+        pageLineItemIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  const pageLineItemIds = pageEvents.flatMap((ev) => ev.line_items.map((li) => li.id));
+  const allLineItemsSelected = pageLineItemIds.length > 0 && pageLineItemIds.every((id) => selectedLineItemIds.has(id));
+  const someLineItemsSelected = pageLineItemIds.some((id) => selectedLineItemIds.has(id));
+  const allExpandedOnPage = pageEvents.length > 0 && pageEvents.every((ev) => expandedIds.has(ev.id));
+
+  useEffect(() => {
+    if (pageCheckboxRef.current) {
+      pageCheckboxRef.current.indeterminate = !allLineItemsSelected && someLineItemsSelected;
+    }
+  }, [allLineItemsSelected, someLineItemsSelected]);
 
   function openRomPopup(
     e: { currentTarget: HTMLElement },
@@ -457,14 +532,14 @@ export default function ChangeEventsClient({
         {/* Quick Actions dropdown – write-access users only */}
         {canWrite && <div ref={quickActionsRef} className="relative">
           <button
-            disabled={selectedIds.size === 0}
+            disabled={!hasSelection}
             onClick={() => {
               setQuickActionsOpen((v) => !v);
               setHoveredAction(null);
               setHoveredSubItem(null);
             }}
             className={`flex items-center gap-1 px-3 py-1 text-xs border rounded transition-colors ${
-              selectedIds.size > 0
+              hasSelection
                 ? "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white"
                 : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
             }`}
@@ -472,13 +547,28 @@ export default function ChangeEventsClient({
             Quick Actions <ChevronDown className="w-3 h-3" />
           </button>
 
-          {quickActionsOpen && selectedIds.size > 0 && (() => {
-            const eventIds = Array.from(selectedIds).join(",");
-            const subcontracts = allCommitments.filter((c) => c.type === "subcontract");
-            const purchaseOrders = allCommitments.filter((c) => c.type === "purchase_order");
+          {quickActionsOpen && hasSelection && (() => {
+            const eventIds = Array.from(selectedEventIds).join(",");
+            const selectedEvents = events.filter((ev) => selectedEventIds.has(ev.id));
+            const associatedSelectedLineItems = selectedLineItems.filter((li) => (li.contract_number ?? "").trim().length > 0);
+            const selectedHasCostAssociation =
+              associatedSelectedLineItems.length > 0 ||
+              selectedEvents.some((ev) => (ev.line_items ?? []).some((li) => Number(li.cost_commitment ?? 0) !== 0));
+            const associatedCommitmentLabel = associatedSelectedLineItems[0]?.contract_number?.trim() || "";
+            const addToUnapprovedCommitmentDisabledMessage =
+              associatedSelectedLineItems.length > 1 || selectedLineItems.length > 1
+                ? "One of the selected line items has already been associated with a commitment CO."
+                : associatedCommitmentLabel
+                  ? `The selected line item has already been associated with the Commitment: ${associatedCommitmentLabel}.`
+                  : "One of the selected line items has already been associated with a commitment CO.";
+            const isUnapproved = (status: string | null | undefined) => String(status ?? "").trim().toLowerCase() !== "approved";
 
             // Reusable commitment submenu shared by "Add to Unapproved Commitment" and "Create Commitment CO"
-            function CommitmentSubmenu({ navSuffix }: { navSuffix: string }) {
+            function CommitmentSubmenu({ navSuffix, unapprovedOnly = false }: { navSuffix: string; unapprovedOnly?: boolean }) {
+              const scopedCommitments = unapprovedOnly ? allCommitments.filter((c) => isUnapproved(c.status)) : allCommitments;
+              const subcontracts = scopedCommitments.filter((c) => c.type === "subcontract");
+              const purchaseOrders = scopedCommitments.filter((c) => c.type === "purchase_order");
+
               return (
                 <div
                   className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-40 w-56 py-1"
@@ -511,6 +601,10 @@ export default function ChangeEventsClient({
                               setQuickActionsOpen(false);
                               if (navSuffix === "?action=co") {
                                 router.push(`/projects/${projectId}/commitments/${c.id}/change-orders/new?eventIds=${eventIds}`);
+                                return;
+                              }
+                              if (navSuffix === "") {
+                                router.push(`/projects/${projectId}/commitments/${c.id}/edit?eventIds=${eventIds}`);
                                 return;
                               }
                               router.push(`/projects/${projectId}/commitments/${c.id}${navSuffix}${navSuffix.includes("?") ? "&" : "?"}eventIds=${eventIds}`);
@@ -552,6 +646,10 @@ export default function ChangeEventsClient({
                                 router.push(`/projects/${projectId}/commitments/${c.id}/change-orders/new?eventIds=${eventIds}`);
                                 return;
                               }
+                              if (navSuffix === "") {
+                                router.push(`/projects/${projectId}/commitments/${c.id}/edit?eventIds=${eventIds}`);
+                                return;
+                              }
                               router.push(`/projects/${projectId}/commitments/${c.id}${navSuffix}${navSuffix.includes("?") ? "&" : "?"}eventIds=${eventIds}`);
                             }}
                           >
@@ -566,14 +664,14 @@ export default function ChangeEventsClient({
             }
 
             type Action =
-              | { label: string; type: "commitment-submenu"; navSuffix: string }
+              | { label: string; type: "commitment-submenu"; navSuffix: string; unapprovedOnly?: boolean; disabled?: boolean }
               | { label: string; type: "prime-submenu" }
               | { label: string; type: "prime-action" }
               | { label: string; type: "new-commitment"; commitmentType: string }
               | { label: string; type: "rfq" };
 
             const actions: Action[] = [
-              { label: "Add to Unapproved Commitment", type: "commitment-submenu", navSuffix: "" },
+              { label: "Add to Unapproved Commitment", type: "commitment-submenu", navSuffix: "", unapprovedOnly: true, disabled: selectedHasCostAssociation },
               { label: "Add to Unapproved Prime PCO", type: "prime-submenu" },
               { label: "Create Commitment CO", type: "commitment-submenu", navSuffix: "?action=co" },
               { label: "Create Prime PCO", type: "prime-action" },
@@ -592,10 +690,16 @@ export default function ChangeEventsClient({
                     onMouseLeave={() => setHoveredAction(null)}
                   >
                     <button
+                      disabled={Boolean(action.disabled)}
                       className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-700 transition-colors ${
-                        hoveredAction === action.label ? "bg-gray-100" : "hover:bg-gray-50"
+                        action.disabled
+                          ? "text-gray-400 bg-gray-50 cursor-not-allowed"
+                          : hoveredAction === action.label
+                            ? "bg-gray-100"
+                            : "hover:bg-gray-50"
                       }`}
                       onClick={() => {
+                        if (action.disabled) return;
                         if (action.type === "prime-action") {
                           setQuickActionsOpen(false);
                           setPcoPickerLoading(true);
@@ -613,20 +717,29 @@ export default function ChangeEventsClient({
                           router.push(`/projects/${projectId}/commitments/new?type=${action.commitmentType}&eventIds=${eventIds}`);
                         } else if (action.type === "rfq") {
                           setQuickActionsOpen(false);
-                          router.push(`/projects/${projectId}/bid-management?eventIds=${eventIds}`);
+                          router.push(`/projects/${projectId}/change-events/send-rfqs?eventIds=${eventIds}`);
                         }
                         // commitment-submenu and prime-submenu stay open (arrow-based)
                       }}
                     >
-                      <span>{action.label}</span>
-                      {(action.type === "commitment-submenu" || action.type === "prime-submenu") && (
+                      <span className="flex items-center gap-1">
+                        <span>{action.label}</span>
+                        {action.label === "Add to Unapproved Commitment" && action.disabled && (
+                          <Info
+                            className="w-3 h-3 text-gray-400"
+                            title={addToUnapprovedCommitmentDisabledMessage}
+                            aria-label={addToUnapprovedCommitmentDisabledMessage}
+                          />
+                        )}
+                      </span>
+                      {(action.type === "commitment-submenu" || action.type === "prime-submenu") && !action.disabled && (
                         <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
                       )}
                     </button>
 
                     {/* Commitment submenu */}
-                    {action.type === "commitment-submenu" && hoveredAction === action.label && (
-                      <CommitmentSubmenu navSuffix={action.navSuffix} />
+                    {action.type === "commitment-submenu" && hoveredAction === action.label && !action.disabled && (
+                      <CommitmentSubmenu navSuffix={action.navSuffix} unapprovedOnly={action.unapprovedOnly} />
                     )}
 
                     {/* Prime PCO submenu (matching + all prime contracts) */}
@@ -949,7 +1062,21 @@ export default function ChangeEventsClient({
               {/* Column group headers */}
               <tr className="border-b border-gray-100 bg-white">
                 {/* Expand + checkbox + title area */}
-                <th colSpan={3} className="px-2 py-1" />
+                <th colSpan={3} className="px-2 py-1">
+                  <button
+                    onClick={toggleExpandAll}
+                    disabled={pageEvents.length === 0}
+                    className="inline-flex items-center text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors"
+                    title={allExpandedOnPage ? "Collapse all" : "Expand all"}
+                    aria-label={allExpandedOnPage ? "Collapse all change events" : "Expand all change events"}
+                  >
+                    {allExpandedOnPage ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </th>
                 {/* Revenue group */}
                 <th colSpan={5} className="px-2 py-1 text-center text-xs font-semibold text-gray-600 border-b border-gray-200">
                   Revenue
@@ -961,13 +1088,29 @@ export default function ChangeEventsClient({
               </tr>
               {/* Column headers */}
               <tr className="border-b border-gray-200 bg-white">
-                <th className="w-6 px-1 py-2" />
+                <th className="w-6 px-1 py-2">
+                  <button
+                    onClick={toggleExpandAll}
+                    disabled={pageEvents.length === 0}
+                    className="inline-flex items-center text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors"
+                    title={allExpandedOnPage ? "Collapse all" : "Expand all"}
+                    aria-label={allExpandedOnPage ? "Collapse all change events" : "Expand all change events"}
+                  >
+                    {allExpandedOnPage ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </th>
                 <th className="w-6 px-1 py-2">
                   <input
+                    ref={pageCheckboxRef}
                     type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
+                    checked={allLineItemsSelected}
+                    onChange={toggleSelectAllLineItems}
                     className="rounded border-gray-300"
+                    aria-label="Select all SOV items on page"
                   />
                 </th>
                 <TH>Change Event</TH>
@@ -1024,10 +1167,19 @@ export default function ChangeEventsClient({
                         <td className="w-6 px-1 py-2">
                           <input
                             type="checkbox"
-                            checked={selected}
-                            onChange={() => toggleSelect(ev.id)}
+                            checked={ev.line_items.length > 0
+                              ? ev.line_items.every((li) => selectedLineItemIds.has(li.id))
+                              : selected}
+                            ref={(el) => {
+                              if (!el || ev.line_items.length === 0) return;
+                              const allItemsSelected = ev.line_items.every((li) => selectedLineItemIds.has(li.id));
+                              const hasAnyItemsSelected = ev.line_items.some((li) => selectedLineItemIds.has(li.id));
+                              el.indeterminate = !allItemsSelected && hasAnyItemsSelected;
+                            }}
+                            onChange={() => toggleEventLineItems(ev)}
                             onClick={(e) => e.stopPropagation()}
                             className="rounded border-gray-300"
+                            aria-label={`Select all SOV items for change event ${String(ev.number).padStart(3, "0")}`}
                           />
                         </td>
                         {/* Title */}
@@ -1076,23 +1228,30 @@ export default function ChangeEventsClient({
                               <td className="w-6 px-1 py-1.5" />
                               {/* Edit button – write access only */}
                               <td className="w-6 px-1 py-1.5">
-                                {canWrite && (
-                                  <button
-                                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
-                                    onClick={() =>
-                                      router.push(
-                                        `/projects/${projectId}/change-events/${ev.id}/edit`
-                                      )
-                                    }
-                                  >
-                                    <Pencil className="w-2.5 h-2.5" />
-                                    Edit
-                                  </button>
-                                )}
+                                <input
+                                  type="checkbox"
+                                  checked={selectedLineItemIds.has(li.id)}
+                                  onChange={() => toggleLineItem(li.id)}
+                                  className="rounded border-gray-300"
+                                  aria-label="Select SOV item"
+                                />
                               </td>
                               {/* Budget code + details */}
                               <td className="px-2 py-1.5">
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                                  {canWrite && (
+                                    <button
+                                      className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
+                                      onClick={() =>
+                                        router.push(
+                                          `/projects/${projectId}/change-events/${ev.id}/edit`
+                                        )
+                                      }
+                                    >
+                                      <Pencil className="w-2.5 h-2.5" />
+                                      Edit
+                                    </button>
+                                  )}
                                   <span className="font-medium text-gray-700 text-xs">
                                     {li.budget_code ?? "—"}
                                   </span>

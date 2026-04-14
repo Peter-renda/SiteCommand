@@ -5,17 +5,6 @@ import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import { Paperclip } from "lucide-react";
 
-const CHANGE_REASONS = [
-  "Allowance",
-  "Design Change",
-  "Differing Site Condition",
-  "Owner Request",
-  "Unforeseen Condition",
-  "Value Engineering",
-  "Weather",
-  "Other",
-];
-
 type Contract = {
   id: string;
   contract_number: number;
@@ -27,6 +16,8 @@ type ChangeEvent = {
   number: number;
   title: string;
 };
+
+type UserOption = { id: string; name: string };
 
 export default function NewPrimePCOClient({
   projectId,
@@ -49,37 +40,42 @@ export default function NewPrimePCOClient({
 
   // Form state
   const [revision, setRevision] = useState("0");
-  const [contractCompany, setContractCompany] = useState("");
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState("Draft");
-  const [changeReason, setChangeReason] = useState("");
   const [isPrivate, setIsPrivate] = useState(true);
-  const [description, setDescription] = useState("");
-  const [executed, setExecuted] = useState(false);
-  const [requestReceivedFrom, setRequestReceivedFrom] = useState("");
-  const [scheduleImpact, setScheduleImpact] = useState("");
-  const [reference, setReference] = useState("");
-  const [primeCOOption, setPrimeCOOption] = useState<"none" | "add_to_existing" | "create_new">("none");
-  const [signedDate, setSignedDate] = useState("");
   const [invoicedDate, setInvoicedDate] = useState("");
   const [paidDate, setPaidDate] = useState("");
-  const [location, setLocation] = useState("");
-  const [fieldChange, setFieldChange] = useState(false);
-  const [paidInFull, setPaidInFull] = useState(false);
+  const [description, setDescription] = useState("");
+  const [executed, setExecuted] = useState(false);
+  const [signedDate, setSignedDate] = useState("");
+  const [selectedPCO, setSelectedPCO] = useState("");
+  const [scheduleImpact, setScheduleImpact] = useState("");
   const [newSubstantialCompletionDate, setNewSubstantialCompletionDate] = useState("");
   const [signer, setSigner] = useState("");
   const [workflow, setWorkflow] = useState("Owner Change Order Workflow");
   const [accountant, setAccountant] = useState("");
   const [noUser, setNoUser] = useState("");
   const [projectManager, setProjectManager] = useState("");
-  const [distribution, setDistribution] = useState("");
+  const [distribution, setDistribution] = useState<string[]>([]);
+
+  // User/directory options
+  const [companyUsers, setCompanyUsers] = useState<UserOption[]>([]);
+  const [directoryContacts, setDirectoryContacts] = useState<UserOption[]>([]);
 
   const now = new Date();
-  const dateCreated = now.toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "2-digit",
-  }) + " at " + now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+  const dateCreated =
+    now.toLocaleDateString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    }) +
+    " at " +
+    now
+      .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+      .toLowerCase();
+
+  const contractLabel = contract
+    ? `Prime Contract #${contract.contract_number} - ${contract.title}`
+    : "Loading…";
 
   // Fetch contract
   useEffect(() => {
@@ -104,6 +100,43 @@ export default function NewPrimePCOClient({
       .catch(() => {});
   }, [projectId]);
 
+  // Fetch company users for Accountant dropdown
+  useEffect(() => {
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then(
+        (data: { id: string; username: string; first_name: string | null; last_name: string | null }[]) => {
+          setCompanyUsers(
+            data.map((u) => ({
+              id: u.id,
+              name: [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username,
+            }))
+          );
+        }
+      )
+      .catch(() => {});
+  }, []);
+
+  // Fetch project directory for No User, Project Manager, Distribution
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/directory`)
+      .then((r) => r.json())
+      .then(
+        (data: { id: string; first_name: string | null; last_name: string | null; email: string | null }[]) => {
+          setDirectoryContacts(
+            data.map((c) => ({
+              id: c.id,
+              name:
+                [c.first_name, c.last_name].filter(Boolean).join(" ") ||
+                c.email ||
+                c.id,
+            }))
+          );
+        }
+      )
+      .catch(() => {});
+  }, [projectId]);
+
   // Pre-populate from change events
   useEffect(() => {
     if (!eventIds) return;
@@ -118,7 +151,6 @@ export default function NewPrimePCOClient({
       .then((events: (ChangeEvent & { description?: string })[]) => {
         if (events.length === 1) {
           setTitle(events[0].title);
-          // Use the change event's own description if present, otherwise build one
           setDescription(
             events[0].description?.trim() ||
               `CE #${String(events[0].number).padStart(3, "0")} - ${events[0].title}`
@@ -150,20 +182,14 @@ export default function NewPrimePCOClient({
             : "",
           revision: parseInt(revision, 10) || 0,
           title,
-          status,
-          contract_company: contractCompany,
-          change_reason: changeReason,
           description,
           is_private: isPrivate,
           executed,
-          request_received_from: requestReceivedFrom,
           schedule_impact: scheduleImpact ? parseInt(scheduleImpact, 10) : null,
-          reference,
           signed_change_order_received_date: signedDate || null,
-          location,
-          field_change: fieldChange,
-          paid_in_full: paidInFull,
-          prime_contract_change_order: primeCOOption,
+          invoiced_date: invoicedDate || null,
+          paid_date: paidDate || null,
+          new_substantial_completion_date: newSubstantialCompletionDate || null,
         }),
       });
       if (res.ok) {
@@ -200,7 +226,9 @@ export default function NewPrimePCOClient({
           </button>
           <span>›</span>
           <button
-            onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}`)}
+            onClick={() =>
+              router.push(`/projects/${projectId}/prime-contracts/${contractId}`)
+            }
             className="hover:text-blue-600 transition-colors"
           >
             {contract ? `Prime Contract #${contract.contract_number}` : "…"}
@@ -226,22 +254,21 @@ export default function NewPrimePCOClient({
         {/* ── Scrollable form body ── */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="max-w-5xl">
-            {/* Section header */}
+
+            {/* ── GENERAL INFORMATION ── */}
             <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
               General Information
             </p>
-
-            {/* Form grid */}
             <div className="border border-gray-200 rounded divide-y divide-gray-200">
 
-              {/* Row: # / Date Created */}
+              {/* # / Date Created */}
               <FormRow
                 left={
                   <Field label="#">
                     <input
-                      readOnly
                       value={nextNumber}
-                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50"
+                      onChange={(e) => setNextNumber(e.target.value)}
+                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
                   </Field>
                 }
@@ -252,7 +279,7 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Revision / Created By */}
+              {/* Revision / Created By */}
               <FormRow
                 left={
                   <Field label="Revision:">
@@ -270,18 +297,26 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Contract / Private */}
+              {/* Title (left half only) */}
               <FormRow
                 left={
-                  <Field label="Contract:">
-                    <button
-                      onClick={() =>
-                        router.push(`/projects/${projectId}/prime-contracts/${contractId}`)
-                      }
-                      className="text-xs text-blue-600 hover:underline text-left"
-                    >
-                      {contractLabel}
-                    </button>
+                  <div className="flex items-center gap-4">
+                    <label className="text-xs text-gray-600 w-40 shrink-0">Title:</label>
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </div>
+                }
+                right={null}
+              />
+
+              {/* Status / Private */}
+              <FormRow
+                left={
+                  <Field label="Status:">
+                    <span className="text-xs text-gray-700">Status is set via workflow.</span>
                   </Field>
                 }
                 right={
@@ -296,71 +331,7 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Title (full width) */}
-              <div className="px-4 py-3">
-                <div className="flex items-start gap-4">
-                  <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Title:</label>
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                  />
-                </div>
-              </div>
-
-              {/* Row: Status / Invoiced Date */}
-              <FormRow
-                left={
-                  <Field label="Status:">
-                    <span className="text-xs text-gray-700">Status is set via workflow.</span>
-                  </Field>
-                }
-                right={
-                  <Field label="Invoiced Date:">
-                    <input
-                      type="date"
-                      value={invoicedDate}
-                      onChange={(e) => setInvoicedDate(e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
-                  </Field>
-                }
-              />
-
-              {/* Row: Prime Contract Change Order / Paid Date */}
-              <FormRow
-                left={
-                  <Field label="Prime Contract Change Order:">
-                    <div className="flex items-center gap-4">
-                      {(["none", "add_to_existing", "create_new"] as const).map((opt) => (
-                        <label key={opt} className="flex items-center gap-1 text-xs text-gray-700 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="primeCO"
-                            value={opt}
-                            checked={primeCOOption === opt}
-                            onChange={() => setPrimeCOOption(opt)}
-                            className="accent-blue-600"
-                          />
-                          {opt === "none" ? "None" : opt === "add_to_existing" ? "Add To Existing" : "Create New"}
-                        </label>
-                      ))}
-                    </div>
-                  </Field>
-                }
-                right={
-                  <Field label="Paid Date:">
-                    <input
-                      type="date"
-                      value={paidDate}
-                      onChange={(e) => setPaidDate(e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
-                  </Field>
-                }
-              />
-
-              {/* Row: Invoiced Date */}
+              {/* null / Invoiced Date */}
               <FormRow
                 left={null}
                 right={
@@ -375,7 +346,22 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Description (full width) */}
+              {/* null / Paid Date */}
+              <FormRow
+                left={null}
+                right={
+                  <Field label="Paid Date:">
+                    <input
+                      type="date"
+                      value={paidDate}
+                      onChange={(e) => setPaidDate(e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </Field>
+                }
+              />
+
+              {/* Description (full width) */}
               <div className="px-4 py-3">
                 <div className="flex items-start gap-4">
                   <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Description:</label>
@@ -387,20 +373,36 @@ export default function NewPrimePCOClient({
                           key={cmd}
                           type="button"
                           className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center font-medium"
-                          style={cmd === "B" ? { fontWeight: "bold" } : cmd === "I" ? { fontStyle: "italic" } : cmd === "U" ? { textDecoration: "underline" } : { textDecoration: "line-through" }}
+                          style={
+                            cmd === "B"
+                              ? { fontWeight: "bold" }
+                              : cmd === "I"
+                              ? { fontStyle: "italic" }
+                              : cmd === "U"
+                              ? { textDecoration: "underline" }
+                              : { textDecoration: "line-through" }
+                          }
                         >
                           {cmd}
                         </button>
                       ))}
                       <span className="w-px h-3.5 bg-gray-300 mx-0.5" />
                       {["≡", "≣", "⊨"].map((cmd, i) => (
-                        <button key={i} type="button" className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center">
+                        <button
+                          key={i}
+                          type="button"
+                          className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center"
+                        >
                           {cmd}
                         </button>
                       ))}
                       <span className="w-px h-3.5 bg-gray-300 mx-0.5" />
                       {["•", "1.", "⊣", "⊢"].map((cmd, i) => (
-                        <button key={i} type="button" className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center">
+                        <button
+                          key={i}
+                          type="button"
+                          className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center"
+                        >
                           {cmd}
                         </button>
                       ))}
@@ -415,7 +417,7 @@ export default function NewPrimePCOClient({
                 </div>
               </div>
 
-              {/* Row: Executed / Signed Change Order Received Date */}
+              {/* Executed / Signed Change Order Received Date */}
               <FormRow
                 left={
                   <Field label="Executed:">
@@ -439,50 +441,23 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Row: Potential Change Orders (full width) */}
+              {/* Potential Change Orders */}
               <div className="px-4 py-3">
-                <div className="flex items-start gap-4">
-                  <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Potential Change Orders:</label>
-                  <div className="flex-1 space-y-2">
-                    <select
-                      value={changeReason}
-                      onChange={(e) => setChangeReason(e.target.value)}
-                      className="w-48 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    >
-                      <option value="">Select a PCO to Add...</option>
-                      {CHANGE_REASONS.map((r) => (
-                        <option key={r}>{r}</option>
-                      ))}
-                    </select>
-                    <div className="border border-gray-200 rounded overflow-hidden">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">#</th>
-                            <th className="px-2 py-1 text-left font-medium text-gray-600">Title</th>
-                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-24">Date Initiated</th>
-                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">Status</th>
-                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-24">Schedule Impact</th>
-                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-t border-gray-100">
-                            <td className="px-2 py-1 text-gray-500">—</td>
-                            <td className="px-2 py-1 text-gray-500">No potential change orders selected</td>
-                            <td className="px-2 py-1 text-gray-500">—</td>
-                            <td className="px-2 py-1 text-gray-500">—</td>
-                            <td className="px-2 py-1 text-gray-500">0 days</td>
-                            <td className="px-2 py-1 text-gray-500">$0.00</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-4">
+                  <label className="text-xs text-gray-600 w-40 shrink-0">
+                    Potential Change Orders:
+                  </label>
+                  <select
+                    value={selectedPCO}
+                    onChange={(e) => setSelectedPCO(e.target.value)}
+                    className="w-48 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  >
+                    <option value="">Select a PCO to Add...</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Row: Schedule Impact */}
+              {/* Schedule Impact */}
               <div className="px-4 py-3">
                 <Field label="Schedule Impact:">
                   <div className="flex items-center gap-2">
@@ -497,7 +472,7 @@ export default function NewPrimePCOClient({
                 </Field>
               </div>
 
-              {/* Row: Attachments */}
+              {/* Attachments */}
               <div className="px-4 py-3">
                 <div className="flex items-start gap-4">
                   <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Attachments:</label>
@@ -514,6 +489,7 @@ export default function NewPrimePCOClient({
               </div>
             </div>
 
+            {/* ── ADDITIONAL FIELDS ── */}
             <div className="mt-8 border-t border-gray-200 pt-4">
               <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
                 Additional Fields
@@ -532,17 +508,20 @@ export default function NewPrimePCOClient({
                   }
                   right={
                     <Field label="Project Executive or Project Manager Signer:">
-                      <input
+                      <select
                         value={signer}
                         onChange={(e) => setSigner(e.target.value)}
-                        className="w-80 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      />
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      >
+                        <option value=""></option>
+                      </select>
                     </Field>
                   }
                 />
               </div>
             </div>
 
+            {/* ── WORKFLOW SETUP ── */}
             <div className="mt-8 border-t border-gray-200 pt-4">
               <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
                 Workflow Setup
@@ -551,11 +530,13 @@ export default function NewPrimePCOClient({
                 <FormRow
                   left={
                     <Field label="Workflow:">
-                      <input
+                      <select
                         value={workflow}
                         onChange={(e) => setWorkflow(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      />
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      >
+                        <option>Owner Change Order Workflow</option>
+                      </select>
                     </Field>
                   }
                   right={null}
@@ -563,11 +544,16 @@ export default function NewPrimePCOClient({
                 <FormRow
                   left={
                     <Field label="Accountant:">
-                      <input
+                      <select
                         value={accountant}
                         onChange={(e) => setAccountant(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      />
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      >
+                        <option value=""></option>
+                        {companyUsers.map((u) => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                      </select>
                     </Field>
                   }
                   right={null}
@@ -575,11 +561,16 @@ export default function NewPrimePCOClient({
                 <FormRow
                   left={
                     <Field label="No User:">
-                      <input
+                      <select
                         value={noUser}
                         onChange={(e) => setNoUser(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      />
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      >
+                        <option value=""></option>
+                        {directoryContacts.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
                     </Field>
                   }
                   right={null}
@@ -587,30 +578,88 @@ export default function NewPrimePCOClient({
                 <FormRow
                   left={
                     <Field label="Project Manager:">
-                      <input
+                      <select
                         value={projectManager}
                         onChange={(e) => setProjectManager(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      />
+                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      >
+                        <option value=""></option>
+                        {directoryContacts.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
                     </Field>
                   }
                   right={null}
                 />
                 <FormRow
                   left={
-                    <Field label="Distribution:">
-                      <input
-                        value={distribution}
-                        onChange={(e) => setDistribution(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                        placeholder="Select A Person..."
-                      />
-                    </Field>
+                    <div className="flex items-start gap-4">
+                      <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Distribution:</label>
+                      <div className="space-y-2">
+                        {distribution.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {distribution.map((id) => {
+                              const person = directoryContacts.find((c) => c.id === id);
+                              return (
+                                <span
+                                  key={id}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs"
+                                >
+                                  {person?.name ?? id}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setDistribution((prev) => prev.filter((d) => d !== id))
+                                    }
+                                    className="hover:text-blue-900 leading-none"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val && !distribution.includes(val)) {
+                              setDistribution((prev) => [...prev, val]);
+                            }
+                          }}
+                          className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                        >
+                          <option value="">Select A Person...</option>
+                          {directoryContacts
+                            .filter((c) => !distribution.includes(c.id))
+                            .map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
                   }
                   right={null}
                 />
+
+                {/* Reminder rows */}
+                <FormRow
+                  left={<ReminderRow label="PM Creates PCCO:" />}
+                  right={<ReminderRow label="Owner/Architect Review:" />}
+                />
+                <FormRow
+                  left={<ReminderRow label="PCCO Approved:" />}
+                  right={<ReminderRow label="PCCO Rejected:" />}
+                />
+                <FormRow
+                  left={<ReminderRow label="Cost Codes Changed:" />}
+                  right={<ReminderRow label="PCCO Editing:" />}
+                />
               </div>
             </div>
+
           </div>
         </div>
 
@@ -622,7 +671,9 @@ export default function NewPrimePCOClient({
         )}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
           <button
-            onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}`)}
+            onClick={() =>
+              router.push(`/projects/${projectId}/prime-contracts/${contractId}`)
+            }
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
           >
             Cancel
@@ -649,7 +700,13 @@ export default function NewPrimePCOClient({
 
 /* ── Layout helpers ── */
 
-function FormRow({ left, right }: { left: React.ReactNode | null; right: React.ReactNode | null }) {
+function FormRow({
+  left,
+  right,
+}: {
+  left: React.ReactNode | null;
+  right: React.ReactNode | null;
+}) {
   return (
     <div className="flex divide-x divide-gray-200">
       <div className="flex-1 px-4 py-3">{left}</div>
@@ -671,7 +728,9 @@ function ReminderRow({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-gray-700 w-40 shrink-0">{label}</span>
-      <span className="text-xs text-gray-600 whitespace-nowrap">Start sending reminder emails after</span>
+      <span className="text-xs text-gray-600 whitespace-nowrap">
+        Start sending reminder emails after
+      </span>
       <input className="w-8 border border-gray-300 rounded px-1 py-1 text-xs" />
       <select className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-700">
         <option>business days</option>

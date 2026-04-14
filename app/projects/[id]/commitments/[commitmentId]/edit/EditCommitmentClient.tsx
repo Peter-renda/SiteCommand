@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -417,6 +418,10 @@ export default function EditCommitmentClient({
   role: string;
   username: string;
 }) {
+  const searchParams = useSearchParams();
+  const eventIdsParam = searchParams.get("eventIds") ?? "";
+  const preloadedEventIdsRef = useRef<string>("");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [commitmentType, setCommitmentType] = useState<"subcontract" | "purchase_order">("subcontract");
@@ -578,6 +583,57 @@ export default function EditCommitmentClient({
   }, [projectId]);
 
   useEffect(() => {
+    if (!eventIdsParam || loading || changeEvents.length === 0) return;
+    if (preloadedEventIdsRef.current === eventIdsParam) return;
+
+    const selectedEventIds = new Set(
+      eventIdsParam
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+    );
+    if (selectedEventIds.size === 0) return;
+
+    const incomingLines = changeEvents
+      .filter((event) => selectedEventIds.has(event.id))
+      .flatMap((event) =>
+        event.lineItems.map((item) => ({
+          _key: uid(),
+          is_group_header: false,
+          group_name: "",
+          change_event_id: event.id,
+          change_event_line_item_id: item.id,
+          change_event_line_item: item.label,
+          budget_code: item.budget_code,
+          description: item.description,
+          qty: item.qty,
+          uom: item.uom,
+          unit_cost: item.unit_cost,
+          amount: item.amount,
+        }))
+      );
+
+    if (incomingLines.length === 0) {
+      preloadedEventIdsRef.current = eventIdsParam;
+      return;
+    }
+
+    queueMicrotask(() => {
+      setSovLines((prev) => {
+        const existingLineItemIds = new Set(
+          prev
+            .filter((line) => !line.is_group_header)
+            .map((line) => line.change_event_line_item_id)
+            .filter(Boolean)
+        );
+        const dedupedIncoming = incomingLines.filter((line) => !existingLineItemIds.has(line.change_event_line_item_id));
+        return dedupedIncoming.length > 0 ? [...prev, ...dedupedIncoming] : prev;
+      });
+    });
+    preloadedEventIdsRef.current = eventIdsParam;
+  }, [eventIdsParam, loading, changeEvents]);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (accessDropdownRef.current && !accessDropdownRef.current.contains(e.target as Node)) {
         setAccessDropdownOpen(false);
@@ -587,7 +643,7 @@ export default function EditCommitmentClient({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const companies = directory.filter((c) => c.type === "company" || c.type === "user");
+  const companies = directory.filter((c) => c.type === "company");
 
   function addSovLine() {
     setSovLines((prev) => [...prev, {

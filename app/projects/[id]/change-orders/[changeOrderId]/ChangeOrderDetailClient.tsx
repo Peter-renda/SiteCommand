@@ -61,6 +61,15 @@ type ChangeOrder = {
   budget_codes: string[];
   commitment_id: string | null;
   prime_contract_id: string | null;
+  erp_status?: string | null;
+  executed?: boolean;
+  signed_change_order_received_date?: string | null;
+  schedule_impact?: number | null;
+  location?: string | null;
+  reference?: string | null;
+  field_change?: boolean;
+  paid_in_full?: boolean;
+  has_attachments?: boolean;
 };
 
 function contactName(email: string, contacts: DirectoryContact[]): string {
@@ -96,6 +105,7 @@ export default function ChangeOrderDetailClient({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
+  const [isEditing, setIsEditing] = useState(true);
 
   // Editable fields
   const [revision, setRevision] = useState("");
@@ -112,6 +122,13 @@ export default function ChangeOrderDetailClient({
   const [reviewDate, setReviewDate] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("0.00");
+  const [executed, setExecuted] = useState(false);
+  const [signedChangeOrderReceivedDate, setSignedChangeOrderReceivedDate] = useState("");
+  const [scheduleImpact, setScheduleImpact] = useState("");
+  const [locationText, setLocationText] = useState("");
+  const [referenceText, setReferenceText] = useState("");
+  const [fieldChange, setFieldChange] = useState(false);
+  const [paidInFull, setPaidInFull] = useState(false);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/directory`)
@@ -139,6 +156,14 @@ export default function ChangeOrderDetailClient({
         setReviewDate(data.review_date ?? "");
         setDescription(data.description ?? "");
         setAmount(String(data.amount ?? "0.00"));
+        setExecuted(!!data.executed);
+        setSignedChangeOrderReceivedDate(data.signed_change_order_received_date ?? "");
+        setScheduleImpact(data.schedule_impact == null ? "" : String(data.schedule_impact));
+        setLocationText(data.location ?? "");
+        setReferenceText(data.reference ?? "");
+        setFieldChange(!!data.field_change);
+        setPaidInFull(!!data.paid_in_full);
+        setIsEditing(data.type === "commitment" ? false : true);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -179,16 +204,27 @@ export default function ChangeOrderDetailClient({
           review_date: reviewDate || null,
           request_received_from: requestReceivedFrom || "",
           amount: Number(amount || 0),
+          executed,
+          signed_change_order_received_date: signedChangeOrderReceivedDate || null,
+          schedule_impact: scheduleImpact === "" ? null : Number(scheduleImpact),
+          location: locationText,
+          reference: referenceText,
+          field_change: fieldChange,
+          paid_in_full: paidInFull,
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setSaveError(err?.error || `Server error (${res.status})`);
-        return;
+        return false;
       }
+      const updated: ChangeOrder = await res.json();
+      setCo(updated);
       setSaved(true);
+      return true;
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Unexpected error");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -244,7 +280,34 @@ export default function ChangeOrderDetailClient({
   }
 
   const isCommitment = co.type === "commitment";
+  const isSyncedToErp = String(co.erp_status || "").trim().toLowerCase() === "synced";
+  const canEdit = !isCommitment || !isSyncedToErp;
+  const inputsDisabled = isCommitment && !isEditing;
   const dateCreatedDisplay = co.date_initiated ? fmtDateTime(co.date_initiated) : "—";
+
+  function resetFormFromCurrentCo() {
+    setRevision(String(co.revision ?? 0));
+    setTitle(co.title ?? "");
+    setStatus(co.status ?? "Draft");
+    setChangeReason(co.change_reason ?? "");
+    setIsPrivate(co.is_private ?? true);
+    setDueDate(co.due_date ?? "");
+    setInvoicedDate(co.invoiced_date ?? "");
+    setPaidDate(co.paid_date ?? "");
+    setDesignatedReviewer(co.designated_reviewer ?? "");
+    setRequestReceivedFrom(co.request_received_from ?? "");
+    setReviewer(co.reviewer ?? "");
+    setReviewDate(co.review_date ?? "");
+    setDescription(co.description ?? "");
+    setAmount(String(co.amount ?? "0.00"));
+    setExecuted(!!co.executed);
+    setSignedChangeOrderReceivedDate(co.signed_change_order_received_date ?? "");
+    setScheduleImpact(co.schedule_impact == null ? "" : String(co.schedule_impact));
+    setLocationText(co.location ?? "");
+    setReferenceText(co.reference ?? "");
+    setFieldChange(!!co.field_change);
+    setPaidInFull(!!co.paid_in_full);
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white">
@@ -302,9 +365,34 @@ export default function ChangeOrderDetailClient({
           <h1 className="text-2xl font-normal text-gray-900">
             {isCommitment ? "Commitment Change Order" : "Potential Change Order"} #{co.number}
           </h1>
-          {/* Reviewer actions shown when current user is the designated reviewer and status is pending */}
-          {isCommitment && isReviewer && pendingReview && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            {isCommitment && (
+              <>
+                {!isEditing ? (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    disabled={!canEdit}
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={canEdit ? "Edit" : "This commitment change order is synced to ERP and cannot be edited."}
+                  >
+                    Edit
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      resetFormFromCurrentCo();
+                      setIsEditing(false);
+                    }}
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </>
+            )}
+            {/* Reviewer actions shown when current user is the designated reviewer and status is pending */}
+            {isCommitment && isReviewer && pendingReview && (
+              <>
               <span className="text-xs text-amber-600 font-medium">
                 Awaiting your review as {contactName(designatedReviewer, directoryContacts)}
               </span>
@@ -322,8 +410,9 @@ export default function ChangeOrderDetailClient({
               >
                 Reject
               </button>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Tab bar */}
@@ -363,6 +452,7 @@ export default function ChangeOrderDetailClient({
                     <input
                       value={revision}
                       onChange={(e) => setRevision(e.target.value)}
+                      disabled={inputsDisabled}
                       className="w-40 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
                   </Field>
@@ -402,6 +492,7 @@ export default function ChangeOrderDetailClient({
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
+                    disabled={inputsDisabled}
                     className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                   />
                 </div>
@@ -414,6 +505,7 @@ export default function ChangeOrderDetailClient({
                     <select
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
+                      disabled={inputsDisabled}
                       className="w-44 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     >
                       {STATUSES.map((s) => (
@@ -429,6 +521,7 @@ export default function ChangeOrderDetailClient({
                         type="checkbox"
                         checked={isPrivate}
                         onChange={(e) => setIsPrivate(e.target.checked)}
+                        disabled={inputsDisabled}
                         className="rounded border-gray-300 accent-blue-600"
                       />
                       {isPrivate && (
@@ -448,6 +541,7 @@ export default function ChangeOrderDetailClient({
                     <select
                       value={changeReason}
                       onChange={(e) => setChangeReason(e.target.value)}
+                      disabled={inputsDisabled}
                       className="w-44 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     >
                       <option value="">Select…</option>
@@ -468,6 +562,7 @@ export default function ChangeOrderDetailClient({
                       type="date"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
+                      disabled={inputsDisabled}
                       className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
                   </Field>
@@ -478,6 +573,7 @@ export default function ChangeOrderDetailClient({
                       type="date"
                       value={invoicedDate}
                       onChange={(e) => setInvoicedDate(e.target.value)}
+                      disabled={inputsDisabled}
                       className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
                   </Field>
@@ -493,6 +589,7 @@ export default function ChangeOrderDetailClient({
                       type="date"
                       value={paidDate}
                       onChange={(e) => setPaidDate(e.target.value)}
+                      disabled={inputsDisabled}
                       className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
                   </Field>
@@ -506,6 +603,7 @@ export default function ChangeOrderDetailClient({
                     <select
                       value={designatedReviewer}
                       onChange={(e) => setDesignatedReviewer(e.target.value)}
+                      disabled={inputsDisabled}
                       className="w-52 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     >
                       <option value="">Select…</option>
@@ -521,6 +619,7 @@ export default function ChangeOrderDetailClient({
                     <select
                       value={requestReceivedFrom}
                       onChange={(e) => setRequestReceivedFrom(e.target.value)}
+                      disabled={inputsDisabled}
                       className="w-52 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     >
                       <option value="">Select…</option>
@@ -557,6 +656,7 @@ export default function ChangeOrderDetailClient({
                         <button
                           key={cmd}
                           type="button"
+                          disabled={inputsDisabled}
                           className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center font-medium"
                           style={
                             cmd === "B"
@@ -576,6 +676,7 @@ export default function ChangeOrderDetailClient({
                         <button
                           key={i}
                           type="button"
+                          disabled={inputsDisabled}
                           className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center"
                         >
                           {cmd}
@@ -586,6 +687,7 @@ export default function ChangeOrderDetailClient({
                         <button
                           key={i}
                           type="button"
+                          disabled={inputsDisabled}
                           className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center"
                         >
                           {cmd}
@@ -596,6 +698,7 @@ export default function ChangeOrderDetailClient({
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows={5}
+                      disabled={inputsDisabled}
                       className="w-full px-3 py-2 text-xs text-gray-800 resize-none focus:outline-none"
                     />
                   </div>
@@ -611,6 +714,7 @@ export default function ChangeOrderDetailClient({
                       <input
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
+                        disabled={inputsDisabled}
                         className="w-36 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                       />
                     </div>
@@ -626,6 +730,114 @@ export default function ChangeOrderDetailClient({
                   </Field>
                 }
               />
+
+              {/* Row: Executed / Signed Change Order Received Date */}
+              <FormRow
+                left={
+                  <Field label="Executed:">
+                    <select
+                      value={executed ? "yes" : "no"}
+                      onChange={(e) => setExecuted(e.target.value === "yes")}
+                      disabled={inputsDisabled}
+                      className="w-28 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    >
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </Field>
+                }
+                right={
+                  <Field label="Signed Change Order Received Date:">
+                    <input
+                      type="date"
+                      value={signedChangeOrderReceivedDate}
+                      onChange={(e) => setSignedChangeOrderReceivedDate(e.target.value)}
+                      disabled={inputsDisabled}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </Field>
+                }
+              />
+
+              {/* Row: Schedule Impact / Location */}
+              <FormRow
+                left={
+                  <Field label="Schedule Impact:">
+                    <input
+                      type="number"
+                      value={scheduleImpact}
+                      onChange={(e) => setScheduleImpact(e.target.value)}
+                      disabled={inputsDisabled}
+                      className="w-28 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </Field>
+                }
+                right={
+                  <Field label="Location:">
+                    <input
+                      value={locationText}
+                      onChange={(e) => setLocationText(e.target.value)}
+                      disabled={inputsDisabled}
+                      className="w-72 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </Field>
+                }
+              />
+
+              {/* Row: Reference */}
+              <div className="px-4 py-3">
+                <div className="flex items-start gap-4">
+                  <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Reference:</label>
+                  <input
+                    value={referenceText}
+                    onChange={(e) => setReferenceText(e.target.value)}
+                    disabled={inputsDisabled}
+                    className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  />
+                </div>
+              </div>
+
+              {/* Row: Field Change / Paid In Full */}
+              <FormRow
+                left={
+                  <Field label="Field Change:">
+                    <select
+                      value={fieldChange ? "yes" : "no"}
+                      onChange={(e) => setFieldChange(e.target.value === "yes")}
+                      disabled={inputsDisabled}
+                      className="w-28 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    >
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </Field>
+                }
+                right={
+                  <Field label="Paid In Full:">
+                    <select
+                      value={paidInFull ? "yes" : "no"}
+                      onChange={(e) => setPaidInFull(e.target.value === "yes")}
+                      disabled={inputsDisabled}
+                      className="w-28 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    >
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </Field>
+                }
+              />
+
+              {/* Row: Attachments */}
+              <div className="px-4 py-3">
+                <div className="flex items-start gap-4">
+                  <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Attachments:</label>
+                  {co.has_attachments ? (
+                    <span className="text-xs text-blue-600">Attachments available</span>
+                  ) : (
+                    <span className="text-xs text-gray-400">None</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -649,8 +861,11 @@ export default function ChangeOrderDetailClient({
             Back
           </button>
           <button
-            disabled={saving}
-            onClick={handleSave}
+            disabled={saving || (isCommitment && (!isEditing || !canEdit))}
+            onClick={async () => {
+              const ok = await handleSave();
+              if (ok && isCommitment) setIsEditing(false);
+            }}
             className="px-4 py-2 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save Changes"}

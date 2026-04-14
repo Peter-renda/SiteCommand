@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { GoogleGenAI } from "@google/genai";
 
+function parseModelError(err: unknown): { message: string; shouldFallback: boolean } {
+  const record = err && typeof err === "object" ? (err as Record<string, unknown>) : null;
+  const nested = record?.error && typeof record.error === "object" ? (record.error as Record<string, unknown>) : null;
+  const code = nested?.code ?? record?.code;
+  const status = String(nested?.status ?? record?.status ?? "").toUpperCase();
+  const rawMessage =
+    typeof nested?.message === "string"
+      ? nested.message
+      : typeof record?.message === "string"
+        ? record.message
+        : err instanceof Error
+          ? err.message
+          : JSON.stringify(err);
+  const message = rawMessage || "AI parsing failed";
+  const lower = message.toLowerCase();
+  const shouldFallback =
+    code === 404 ||
+    status.includes("NOT_FOUND") ||
+    lower.includes("not_found") ||
+    lower.includes("no longer available") ||
+    lower.includes("model not found");
+  return { message, shouldFallback };
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -80,7 +104,6 @@ ${pdfText.slice(0, 10000)}`;
       contents: prompt,
     });
 
-    let text = (result.text ?? "").trim();
     // Strip markdown code fences if present
     text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
 

@@ -160,6 +160,19 @@ export default function PrimeContractsClient({
     }
   }
 
+  // Export dropdown
+  const exportRef = useRef<HTMLDivElement>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node))
+        setShowExportMenu(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   // Import state
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importState, setImportState] = useState<"idle" | "parsing" | "review" | "creating">("idle");
@@ -319,6 +332,137 @@ export default function PrimeContractsClient({
     setSelectedExecuted("");
   }
 
+  function exportCSV(items: PrimeContract[]) {
+    const headers = [
+      "Number",
+      "Owner/Client",
+      "Title",
+      "ERP Status",
+      "Status",
+      "Executed",
+      "Original Contract Amount",
+      "Approved Change Orders",
+      "Revised Contract Amount",
+      "Pending Change Orders",
+      "Draft Change Orders",
+      "Invoiced",
+      "Payments Received",
+      "% Paid",
+      "Remaining Balance",
+    ];
+
+    const rows = items.map((c) => {
+      const original = c.original_contract_amount ?? 0;
+      const approved = c.approved_change_orders ?? 0;
+      const revised = original + approved;
+      const payments = c.payments_received ?? 0;
+      const pctPaid = revised > 0 ? ((payments / revised) * 100).toFixed(2) : "0.00";
+      const remaining = revised - payments;
+      return [
+        c.contract_number,
+        c.owner_client,
+        c.title,
+        c.erp_status ?? "",
+        c.status,
+        c.executed ? "Yes" : "No",
+        original,
+        approved,
+        revised,
+        c.pending_change_orders ?? 0,
+        c.draft_change_orders ?? 0,
+        c.invoiced ?? 0,
+        payments,
+        pctPaid + "%",
+        remaining,
+      ];
+    });
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "prime-contracts.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportPDF(items: PrimeContract[]) {
+    const rows = items
+      .map((c) => {
+        const original = c.original_contract_amount ?? 0;
+        const approved = c.approved_change_orders ?? 0;
+        const revised = original + approved;
+        const payments = c.payments_received ?? 0;
+        const pctPaid = revised > 0 ? ((payments / revised) * 100).toFixed(2) : "0.00";
+        const remaining = revised - payments;
+        return `<tr>
+          <td>${c.contract_number}</td>
+          <td>${c.owner_client ?? ""}</td>
+          <td>${c.title ?? ""}</td>
+          <td>${c.erp_status ?? ""}</td>
+          <td>${c.status}</td>
+          <td>${c.executed ? "Yes" : "No"}</td>
+          <td>${fmt(original)}</td>
+          <td>${fmt(approved)}</td>
+          <td>${fmt(revised)}</td>
+          <td>${fmt(c.pending_change_orders ?? 0)}</td>
+          <td>${fmt(c.draft_change_orders ?? 0)}</td>
+          <td>${fmt(c.invoiced ?? 0)}</td>
+          <td>${fmt(payments)}</td>
+          <td>${pctPaid}%</td>
+          <td>${fmt(remaining)}</td>
+        </tr>`;
+      })
+      .join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Prime Contracts</title>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 9px; padding: 20px; }
+        h1 { font-size: 14px; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f3f4f6; text-align: left; padding: 5px 6px; font-size: 8px;
+             text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;
+             border-bottom: 1px solid #e5e7eb; }
+        td { padding: 5px 6px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        @media print { body { padding: 0; } }
+      </style></head><body>
+      <h1>Prime Contracts</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Owner/Client</th><th>Title</th><th>ERP</th><th>Status</th>
+            <th>Executed</th><th>Original Amount</th><th>Approved COs</th>
+            <th>Revised Amount</th><th>Pending COs</th><th>Draft COs</th>
+            <th>Invoiced</th><th>Payments Received</th><th>% Paid</th><th>Remaining Balance</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      </body></html>`;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:0;";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) { document.body.removeChild(iframe); return; }
+    doc.open();
+    doc.write(html);
+    doc.close();
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => document.body.removeChild(iframe), 500);
+    }, 300);
+  }
+
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <ProjectNav projectId={projectId} />
@@ -336,9 +480,36 @@ export default function PrimeContractsClient({
           <h1 className="text-sm font-semibold text-gray-900">Prime Contracts</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
-            Export <ChevronDown className="w-3 h-3" />
-          </button>
+          <div ref={exportRef} className="relative">
+            <button
+              onClick={() => setShowExportMenu((o) => !o)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Export <ChevronDown className={`w-3 h-3 transition-transform ${showExportMenu ? "rotate-180" : ""}`} />
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                <button
+                  onClick={() => { exportCSV(filtered); setShowExportMenu(false); }}
+                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                  </svg>
+                  Export as CSV
+                </button>
+                <button
+                  onClick={() => { exportPDF(filtered); setShowExportMenu(false); }}
+                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                  </svg>
+                  Export as PDF
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"

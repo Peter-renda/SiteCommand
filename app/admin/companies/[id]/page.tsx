@@ -41,6 +41,7 @@ const ALL_FEATURES: { key: string; label: string; group: string }[] = [
   { key: "schedule", label: "Schedule", group: "Project Management" },
   { key: "daily-log", label: "Daily Log", group: "Project Management" },
   { key: "tasks", label: "Tasks", group: "Project Management" },
+  { key: "quick-notes", label: "Quick Notes", group: "Project Management" },
   // Documents & Media
   { key: "documents", label: "Documents", group: "Documents & Media" },
   { key: "drawings", label: "Drawings", group: "Documents & Media" },
