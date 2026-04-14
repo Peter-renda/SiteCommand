@@ -563,6 +563,63 @@ export default function ChangeEventsClient({
             const addToUnapprovedCommitmentDisabledMessage =
               "the selected line item has already be associated with a Commitment CO";
             const isUnapproved = (status: string | null | undefined) => String(status ?? "").trim().toLowerCase() !== "approved";
+            const selectedSovLineItems =
+              selectedLineItems.length > 0
+                ? selectedLineItems
+                : selectedEvents.flatMap((ev) => ev.line_items ?? []);
+
+            async function addSelectedSovToPrimePco(changeOrderId: string) {
+              const sourceEventIds = Array.from(selectedEventIds);
+              const newSovLines = selectedSovLineItems.map((li) => ({
+                budget_code: (li.budget_code ?? "").trim(),
+                description: (li.description ?? "").trim(),
+                amount: Number(li.rev_rom ?? 0),
+              }));
+
+              const pcoRes = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`);
+              if (!pcoRes.ok) throw new Error("Failed to load selected PCO.");
+              const existing = await pcoRes.json() as {
+                source_change_event_ids?: string[] | null;
+                budget_codes?: string[] | null;
+                schedule_of_values?: { budget_code?: string | null; description?: string | null; amount?: number | string | null }[] | null;
+              };
+
+              const existingSov = Array.isArray(existing.schedule_of_values) ? existing.schedule_of_values : [];
+              const mergedSovMap = new Map<string, { budget_code: string; description: string; amount: number }>();
+
+              [...existingSov, ...newSovLines].forEach((line) => {
+                const budgetCode = String(line?.budget_code ?? "").trim();
+                const description = String(line?.description ?? "").trim();
+                const amount = Number(line?.amount ?? 0);
+                if (!budgetCode && !description && amount === 0) return;
+                const key = `${budgetCode}__${description}__${amount.toFixed(2)}`;
+                if (!mergedSovMap.has(key)) mergedSovMap.set(key, { budget_code: budgetCode, description, amount });
+              });
+
+              const mergedBudgetCodes = Array.from(
+                new Set([
+                  ...(Array.isArray(existing.budget_codes) ? existing.budget_codes : []),
+                  ...newSovLines.map((line) => line.budget_code).filter(Boolean),
+                ])
+              );
+              const mergedSourceEventIds = Array.from(
+                new Set([
+                  ...(Array.isArray(existing.source_change_event_ids) ? existing.source_change_event_ids : []),
+                  ...sourceEventIds,
+                ])
+              );
+
+              const patchRes = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  budget_codes: mergedBudgetCodes,
+                  source_change_event_ids: mergedSourceEventIds,
+                  schedule_of_values: Array.from(mergedSovMap.values()),
+                }),
+              });
+              if (!patchRes.ok) throw new Error("Failed to add selected SOV to the PCO.");
+            }
 
             // Reusable commitment submenu shared by "Add to Unapproved Commitment" and "Create Commitment CO"
             function CommitmentSubmenu({ navSuffix, unapprovedOnly = false }: { navSuffix: string; unapprovedOnly?: boolean }) {
@@ -774,9 +831,15 @@ export default function ChangeEventsClient({
                                 <button
                                   key={c.id}
                                   className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                  onClick={() => {
-                                    setQuickActionsOpen(false);
-                                    router.push(`/projects/${projectId}/change-orders/${c.id}`);
+                                  onClick={async () => {
+                                    try {
+                                      await addSelectedSovToPrimePco(c.id);
+                                      setQuickActionsOpen(false);
+                                      router.push(`/projects/${projectId}/change-orders/${c.id}`);
+                                    } catch (err) {
+                                      console.error(err);
+                                      window.alert("Unable to add selected SOV line items to this PCO. Please try again.");
+                                    }
                                   }}
                                 >
                                   PCO #{c.number}: {c.title || c.contract_name || "Untitled"}
@@ -809,9 +872,15 @@ export default function ChangeEventsClient({
                                 <button
                                   key={c.id}
                                   className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                  onClick={() => {
-                                    setQuickActionsOpen(false);
-                                    router.push(`/projects/${projectId}/change-orders/${c.id}`);
+                                  onClick={async () => {
+                                    try {
+                                      await addSelectedSovToPrimePco(c.id);
+                                      setQuickActionsOpen(false);
+                                      router.push(`/projects/${projectId}/change-orders/${c.id}`);
+                                    } catch (err) {
+                                      console.error(err);
+                                      window.alert("Unable to add selected SOV line items to this PCO. Please try again.");
+                                    }
                                   }}
                                 >
                                   PCO #{c.number}: {c.title || c.contract_name || "Untitled"}
