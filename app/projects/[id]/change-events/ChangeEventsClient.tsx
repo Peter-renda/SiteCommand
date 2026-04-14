@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Fragment, useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import {
@@ -1225,10 +1225,9 @@ export default function ChangeEventsClient({
                   const expanded = expandedIds.has(ev.id);
                   const selected = selectedIds.has(ev.id);
                   return (
-                    <>
+                    <Fragment key={ev.id}>
                       {/* ── Event row ─────────────────────────────────────── */}
                       <tr
-                        key={ev.id}
                         className={`border-b border-gray-100 transition-colors ${
                           selected ? "bg-blue-50" : "hover:bg-gray-50"
                         }`}
@@ -1390,7 +1389,7 @@ export default function ChangeEventsClient({
                             </tr>
                           ))
                         ))}
-                    </>
+                    </Fragment>
                   );
                 })
               )}
