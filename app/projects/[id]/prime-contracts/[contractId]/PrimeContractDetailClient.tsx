@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { Plus, Mail, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Mail, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from "lucide-react";
 
 type SovItem = {
   id: string;
@@ -52,6 +52,7 @@ type Contract = {
 type ChangeOrder = {
   id: string;
   number: string;
+  revision?: number;
   title: string;
   status: string;
   amount: number;
@@ -188,6 +189,8 @@ function ContractSummaryTile({
 }
 
 type Tab = "general" | "change_orders" | "emails" | "change_history" | "financial_markup" | "advanced_settings";
+type ChangeOrderSortKey = "number" | "revision" | "title" | "status" | "amount" | "date_initiated" | "due_date";
+type SortDirection = "asc" | "desc";
 
 const GENERAL_SECTIONS = [
   { id: "general-info", label: "General Information" },
@@ -215,6 +218,10 @@ export default function PrimeContractDetailClient({
   const [tab, setTab] = useState<Tab>("general");
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("general-info");
+  const [changeOrderSort, setChangeOrderSort] = useState<{ key: ChangeOrderSortKey; direction: SortDirection }>({
+    key: "number",
+    direction: "desc",
+  });
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -298,6 +305,68 @@ export default function PrimeContractDetailClient({
   const sovBilled = contract.sov_items.reduce((s, x) => s + (x.billed_to_date ?? 0), 0);
   const sovRetainage = contract.sov_items.reduce((s, x) => s + (x.retainage_amount ?? 0), 0);
   const sovRemaining = sovTotal - sovBilled;
+
+  function toggleChangeOrderSort(key: ChangeOrderSortKey) {
+    setChangeOrderSort((curr) => {
+      if (curr.key === key) return { key, direction: curr.direction === "asc" ? "desc" : "asc" };
+      return { key, direction: "asc" };
+    });
+  }
+
+  function compareText(a: string | null | undefined, b: string | null | undefined) {
+    return String(a || "").localeCompare(String(b || ""), undefined, { sensitivity: "base", numeric: true });
+  }
+
+  function compareNumber(a: number | null | undefined, b: number | null | undefined) {
+    return Number(a ?? 0) - Number(b ?? 0);
+  }
+
+  function compareDate(a: string | null | undefined, b: string | null | undefined) {
+    const aTime = a ? new Date(`${a}T00:00:00`).getTime() : 0;
+    const bTime = b ? new Date(`${b}T00:00:00`).getTime() : 0;
+    return aTime - bTime;
+  }
+
+  const sortedChangeOrders = [...changeOrders].sort((a, b) => {
+    const base =
+      changeOrderSort.key === "number"
+        ? compareText(a.number, b.number)
+        : changeOrderSort.key === "revision"
+          ? compareNumber(a.revision, b.revision)
+          : changeOrderSort.key === "title"
+            ? compareText(a.title, b.title)
+            : changeOrderSort.key === "status"
+              ? compareText(a.status, b.status)
+              : changeOrderSort.key === "amount"
+                ? compareNumber(a.amount, b.amount)
+                : changeOrderSort.key === "date_initiated"
+                  ? compareDate(a.date_initiated, b.date_initiated)
+                  : compareDate(a.due_date, b.due_date);
+    return changeOrderSort.direction === "asc" ? base : -base;
+  });
+
+  function sortHeaderButton(label: string, sortKey: ChangeOrderSortKey, align: "left" | "right" = "left") {
+    const active = changeOrderSort.key === sortKey;
+    const isAsc = changeOrderSort.direction === "asc";
+
+    return (
+      <button
+        type="button"
+        onClick={() => toggleChangeOrderSort(sortKey)}
+        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 hover:text-gray-900 ${
+          align === "right" ? "w-full justify-end" : ""
+        }`}
+        title={`Sort by ${label}`}
+      >
+        <span>{label}</span>
+        {active ? (
+          isAsc ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+        ) : (
+          <ArrowDown className="w-3.5 h-3.5 text-gray-300" />
+        )}
+      </button>
+    );
+  }
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "general", label: "General" },
@@ -647,16 +716,17 @@ export default function PrimeContractDetailClient({
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">#</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">Title</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">Status</th>
-                    <th className="px-4 py-2.5 text-right font-medium text-gray-500">Amount</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">Date Initiated</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-gray-500">Due Date</th>
+                    <th className="px-4 py-2.5 text-left">{sortHeaderButton("#", "number")}</th>
+                    <th className="px-4 py-2.5 text-left">{sortHeaderButton("Revision", "revision")}</th>
+                    <th className="px-4 py-2.5 text-left">{sortHeaderButton("Title", "title")}</th>
+                    <th className="px-4 py-2.5 text-left">{sortHeaderButton("Status", "status")}</th>
+                    <th className="px-4 py-2.5 text-right">{sortHeaderButton("Amount", "amount", "right")}</th>
+                    <th className="px-4 py-2.5 text-left">{sortHeaderButton("Date Initiated", "date_initiated")}</th>
+                    <th className="px-4 py-2.5 text-left">{sortHeaderButton("Due Date", "due_date")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {changeOrders.map((co) => {
+                  {sortedChangeOrders.map((co) => {
                     const statusCls = CO_STATUS_COLORS[co.status] ?? "bg-gray-100 text-gray-600";
                     return (
                       <tr
@@ -665,6 +735,7 @@ export default function PrimeContractDetailClient({
                         onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/change-orders/${co.id}`)}
                       >
                         <td className="px-4 py-2.5 text-gray-600 font-medium">{co.number}</td>
+                        <td className="px-4 py-2.5 text-gray-600">{co.revision ?? 0}</td>
                         <td className="px-4 py-2.5 text-gray-800">{co.title || "—"}</td>
                         <td className="px-4 py-2.5">
                           <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${statusCls}`}>
