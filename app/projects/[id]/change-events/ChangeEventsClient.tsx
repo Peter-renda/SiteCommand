@@ -12,6 +12,7 @@ import {
   Search,
   Pencil,
   Check,
+  Settings,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -460,21 +461,30 @@ export default function ChangeEventsClient({
       {/* ── Page Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white shrink-0">
         {/* Left: title + tabs */}
-        <div className="flex items-center gap-1">
-          <h1 className="text-sm font-semibold text-gray-900 mr-2">Change Events</h1>
-          {(["detail", "summary", "rfqs", "recycle_bin"] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors capitalize ${
-                activeTab === tab
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab === "recycle_bin" ? "Recycle Bin" : tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4 text-orange-500" />
+            <h1 className="text-sm font-semibold text-gray-900">Change Events</h1>
+          </div>
+          <div className="flex items-center ml-2">
+            {(["detail", "summary", "rfqs", "recycle_bin"] as Tab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? "border-gray-900 text-gray-900"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {tab === "recycle_bin"
+                  ? "Recycle Bin"
+                  : tab === "rfqs"
+                  ? "RFQs"
+                  : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Right: Export + Create */}
