@@ -4,8 +4,8 @@ import { getSession } from "@/lib/auth";
 import { checkProjectAccess } from "@/lib/permissions";
 
 // GET /api/projects/[id]/change-events/matching-prime-contracts?eventIds=id1,id2,...
-// Returns prime contracts split into those whose SOV budget codes overlap with the
-// selected change event line items, and all remaining contracts.
+// Returns unapproved PRIME potential change orders split into those whose budget codes
+// overlap with selected change event line items, and all remaining unapproved PCOs.
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -27,23 +27,28 @@ export async function GET(
 
   const supabase = getSupabase();
 
-  // Fetch all prime contracts for this project
-  const { data: contracts, error: contractsError } = await supabase
-    .from("prime_contracts")
-    .select("id, contract_number, title")
+  // Fetch all prime change orders (PCOs) for this project. Keep only unapproved.
+  const { data: changeOrders, error: changeOrdersError } = await supabase
+    .from("change_orders")
+    .select("id, number, title, status, contract_name, budget_codes")
     .eq("project_id", projectId)
+    .eq("type", "prime")
     .is("deleted_at", null)
-    .order("contract_number", { ascending: true });
+    .order("number", { ascending: false });
 
-  if (contractsError)
-    return NextResponse.json({ error: contractsError.message }, { status: 500 });
+  if (changeOrdersError)
+    return NextResponse.json({ error: changeOrdersError.message }, { status: 500 });
 
-  if (!contracts || contracts.length === 0)
+  const unapprovedPcos = (changeOrders ?? []).filter(
+    (co) => String(co.status ?? "").trim().toLowerCase() !== "approved"
+  );
+
+  if (unapprovedPcos.length === 0)
     return NextResponse.json({ matching: [], all: [] });
 
-  // If no event IDs provided, return all contracts as non-matching
+  // If no event IDs provided, return all unapproved PCOs as non-matching
   if (eventIds.length === 0)
-    return NextResponse.json({ matching: [], all: contracts });
+    return NextResponse.json({ matching: [], all: unapprovedPcos });
 
   // Fetch budget codes from the selected change event line items
   const { data: lineItems } = await supabase
@@ -57,21 +62,13 @@ export async function GET(
   );
 
   if (eventBudgetCodes.size === 0)
-    return NextResponse.json({ matching: [], all: contracts });
+    return NextResponse.json({ matching: [], all: unapprovedPcos });
 
-  // Fetch SOV items for all contracts in this project that have matching budget codes
-  const { data: sovItems } = await supabase
-    .from("prime_contract_sov_items")
-    .select("prime_contract_id, budget_code")
-    .eq("project_id", projectId)
-    .in("budget_code", Array.from(eventBudgetCodes));
-
-  const matchingContractIds = new Set(
-    (sovItems ?? []).map((s) => s.prime_contract_id).filter(Boolean)
+  const matching = unapprovedPcos.filter((co) =>
+    Array.isArray(co.budget_codes) &&
+    co.budget_codes.some((code) => eventBudgetCodes.has(code))
   );
-
-  const matching = contracts.filter((c) => matchingContractIds.has(c.id));
-  const all = contracts.filter((c) => !matchingContractIds.has(c.id));
+  const all = unapprovedPcos.filter((co) => !matching.some((m) => m.id === co.id));
 
   return NextResponse.json({ matching, all });
 }

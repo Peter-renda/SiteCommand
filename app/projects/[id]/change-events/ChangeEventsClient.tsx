@@ -71,6 +71,12 @@ type ChangeEvent = {
 };
 
 type Tab = "detail" | "summary" | "rfqs" | "recycle_bin";
+type PrimePcoOption = {
+  id: string;
+  number: string;
+  title: string;
+  contract_name: string | null;
+};
 
 type RomPopup = {
   lineItemId: string;
@@ -126,8 +132,8 @@ export default function ChangeEventsClient({
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null);
-  const [matchingContracts, setMatchingContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
-  const [allContracts, setAllContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
+  const [matchingPcos, setMatchingPcos] = useState<PrimePcoOption[]>([]);
+  const [allPcos, setAllPcos] = useState<PrimePcoOption[]>([]);
   const [allCommitments, setAllCommitments] = useState<{ id: string; number: number; title: string; type: string; status: string | null }[]>([]);
   const [pcoPickerOpen, setPcoPickerOpen] = useState(false);
   const [pcoPickerLoading, setPcoPickerLoading] = useState(false);
@@ -210,19 +216,19 @@ export default function ChangeEventsClient({
   }, [selectedIds, selectedLineItems]);
   const hasSelection = selectedEventIds.size > 0;
 
-  // Fetch matching prime contracts and all commitments whenever the quick actions dropdown opens
+  // Fetch matching/unmatched unapproved prime PCOs and all commitments whenever the quick actions dropdown opens
   useEffect(() => {
     if (!quickActionsOpen || !hasSelection) return;
     const ids = Array.from(selectedEventIds).join(",");
     fetch(`/api/projects/${projectId}/change-events/matching-prime-contracts?eventIds=${ids}`)
       .then((r) => r.json())
       .then((data) => {
-        setMatchingContracts(data.matching ?? []);
-        setAllContracts(data.all ?? []);
+        setMatchingPcos(data.matching ?? []);
+        setAllPcos(data.all ?? []);
       })
       .catch(() => {
-        setMatchingContracts([]);
-        setAllContracts([]);
+        setMatchingPcos([]);
+        setAllPcos([]);
       });
     fetch(`/api/projects/${projectId}/commitments`)
       .then((r) => r.json())
@@ -739,13 +745,13 @@ export default function ChangeEventsClient({
                       <CommitmentSubmenu navSuffix={action.navSuffix} unapprovedOnly={action.unapprovedOnly} />
                     )}
 
-                    {/* Prime PCO submenu (matching + all prime contracts) */}
+                    {/* Prime PCO submenu (matching + all unapproved prime PCOs) */}
                     {action.type === "prime-submenu" && hoveredAction === action.label && (
                       <div
                         className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-40 w-56 py-1"
                         onMouseEnter={() => setHoveredAction(action.label)}
                       >
-                        {/* Contracts with matching cost codes */}
+                        {/* PCOs with matching cost codes */}
                         <div
                           className="relative"
                           onMouseEnter={() => setHoveredSubItem("matching")}
@@ -756,31 +762,31 @@ export default function ChangeEventsClient({
                               hoveredSubItem === "matching" ? "bg-gray-100" : "hover:bg-gray-50"
                             }`}
                           >
-                            <span>Contracts with matching cost codes ({matchingContracts.length})</span>
-                            {matchingContracts.length > 0 && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
+                            <span>PCOs with matching cost codes ({matchingPcos.length})</span>
+                            {matchingPcos.length > 0 && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
                           </button>
-                          {hoveredSubItem === "matching" && matchingContracts.length > 0 && (
+                          {hoveredSubItem === "matching" && matchingPcos.length > 0 && (
                             <div
                               className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
                               onMouseEnter={() => setHoveredSubItem("matching")}
                             >
-                              {matchingContracts.map((c) => (
+                              {matchingPcos.map((c) => (
                                 <button
                                   key={c.id}
                                   className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
                                   onClick={() => {
                                     setQuickActionsOpen(false);
-                                    router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${eventIds}`);
+                                    router.push(`/projects/${projectId}/change-orders/${c.id}`);
                                   }}
                                 >
-                                  {c.contract_number}: {c.title}
+                                  PCO #{c.number}: {c.title || c.contract_name || "Untitled"}
                                 </button>
                               ))}
                             </div>
                           )}
                         </div>
 
-                        {/* All (non-matching) contracts */}
+                        {/* All (non-matching) unapproved prime PCOs */}
                         <div
                           className="relative"
                           onMouseEnter={() => setHoveredSubItem("all")}
@@ -791,24 +797,24 @@ export default function ChangeEventsClient({
                               hoveredSubItem === "all" ? "bg-gray-100" : "hover:bg-gray-50"
                             }`}
                           >
-                            <span>Contracts ({allContracts.length})</span>
-                            {allContracts.length > 0 && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
+                            <span>PCOs ({allPcos.length})</span>
+                            {allPcos.length > 0 && <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />}
                           </button>
-                          {hoveredSubItem === "all" && allContracts.length > 0 && (
+                          {hoveredSubItem === "all" && allPcos.length > 0 && (
                             <div
                               className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-50 w-64 py-1"
                               onMouseEnter={() => setHoveredSubItem("all")}
                             >
-                              {allContracts.map((c) => (
+                              {allPcos.map((c) => (
                                 <button
                                   key={c.id}
                                   className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
                                   onClick={() => {
                                     setQuickActionsOpen(false);
-                                    router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${eventIds}`);
+                                    router.push(`/projects/${projectId}/change-orders/${c.id}`);
                                   }}
                                 >
-                                  {c.contract_number}: {c.title}
+                                  PCO #{c.number}: {c.title || c.contract_name || "Untitled"}
                                 </button>
                               ))}
                             </div>
