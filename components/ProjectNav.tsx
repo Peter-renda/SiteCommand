@@ -13,6 +13,16 @@ const NAV_TOOL_SECTIONS = TOOL_SECTIONS.map((section) => ({
   })),
 }));
 
+function isToolEnabled(slug: string, enabledFeatures: string[] | null | undefined): boolean {
+  if (!slug) return true;
+  if (!enabledFeatures) return true;
+  if (enabledFeatures.includes(slug)) return true;
+  // Backward compatibility: existing companies with feature allowlists often enabled
+  // Transmittals before T&M Tickets existed. Treat T&M Tickets as enabled in that case.
+  if (slug === "tm-tickets" && enabledFeatures.includes("transmittals")) return true;
+  return false;
+}
+
 export default function ProjectNav({
   projectId,
   showBackToProject = true,
@@ -217,7 +227,7 @@ export default function ProjectNav({
     if (!currentSlug) return; // project home is always accessible
     // Only gate slugs that appear in TOOL_SECTIONS (never gate "admin", "insights", etc. that aren't in the feature list)
     const allFeatureSlugs = NAV_TOOL_SECTIONS.flatMap((s) => s.items.map((i) => i.slug)).filter(Boolean);
-    if (allFeatureSlugs.includes(currentSlug) && !enabledFeatures.includes(currentSlug)) {
+    if (allFeatureSlugs.includes(currentSlug) && !isToolEnabled(currentSlug, enabledFeatures)) {
       router.replace(`/projects/${projectId}`);
     }
   }, [enabledFeatures, pathname, projectId, router]);
@@ -298,7 +308,7 @@ export default function ProjectNav({
   const visibleSections = NAV_TOOL_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter(
-      (item) => !item.slug || !enabledFeatures || enabledFeatures.includes(item.slug)
+      (item) => isToolEnabled(item.slug, enabledFeatures)
     ),
   })).filter((section) => section.items.length > 0);
 
