@@ -119,6 +119,7 @@ export default function ChangeEventsClient({
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedLineItemIds, setSelectedLineItemIds] = useState<Set<string>>(new Set());
   const [showBanner, setShowBanner] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -140,6 +141,8 @@ export default function ChangeEventsClient({
   const [romPopup, setRomPopup] = useState<RomPopup | null>(null);
   const [romSaving, setRomSaving] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
+  const pageCheckboxRef = useRef<HTMLInputElement>(null);
+
 
   // Click-outside for dropdowns and popup
   useEffect(() => {
@@ -254,16 +257,59 @@ export default function ChangeEventsClient({
     });
   }
 
-  function toggleSelectAll() {
-    if (selectedIds.size === pageEvents.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(pageEvents.map((e) => e.id)));
-    }
+  function toggleLineItem(id: string) {
+    setSelectedLineItemIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
 
-  const allSelected = pageEvents.length > 0 && selectedIds.size === pageEvents.length;
+  function toggleEventLineItems(ev: ChangeEvent) {
+    const lineItemIds = ev.line_items.map((li) => li.id);
+    if (lineItemIds.length === 0) {
+      toggleSelect(ev.id);
+      return;
+    }
+
+    setSelectedLineItemIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = lineItemIds.every((id) => next.has(id));
+      if (allSelected) {
+        lineItemIds.forEach((id) => next.delete(id));
+      } else {
+        lineItemIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAllLineItems() {
+    const pageLineItemIds = pageEvents.flatMap((ev) => ev.line_items.map((li) => li.id));
+    if (pageLineItemIds.length === 0) return;
+
+    setSelectedLineItemIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = pageLineItemIds.every((id) => next.has(id));
+      if (allSelected) {
+        pageLineItemIds.forEach((id) => next.delete(id));
+      } else {
+        pageLineItemIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  const pageLineItemIds = pageEvents.flatMap((ev) => ev.line_items.map((li) => li.id));
+  const allLineItemsSelected = pageLineItemIds.length > 0 && pageLineItemIds.every((id) => selectedLineItemIds.has(id));
+  const someLineItemsSelected = pageLineItemIds.some((id) => selectedLineItemIds.has(id));
   const allExpandedOnPage = pageEvents.length > 0 && pageEvents.every((ev) => expandedIds.has(ev.id));
+
+  useEffect(() => {
+    if (pageCheckboxRef.current) {
+      pageCheckboxRef.current.indeterminate = !allLineItemsSelected && someLineItemsSelected;
+    }
+  }, [allLineItemsSelected, someLineItemsSelected]);
 
   function openRomPopup(
     e: { currentTarget: HTMLElement },
@@ -1009,13 +1055,29 @@ export default function ChangeEventsClient({
               </tr>
               {/* Column headers */}
               <tr className="border-b border-gray-200 bg-white">
-                <th className="w-6 px-1 py-2" />
+                <th className="w-6 px-1 py-2">
+                  <button
+                    onClick={toggleExpandAll}
+                    disabled={pageEvents.length === 0}
+                    className="inline-flex items-center text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors"
+                    title={allExpandedOnPage ? "Collapse all" : "Expand all"}
+                    aria-label={allExpandedOnPage ? "Collapse all change events" : "Expand all change events"}
+                  >
+                    {allExpandedOnPage ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </th>
                 <th className="w-6 px-1 py-2">
                   <input
+                    ref={pageCheckboxRef}
                     type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
+                    checked={allLineItemsSelected}
+                    onChange={toggleSelectAllLineItems}
                     className="rounded border-gray-300"
+                    aria-label="Select all SOV items on page"
                   />
                 </th>
                 <TH>Change Event</TH>
@@ -1073,10 +1135,19 @@ export default function ChangeEventsClient({
                         <td className="w-6 px-1 py-2">
                           <input
                             type="checkbox"
-                            checked={selected}
-                            onChange={() => toggleSelect(ev.id)}
+                            checked={ev.line_items.length > 0
+                              ? ev.line_items.every((li) => selectedLineItemIds.has(li.id))
+                              : selected}
+                            ref={(el) => {
+                              if (!el || ev.line_items.length === 0) return;
+                              const allItemsSelected = ev.line_items.every((li) => selectedLineItemIds.has(li.id));
+                              const hasAnyItemsSelected = ev.line_items.some((li) => selectedLineItemIds.has(li.id));
+                              el.indeterminate = !allItemsSelected && hasAnyItemsSelected;
+                            }}
+                            onChange={() => toggleEventLineItems(ev)}
                             onClick={(e) => e.stopPropagation()}
                             className="rounded border-gray-300"
+                            aria-label={`Select all SOV items for change event ${String(ev.number).padStart(3, "0")}`}
                           />
                         </td>
                         {/* Title */}
@@ -1125,23 +1196,30 @@ export default function ChangeEventsClient({
                               <td className="w-6 px-1 py-1.5" />
                               {/* Edit button – write access only */}
                               <td className="w-6 px-1 py-1.5">
-                                {canWrite && (
-                                  <button
-                                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
-                                    onClick={() =>
-                                      router.push(
-                                        `/projects/${projectId}/change-events/${ev.id}/edit`
-                                      )
-                                    }
-                                  >
-                                    <Pencil className="w-2.5 h-2.5" />
-                                    Edit
-                                  </button>
-                                )}
+                                <input
+                                  type="checkbox"
+                                  checked={selectedLineItemIds.has(li.id)}
+                                  onChange={() => toggleLineItem(li.id)}
+                                  className="rounded border-gray-300"
+                                  aria-label="Select SOV item"
+                                />
                               </td>
                               {/* Budget code + details */}
                               <td className="px-2 py-1.5">
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                                  {canWrite && (
+                                    <button
+                                      className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
+                                      onClick={() =>
+                                        router.push(
+                                          `/projects/${projectId}/change-events/${ev.id}/edit`
+                                        )
+                                      }
+                                    >
+                                      <Pencil className="w-2.5 h-2.5" />
+                                      Edit
+                                    </button>
+                                  )}
                                   <span className="font-medium text-gray-700 text-xs">
                                     {li.budget_code ?? "—"}
                                   </span>
