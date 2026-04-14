@@ -406,7 +406,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                   {processingAction === "delete" ? "Deleting..." : "Delete"}
                 </button>
                 <a
-                  href={`/projects/${projectId}/rfis`}
+                  href={`/projects/${projectId}/rfis?create=1`}
                   onClick={() => setShowActionsMenu(false)}
                   className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >

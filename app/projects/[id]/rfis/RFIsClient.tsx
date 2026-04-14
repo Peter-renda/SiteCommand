@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, ChangeEvent } from "react";
 import ProjectNav from "@/components/ProjectNav";
 import EmptyState from "@/app/components/EmptyState";
 import { SkeletonTable } from "@/app/components/Skeleton";
+import { useSearchParams } from "next/navigation";
 
 type DirContact = { id: string; name: string; email: string | null };
 type DirectoryContact = {
@@ -474,6 +475,7 @@ async function exportRFIsPDF(
 }
 
 export default function RFIsClient({ projectId, role, username, userId }: { projectId: string; role: string; username: string; userId: string }) {
+  const searchParams = useSearchParams();
   const [rfis, setRfis] = useState<RFI[]>([]);
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
   const [specifications, setSpecifications] = useState<Specification[]>([]);
@@ -509,6 +511,12 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
       setLoading(false);
     });
   }, [projectId]);
+
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setShowCreate(true);
+    }
+  }, [searchParams]);
 
   const nextNumber = rfis.length > 0 ? Math.max(...rfis.map((r) => r.rfi_number)) + 1 : 1;
 
