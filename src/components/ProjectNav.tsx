@@ -25,6 +25,7 @@ const TOOL_SECTIONS = [
       { name: "Daily Log", slug: "daily-log" },
       { name: "Photos", slug: "photos" },
       { name: "Drawings", slug: "drawings" },
+      { name: "T&M Tickets", slug: "tm-tickets" },
     ],
   },
 ];
