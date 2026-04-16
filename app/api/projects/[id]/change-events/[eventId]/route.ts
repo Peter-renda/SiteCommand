@@ -28,7 +28,28 @@ export async function GET(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 });
-  return NextResponse.json(data);
+  const [{ count: relatedItemsCount }, { data: referencingChangeOrders }] = await Promise.all([
+    supabase
+      .from("change_event_related_items")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", projectId)
+      .eq("change_event_id", eventId),
+    supabase
+      .from("change_orders")
+      .select("id")
+      .eq("project_id", projectId)
+      .contains("source_change_event_ids", [eventId])
+      .is("deleted_at", null)
+      .limit(1),
+  ]);
+
+  const attachedInstancesCount = (relatedItemsCount ?? 0) + ((referencingChangeOrders ?? []).length > 0 ? 1 : 0);
+
+  return NextResponse.json({
+    ...data,
+    attached_instances_count: attachedInstancesCount,
+    delete_blocked: attachedInstancesCount > 0,
+  });
 }
 
 export async function PATCH(
@@ -167,4 +188,59 @@ export async function PATCH(
   }
 
   return NextResponse.json(data);
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string; eventId: string }> }
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id: projectId, eventId } = await params;
+
+  try {
+    const { permission } = await checkProjectAccess(session.id, projectId);
+    if (permission !== "write") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const supabase = getSupabase();
+
+  const [{ count: relatedItemsCount, error: relatedItemsError }, { data: referencingChangeOrders, error: changeOrdersError }] = await Promise.all([
+    supabase
+      .from("change_event_related_items")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", projectId)
+      .eq("change_event_id", eventId),
+    supabase
+      .from("change_orders")
+      .select("id")
+      .eq("project_id", projectId)
+      .contains("source_change_event_ids", [eventId])
+      .is("deleted_at", null)
+      .limit(1),
+  ]);
+
+  if (relatedItemsError) return NextResponse.json({ error: relatedItemsError.message }, { status: 500 });
+  if (changeOrdersError) return NextResponse.json({ error: changeOrdersError.message }, { status: 500 });
+
+  if ((relatedItemsCount ?? 0) > 0 || (referencingChangeOrders ?? []).length > 0) {
+    return NextResponse.json(
+      { error: "This change event has attached instances and cannot be deleted." },
+      { status: 409 }
+    );
+  }
+
+  const { error } = await supabase
+    .from("change_events")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", eventId)
+    .eq("project_id", projectId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }
