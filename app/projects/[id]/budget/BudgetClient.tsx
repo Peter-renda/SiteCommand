@@ -115,6 +115,16 @@ type BudgetDetailRow = {
 type GroupByKey = "cost_code_tier_1" | "cost_code_tier_2" | "cost_type" | "vendor" | "detail_type";
 type FilterKey = "cost_code" | "cost_type" | "vendor" | "detail_type";
 
+type ForecastingViewTemplate = {
+  id: string;
+  name: string;
+  company_id: string;
+  created_at: string;
+};
+
+type ForecastGroupByKey = "sub_job" | "cost_code_part_1" | "cost_code_part_2";
+type ForecastFilterKey = "cost_code" | "description" | "cost_type" | "sub_job";
+
 // ── Calculated helpers ────────────────────────────────────────────────────────
 
 function calc(item: BudgetLineItem) {
@@ -976,9 +986,7 @@ export default function BudgetClient({
   const [forecastEdits, setForecastEdits] = useState<Record<string, ForecastEdit>>({});
   const [selectedForecastItemId, setSelectedForecastItemId] = useState<string | null>(null);
   const [isBudgetLocked, setIsBudgetLocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "budget" | "budget_details" | "forecasting" | "project_status_snapshot" | "change_history"
-  >("budget");
+  const [activeTab, setActiveTab] = useState<"budget" | "budget_details" | "forecasting">("budget");
   const [groupBy, setGroupBy] = useState<GroupByKey | null>(null);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -991,6 +999,23 @@ export default function BudgetClient({
     detail_type: [],
   });
 
+  // Forecasting tab state
+  const [forecastingViews, setForecastingViews] = useState<ForecastingViewTemplate[]>([]);
+  const [selectedForecastingViewId, setSelectedForecastingViewId] = useState<string | null>(null);
+  const [showForecastViewMenu, setShowForecastViewMenu] = useState(false);
+  const [forecastGroupBy, setForecastGroupBy] = useState<ForecastGroupByKey | null>(null);
+  const [showForecastGroupMenu, setShowForecastGroupMenu] = useState(false);
+  const [forecastFilterKey, setForecastFilterKey] = useState<ForecastFilterKey | null>(null);
+  const [forecastFilterSearch, setForecastFilterSearch] = useState("");
+  const [forecastSelectedFilters, setForecastSelectedFilters] = useState<Record<ForecastFilterKey, string[]>>({
+    cost_code: [],
+    description: [],
+    cost_type: [],
+    sub_job: [],
+  });
+  const [showForecastFilterMenu, setShowForecastFilterMenu] = useState(false);
+  const [showCreateForecastViewModal, setShowCreateForecastViewModal] = useState(false);
+
   // Dropdown refs
   const exportRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -1001,6 +1026,9 @@ export default function BudgetClient({
   const [showReportsMenu, setShowReportsMenu] = useState(false);
   const groupMenuRef = useRef<HTMLDivElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const forecastViewMenuRef = useRef<HTMLDivElement>(null);
+  const forecastGroupMenuRef = useRef<HTMLDivElement>(null);
+  const forecastFilterMenuRef = useRef<HTMLDivElement>(null);
 
   // Row action menu
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
@@ -1014,6 +1042,9 @@ export default function BudgetClient({
       if (reportsMenuRef.current && !reportsMenuRef.current.contains(e.target as Node)) setShowReportsMenu(false);
       if (groupMenuRef.current && !groupMenuRef.current.contains(e.target as Node)) setShowGroupMenu(false);
       if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setShowFilterMenu(false);
+      if (forecastViewMenuRef.current && !forecastViewMenuRef.current.contains(e.target as Node)) setShowForecastViewMenu(false);
+      if (forecastGroupMenuRef.current && !forecastGroupMenuRef.current.contains(e.target as Node)) setShowForecastGroupMenu(false);
+      if (forecastFilterMenuRef.current && !forecastFilterMenuRef.current.contains(e.target as Node)) setShowForecastFilterMenu(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -1024,10 +1055,14 @@ export default function BudgetClient({
       fetch(`/api/projects/${projectId}/budget`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/budget/snapshots`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/budget/lock`).then((r) => r.json()),
-    ]).then(([itemsData, snapshotsData, lockData]) => {
+      fetch(`/api/forecasting-views`).then((r) => r.ok ? r.json() : []).catch(() => []),
+    ]).then(([itemsData, snapshotsData, lockData, viewsData]) => {
       setItems(Array.isArray(itemsData) ? itemsData : []);
       setSnapshots(Array.isArray(snapshotsData) ? snapshotsData : []);
       setIsBudgetLocked(lockData?.locked === true);
+      const views = Array.isArray(viewsData) ? viewsData : [];
+      setForecastingViews(views);
+      if (views.length > 0) setSelectedForecastingViewId(views[0].id);
       setLoading(false);
     });
   }, [projectId]);
@@ -2033,28 +2068,6 @@ export default function BudgetClient({
             >
               Forecasting
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("project_status_snapshot")}
-              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "project_status_snapshot"
-                  ? "border-orange-500 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Project Status Snapshot
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("change_history")}
-              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "change_history"
-                  ? "border-orange-500 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Change History
-            </button>
           </div>
         </div>
 
@@ -2218,6 +2231,303 @@ export default function BudgetClient({
           </div>
         )}
 
+        {/* ── Forecasting toolbar ──────────────────────────────────────────────── */}
+        {activeTab === "forecasting" && (
+          <div className="mb-3 flex items-center gap-3 flex-wrap">
+            {/* View selector */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">View</span>
+              <div ref={forecastViewMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowForecastViewMenu((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 min-w-[160px] justify-between"
+                >
+                  <span className="truncate">
+                    {forecastingViews.find((v) => v.id === selectedForecastingViewId)?.name ?? "Select view"}
+                  </span>
+                  <svg
+                    className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${showForecastViewMenu ? "rotate-180" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showForecastViewMenu && (
+                  <div className="absolute left-0 mt-1 w-64 bg-white border border-gray-200 rounded-md shadow-lg z-40">
+                    {forecastingViews.length === 0 ? (
+                      <p className="px-4 py-3 text-sm text-gray-400 italic">No views created yet</p>
+                    ) : (
+                      forecastingViews.map((view) => (
+                        <button
+                          key={view.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedForecastingViewId(view.id);
+                            setShowForecastViewMenu(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                            selectedForecastingViewId === view.id ? "bg-gray-100 font-medium" : ""
+                          }`}
+                        >
+                          {view.name}
+                        </button>
+                      ))
+                    )}
+                    <div className="border-t border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowForecastViewMenu(false);
+                          setShowCreateForecastViewModal(true);
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-orange-600 hover:bg-orange-50 font-medium flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Create new forecasting view
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Group By */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Group</span>
+              <div ref={forecastGroupMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowForecastGroupMenu((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 min-w-[140px] justify-between"
+                >
+                  <span className="truncate">
+                    {forecastGroupBy === "sub_job"
+                      ? "Sub Job"
+                      : forecastGroupBy === "cost_code_part_1"
+                      ? "Cost Code Part 1"
+                      : forecastGroupBy === "cost_code_part_2"
+                      ? "Cost Code Part 2"
+                      : "No grouping"}
+                  </span>
+                  {forecastGroupBy && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setForecastGroupBy(null);
+                      }}
+                      className="flex-shrink-0 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 text-xs leading-none"
+                      aria-label="Clear group by"
+                    >
+                      ×
+                    </button>
+                  )}
+                  {!forecastGroupBy && (
+                    <svg
+                      className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${showForecastGroupMenu ? "rotate-180" : ""}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </button>
+                {showForecastGroupMenu && (
+                  <div className="absolute left-0 mt-1 w-52 bg-white border border-gray-200 rounded-md shadow-lg z-40">
+                    {[
+                      { key: "sub_job" as ForecastGroupByKey, label: "Sub Job" },
+                      { key: "cost_code_part_1" as ForecastGroupByKey, label: "Cost Code Part 1" },
+                      { key: "cost_code_part_2" as ForecastGroupByKey, label: "Cost Code Part 2" },
+                    ].map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setForecastGroupBy(option.key);
+                          setShowForecastGroupMenu(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                          forecastGroupBy === option.key ? "bg-gray-100 font-medium" : ""
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                    <div className="border-t border-gray-200 p-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForecastGroupBy(null);
+                          setShowForecastGroupMenu(false);
+                        }}
+                        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Filter */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Filter</span>
+              <div ref={forecastFilterMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowForecastFilterMenu((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+                >
+                  <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+                  </svg>
+                  Add Filter
+                  {(Object.values(forecastSelectedFilters) as string[][]).some((arr) => arr.length > 0) && (
+                    <span className="ml-1 bg-orange-100 text-orange-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">
+                      {(Object.values(forecastSelectedFilters) as string[][]).reduce((n, arr) => n + arr.length, 0)}
+                    </span>
+                  )}
+                </button>
+                {showForecastFilterMenu && (
+                  <div className="absolute left-0 mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-40 py-1">
+                    {[
+                      { key: "cost_code" as ForecastFilterKey, label: "Cost Code" },
+                      { key: "description" as ForecastFilterKey, label: "Description" },
+                      { key: "cost_type" as ForecastFilterKey, label: "Cost Type" },
+                      { key: "sub_job" as ForecastFilterKey, label: "Sub Job" },
+                    ].map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setForecastFilterKey(option.key);
+                          setForecastFilterSearch("");
+                          setShowForecastFilterMenu(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center justify-between ${
+                          forecastSelectedFilters[option.key].length > 0 ? "font-medium" : ""
+                        }`}
+                      >
+                        <span>{option.label}</span>
+                        {forecastSelectedFilters[option.key].length > 0 && (
+                          <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">
+                            {forecastSelectedFilters[option.key].length}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                    {(Object.values(forecastSelectedFilters) as string[][]).some((arr) => arr.length > 0) && (
+                      <div className="border-t border-gray-200 p-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForecastSelectedFilters({ cost_code: [], description: [], cost_type: [], sub_job: [] });
+                            setForecastFilterKey(null);
+                            setShowForecastFilterMenu(false);
+                          }}
+                          className="w-full text-sm text-red-600 hover:text-red-800 text-center py-1"
+                        >
+                          Clear all filters
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Forecasting active filter panel */}
+        {activeTab === "forecasting" && forecastFilterKey && (
+          <div className="mb-4 bg-white border border-gray-200 rounded-md p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700 capitalize">
+                  {forecastFilterKey.replace(/_/g, " ")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setForecastFilterKey(null); setForecastFilterSearch(""); }}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  ×
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForecastSelectedFilters({ cost_code: [], description: [], cost_type: [], sub_job: [] })}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Clear all
+              </button>
+            </div>
+            <input
+              type="text"
+              value={forecastFilterSearch}
+              onChange={(e) => setForecastFilterSearch(e.target.value)}
+              placeholder="Search"
+              className="w-full mb-2 px-3 py-2 text-sm border border-gray-300 rounded-md"
+            />
+            {(() => {
+              const allValues = items.map((item) => {
+                const tiers = parseCostCodeTiers(item.cost_code);
+                if (forecastFilterKey === "cost_code") return item.cost_code;
+                if (forecastFilterKey === "description") return item.description;
+                if (forecastFilterKey === "cost_type") return item.cost_type?.trim() || "None";
+                if (forecastFilterKey === "sub_job") return tiers.tier1;
+                return "";
+              });
+              const unique = Array.from(new Set(allValues)).filter((v): v is string => Boolean(v)).sort();
+              const filtered = unique.filter((v) =>
+                v.toLowerCase().includes(forecastFilterSearch.toLowerCase())
+              );
+              const allChecked = filtered.length > 0 && filtered.every((v) => forecastSelectedFilters[forecastFilterKey].includes(v));
+              return (
+                <>
+                  <label className="flex items-center gap-2 px-1 py-1 text-sm font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      onChange={(e) => {
+                        setForecastSelectedFilters((prev) => {
+                          const nextSet = new Set(prev[forecastFilterKey!]);
+                          if (e.target.checked) filtered.forEach((v) => nextSet.add(v));
+                          else filtered.forEach((v) => nextSet.delete(v));
+                          return { ...prev, [forecastFilterKey!]: Array.from(nextSet) };
+                        });
+                      }}
+                    />
+                    Select all
+                  </label>
+                  <div className="max-h-60 overflow-auto">
+                    {filtered.map((val) => (
+                      <label key={val} className="flex items-center gap-2 px-1 py-1.5 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={forecastSelectedFilters[forecastFilterKey].includes(val)}
+                          onChange={() =>
+                            setForecastSelectedFilters((prev) => {
+                              const nextSet = new Set(prev[forecastFilterKey!]);
+                              if (nextSet.has(val)) nextSet.delete(val);
+                              else nextSet.add(val);
+                              return { ...prev, [forecastFilterKey!]: Array.from(nextSet) };
+                            })
+                          }
+                        />
+                        <span>{val}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
         <div className={`grid grid-cols-1 gap-4 items-start ${!isBudgetLocked ? "xl:grid-cols-[minmax(0,1fr)_280px]" : ""}`}>
           <section>
             {/* Table */}
@@ -2327,7 +2637,191 @@ export default function BudgetClient({
                   </table>
                 </div>
               </div>
-            ) : activeTab === "budget_details" ? (
+            ) : activeTab === "forecasting" ? (() => {
+              const FORECAST_COLS = [
+                { key: "description", label: "Description", width: "min-w-[200px]" },
+                { key: "sub_job", label: "Sub Job", width: "min-w-[100px]" },
+                { key: "revised_budget", label: "Revised Budget", width: "min-w-[120px]" },
+                { key: "projected_budget", label: "Projected Budget", width: "min-w-[120px]" },
+                { key: "projected_costs", label: "Projected Costs", width: "min-w-[120px]" },
+                { key: "forecast_to_complete", label: "Forecast to Complete", width: "min-w-[140px]" },
+                { key: "estimated_cost_at_completion", label: "Est. Cost at Completion", width: "min-w-[150px]" },
+                { key: "projected_over_under", label: "Projected Over/Under", width: "min-w-[140px]" },
+              ];
+
+              const filteredForecastItems = items.filter((item) => {
+                const tiers = parseCostCodeTiers(item.cost_code);
+                if (forecastSelectedFilters.cost_code.length > 0 && !forecastSelectedFilters.cost_code.includes(item.cost_code)) return false;
+                if (forecastSelectedFilters.description.length > 0 && !forecastSelectedFilters.description.includes(item.description)) return false;
+                if (forecastSelectedFilters.cost_type.length > 0 && !forecastSelectedFilters.cost_type.includes(item.cost_type?.trim() || "None")) return false;
+                if (forecastSelectedFilters.sub_job.length > 0 && !forecastSelectedFilters.sub_job.includes(tiers.tier1)) return false;
+                return true;
+              });
+
+              function getForecastGroupKey(item: BudgetLineItem): string {
+                const tiers = parseCostCodeTiers(item.cost_code);
+                if (forecastGroupBy === "sub_job") return tiers.tier1;
+                if (forecastGroupBy === "cost_code_part_1") return tiers.tier1;
+                if (forecastGroupBy === "cost_code_part_2") return tiers.tier2;
+                return "";
+              }
+
+              const groupedForecastItems: [string, BudgetLineItem[]][] = forecastGroupBy
+                ? Array.from(
+                    filteredForecastItems.reduce((map, item) => {
+                      const key = getForecastGroupKey(item);
+                      if (!map.has(key)) map.set(key, []);
+                      map.get(key)!.push(item);
+                      return map;
+                    }, new Map<string, BudgetLineItem[]>())
+                  )
+                : [];
+
+              const forecastTotals = filteredForecastItems.reduce(
+                (acc, item) => {
+                  const c = getItemCalc(item);
+                  acc.revisedBudget += c.revisedBudget;
+                  acc.projectedBudget += c.projectedBudget;
+                  acc.projectedCosts += c.projectedCosts;
+                  acc.forecastToComplete += c.forecastToComplete;
+                  acc.estimatedCostAtCompletion += c.estimatedCostAtCompletion;
+                  acc.projectedOverUnder += c.projectedOverUnder;
+                  return acc;
+                },
+                { revisedBudget: 0, projectedBudget: 0, projectedCosts: 0, forecastToComplete: 0, estimatedCostAtCompletion: 0, projectedOverUnder: 0 }
+              );
+
+              function renderForecastCell(item: BudgetLineItem | null, key: string) {
+                if (item === null) {
+                  switch (key) {
+                    case "description": return <span className="font-semibold text-gray-900">Total</span>;
+                    case "sub_job": return null;
+                    case "revised_budget": return <span className="font-semibold">{fmt(forecastTotals.revisedBudget)}</span>;
+                    case "projected_budget": return <span className="font-semibold">{fmt(forecastTotals.projectedBudget)}</span>;
+                    case "projected_costs": return <span className="font-semibold">{fmt(forecastTotals.projectedCosts)}</span>;
+                    case "forecast_to_complete": return <span className="font-semibold">{fmt(forecastTotals.forecastToComplete)}</span>;
+                    case "estimated_cost_at_completion": return <span className="font-semibold">{fmt(forecastTotals.estimatedCostAtCompletion)}</span>;
+                    case "projected_over_under": return (
+                      <span className={`font-semibold ${forecastTotals.projectedOverUnder < 0 ? "text-red-600" : ""}`}>
+                        {fmt(forecastTotals.projectedOverUnder)}
+                      </span>
+                    );
+                    default: return null;
+                  }
+                }
+                const tiers = parseCostCodeTiers(item.cost_code);
+                const c = getItemCalc(item);
+                switch (key) {
+                  case "description":
+                    return (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{item.cost_code}</p>
+                        <p className="text-xs text-blue-600">{item.description}</p>
+                      </div>
+                    );
+                  case "sub_job": return <span className="text-gray-600">{tiers.tier1}</span>;
+                  case "revised_budget": return fmt(c.revisedBudget);
+                  case "projected_budget": return fmt(c.projectedBudget);
+                  case "projected_costs": return fmt(c.projectedCosts);
+                  case "forecast_to_complete":
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedForecastItemId(item.id)}
+                        className="text-blue-600 hover:text-blue-800 underline underline-offset-2 decoration-blue-200"
+                      >
+                        {fmtWithArrow(c.forecastToComplete)}
+                      </button>
+                    );
+                  case "estimated_cost_at_completion": return fmt(c.estimatedCostAtCompletion);
+                  case "projected_over_under":
+                    return (
+                      <span className={c.projectedOverUnder < 0 ? "text-red-600" : ""}>
+                        {fmt(c.projectedOverUnder)}
+                      </span>
+                    );
+                  default: return null;
+                }
+              }
+
+              return (
+                <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="overflow-auto max-h-[70vh]">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 z-20">
+                        <tr className="border-b border-gray-100 bg-gray-50">
+                          {FORECAST_COLS.map((col) => (
+                            <th
+                              key={col.key}
+                              className={`text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50 ${col.width} ${
+                                col.key === "description" ? "sticky left-0 z-30" : ""
+                              }`}
+                            >
+                              {col.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredForecastItems.length === 0 ? (
+                          <tr>
+                            <td colSpan={FORECAST_COLS.length} className="px-3 py-12 text-center text-sm text-gray-400">
+                              No line items match the current filters
+                            </td>
+                          </tr>
+                        ) : forecastGroupBy ? (
+                          groupedForecastItems.map(([groupName, groupItems]) => (
+                            <Fragment key={`fg-${groupName}`}>
+                              <tr className="bg-gray-100 border-y border-gray-200">
+                                <td colSpan={FORECAST_COLS.length} className="px-3 py-2 text-xs font-semibold text-gray-700">
+                                  {groupName}
+                                </td>
+                              </tr>
+                              {groupItems.map((item) => (
+                                <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0">
+                                  {FORECAST_COLS.map((col) => (
+                                    <td
+                                      key={col.key}
+                                      className={`px-3 py-3 text-xs whitespace-nowrap ${col.key === "description" ? "sticky left-0 z-10 bg-white" : ""}`}
+                                    >
+                                      {renderForecastCell(item, col.key)}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </Fragment>
+                          ))
+                        ) : (
+                          filteredForecastItems.map((item) => (
+                            <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0">
+                              {FORECAST_COLS.map((col) => (
+                                <td
+                                  key={col.key}
+                                  className={`px-3 py-3 text-xs whitespace-nowrap ${col.key === "description" ? "sticky left-0 z-10 bg-white" : ""}`}
+                                >
+                                  {renderForecastCell(item, col.key)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        )}
+                        {/* Totals row */}
+                        <tr className="border-t border-gray-200 bg-gray-50 sticky bottom-0 z-20">
+                          {FORECAST_COLS.map((col) => (
+                            <td
+                              key={col.key}
+                              className={`px-3 py-3 text-xs whitespace-nowrap bg-gray-50 ${col.key === "description" ? "sticky left-0 z-30" : ""}`}
+                            >
+                              {renderForecastCell(null, col.key)}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })() : (
               <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
                 <div className="overflow-auto max-h-[70vh]">
                   <table className="w-full text-xs">
@@ -2690,6 +3184,22 @@ export default function BudgetClient({
           }}
         />
       )}
+      {showCreateForecastViewModal && (
+        <CreateForecastViewModal
+          onConfirm={(name) => {
+            const newView: ForecastingViewTemplate = {
+              id: `view-${Date.now()}`,
+              name,
+              company_id: "",
+              created_at: new Date().toISOString(),
+            };
+            setForecastingViews((prev) => [...prev, newView]);
+            setSelectedForecastingViewId(newView.id);
+            setShowCreateForecastViewModal(false);
+          }}
+          onCancel={() => setShowCreateForecastViewModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -2851,6 +3361,66 @@ function CommitmentSection({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function CreateForecastViewModal({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden">
+        <div className="bg-gray-800 text-white px-4 py-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Create Forecasting View</h2>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-white/80 hover:text-white text-xl leading-none"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">View Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Standard Forecast, Owner Report…"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              autoFocus
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+            Forecasting views are available to all users at the company level.
+          </p>
+        </div>
+        <div className="px-5 pb-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!name.trim()}
+            onClick={() => onConfirm(name.trim())}
+            className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Create View
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
