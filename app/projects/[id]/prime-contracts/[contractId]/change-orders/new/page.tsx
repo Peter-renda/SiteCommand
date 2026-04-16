@@ -7,21 +7,23 @@ export default async function NewPrimePCOPage({
   searchParams,
 }: {
   params: Promise<{ id: string; contractId: string }>;
-  searchParams: Promise<{ eventIds?: string }>;
+  searchParams: Promise<{ eventIds?: string; lineItemIds?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
+  const sessionUser = session as { username?: string; role?: string };
 
   const { id, contractId } = await params;
-  const { eventIds } = await searchParams;
+  const { eventIds, lineItemIds } = await searchParams;
 
   return (
     <NewPrimePCOClient
       projectId={id}
       contractId={contractId}
       eventIds={eventIds ?? ""}
-      createdBy={(session as any).username ?? ""}
-      role={(session as any).role ?? "member"}
+      lineItemIds={lineItemIds ?? ""}
+      createdBy={sessionUser.username ?? ""}
+      role={sessionUser.role ?? "member"}
     />
   );
 }

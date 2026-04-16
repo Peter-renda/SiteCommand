@@ -1547,8 +1547,12 @@ export default function ChangeEventsClient({
                       className="w-full text-left px-3 py-2.5 text-xs text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                       onClick={() => {
                         setPcoPickerOpen(false);
-                        const ids = Array.from(selectedIds).join(",");
-                        router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${ids}`);
+                        const eventIds = Array.from(selectedEventIds).join(",");
+                        const lineItemIds = Array.from(selectedLineItemIds).join(",");
+                        const query = new URLSearchParams();
+                        if (eventIds) query.set("eventIds", eventIds);
+                        if (lineItemIds) query.set("lineItemIds", lineItemIds);
+                        router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?${query.toString()}`);
                       }}
                     >
                       {c.contract_number} – {c.title}

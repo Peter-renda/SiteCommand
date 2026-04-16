@@ -73,6 +73,11 @@ type ChangeOrder = {
   source_change_event_ids?: string[];
   new_substantial_completion_date?: string | null;
   project_executive_signer?: string | null;
+  schedule_of_values?: Array<{
+    budget_code?: string | null;
+    description?: string | null;
+    amount?: number | string | null;
+  }> | null;
 };
 
 type ChangeEventLineItem = {
@@ -196,6 +201,24 @@ export default function ChangeOrderDetailClient({
   }, [projectId, changeOrderId]);
 
   useEffect(() => {
+    const savedSov = Array.isArray(co?.schedule_of_values) ? co.schedule_of_values : [];
+    if (savedSov.length > 0) {
+      const rows: IncludedPotentialRow[] = savedSov.map((line, idx) => {
+        const description = String(line?.description || "").trim();
+        const budgetCode = String(line?.budget_code || "").trim();
+        return {
+          id: `sov-${idx}`,
+          number: co?.number || "—",
+          title: description || budgetCode || "Line Item",
+          amount: Number(line?.amount ?? 0),
+          scheduleImpact: scheduleImpact ? `${scheduleImpact} days` : "—",
+          status,
+        };
+      });
+      setIncludedPotentialRows(rows);
+      return;
+    }
+
     if (!co?.source_change_event_ids?.length) {
       setIncludedPotentialRows([]);
       return;
@@ -237,7 +260,7 @@ export default function ChangeOrderDetailClient({
         setIncludedPotentialRows(rows);
       })
       .catch(() => setIncludedPotentialRows([]));
-  }, [co?.source_change_event_ids, projectId, scheduleImpact, status]);
+  }, [co?.number, co?.schedule_of_values, co?.source_change_event_ids, projectId, scheduleImpact, status]);
 
   // designated_reviewer stores the email; username is session.email
   const isReviewer =

@@ -43,6 +43,12 @@ type ChangeEvent = {
   number: number;
   title: string;
   description?: string;
+  line_items?: Array<{
+    id: string;
+    budget_code?: string | null;
+    description?: string | null;
+    cost_rom?: number | null;
+  }>;
 };
 
 type DirectoryContact = {
@@ -69,12 +75,14 @@ export default function NewPrimePCOClient({
   projectId,
   contractId,
   eventIds,
+  lineItemIds,
   createdBy,
   role,
 }: {
   projectId: string;
   contractId: string;
   eventIds: string;
+  lineItemIds: string;
   createdBy: string;
   role: string;
 }) {
@@ -85,6 +93,10 @@ export default function NewPrimePCOClient({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
   const [sourceEventIds, setSourceEventIds] = useState<string[]>([]);
+  const [budgetCodes, setBudgetCodes] = useState<string[]>([]);
+  const [scheduleOfValues, setScheduleOfValues] = useState<
+    Array<{ budget_code: string; description: string; amount: number }>
+  >([]);
 
   // Form state
   const [revision, setRevision] = useState("0");
@@ -150,6 +162,7 @@ export default function NewPrimePCOClient({
   useEffect(() => {
     if (!eventIds) return;
     const ids = eventIds.split(",").filter(Boolean);
+    const selectedLineItemIdSet = new Set(lineItemIds.split(",").filter(Boolean));
     if (ids.length === 0) return;
 
     Promise.all(
@@ -162,6 +175,21 @@ export default function NewPrimePCOClient({
 
         setSourceEventIds(events.map((e) => e.id));
 
+        const selectedLines = events.flatMap((event) => {
+          const lines = Array.isArray(event.line_items) ? event.line_items : [];
+          return lines
+            .filter((line) => selectedLineItemIdSet.size === 0 || selectedLineItemIdSet.has(line.id))
+            .map((line) => ({
+              budget_code: String(line.budget_code || "").trim(),
+              description: String(line.description || "").trim(),
+              amount: Number(line.cost_rom ?? 0),
+            }));
+        });
+        setScheduleOfValues(selectedLines);
+        setBudgetCodes(
+          Array.from(new Set(selectedLines.map((line) => line.budget_code).filter(Boolean)))
+        );
+
         // Auto-populate from the source change event the user launched this flow from.
         const sourceEvent = events[0];
         setTitle(sourceEvent.title);
@@ -173,7 +201,7 @@ export default function NewPrimePCOClient({
         );
       })
       .catch(() => {});
-  }, [eventIds, projectId]);
+  }, [eventIds, lineItemIds, projectId]);
 
   async function handleCreate(sendEmail = false) {
     setSaving(true);
@@ -205,6 +233,8 @@ export default function NewPrimePCOClient({
           paid_in_full: paidInFull,
           prime_contract_change_order: primeContractChangeOrder,
           source_change_event_ids: sourceEventIds,
+          budget_codes: budgetCodes,
+          schedule_of_values: scheduleOfValues,
         }),
       });
       if (res.ok) {
