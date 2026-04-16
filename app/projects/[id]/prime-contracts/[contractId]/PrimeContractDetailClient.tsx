@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { Plus, Mail, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Mail, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Maximize2, HelpCircle } from "lucide-react";
 
 type SovItem = {
   id: string;
@@ -569,78 +569,7 @@ export default function PrimeContractDetailClient({
               />
 
               {/* Schedule of Values */}
-              <div id="schedule-of-values" className="scroll-mt-2 bg-white border-b border-gray-200">
-                <div className="px-8 py-5 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
-                    <h2 className="text-sm font-semibold text-gray-900">Schedule of Values</h2>
-                  </div>
-                </div>
-                {contract.sov_items.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-gray-400 border-t border-gray-100">
-                    <p className="text-sm font-medium text-gray-500 mb-1">No schedule of values items</p>
-                    <p className="text-xs">SOV items can be added when editing this contract.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-gray-200 bg-gray-50">
-                          <th className="px-4 py-2.5 text-left font-medium text-gray-500 w-8">#</th>
-                          <th className="px-4 py-2.5 text-left font-medium text-gray-500">Budget Code</th>
-                          <th className="px-4 py-2.5 text-left font-medium text-gray-500">Description</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Scheduled Value</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Prev Billed</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">This Period</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Materials Stored</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Billed to Date</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">% Complete</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Retainage</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-gray-500">Balance</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {contract.sov_items.map((item, i) => {
-                          const balance = (item.scheduled_value ?? 0) - (item.billed_to_date ?? 0);
-                          const pct = item.scheduled_value > 0
-                            ? ((item.billed_to_date / item.scheduled_value) * 100).toFixed(1)
-                            : "0.0";
-                          return (
-                            <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                              <td className="px-4 py-2 text-gray-400">{i + 1}</td>
-                              <td className="px-4 py-2 text-gray-600">{item.budget_code || "—"}</td>
-                              <td className="px-4 py-2 text-gray-800 max-w-xs">{item.description || "—"}</td>
-                              <td className="px-4 py-2 text-right text-gray-700">{fmt(item.scheduled_value)}</td>
-                              <td className="px-4 py-2 text-right text-gray-600">{fmt(item.work_completed_prev)}</td>
-                              <td className="px-4 py-2 text-right text-gray-600">{fmt(item.work_completed_this_period)}</td>
-                              <td className="px-4 py-2 text-right text-gray-600">{fmt(item.materials_stored)}</td>
-                              <td className="px-4 py-2 text-right text-gray-700">{fmt(item.billed_to_date)}</td>
-                              <td className="px-4 py-2 text-right text-gray-700">{pct}%</td>
-                              <td className="px-4 py-2 text-right text-gray-600">{fmt(item.retainage_amount)}</td>
-                              <td className="px-4 py-2 text-right text-gray-700">{fmt(balance)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
-                          <td colSpan={3} className="px-4 py-2.5 text-xs text-gray-600">Totals</td>
-                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovTotal)}</td>
-                          <td className="px-4 py-2.5" />
-                          <td className="px-4 py-2.5" />
-                          <td className="px-4 py-2.5" />
-                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovBilled)}</td>
-                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">
-                            {sovTotal > 0 ? ((sovBilled / sovTotal) * 100).toFixed(1) : "0.0"}%
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovRetainage)}</td>
-                          <td className="px-4 py-2.5 text-right text-xs text-gray-800">{fmt(sovRemaining)}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
-              </div>
+              <SovSection sovItems={contract.sov_items} />
 
               {/* Inclusions & Exclusions */}
               <div id="inclusions-exclusions" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">
@@ -800,6 +729,136 @@ export default function PrimeContractDetailClient({
         )}
 
       </div>
+    </div>
+  );
+}
+
+const ADD_GROUP_OPTIONS = [
+  { label: "Cost Type", isHeader: false },
+  { label: "Cost Code", isHeader: true },
+  { label: "Cost Code", isHeader: false },
+  { label: "Cost Code Tier 1", isHeader: false },
+  { label: "Cost Code Tier 2", isHeader: false },
+];
+
+function SovSection({ sovItems }: { sovItems: SovItem[] }) {
+  const [groupDropOpen, setGroupDropOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
+        setGroupDropOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const total = sovItems.reduce((s, i) => s + (i.scheduled_value ?? 0), 0);
+
+  function fmt(val: number) {
+    return val.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+  }
+
+  return (
+    <div id="schedule-of-values" className="scroll-mt-2 bg-white border-b border-gray-200">
+      {/* Section header */}
+      <div className="px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ChevronDown className="w-4 h-4 text-gray-500" />
+          <h2 className="text-sm font-semibold text-gray-900">Schedule of Values</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors">
+            <Maximize2 className="w-3.5 h-3.5" />
+            Open Fullscreen
+          </button>
+          <button className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors">
+            Edit
+          </button>
+        </div>
+      </div>
+
+      {/* Add Group control */}
+      <div className="px-8 pb-3">
+        <div ref={dropRef} className="relative inline-block">
+          <button
+            onClick={() => setGroupDropOpen((v) => !v)}
+            className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            {selectedGroup ? `Group: ${selectedGroup}` : "Add Group"}
+          </button>
+          {groupDropOpen && (
+            <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 w-48 py-1">
+              {ADD_GROUP_OPTIONS.map((opt, i) => (
+                opt.isHeader ? (
+                  <div key={i} className="px-3 pt-2 pb-0.5 text-xs font-semibold text-gray-700">
+                    {opt.label}
+                  </div>
+                ) : (
+                  <button
+                    key={i}
+                    onClick={() => { setSelectedGroup(opt.label); setGroupDropOpen(false); }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+                  >
+                    {opt.label}
+                  </button>
+                )
+              ))}
+              <div className="border-t border-gray-100 mt-1 px-3 py-1.5 flex justify-end">
+                <button
+                  onClick={() => { setSelectedGroup(null); setGroupDropOpen(false); }}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      {sovItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-gray-400 border-t border-gray-100">
+          <p className="text-sm font-medium text-gray-500 mb-1">No schedule of values items</p>
+          <p className="text-xs">SOV items can be added when editing this contract.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-t border-gray-200">
+                <th className="px-4 py-2.5 text-left font-medium text-gray-600 w-1/3">
+                  <div className="flex items-center gap-1">
+                    Budget Code
+                    <HelpCircle className="w-3.5 h-3.5 text-gray-400" />
+                  </div>
+                </th>
+                <th className="px-4 py-2.5 text-left font-medium text-gray-600 w-1/3">Description</th>
+                <th className="px-4 py-2.5 text-left font-medium text-gray-600 w-1/3">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sovItems.map((item) => (
+                <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-2 text-gray-600">{item.budget_code || "—"}</td>
+                  <td className="px-4 py-2 text-gray-800">{item.description || "—"}</td>
+                  <td className="px-4 py-2 text-gray-700">{fmt(item.scheduled_value)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-gray-200">
+                <td colSpan={2} className="px-4 py-2.5 text-xs font-semibold text-gray-600">Total</td>
+                <td className="px-4 py-2.5 text-xs font-semibold text-gray-900">{fmt(total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
