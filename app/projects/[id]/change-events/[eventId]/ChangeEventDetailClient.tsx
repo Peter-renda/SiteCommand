@@ -50,9 +50,32 @@ type CommentItem = {
   createdAt: string;
 };
 
+type HistoryItem = {
+  id: string;
+  action: string;
+  from_value: string | null;
+  to_value: string | null;
+  changed_by_name: string | null;
+  changed_by_company: string | null;
+  created_at: string;
+};
+
 function fmt(val: number | null | undefined) {
   if (val === null || val === undefined) return "—";
   return val.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZoneName: "short",
+  });
 }
 
 function fmtQty(val: number | null | undefined) {
@@ -95,10 +118,8 @@ export default function ChangeEventDetailClient({
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [newComment, setNewComment] = useState("");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [cloning, setCloning] = useState(false);
-  const actionsRef = useRef<HTMLDivElement>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/change-events/${eventId}`)
@@ -119,14 +140,18 @@ export default function ChangeEventDetailClient({
   }, [projectId, eventId]);
 
   useEffect(() => {
-    function handleMouseDown(e: MouseEvent) {
-      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) {
-        setActionsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, []);
+    if (activeTab !== "Change History" || historyLoaded) return;
+    fetch(`/api/projects/${projectId}/change-events/${eventId}/history`)
+      .then((r) => r.json())
+      .then((data) => {
+        setHistory(Array.isArray(data) ? data : []);
+        setHistoryLoaded(true);
+      })
+      .catch(() => {
+        setHistory([]);
+        setHistoryLoaded(true);
+      });
+  }, [activeTab, historyLoaded, projectId, eventId]);
 
   if (loading) {
     return (
@@ -551,7 +576,54 @@ export default function ChangeEventDetailClient({
           <RelatedItemsTab projectId={projectId} eventId={eventId} canWrite={canWrite} />
         )}
 
-        {activeTab !== "General" && activeTab !== "Comments" && activeTab !== "Related Items" && (
+        {activeTab === "Change History" && (
+          <section className="rounded border border-gray-200 bg-white overflow-hidden">
+            <div className="border-b border-gray-200 px-4 py-3">
+              <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Change History</h2>
+            </div>
+            {!historyLoaded ? (
+              <p className="px-4 py-6 text-sm text-gray-400">Loading...</p>
+            ) : history.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-gray-400">No change history yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-44">Date</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">Action By</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-56">Changed</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">From</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">To</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((entry, idx) => (
+                      <tr key={entry.id} className={idx < history.length - 1 ? "border-b border-gray-100" : ""}>
+                        <td className="px-4 py-4 text-xs text-gray-500 align-top whitespace-nowrap">{formatDateTime(entry.created_at)}</td>
+                        <td className="px-4 py-4 align-top">
+                          {entry.changed_by_name ? (
+                            <span className="text-sm text-blue-600">
+                              {entry.changed_by_name}
+                              {entry.changed_by_company ? ` (${entry.changed_by_company})` : ""}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-700 align-top">{entry.action}</td>
+                        <td className="px-4 py-4 text-sm text-gray-500 align-top">{entry.from_value ?? "(None)"}</td>
+                        <td className="px-4 py-4 text-sm text-gray-700 align-top whitespace-pre-wrap">{entry.to_value ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab !== "General" && activeTab !== "Comments" && activeTab !== "Related Items" && activeTab !== "Change History" && (
           <section className="rounded border border-gray-200 bg-white px-4 py-6">
             <p className="text-sm text-gray-500">{activeTab} content coming soon.</p>
           </section>
