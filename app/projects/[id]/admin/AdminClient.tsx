@@ -234,8 +234,14 @@ export default function AdminClient({
         setWarrantyEndDate(d.warranty_end_date ?? "");
         setLoading(false);
       });
-    loadMembers();
-  }, [projectId, loadMembers]);
+  }, [projectId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadMembers();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadMembers]);
 
   useEffect(() => {
     fetch("/api/users")

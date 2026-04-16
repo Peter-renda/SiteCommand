@@ -15,6 +15,8 @@ const NAV_TOOL_SECTIONS = TOOL_SECTIONS.map((section) => ({
 
 function isToolEnabled(slug: string, enabledFeatures: string[] | null | undefined): boolean {
   if (!slug) return true;
+  // Core admin is always available from the project navigation.
+  if (slug === "admin") return true;
   if (!enabledFeatures) return true;
   if (enabledFeatures.includes(slug)) return true;
   // Backward compatibility: existing companies with feature allowlists often enabled
@@ -225,9 +227,10 @@ export default function ProjectNav({
     const match = pathname.match(/\/projects\/[^/]+\/([^/]+)/);
     const currentSlug = match?.[1] ?? "";
     if (!currentSlug) return; // project home is always accessible
-    // Only gate slugs that appear in TOOL_SECTIONS (never gate "admin", "insights", etc. that aren't in the feature list)
+    // Gate feature-controlled slugs only (never gate built-in pages such as admin).
     const allFeatureSlugs = NAV_TOOL_SECTIONS.flatMap((s) => s.items.map((i) => i.slug)).filter(Boolean);
-    if (allFeatureSlugs.includes(currentSlug) && !isToolEnabled(currentSlug, enabledFeatures)) {
+    const isUngatedBuiltIn = currentSlug === "admin";
+    if (!isUngatedBuiltIn && allFeatureSlugs.includes(currentSlug) && !isToolEnabled(currentSlug, enabledFeatures)) {
       router.replace(`/projects/${projectId}`);
     }
   }, [enabledFeatures, pathname, projectId, router]);
