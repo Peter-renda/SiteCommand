@@ -1,23 +1,69 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import { Paperclip } from "lucide-react";
+
+const CHANGE_REASONS = [
+  "Allowance",
+  "Client Request",
+  "Design Change",
+  "Differing Site Condition",
+  "Owner Request",
+  "Unforeseen Condition",
+  "Value Engineering",
+  "Weather",
+  "Other",
+];
+
+const STATUSES = [
+  "Approved",
+  "Draft",
+  "No Charge",
+  "Pending - In Review",
+  "Pending - Not Pricing",
+  "Pending - Not Proceeding",
+  "Pending - Pricing",
+  "Pending - Proceeding",
+  "Pending - Revised",
+  "Rejected",
+  "Void",
+];
 
 type Contract = {
   id: string;
   contract_number: number;
   title: string;
+  contract_company?: string | null;
 };
 
 type ChangeEvent = {
   id: string;
   number: number;
   title: string;
+  description?: string;
 };
 
-type UserOption = { id: string; name: string };
+type DirectoryContact = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+};
+
+/** Strip HTML tags and decode common entities from rich-text fields. */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+}
 
 export default function NewPrimePCOClient({
   projectId,
@@ -37,29 +83,25 @@ export default function NewPrimePCOClient({
   const [nextNumber, setNextNumber] = useState("001");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
+  const [sourceEventIds, setSourceEventIds] = useState<string[]>([]);
 
   // Form state
   const [revision, setRevision] = useState("0");
   const [title, setTitle] = useState("");
+  const [status, setStatus] = useState("Draft");
+  const [changeReason, setChangeReason] = useState("Allowance");
   const [isPrivate, setIsPrivate] = useState(true);
-  const [invoicedDate, setInvoicedDate] = useState("");
-  const [paidDate, setPaidDate] = useState("");
   const [description, setDescription] = useState("");
   const [executed, setExecuted] = useState(false);
   const [signedDate, setSignedDate] = useState("");
-  const [selectedPCO, setSelectedPCO] = useState("");
+  const [requestReceivedFrom, setRequestReceivedFrom] = useState("");
+  const [location, setLocation] = useState("");
   const [scheduleImpact, setScheduleImpact] = useState("");
-  const [newSubstantialCompletionDate, setNewSubstantialCompletionDate] = useState("");
-  const [signer, setSigner] = useState("");
-  const [workflow, setWorkflow] = useState("Owner Change Order Workflow");
-  const [accountant, setAccountant] = useState("");
-  const [noUser, setNoUser] = useState("");
-  const [projectManager, setProjectManager] = useState("");
-  const [distribution, setDistribution] = useState<string[]>([]);
-
-  // User/directory options
-  const [companyUsers, setCompanyUsers] = useState<UserOption[]>([]);
-  const [directoryContacts, setDirectoryContacts] = useState<UserOption[]>([]);
+  const [fieldChange, setFieldChange] = useState(false);
+  const [reference, setReference] = useState("");
+  const [paidInFull, setPaidInFull] = useState(false);
+  const [primeContractChangeOrder, setPrimeContractChangeOrder] = useState<"none" | "add_to_existing" | "create_new">("none");
 
   const now = new Date();
   const dateCreated =
@@ -73,10 +115,6 @@ export default function NewPrimePCOClient({
       .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
       .toLowerCase();
 
-  const contractLabel = contract
-    ? `Prime Contract #${contract.contract_number} - ${contract.title}`
-    : "Loading…";
-
   // Fetch contract
   useEffect(() => {
     fetch(`/api/projects/${projectId}/prime-contracts/${contractId}`)
@@ -84,6 +122,14 @@ export default function NewPrimePCOClient({
       .then((data) => setContract(data))
       .catch(() => {});
   }, [projectId, contractId]);
+
+  // Fetch project directory for Request Received From
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/directory`)
+      .then((r) => r.json())
+      .then((data) => setDirectoryContacts(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [projectId]);
 
   // Fetch next PCO number
   useEffect(() => {
@@ -100,43 +146,6 @@ export default function NewPrimePCOClient({
       .catch(() => {});
   }, [projectId]);
 
-  // Fetch company users for Accountant dropdown
-  useEffect(() => {
-    fetch("/api/users")
-      .then((r) => r.json())
-      .then(
-        (data: { id: string; username: string; first_name: string | null; last_name: string | null }[]) => {
-          setCompanyUsers(
-            data.map((u) => ({
-              id: u.id,
-              name: [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username,
-            }))
-          );
-        }
-      )
-      .catch(() => {});
-  }, []);
-
-  // Fetch project directory for No User, Project Manager, Distribution
-  useEffect(() => {
-    fetch(`/api/projects/${projectId}/directory`)
-      .then((r) => r.json())
-      .then(
-        (data: { id: string; first_name: string | null; last_name: string | null; email: string | null }[]) => {
-          setDirectoryContacts(
-            data.map((c) => ({
-              id: c.id,
-              name:
-                [c.first_name, c.last_name].filter(Boolean).join(" ") ||
-                c.email ||
-                c.id,
-            }))
-          );
-        }
-      )
-      .catch(() => {});
-  }, [projectId]);
-
   // Pre-populate from change events
   useEffect(() => {
     if (!eventIds) return;
@@ -148,21 +157,20 @@ export default function NewPrimePCOClient({
         fetch(`/api/projects/${projectId}/change-events/${id}`).then((r) => r.json())
       )
     )
-      .then((events: (ChangeEvent & { description?: string })[]) => {
-        if (events.length === 1) {
-          setTitle(events[0].title);
-          setDescription(
-            events[0].description?.trim() ||
-              `CE #${String(events[0].number).padStart(3, "0")} - ${events[0].title}`
-          );
-        } else {
-          setTitle(events.map((e) => `CE #${String(e.number).padStart(3, "0")}`).join(", "));
-          setDescription(
-            events
-              .map((e) => `CE #${String(e.number).padStart(3, "0")} - ${e.title}`)
-              .join("\n")
-          );
-        }
+      .then((events: ChangeEvent[]) => {
+        if (!events.length) return;
+
+        setSourceEventIds(events.map((e) => e.id));
+
+        // Auto-populate from the source change event the user launched this flow from.
+        const sourceEvent = events[0];
+        setTitle(sourceEvent.title);
+        const rawDesc = sourceEvent.description?.trim() ?? "";
+        setDescription(
+          rawDesc
+            ? stripHtml(rawDesc)
+            : `CE #${String(sourceEvent.number).padStart(3, "0")} - ${sourceEvent.title}`
+        );
       })
       .catch(() => {});
   }, [eventIds, projectId]);
@@ -182,14 +190,21 @@ export default function NewPrimePCOClient({
             : "",
           revision: parseInt(revision, 10) || 0,
           title,
+          status,
+          contract_company: contract?.contract_company || "",
+          change_reason: changeReason,
           description,
           is_private: isPrivate,
           executed,
+          request_received_from: requestReceivedFrom,
           schedule_impact: scheduleImpact ? parseInt(scheduleImpact, 10) : null,
+          reference,
           signed_change_order_received_date: signedDate || null,
-          invoiced_date: invoicedDate || null,
-          paid_date: paidDate || null,
-          new_substantial_completion_date: newSubstantialCompletionDate || null,
+          location,
+          field_change: fieldChange,
+          paid_in_full: paidInFull,
+          prime_contract_change_order: primeContractChangeOrder,
+          source_change_event_ids: sourceEventIds,
         }),
       });
       if (res.ok) {
@@ -216,7 +231,6 @@ export default function NewPrimePCOClient({
     <div className="flex flex-col h-screen overflow-hidden bg-white">
       <ProjectNav projectId={projectId} role={role} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* ── Breadcrumb ── */}
         <div className="px-6 pt-4 pb-1 text-xs text-gray-500 flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => router.push(`/projects/${projectId}/prime-contracts`)}
@@ -236,39 +250,32 @@ export default function NewPrimePCOClient({
           <span>›</span>
           <span>Change Orders</span>
           <span>›</span>
-          <span className="text-gray-700 font-medium">New Prime Contract Change Order</span>
+          <span className="text-gray-700 font-medium">New Potential Change Order</span>
         </div>
 
-        {/* ── Page title ── */}
         <div className="px-6 py-3 shrink-0">
-          <h1 className="text-4xl font-normal text-gray-700">New Prime Contract Change Order</h1>
+          <h1 className="text-4xl font-normal text-gray-700">New Potential Change Order</h1>
         </div>
 
-        {/* ── Tab bar ── */}
         <div className="px-6 border-b border-gray-200 shrink-0">
-          <button className="py-2 px-1 text-sm font-medium text-gray-900 border-b-2 border-gray-900 -mb-px">
+          <button className="py-2 px-1 text-sm font-medium text-gray-900 border-b-2 border-orange-500 -mb-px">
             General
           </button>
         </div>
 
-        {/* ── Scrollable form body ── */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="max-w-5xl">
-
-            {/* ── GENERAL INFORMATION ── */}
+          <div className="max-w-full">
             <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
               General Information
             </p>
             <div className="border border-gray-200 rounded divide-y divide-gray-200">
-
-              {/* # / Date Created */}
               <FormRow
                 left={
-                  <Field label="#">
+                  <Field label="#:">
                     <input
+                      readOnly
                       value={nextNumber}
-                      onChange={(e) => setNextNumber(e.target.value)}
-                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50"
                     />
                   </Field>
                 }
@@ -279,7 +286,6 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Revision / Created By */}
               <FormRow
                 left={
                   <Field label="Revision:">
@@ -297,7 +303,23 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Title (left half only) */}
+              <FormRow
+                left={
+                  <Field label="Contract Company:">
+                    <span className="text-xs text-gray-700">{contract?.contract_company || ""}</span>
+                  </Field>
+                }
+                right={
+                  <Field label="Contract:">
+                    <span className="text-xs text-blue-700">
+                      {contract
+                        ? `${contract.contract_number} - ${contract.title}`
+                        : "Loading..."}
+                    </span>
+                  </Field>
+                }
+              />
+
               <FormRow
                 left={
                   <div className="flex items-center gap-4">
@@ -312,14 +334,75 @@ export default function NewPrimePCOClient({
                 right={null}
               />
 
-              {/* Status / Private */}
               <FormRow
                 left={
                   <Field label="Status:">
-                    <span className="text-xs text-gray-700">Status is set via workflow.</span>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
                 }
                 right={
+                  <Field label="Prime Contract Change Order:">
+                    <div className="flex items-center gap-3 text-xs text-gray-700">
+                      <label className="inline-flex items-center gap-1">
+                        <input
+                          type="radio"
+                          checked={primeContractChangeOrder === "none"}
+                          onChange={() => setPrimeContractChangeOrder("none")}
+                        />
+                        None
+                      </label>
+                      <label className="inline-flex items-center gap-1">
+                        <input
+                          type="radio"
+                          checked={primeContractChangeOrder === "add_to_existing"}
+                          onChange={() => setPrimeContractChangeOrder("add_to_existing")}
+                        />
+                        Add To Existing
+                      </label>
+                      <label className="inline-flex items-center gap-1">
+                        <input
+                          type="radio"
+                          checked={primeContractChangeOrder === "create_new"}
+                          onChange={() => setPrimeContractChangeOrder("create_new")}
+                        />
+                        Create New
+                      </label>
+                    </div>
+                  </Field>
+                }
+              />
+
+              <FormRow
+                left={
+                  <Field label="Change Reason:">
+                    <select
+                      value={changeReason}
+                      onChange={(e) => setChangeReason(e.target.value)}
+                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    >
+                      {CHANGE_REASONS.map((reason) => (
+                        <option key={reason} value={reason}>
+                          {reason}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                }
+                right={null}
+              />
+
+              <FormRow
+                left={
                   <Field label="Private:">
                     <input
                       type="checkbox"
@@ -329,95 +412,21 @@ export default function NewPrimePCOClient({
                     />
                   </Field>
                 }
+                right={null}
               />
 
-              {/* null / Invoiced Date */}
-              <FormRow
-                left={null}
-                right={
-                  <Field label="Invoiced Date:">
-                    <input
-                      type="date"
-                      value={invoicedDate}
-                      onChange={(e) => setInvoicedDate(e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
-                  </Field>
-                }
-              />
-
-              {/* null / Paid Date */}
-              <FormRow
-                left={null}
-                right={
-                  <Field label="Paid Date:">
-                    <input
-                      type="date"
-                      value={paidDate}
-                      onChange={(e) => setPaidDate(e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                    />
-                  </Field>
-                }
-              />
-
-              {/* Description (full width) */}
               <div className="px-4 py-3">
                 <div className="flex items-start gap-4">
                   <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Description:</label>
-                  <div className="flex-1 border border-gray-300 rounded overflow-hidden">
-                    {/* Toolbar */}
-                    <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 bg-gray-50 border-b border-gray-200">
-                      {["B", "I", "U", "S"].map((cmd) => (
-                        <button
-                          key={cmd}
-                          type="button"
-                          className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center font-medium"
-                          style={
-                            cmd === "B"
-                              ? { fontWeight: "bold" }
-                              : cmd === "I"
-                              ? { fontStyle: "italic" }
-                              : cmd === "U"
-                              ? { textDecoration: "underline" }
-                              : { textDecoration: "line-through" }
-                          }
-                        >
-                          {cmd}
-                        </button>
-                      ))}
-                      <span className="w-px h-3.5 bg-gray-300 mx-0.5" />
-                      {["≡", "≣", "⊨"].map((cmd, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center"
-                        >
-                          {cmd}
-                        </button>
-                      ))}
-                      <span className="w-px h-3.5 bg-gray-300 mx-0.5" />
-                      {["•", "1.", "⊣", "⊢"].map((cmd, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          className="w-5 h-5 text-xs text-gray-600 hover:bg-gray-200 rounded flex items-center justify-center"
-                        >
-                          {cmd}
-                        </button>
-                      ))}
-                    </div>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      rows={5}
-                      className="w-full px-3 py-2 text-xs text-gray-800 resize-none focus:outline-none"
-                    />
-                  </div>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={5}
+                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-xs text-gray-800 resize-none focus:outline-none"
+                  />
                 </div>
               </div>
 
-              {/* Executed / Signed Change Order Received Date */}
               <FormRow
                 left={
                   <Field label="Executed:">
@@ -441,42 +450,92 @@ export default function NewPrimePCOClient({
                 }
               />
 
-              {/* Potential Change Orders */}
-              <div className="px-4 py-3">
-                <div className="flex items-center gap-4">
-                  <label className="text-xs text-gray-600 w-40 shrink-0">
-                    Potential Change Orders:
-                  </label>
-                  <select
-                    value={selectedPCO}
-                    onChange={(e) => setSelectedPCO(e.target.value)}
-                    className="w-48 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
-                  >
-                    <option value="">Select a PCO to Add...</option>
-                  </select>
-                </div>
-              </div>
+              <FormRow
+                left={
+                  <Field label="Request Received From:">
+                    <select
+                      value={requestReceivedFrom}
+                      onChange={(e) => setRequestReceivedFrom(e.target.value)}
+                      className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    >
+                      <option value=""></option>
+                      {directoryContacts.map((contact) => {
+                        const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ");
+                        const label = name || contact.email || contact.id;
+                        return (
+                          <option key={contact.id} value={label}>
+                            {label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </Field>
+                }
+                right={
+                  <Field label="Location:">
+                    <select
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      className="w-48 border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    >
+                      <option value="">Select a Location</option>
+                    </select>
+                  </Field>
+                }
+              />
 
-              {/* Schedule Impact */}
-              <div className="px-4 py-3">
-                <Field label="Schedule Impact:">
-                  <div className="flex items-center gap-2">
+              <FormRow
+                left={
+                  <Field label="Schedule Impact:">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={scheduleImpact}
+                        onChange={(e) => setScheduleImpact(e.target.value)}
+                        className="w-24 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      />
+                      <span className="text-xs text-gray-600">days</span>
+                    </div>
+                  </Field>
+                }
+                right={
+                  <Field label="Field Change:">
                     <input
-                      type="number"
-                      value={scheduleImpact}
-                      onChange={(e) => setScheduleImpact(e.target.value)}
-                      className="w-24 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      type="checkbox"
+                      checked={fieldChange}
+                      onChange={(e) => setFieldChange(e.target.checked)}
+                      className="rounded border-gray-300"
                     />
-                    <span className="text-xs text-gray-600">days</span>
-                  </div>
-                </Field>
-              </div>
+                  </Field>
+                }
+              />
 
-              {/* Attachments */}
+              <FormRow
+                left={
+                  <Field label="Reference:">
+                    <input
+                      value={reference}
+                      onChange={(e) => setReference(e.target.value)}
+                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </Field>
+                }
+                right={
+                  <Field label="Paid In Full:">
+                    <input
+                      type="checkbox"
+                      checked={paidInFull}
+                      onChange={(e) => setPaidInFull(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                  </Field>
+                }
+              />
+
               <div className="px-4 py-3">
                 <div className="flex items-start gap-4">
                   <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Attachments:</label>
-                  <div className="flex-1 flex gap-4 items-stretch min-h-[60px]">
+                  <div className="flex-1 flex gap-4 items-stretch min-h-[36px]">
                     <button className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 shrink-0 self-center">
                       <Paperclip className="w-3.5 h-3.5" />
                       Attach File(s)
@@ -488,182 +547,9 @@ export default function NewPrimePCOClient({
                 </div>
               </div>
             </div>
-
-            {/* ── ADDITIONAL FIELDS ── */}
-            <div className="mt-8 border-t border-gray-200 pt-4">
-              <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
-                Additional Fields
-              </p>
-              <div className="border border-gray-200 rounded divide-y divide-gray-200">
-                <FormRow
-                  left={
-                    <Field label="New Date of Substantial Completion:">
-                      <input
-                        type="date"
-                        value={newSubstantialCompletionDate}
-                        onChange={(e) => setNewSubstantialCompletionDate(e.target.value)}
-                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      />
-                    </Field>
-                  }
-                  right={
-                    <Field label="Project Executive or Project Manager Signer:">
-                      <select
-                        value={signer}
-                        onChange={(e) => setSigner(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      >
-                        <option value=""></option>
-                      </select>
-                    </Field>
-                  }
-                />
-              </div>
-            </div>
-
-            {/* ── WORKFLOW SETUP ── */}
-            <div className="mt-8 border-t border-gray-200 pt-4">
-              <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
-                Workflow Setup
-              </p>
-              <div className="border border-gray-200 rounded divide-y divide-gray-200">
-                <FormRow
-                  left={
-                    <Field label="Workflow:">
-                      <select
-                        value={workflow}
-                        onChange={(e) => setWorkflow(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      >
-                        <option>Owner Change Order Workflow</option>
-                      </select>
-                    </Field>
-                  }
-                  right={null}
-                />
-                <FormRow
-                  left={
-                    <Field label="Accountant:">
-                      <select
-                        value={accountant}
-                        onChange={(e) => setAccountant(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      >
-                        <option value=""></option>
-                        {companyUsers.map((u) => (
-                          <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                      </select>
-                    </Field>
-                  }
-                  right={null}
-                />
-                <FormRow
-                  left={
-                    <Field label="No User:">
-                      <select
-                        value={noUser}
-                        onChange={(e) => setNoUser(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      >
-                        <option value=""></option>
-                        {directoryContacts.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </Field>
-                  }
-                  right={null}
-                />
-                <FormRow
-                  left={
-                    <Field label="Project Manager:">
-                      <select
-                        value={projectManager}
-                        onChange={(e) => setProjectManager(e.target.value)}
-                        className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
-                      >
-                        <option value=""></option>
-                        {directoryContacts.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </Field>
-                  }
-                  right={null}
-                />
-                <FormRow
-                  left={
-                    <div className="flex items-start gap-4">
-                      <label className="text-xs text-gray-600 w-40 shrink-0 pt-1">Distribution:</label>
-                      <div className="space-y-2">
-                        {distribution.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {distribution.map((id) => {
-                              const person = directoryContacts.find((c) => c.id === id);
-                              return (
-                                <span
-                                  key={id}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs"
-                                >
-                                  {person?.name ?? id}
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setDistribution((prev) => prev.filter((d) => d !== id))
-                                    }
-                                    className="hover:text-blue-900 leading-none"
-                                  >
-                                    ×
-                                  </button>
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val && !distribution.includes(val)) {
-                              setDistribution((prev) => [...prev, val]);
-                            }
-                          }}
-                          className="w-64 border border-gray-300 rounded px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300"
-                        >
-                          <option value="">Select A Person...</option>
-                          {directoryContacts
-                            .filter((c) => !distribution.includes(c.id))
-                            .map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                      </div>
-                    </div>
-                  }
-                  right={null}
-                />
-
-                {/* Reminder rows */}
-                <FormRow
-                  left={<ReminderRow label="PM Creates PCCO:" />}
-                  right={<ReminderRow label="Owner/Architect Review:" />}
-                />
-                <FormRow
-                  left={<ReminderRow label="PCCO Approved:" />}
-                  right={<ReminderRow label="PCCO Rejected:" />}
-                />
-                <FormRow
-                  left={<ReminderRow label="Cost Codes Changed:" />}
-                  right={<ReminderRow label="PCCO Editing:" />}
-                />
-              </div>
-            </div>
-
           </div>
         </div>
 
-        {/* ── Footer actions ── */}
         {saveError && (
           <div className="px-6 py-2 bg-red-50 border-t border-red-200 text-xs text-red-700 shrink-0">
             Error: {saveError}
@@ -698,8 +584,6 @@ export default function NewPrimePCOClient({
   );
 }
 
-/* ── Layout helpers ── */
-
 function FormRow({
   left,
   right,
@@ -720,21 +604,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="flex items-center gap-4">
       <label className="text-xs text-gray-600 w-40 shrink-0">{label}</label>
       <div>{children}</div>
-    </div>
-  );
-}
-
-function ReminderRow({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-700 w-40 shrink-0">{label}</span>
-      <span className="text-xs text-gray-600 whitespace-nowrap">
-        Start sending reminder emails after
-      </span>
-      <input className="w-8 border border-gray-300 rounded px-1 py-1 text-xs" />
-      <select className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-700">
-        <option>business days</option>
-      </select>
     </div>
   );
 }
