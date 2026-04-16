@@ -355,7 +355,7 @@ export default function ChangeEventDetailClient({
     const newSovLines = selectedSovLineItems.map((li) => ({
       budget_code: (li.budget_code ?? "").trim(),
       description: (li.description ?? "").trim(),
-      amount: Number(li.rev_rom ?? 0),
+      amount: Number(li.cost_rom ?? li.rev_rom ?? 0),
     }));
 
     const pcoRes = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`);
@@ -806,7 +806,7 @@ export default function ChangeEventDetailClient({
               ) : (
                 <div className="divide-y divide-gray-100 border border-gray-200 rounded">
                   {pcoPickerContracts.map((c) => (
-                    <button key={c.id} className="w-full text-left px-3 py-2.5 text-xs text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors" onClick={() => { setPcoPickerOpen(false); router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${event.id}`); }}>
+                    <button key={c.id} className="w-full text-left px-3 py-2.5 text-xs text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors" onClick={() => { setPcoPickerOpen(false); const lineItemIdsParam = Array.from(selectedLineItemIds).join(","); router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${event.id}${lineItemIdsParam ? `&lineItemIds=${lineItemIdsParam}` : ""}`); }}>
                       {c.contract_number} – {c.title}
                     </button>
                   ))}

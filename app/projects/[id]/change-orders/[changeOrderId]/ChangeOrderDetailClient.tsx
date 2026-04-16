@@ -219,17 +219,22 @@ export default function ChangeOrderDetailClient({
       return;
     }
 
-    if (!co?.source_change_event_ids?.length) {
+    const validEventIds = (co?.source_change_event_ids ?? []).filter((id): id is string => !!id);
+    if (!validEventIds.length) {
       setIncludedPotentialRows([]);
       return;
     }
 
     Promise.all(
-      co.source_change_event_ids.map((eventId) =>
-        fetch(`/api/projects/${projectId}/change-events/${eventId}`).then((r) => r.json())
+      validEventIds.map((eventId) =>
+        fetch(`/api/projects/${projectId}/change-events/${eventId}`)
+          .then((r) => r.json())
+          .then((data: SourceEventWithLines & { error?: string }) => (data.error ? null : data))
+          .catch(() => null)
       )
     )
-      .then((events: SourceEventWithLines[]) => {
+      .then((results) => {
+        const events = results.filter((e): e is SourceEventWithLines => e !== null && !!e.id);
         const rows: IncludedPotentialRow[] = [];
         events.forEach((event) => {
           const lines = Array.isArray(event.line_items) ? event.line_items : [];
