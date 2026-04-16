@@ -976,7 +976,9 @@ export default function BudgetClient({
   const [forecastEdits, setForecastEdits] = useState<Record<string, ForecastEdit>>({});
   const [selectedForecastItemId, setSelectedForecastItemId] = useState<string | null>(null);
   const [isBudgetLocked, setIsBudgetLocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<"budget" | "budget_details">("budget");
+  const [activeTab, setActiveTab] = useState<
+    "budget" | "budget_details" | "forecasting" | "project_status_snapshot" | "change_history"
+  >("budget");
   const [groupBy, setGroupBy] = useState<GroupByKey | null>(null);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -1752,6 +1754,26 @@ export default function BudgetClient({
     return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredBudgetDetailRows, groupBy]);
 
+  const changeHistoryRows = useMemo(() => {
+    const itemRows = items.map((item) => ({
+      id: `line-item-${item.id}`,
+      label: item.cost_code ? `${item.cost_code} · ${item.description || "Budget line item"}` : item.description || "Budget line item",
+      type: "Budget line item created",
+      date: item.created_at,
+    }));
+
+    const snapshotRows = snapshots.map((snapshot) => ({
+      id: `snapshot-${snapshot.id}`,
+      label: snapshot.name || "Snapshot",
+      type: "Project status snapshot saved",
+      date: snapshot.created_at,
+    }));
+
+    return [...itemRows, ...snapshotRows].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [items, snapshots]);
+
   function renderDetailCell(row: BudgetDetailRow, key: string) {
     switch (key) {
       case "budget_code":
@@ -1999,6 +2021,39 @@ export default function BudgetClient({
               }`}
             >
               Budget Details
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("forecasting")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "forecasting"
+                  ? "border-orange-500 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Forecasting
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("project_status_snapshot")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "project_status_snapshot"
+                  ? "border-orange-500 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Project Status Snapshot
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("change_history")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "change_history"
+                  ? "border-orange-500 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Change History
             </button>
           </div>
         </div>
@@ -2272,7 +2327,7 @@ export default function BudgetClient({
                   </table>
                 </div>
               </div>
-            ) : (
+            ) : activeTab === "budget_details" ? (
               <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
                 <div className="overflow-auto max-h-[70vh]">
                   <table className="w-full text-xs">
@@ -2335,10 +2390,110 @@ export default function BudgetClient({
                   </table>
                 </div>
               </div>
+            ) : activeTab === "forecasting" ? (
+              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                <div className="overflow-auto max-h-[70vh]">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 z-20">
+                      <tr className="border-b border-gray-100 bg-gray-50">
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Cost Code</th>
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Description</th>
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Projected Budget</th>
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Projected Costs</th>
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Forecast To Complete</th>
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Estimated Cost at Completion</th>
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Projected Over/Under</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-3 py-12 text-center text-sm text-gray-400">
+                            No forecast rows available yet
+                          </td>
+                        </tr>
+                      ) : (
+                        items.map((item) => {
+                          const c = getItemCalc(item);
+                          return (
+                            <tr key={`forecast-${item.id}`} className="border-b border-gray-50 last:border-b-0">
+                              <td className="px-3 py-3 whitespace-nowrap">{item.cost_code || "—"}</td>
+                              <td className="px-3 py-3 whitespace-nowrap">{item.description || "—"}</td>
+                              <td className="px-3 py-3 whitespace-nowrap">{fmt(c.projectedBudget)}</td>
+                              <td className="px-3 py-3 whitespace-nowrap">{fmt(c.projectedCosts)}</td>
+                              <td className="px-3 py-3 whitespace-nowrap">{fmt(c.forecastToComplete)}</td>
+                              <td className="px-3 py-3 whitespace-nowrap">{fmt(c.estimatedCostAtCompletion)}</td>
+                              <td className={`px-3 py-3 whitespace-nowrap ${c.projectedOverUnder < 0 ? "text-red-600" : ""}`}>
+                                {fmt(c.projectedOverUnder)}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : activeTab === "project_status_snapshot" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white border border-gray-100 rounded-xl p-4">
+                    <p className="text-xs uppercase tracking-wider text-gray-500">Projected Budget</p>
+                    <p className="text-2xl font-semibold text-gray-900 mt-2">{fmt(totals.projectedBudget)}</p>
+                  </div>
+                  <div className="bg-white border border-gray-100 rounded-xl p-4">
+                    <p className="text-xs uppercase tracking-wider text-gray-500">Estimated Cost at Completion</p>
+                    <p className="text-2xl font-semibold text-gray-900 mt-2">{fmt(totals.estimatedCostAtCompletion)}</p>
+                  </div>
+                  <div className="bg-white border border-gray-100 rounded-xl p-4">
+                    <p className="text-xs uppercase tracking-wider text-gray-500">Projected Over/Under</p>
+                    <p className={`text-2xl font-semibold mt-2 ${totals.projectedOverUnder < 0 ? "text-red-600" : "text-gray-900"}`}>
+                      {fmt(totals.projectedOverUnder)}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-900">Saved Snapshots</h3>
+                  </div>
+                  {snapshots.length === 0 ? (
+                    <p className="px-4 py-8 text-sm text-gray-400">No snapshots saved yet.</p>
+                  ) : (
+                    <ul className="divide-y divide-gray-100">
+                      {snapshots.map((snapshot) => (
+                        <li key={snapshot.id} className="px-4 py-3 text-sm flex items-center justify-between">
+                          <span className="text-gray-800">{snapshot.name}</span>
+                          <span className="text-gray-500">{new Date(snapshot.created_at).toLocaleDateString("en-US")}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-900">Budget Change History</h3>
+                </div>
+                {changeHistoryRows.length === 0 ? (
+                  <p className="px-4 py-8 text-sm text-gray-400">No changes yet.</p>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {changeHistoryRows.map((entry) => (
+                      <li key={entry.id} className="px-4 py-3 text-sm">
+                        <p className="font-medium text-gray-800">{entry.label}</p>
+                        <p className="text-gray-500 mt-0.5">
+                          {entry.type} · {new Date(entry.date).toLocaleDateString("en-US")}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
           </section>
 
-          {!isBudgetLocked && (
+          {!isBudgetLocked && (activeTab === "budget" || activeTab === "budget_details") && (
           <aside className="bg-white border border-gray-100 rounded-xl p-4 space-y-2">
             <button
               onClick={() => setShowLineItemModal(true)}
