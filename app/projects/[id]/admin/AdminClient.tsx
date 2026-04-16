@@ -37,37 +37,34 @@ type CompanyUser = {
   email: string;
 };
 
-const STAGES = [
-  "Bidding",
-  "Course of Construction",
-  "Post-Construction",
-  "Pre-Construction",
-  "Warranty",
-];
+const STAGES = ["Bidding", "Course of Construction", "Post-Construction", "Pre-Construction", "Warranty"];
 
-
-// ── Shared field components ───────────────────────────────────────────────────
+const ADMIN_SECTIONS = [
+  { id: "general-information", label: "General Information" },
+  { id: "project-location", label: "Project Location" },
+  { id: "erp-integration", label: "ERP Integration" },
+  { id: "advanced", label: "Advanced" },
+  { id: "dates", label: "Dates" },
+  { id: "additional-information", label: "Additional Information" },
+] as const;
 
 function Field({
   label,
+  required,
   children,
 }: {
   label: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1.5">{label}</label>
+      <label className="mb-1.5 block text-sm font-semibold text-[#1f2937]">
+        {label}
+        {required ? <span className="ml-1 text-red-500">*</span> : null}
+      </label>
       {children}
     </div>
-  );
-}
-
-function ReadonlyValue({ value }: { value: string | null | undefined }) {
-  return (
-    <p className="px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-100 rounded-md min-h-[38px]">
-      {value || <span className="text-gray-300">—</span>}
-    </p>
   );
 }
 
@@ -75,54 +72,84 @@ function TextInput({
   value,
   onChange,
   placeholder,
+  readOnly,
 }: {
   value: string;
-  onChange: (v: string) => void;
+  onChange?: (v: string) => void;
   placeholder?: string;
+  readOnly?: boolean;
 }) {
   return (
     <input
       type="text"
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
-      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+      readOnly={readOnly}
+      className="h-11 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400 read-only:cursor-default"
     />
   );
 }
 
-function DateInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function SelectInput({
+  value,
+  onChange,
+  placeholder,
+  options,
+  disabled,
+}: {
+  value: string;
+  onChange?: (v: string) => void;
+  placeholder: string;
+  options: string[];
+  disabled?: boolean;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange?.(e.target.value)}
+      disabled={disabled}
+      className="h-11 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm text-gray-700 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400 disabled:cursor-not-allowed"
+    >
+      <option value="">{placeholder}</option>
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function DateInput({ value, onChange, readOnly }: { value: string; onChange?: (v: string) => void; readOnly?: boolean }) {
   return (
     <input
       type="date"
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+      onChange={(e) => onChange?.(e.target.value)}
+      readOnly={readOnly}
+      className="h-11 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm text-gray-700 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
     />
+  );
+}
+
+function SectionCard({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="scroll-mt-24 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-6 text-3xl font-semibold text-gray-900">{title}</h2>
+      {children}
+    </section>
   );
 }
 
 function formatDate(d: string | null): string {
   if (!d) return "";
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     year: "numeric",
   });
 }
-
-// ── Section wrapper ───────────────────────────────────────────────────────────
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-white border border-gray-100 rounded-xl p-6">
-      <h2 className="text-sm font-semibold text-gray-900 mb-5 pb-3 border-b border-gray-100">{title}</h2>
-      {children}
-    </div>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
 
 export default function AdminClient({
   projectId,
@@ -139,22 +166,20 @@ export default function AdminClient({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [activeSection, setActiveSection] = useState<(typeof ADMIN_SECTIONS)[number]["id"]>("general-information");
 
-  // General Information
   const [stage, setStage] = useState("");
   const [name, setName] = useState("");
   const [projectNumber, setProjectNumber] = useState("");
   const [description, setDescription] = useState("");
   const [sector, setSector] = useState("");
 
-  // Project Location
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [stateVal, setStateVal] = useState("");
   const [zipCode, setZipCode] = useState("");
   const [county, setCounty] = useState("");
 
-  // Dates
   const [startDate, setStartDate] = useState("");
   const [actualStartDate, setActualStartDate] = useState("");
   const [completionDate, setCompletionDate] = useState("");
@@ -162,7 +187,6 @@ export default function AdminClient({
   const [warrantyStartDate, setWarrantyStartDate] = useState("");
   const [warrantyEndDate, setWarrantyEndDate] = useState("");
 
-  // Members
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
@@ -173,9 +197,9 @@ export default function AdminClient({
   const loadMembers = useCallback(async () => {
     const res = await fetch(`/api/projects/${projectId}/members`);
     if (!res.ok) return;
-    const data: Array<{ id: string; role: string; users: { id: string; username: string; email: string; company_id: string | null } | null }> = await res.json();
+    const membersData: Array<{ id: string; role: string; users: { id: string; username: string; email: string; company_id: string | null } | null }> = await res.json();
     setMembers(
-      data
+      membersData
         .filter((m) => m.users)
         .map((m) => ({
           membership_id: m.id,
@@ -213,7 +237,6 @@ export default function AdminClient({
     loadMembers();
   }, [projectId, loadMembers]);
 
-  // Load company users for autocomplete
   useEffect(() => {
     fetch("/api/users")
       .then((r) => r.json())
@@ -221,7 +244,6 @@ export default function AdminClient({
       .catch(() => {});
   }, []);
 
-  // Close member dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (memberDropdownRef.current && !memberDropdownRef.current.contains(e.target as Node)) {
@@ -231,6 +253,27 @@ export default function AdminClient({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        const id = visible.target.getAttribute("id") as (typeof ADMIN_SECTIONS)[number]["id"] | null;
+        if (id) setActiveSection(id);
+      },
+      { rootMargin: "-30% 0px -55% 0px", threshold: [0.2, 0.4, 0.6] }
+    );
+
+    ADMIN_SECTIONS.forEach((section) => {
+      const element = document.getElementById(section.id);
+      if (element) observer.observe(element);
+    });
+
+    return () => observer.disconnect();
+  }, [loading]);
 
   async function handleAddMember(userId: string) {
     setMemberActionError("");
@@ -270,8 +313,16 @@ export default function AdminClient({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name, description, project_number: projectNumber, status: stage, sector,
-        address, city, state: stateVal, zip_code: zipCode, county,
+        name,
+        description,
+        project_number: projectNumber,
+        status: stage,
+        sector,
+        address,
+        city,
+        state: stateVal,
+        zip_code: zipCode,
+        county,
         start_date: startDate || null,
         actual_start_date: actualStartDate || null,
         completion_date: completionDate || null,
@@ -283,22 +334,6 @@ export default function AdminClient({
     if (res.ok) {
       const updated = await res.json();
       setData(updated);
-      setStage(updated.status ?? "");
-      setName(updated.name ?? "");
-      setProjectNumber(updated.project_number ?? "");
-      setDescription(updated.description ?? "");
-      setSector(updated.sector ?? "");
-      setAddress(updated.address ?? "");
-      setCity(updated.city ?? "");
-      setStateVal(updated.state ?? "");
-      setZipCode(updated.zip_code ?? "");
-      setCounty(updated.county ?? "");
-      setStartDate(updated.start_date ?? "");
-      setActualStartDate(updated.actual_start_date ?? "");
-      setCompletionDate(updated.completion_date ?? "");
-      setProjectedFinishDate(updated.projected_finish_date ?? "");
-      setWarrantyStartDate(updated.warranty_start_date ?? "");
-      setWarrantyEndDate(updated.warranty_end_date ?? "");
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     }
@@ -310,311 +345,393 @@ export default function AdminClient({
     window.location.href = "/";
   }
 
+  function jumpToSection(id: (typeof ADMIN_SECTIONS)[number]["id"]) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setActiveSection(id);
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
+    <div className="min-h-screen bg-[#f3f4f6]">
+      <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
+        <a href="/dashboard" className="text-sm font-semibold text-gray-900 transition-colors hover:text-gray-600">
           SiteCommand
         </a>
         <div className="flex items-center gap-5">
-<span className="text-sm text-gray-400">{username}</span>
-          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button>
+          <span className="text-sm text-gray-500">{username}</span>
+          <button onClick={handleLogout} className="text-sm text-gray-500 transition-colors hover:text-gray-900">
+            Logout
+          </button>
         </div>
       </header>
 
       <ProjectNav projectId={projectId} />
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main className="mx-auto max-w-[1460px] px-5 py-6">
         {loading ? (
-          <p className="text-sm text-gray-400">Loading...</p>
+          <p className="text-sm text-gray-500">Loading...</p>
         ) : (
           <>
-            {/* Page title + save */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-5 flex items-start justify-between rounded-lg border border-gray-200 bg-white p-5">
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
-                {!isAdmin && (
-                  <p className="text-xs text-gray-400 mt-0.5">View only — contact a project administrator to make changes</p>
-                )}
+                <h1 className="text-4xl font-semibold text-gray-900">Project Admin</h1>
+                <p className="mt-1 text-3xl text-gray-700">{data?.name || "Untitled Project"}</p>
+                {!isAdmin ? (
+                  <p className="mt-1 text-xs text-gray-500">View only — contact a project administrator to make changes.</p>
+                ) : null}
               </div>
-              {isAdmin && (
+              {isAdmin ? (
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saved ? (
-                    <>
-                      <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Saved
-                    </>
-                  ) : saving ? "Saving..." : "Save Changes"}
+                  {saved ? "Saved" : saving ? "Saving..." : "Save Changes"}
                 </button>
-              )}
+              ) : null}
             </div>
 
-            <div className="space-y-6">
+            <div className="grid grid-cols-12 gap-5">
+              <aside className="col-span-12 lg:col-span-2">
+                <div className="sticky top-24 border-l border-gray-300 pl-3">
+                  {ADMIN_SECTIONS.map((section) => (
+                    <button
+                      key={section.id}
+                      type="button"
+                      onClick={() => jumpToSection(section.id)}
+                      className={`mb-1 block w-full border-l-4 px-3 py-1.5 text-left text-xl ${
+                        activeSection === section.id
+                          ? "border-gray-800 bg-gray-200 font-semibold text-gray-900"
+                          : "border-transparent text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      {section.label}
+                    </button>
+                  ))}
+                </div>
+              </aside>
 
-              {/* General Information */}
-              <Section title="General Information">
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                  <Field label="Stage of Construction">
-                    {isAdmin ? (
-                      <select
-                        value={stage}
-                        onChange={(e) => setStage(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                      >
-                        <option value="">Select stage...</option>
-                        {STAGES.map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <ReadonlyValue value={data?.status} />
-                    )}
-                  </Field>
+              <section className="col-span-12 space-y-5 lg:col-span-8">
+                <SectionCard id="general-information" title="General Information">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Field label="Project Template">
+                        <a className="text-lg text-blue-600 underline" href="#">
+                          General Project Template
+                        </a>
+                      </Field>
+                    </div>
 
-                  <Field label="Project Number">
-                    {isAdmin ? (
-                      <TextInput value={projectNumber} onChange={setProjectNumber} placeholder="e.g. 2024-001" />
-                    ) : (
-                      <ReadonlyValue value={data?.project_number} />
-                    )}
-                  </Field>
+                    <div className="col-span-2">
+                      <Field label="Stage">
+                        <SelectInput
+                          value={stage}
+                          onChange={isAdmin ? setStage : undefined}
+                          placeholder="Select stage"
+                          options={STAGES}
+                          disabled={!isAdmin}
+                        />
+                      </Field>
+                    </div>
 
-                  <Field label="Project Name">
-                    {isAdmin ? (
-                      <TextInput value={name} onChange={setName} placeholder="Project name" />
-                    ) : (
-                      <ReadonlyValue value={data?.name} />
-                    )}
-                  </Field>
+                    <Field label="Project Name" required>
+                      <TextInput value={name} onChange={isAdmin ? setName : undefined} readOnly={!isAdmin} placeholder="Project name" />
+                    </Field>
 
-                  <Field label="Project Sector">
-                    {isAdmin ? (
-                      <TextInput value={sector} onChange={setSector} placeholder="e.g. Commercial, Healthcare" />
-                    ) : (
-                      <ReadonlyValue value={data?.sector} />
-                    )}
-                  </Field>
+                    <Field label="Project Number">
+                      <TextInput
+                        value={projectNumber}
+                        onChange={isAdmin ? setProjectNumber : undefined}
+                        readOnly={!isAdmin}
+                        placeholder="Project number"
+                      />
+                    </Field>
 
-                  <div className="col-span-2">
-                    <Field label="Description">
-                      {isAdmin ? (
+                    <Field label="Project ID">
+                      <TextInput value={data?.id ?? ""} readOnly />
+                    </Field>
+
+                    <Field label="Work Scope">
+                      <SelectInput value="" placeholder="Select work scope" options={["Commercial", "Residential", "Industrial"]} disabled />
+                    </Field>
+
+                    <Field label="Project Sector">
+                      <TextInput value={sector} onChange={isAdmin ? setSector : undefined} readOnly={!isAdmin} placeholder="Sector" />
+                    </Field>
+
+                    <div className="col-span-2">
+                      <Field label="Delivery Method">
+                        <SelectInput value="" placeholder="Select delivery method" options={["Design-Bid-Build", "Design-Build"]} disabled />
+                      </Field>
+                    </div>
+
+                    <div className="col-span-2">
+                      <Field label="Description">
                         <textarea
                           value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          rows={3}
-                          placeholder="Project description..."
-                          className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                          onChange={(e) => isAdmin && setDescription(e.target.value)}
+                          rows={4}
+                          readOnly={!isAdmin}
+                          placeholder="Enter description"
+                          className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                         />
-                      ) : (
-                        <ReadonlyValue value={data?.description} />
-                      )}
+                      </Field>
+                    </div>
+                  </div>
+                </SectionCard>
+
+                <SectionCard id="project-location" title="Project Location">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Field label="Country" required>
+                        <TextInput value="United States" readOnly />
+                      </Field>
+                    </div>
+                    <div className="col-span-2">
+                      <Field label="Street Address">
+                        <TextInput value={address} onChange={isAdmin ? setAddress : undefined} readOnly={!isAdmin} placeholder="Street address" />
+                      </Field>
+                    </div>
+                    <Field label="City">
+                      <TextInput value={city} onChange={isAdmin ? setCity : undefined} readOnly={!isAdmin} placeholder="City" />
+                    </Field>
+                    <Field label="State">
+                      <TextInput value={stateVal} onChange={isAdmin ? setStateVal : undefined} readOnly={!isAdmin} placeholder="State" />
+                    </Field>
+                    <Field label="Zip Code">
+                      <TextInput value={zipCode} onChange={isAdmin ? setZipCode : undefined} readOnly={!isAdmin} placeholder="Zip code" />
+                    </Field>
+                    <Field label="County">
+                      <TextInput value={county} onChange={isAdmin ? setCounty : undefined} readOnly={!isAdmin} placeholder="County" />
+                    </Field>
+                    <div className="col-span-2">
+                      <Field label="Timezone" required>
+                        <TextInput value="Eastern Time (US & Canada)" readOnly />
+                      </Field>
+                    </div>
+                    <Field label="Latitude">
+                      <TextInput value="35.86141" readOnly />
+                    </Field>
+                    <Field label="Longitude">
+                      <TextInput value="-78.573579" readOnly />
+                    </Field>
+                    <Field label="Phone">
+                      <TextInput value="" readOnly placeholder="Enter phone number" />
+                    </Field>
+                    <Field label="Fax">
+                      <TextInput value="" readOnly placeholder="Enter fax number" />
                     </Field>
                   </div>
-                </div>
-              </Section>
+                </SectionCard>
 
-              {/* Project Location */}
-              <Section title="Project Location">
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                  <div className="col-span-2">
-                    <Field label="Address">
+                <SectionCard id="erp-integration" title="ERP Integration">
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 text-base text-gray-900">
+                      <input type="checkbox" className="h-5 w-5" checked readOnly /> ERP-sync this project
+                    </label>
+                    <label className="flex items-center gap-3 text-base text-gray-900">
+                      <input type="checkbox" className="h-5 w-5" readOnly /> Enable ERP Job Cost Transaction Syncing
+                    </label>
+                    <div className="max-w-xl">
+                      <Field label="Sage 300 ID:">
+                        <TextInput value={projectNumber} readOnly />
+                      </Field>
+                    </div>
+                  </div>
+                </SectionCard>
+
+                <SectionCard id="advanced" title="Advanced">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Field label="Department">
+                        <SelectInput value="" placeholder="Select department" options={["Operations", "Preconstruction"]} disabled />
+                      </Field>
+                    </div>
+                    <div className="col-span-2">
+                      <Field label="Copy Directory From">
+                        <SelectInput value="" placeholder="Select project" options={["Project Alpha", "Project Bravo"]} disabled />
+                      </Field>
+                    </div>
+
+                    <label className="flex items-center gap-3 text-base text-gray-900">
+                      <input type="checkbox" className="h-5 w-5" checked readOnly /> Prevent Overbilling on this Project
+                    </label>
+                    <label className="flex items-center gap-3 text-base text-gray-900">
+                      <input type="checkbox" className="h-5 w-5" readOnly /> Non-Commitment Costs
+                    </label>
+
+                    <label className="col-span-2 flex items-center gap-3 text-base text-gray-900">
+                      <input type="checkbox" className="h-5 w-5" readOnly /> Test Project
+                    </label>
+                  </div>
+                </SectionCard>
+
+                <SectionCard id="dates" title="Dates">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Start Date" required>
+                      {isAdmin ? <DateInput value={startDate} onChange={setStartDate} /> : <TextInput value={formatDate(data?.start_date ?? null)} readOnly />}
+                    </Field>
+                    <Field label="Actual Start Date">
                       {isAdmin ? (
-                        <TextInput value={address} onChange={setAddress} placeholder="Street address" />
+                        <DateInput value={actualStartDate} onChange={setActualStartDate} />
                       ) : (
-                        <ReadonlyValue value={data?.address} />
+                        <TextInput value={formatDate(data?.actual_start_date ?? null)} readOnly />
+                      )}
+                    </Field>
+                    <Field label="Completion Date" required>
+                      {isAdmin ? (
+                        <DateInput value={completionDate} onChange={setCompletionDate} />
+                      ) : (
+                        <TextInput value={formatDate(data?.completion_date ?? null)} readOnly />
+                      )}
+                    </Field>
+                    <Field label="Projected Finish Date">
+                      {isAdmin ? (
+                        <DateInput value={projectedFinishDate} onChange={setProjectedFinishDate} />
+                      ) : (
+                        <TextInput value={formatDate(data?.projected_finish_date ?? null)} readOnly />
+                      )}
+                    </Field>
+                    <Field label="Warranty Start Date">
+                      {isAdmin ? (
+                        <DateInput value={warrantyStartDate} onChange={setWarrantyStartDate} />
+                      ) : (
+                        <TextInput value={formatDate(data?.warranty_start_date ?? null)} readOnly />
+                      )}
+                    </Field>
+                    <Field label="Warranty End Date">
+                      {isAdmin ? (
+                        <DateInput value={warrantyEndDate} onChange={setWarrantyEndDate} />
+                      ) : (
+                        <TextInput value={formatDate(data?.warranty_end_date ?? null)} readOnly />
                       )}
                     </Field>
                   </div>
+                </SectionCard>
 
-                  <Field label="City">
-                    {isAdmin ? (
-                      <TextInput value={city} onChange={setCity} placeholder="City" />
-                    ) : (
-                      <ReadonlyValue value={data?.city} />
-                    )}
-                  </Field>
-
-                  <Field label="State">
-                    {isAdmin ? (
-                      <TextInput value={stateVal} onChange={setStateVal} placeholder="State" />
-                    ) : (
-                      <ReadonlyValue value={data?.state} />
-                    )}
-                  </Field>
-
-                  <Field label="Zip Code">
-                    {isAdmin ? (
-                      <TextInput value={zipCode} onChange={setZipCode} placeholder="Zip code" />
-                    ) : (
-                      <ReadonlyValue value={data?.zip_code} />
-                    )}
-                  </Field>
-
-                  <Field label="County">
-                    {isAdmin ? (
-                      <TextInput value={county} onChange={setCounty} placeholder="County" />
-                    ) : (
-                      <ReadonlyValue value={data?.county} />
-                    )}
-                  </Field>
-                </div>
-              </Section>
-
-              {/* Dates */}
-              <Section title="Dates">
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                  <Field label="Start Date">
-                    {isAdmin ? (
-                      <DateInput value={startDate} onChange={setStartDate} />
-                    ) : (
-                      <ReadonlyValue value={formatDate(data?.start_date ?? null) || null} />
-                    )}
-                  </Field>
-
-                  <Field label="Actual Start Date">
-                    {isAdmin ? (
-                      <DateInput value={actualStartDate} onChange={setActualStartDate} />
-                    ) : (
-                      <ReadonlyValue value={formatDate(data?.actual_start_date ?? null) || null} />
-                    )}
-                  </Field>
-
-                  <Field label="Completion Date">
-                    {isAdmin ? (
-                      <DateInput value={completionDate} onChange={setCompletionDate} />
-                    ) : (
-                      <ReadonlyValue value={formatDate(data?.completion_date ?? null) || null} />
-                    )}
-                  </Field>
-
-                  <Field label="Projected Finish Date">
-                    {isAdmin ? (
-                      <DateInput value={projectedFinishDate} onChange={setProjectedFinishDate} />
-                    ) : (
-                      <ReadonlyValue value={formatDate(data?.projected_finish_date ?? null) || null} />
-                    )}
-                  </Field>
-
-                  <Field label="Warranty Start Date">
-                    {isAdmin ? (
-                      <DateInput value={warrantyStartDate} onChange={setWarrantyStartDate} />
-                    ) : (
-                      <ReadonlyValue value={formatDate(data?.warranty_start_date ?? null) || null} />
-                    )}
-                  </Field>
-
-                  <Field label="Warranty End Date">
-                    {isAdmin ? (
-                      <DateInput value={warrantyEndDate} onChange={setWarrantyEndDate} />
-                    ) : (
-                      <ReadonlyValue value={formatDate(data?.warranty_end_date ?? null) || null} />
-                    )}
-                  </Field>
-                </div>
-              </Section>
-
-              {/* Project Members */}
-              <Section title="Project Members">
-                <div className="space-y-4">
-                  {/* Existing members list */}
-                  {members.length === 0 ? (
-                    <p className="text-sm text-gray-400">No members added yet.</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {members.map((m) => (
-                        <div key={m.user_id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600 shrink-0">
-                              {m.username[0]?.toUpperCase()}
+                <SectionCard id="additional-information" title="Additional Information">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Total Value" required>
+                      <TextInput value="6,000,000" readOnly />
+                    </Field>
+                    <Field label="Language - Country">
+                      <TextInput value="English (United States)" readOnly />
+                    </Field>
+                    <Field label="Code">
+                      <TextInput value="" readOnly placeholder="Enter code" />
+                    </Field>
+                    <Field label="Bid Type">
+                      <SelectInput value="" placeholder="Select bid type" options={["Lump Sum", "GMP"]} disabled />
+                    </Field>
+                    <Field label="Type">
+                      <SelectInput value="" placeholder="Select type" options={["New Construction", "Renovation"]} disabled />
+                    </Field>
+                    <Field label="Parent Project">
+                      <SelectInput value="" placeholder="Select parent project" options={["Corporate Program"]} disabled />
+                    </Field>
+                    <div className="col-span-2 border-t border-gray-200 pt-3">
+                      <h3 className="mb-2 text-xl font-semibold text-gray-900">Project Members</h3>
+                      {members.length === 0 ? (
+                        <p className="text-sm text-gray-500">No members added yet.</p>
+                      ) : (
+                        <div className="space-y-1">
+                          {members.map((m) => (
+                            <div key={m.user_id} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-gray-900">{m.username}</p>
+                                <p className="truncate text-xs text-gray-500">{m.email}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 capitalize">{m.role.replace("_", " ")}</span>
+                                {isAdmin ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveMember(m.user_id)}
+                                    className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                  >
+                                    Remove
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">{m.username}</p>
-                              <p className="text-xs text-gray-400 truncate">{m.email}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-xs text-gray-400 capitalize">{m.role.replace("_", " ")}</span>
-                            {isAdmin && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMember(m.user_id)}
-                                className="text-gray-300 hover:text-red-500 transition-colors ml-1"
-                                title="Remove member"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      )}
 
-                  {/* Add member autocomplete — admin only */}
-                  {isAdmin && (
-                    <div ref={memberDropdownRef} className="relative">
-                      <label className="block text-xs font-medium text-gray-500 mb-1.5">Add member</label>
-                      <input
-                        type="text"
-                        value={memberSearch}
-                        onChange={(e) => { setMemberSearch(e.target.value); setMemberDropdownOpen(true); }}
-                        onFocus={() => setMemberDropdownOpen(true)}
-                        placeholder="Search by name or email..."
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                      />
-                      {memberDropdownOpen && (() => {
-                        const memberUserIds = new Set(members.map((m) => m.user_id));
-                        const filtered = companyUsers.filter(
-                          (u) =>
-                            !memberUserIds.has(u.id) &&
-                            (u.username.toLowerCase().includes(memberSearch.toLowerCase()) ||
-                              u.email.toLowerCase().includes(memberSearch.toLowerCase()))
-                        );
-                        if (filtered.length === 0) {
-                          return memberSearch ? (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg px-3 py-2 z-20">
-                              <p className="text-xs text-gray-400">No matching members found</p>
-                            </div>
-                          ) : null;
-                        }
-                        return (
-                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg max-h-48 overflow-y-auto z-20">
-                            {filtered.map((u) => (
-                              <button
-                                key={u.id}
-                                type="button"
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => handleAddMember(u.id)}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2.5"
-                              >
-                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600 shrink-0">
-                                  {u.username[0]?.toUpperCase()}
+                      {isAdmin ? (
+                        <div ref={memberDropdownRef} className="relative mt-4">
+                          <label className="mb-1.5 block text-sm font-semibold text-[#1f2937]">Add member</label>
+                          <input
+                            type="text"
+                            value={memberSearch}
+                            onChange={(e) => {
+                              setMemberSearch(e.target.value);
+                              setMemberDropdownOpen(true);
+                            }}
+                            onFocus={() => setMemberDropdownOpen(true)}
+                            placeholder="Search by name or email..."
+                            className="h-11 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                          />
+                          {memberDropdownOpen && (() => {
+                            const memberUserIds = new Set(members.map((m) => m.user_id));
+                            const filtered = companyUsers.filter(
+                              (u) =>
+                                !memberUserIds.has(u.id) &&
+                                (u.username.toLowerCase().includes(memberSearch.toLowerCase()) ||
+                                  u.email.toLowerCase().includes(memberSearch.toLowerCase()))
+                            );
+                            if (filtered.length === 0) {
+                              return memberSearch ? (
+                                <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-md border border-gray-200 bg-white px-3 py-2 shadow-lg">
+                                  <p className="text-xs text-gray-500">No matching members found</p>
                                 </div>
-                                <span className="text-sm font-medium text-gray-900">{u.username}</span>
-                                <span className="text-xs text-gray-400">{u.email}</span>
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      })()}
+                              ) : null;
+                            }
+                            return (
+                              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                                {filtered.map((u) => (
+                                  <button
+                                    key={u.id}
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleAddMember(u.id)}
+                                    className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-gray-50"
+                                  >
+                                    <span className="text-sm font-medium text-gray-900">{u.username}</span>
+                                    <span className="text-xs text-gray-500">{u.email}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                          {memberActionError ? <p className="mt-2 text-xs text-red-600">{memberActionError}</p> : null}
+                        </div>
+                      ) : null}
                     </div>
-                  )}
+                  </div>
+                </SectionCard>
+              </section>
 
-                  {memberActionError && (
-                    <p className="text-xs text-red-600">{memberActionError}</p>
-                  )}
+              <aside className="col-span-12 lg:col-span-2">
+                <div className="sticky top-24 rounded-lg border border-gray-200 bg-white p-4">
+                  <h3 className="mb-4 text-xs font-bold tracking-wide text-gray-700">PROJECT SETTINGS</h3>
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => jumpToSection("general-information")}
+                      className="w-full border-l-4 border-orange-500 bg-gray-100 px-3 py-2 text-left text-sm font-semibold text-gray-700"
+                    >
+                      General
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => jumpToSection("project-location")}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-50"
+                    >
+                      Locations
+                    </button>
+                  </div>
                 </div>
-              </Section>
-
+              </aside>
             </div>
           </>
         )}
