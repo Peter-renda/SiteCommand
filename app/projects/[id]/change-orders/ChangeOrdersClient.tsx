@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { Settings, ChevronDown, FileText, Lock, XCircle } from "lucide-react";
+import { ChevronDown, FileText, Lock, XCircle, Search, SlidersHorizontal, X, Settings2 } from "lucide-react";
 
 type ChangeOrder = {
   id: string;
@@ -20,6 +20,8 @@ type ChangeOrder = {
   amount: number;
   has_attachments: boolean;
   is_locked: boolean;
+  executed: boolean;
+  prime_contract_change_order: string | null;
   type?: "prime" | "commitment";
 };
 
@@ -42,6 +44,9 @@ function fmtDate(d: string | null) {
 
 type Tab = "prime" | "commitment";
 
+const STATUS_OPTIONS = ["Draft", "Pending - In Review", "Pending - Revised", "Pending - Pricing", "Pending - Not Pricing", "Pending - Proceeding", "Pending - Not Proceeding", "Approved", "Rejected", "Void"];
+const EXECUTED_OPTIONS = ["Yes", "No"];
+
 export default function ChangeOrdersClient({
   projectId,
   username,
@@ -57,6 +62,17 @@ export default function ChangeOrdersClient({
   const [loading, setLoading] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [exportPccoOpen, setExportPccoOpen] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterExecuted, setFilterExecuted] = useState<string[]>([]);
+  const [filterSigner, setFilterSigner] = useState<string[]>([]);
+  const [statusDropOpen, setStatusDropOpen] = useState(false);
+  const [executedDropOpen, setExecutedDropOpen] = useState(false);
+  const [signerDropOpen, setSignerDropOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -76,6 +92,17 @@ export default function ChangeOrdersClient({
       .catch(() => {});
   }, [projectId]);
 
+  // Close export dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportPccoOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   function getContactNameByEmail(email: string | null) {
     const normalized = String(email || "").trim().toLowerCase();
     if (!normalized) return "";
@@ -85,7 +112,26 @@ export default function ChangeOrdersClient({
     return fullName || contact.email || "";
   }
 
-  const total = orders.reduce((s, o) => s + (o.amount ?? 0), 0);
+  const signerNames = Array.from(
+    new Set(orders.map((o) => o.designated_reviewer).filter(Boolean) as string[])
+  ).map((email) => getContactNameByEmail(email));
+
+  const filtered = orders.filter((o) => {
+    const q = searchQuery.toLowerCase();
+    if (q && !o.number?.toLowerCase().includes(q) && !o.title?.toLowerCase().includes(q) && !o.contract_name?.toLowerCase().includes(q)) return false;
+    if (filterStatus.length > 0 && !filterStatus.includes(o.status)) return false;
+    if (filterExecuted.length > 0) {
+      const execVal = o.executed ? "Yes" : "No";
+      if (!filterExecuted.includes(execVal)) return false;
+    }
+    if (filterSigner.length > 0) {
+      const name = getContactNameByEmail(o.designated_reviewer);
+      if (!filterSigner.includes(name)) return false;
+    }
+    return true;
+  });
+
+  const total = filtered.reduce((s, o) => s + (o.amount ?? 0), 0);
   const pendingReviewStatuses = new Set([
     "Pending - In Review",
     "Pending - Revised",
@@ -119,22 +165,28 @@ export default function ChangeOrdersClient({
       window.alert("Approved change orders cannot be deleted.");
       return;
     }
-
     const confirmed = window.confirm("Are you sure you want to delete this change order?");
     if (!confirmed) return;
-
-    const res = await fetch(`/api/projects/${projectId}/change-orders/${order.id}`, {
-      method: "DELETE",
-    });
-
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${order.id}`, { method: "DELETE" });
     if (!res.ok) {
       const payload = await res.json().catch(() => ({}));
       window.alert(payload.error || "Failed to delete change order.");
       return;
     }
-
     setOrders((curr) => curr.filter((o) => o.id !== order.id));
   }
+
+  function clearAllFilters() {
+    setFilterStatus([]);
+    setFilterExecuted([]);
+    setFilterSigner([]);
+  }
+
+  function toggleArrayItem(arr: string[], item: string): string[] {
+    return arr.includes(item) ? arr.filter((v) => v !== item) : [...arr, item];
+  }
+
+  const activeFilterCount = filterStatus.length + filterExecuted.length + filterSigner.length;
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -142,209 +194,381 @@ export default function ChangeOrdersClient({
 
       {/* Page header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-orange-500" />
-            <h1 className="text-sm font-semibold text-gray-900">Change Orders</h1>
-          </div>
-          {/* Tabs */}
-          <div className="flex items-center ml-2">
-            <button
-              onClick={() => setActiveTab("prime")}
-              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "prime"
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Prime Contract
-            </button>
-            <button
-              onClick={() => setActiveTab("commitment")}
-              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "commitment"
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Commitments
-            </button>
-          </div>
-        </div>
-
-        {/* Top-right buttons */}
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
-            Export <ChevronDown className="w-3 h-3" />
-          </button>
-          <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
-            Reports <ChevronDown className="w-3 h-3" />
-          </button>
-        </div>
+        <h1 className="text-sm font-semibold text-gray-900">Change Orders</h1>
+        <button className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
+          Export CO Log
+        </button>
       </div>
 
-      {/* Filter bar */}
-      <div className="px-4 py-2 border-b border-gray-100 bg-white shrink-0">
-        <div className="relative inline-block">
+      {/* Tabs + section header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white shrink-0">
+        <div className="flex items-center gap-4">
           <button
-            onClick={() => setFilterOpen((v) => !v)}
+            onClick={() => setActiveTab("prime")}
+            className={`text-sm font-medium pb-1 border-b-2 transition-colors ${
+              activeTab === "prime" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Prime Contract Change Orders
+          </button>
+          <button
+            onClick={() => setActiveTab("commitment")}
+            className={`text-sm font-medium pb-1 border-b-2 transition-colors ${
+              activeTab === "commitment" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Commitment Change Orders
+          </button>
+        </div>
+        <div ref={exportRef} className="relative">
+          <button
+            onClick={() => setExportPccoOpen((v) => !v)}
             className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            Add Filter <ChevronDown className="w-3 h-3" />
+            Export PCCOs <ChevronDown className="w-3 h-3" />
           </button>
-          {filterOpen && (
-            <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 w-48 py-1">
-              {["Contract", "Status", "Designated Reviewer", "Date Initiated"].map((f) => (
-                <button
-                  key={f}
-                  className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  onClick={() => setFilterOpen(false)}
-                >
-                  {f}
-                </button>
-              ))}
+          {exportPccoOpen && (
+            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 w-40 py-1">
+              <button className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50" onClick={() => setExportPccoOpen(false)}>Export as PDF</button>
+              <button className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50" onClick={() => setExportPccoOpen(false)}>Export as CSV</button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-x-auto">
-        {loading ? (
-          <div className="text-center py-20 text-gray-400 text-sm">Loading change orders...</div>
-        ) : (
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-t border-gray-200 bg-white">
-                <th className="px-3 py-2.5 w-16" />
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600">Contract</th>
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600">#</th>
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600">Revision</th>
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600">Title</th>
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
-                  Date<br />Initiated
-                </th>
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
-                  Contract<br />Company
-                </th>
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
-                  Designated<br />Reviewer
-                </th>
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
-                  Due<br />Date
-                </th>
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
-                  Review<br />Date
-                </th>
-                <th className="px-3 py-2.5 text-left font-medium text-gray-600">Status</th>
-                <th className="px-3 py-2.5 text-right font-medium text-gray-600">Amount</th>
-                <th className="px-3 py-2.5 w-20" />
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="text-center py-20 text-gray-400">
-                    No change orders found.
-                  </td>
+      {/* Search + filter bar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 bg-white shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-7 pr-3 py-1.5 text-xs border border-gray-300 rounded w-44 focus:outline-none focus:ring-1 focus:ring-gray-400"
+            />
+          </div>
+          <button
+            onClick={() => setFilterOpen((v) => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded transition-colors ${
+              filterOpen || activeFilterCount > 0
+                ? "border-blue-400 text-blue-600 bg-blue-50"
+                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-0.5 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <select className="text-xs border border-gray-300 rounded px-2 py-1.5 text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white">
+            <option value="">Select a column to group</option>
+            <option value="status">Status</option>
+            <option value="executed">Executed</option>
+            <option value="designated_reviewer">Designated Reviewer</option>
+          </select>
+          <button className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
+            <Settings2 className="w-3.5 h-3.5" />
+            Configure
+          </button>
+        </div>
+      </div>
+
+      {/* Main content area with optional filter panel */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Filter panel */}
+        {filterOpen && (
+          <div className="w-72 border-r border-gray-200 bg-white shrink-0 flex flex-col overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <span className="text-sm font-semibold text-gray-900">Filters</span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={clearAllFilters}
+                  className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  Clear All Filters
+                </button>
+                <button onClick={() => setFilterOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="px-4 py-4 flex flex-col gap-5">
+              {/* Status filter */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Status</label>
+                <div className="relative">
+                  <button
+                    onClick={() => { setStatusDropOpen((v) => !v); setExecutedDropOpen(false); setSignerDropOpen(false); }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs border border-gray-300 rounded text-gray-500 hover:bg-gray-50 bg-white"
+                  >
+                    {filterStatus.length > 0 ? `${filterStatus.length} selected` : "Select Values"}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  {statusDropOpen && (
+                    <div className="absolute left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded shadow-lg z-20 py-1 max-h-48 overflow-y-auto">
+                      {STATUS_OPTIONS.map((s) => (
+                        <label key={s} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={filterStatus.includes(s)}
+                            onChange={() => setFilterStatus((prev) => toggleArrayItem(prev, s))}
+                            className="w-3 h-3"
+                          />
+                          {s}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {filterStatus.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {filterStatus.map((s) => (
+                      <span key={s} className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                        {s}
+                        <button onClick={() => setFilterStatus((prev) => prev.filter((v) => v !== s))}><X className="w-2.5 h-2.5" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Executed filter */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Executed</label>
+                <div className="relative">
+                  <button
+                    onClick={() => { setExecutedDropOpen((v) => !v); setStatusDropOpen(false); setSignerDropOpen(false); }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs border border-gray-300 rounded text-gray-500 hover:bg-gray-50 bg-white"
+                  >
+                    {filterExecuted.length > 0 ? `${filterExecuted.length} selected` : "Select Values"}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  {executedDropOpen && (
+                    <div className="absolute left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded shadow-lg z-20 py-1">
+                      {EXECUTED_OPTIONS.map((s) => (
+                        <label key={s} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={filterExecuted.includes(s)}
+                            onChange={() => setFilterExecuted((prev) => toggleArrayItem(prev, s))}
+                            className="w-3 h-3"
+                          />
+                          {s}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {filterExecuted.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {filterExecuted.map((s) => (
+                      <span key={s} className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                        {s}
+                        <button onClick={() => setFilterExecuted((prev) => prev.filter((v) => v !== s))}><X className="w-2.5 h-2.5" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Project Executive or Project Manager Signer filter */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Project Executive or Project Manager Signer</label>
+                <div className="relative">
+                  <button
+                    onClick={() => { setSignerDropOpen((v) => !v); setStatusDropOpen(false); setExecutedDropOpen(false); }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs border border-gray-300 rounded text-gray-500 hover:bg-gray-50 bg-white"
+                  >
+                    {filterSigner.length > 0 ? `${filterSigner.length} selected` : "Select Values"}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  {signerDropOpen && (
+                    <div className="absolute left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded shadow-lg z-20 py-1 max-h-48 overflow-y-auto">
+                      {signerNames.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-gray-400">No reviewers assigned</div>
+                      ) : (
+                        signerNames.map((name) => (
+                          <label key={name} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={filterSigner.includes(name)}
+                              onChange={() => setFilterSigner((prev) => toggleArrayItem(prev, name))}
+                              className="w-3 h-3"
+                            />
+                            {name}
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {filterSigner.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {filterSigner.map((s) => (
+                      <span key={s} className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                        {s}
+                        <button onClick={() => setFilterSigner((prev) => prev.filter((v) => v !== s))}><X className="w-2.5 h-2.5" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="flex-1 overflow-x-auto">
+          {loading ? (
+            <div className="text-center py-20 text-gray-400 text-sm">Loading change orders...</div>
+          ) : (
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-t border-gray-200 bg-white">
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      Number
+                      <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600">Revision</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600">Title</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600">Status</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600">Executed</th>
+                  <th className="px-3 py-2.5 w-8" />
+                  <th className="px-3 py-2.5 text-right font-medium text-gray-600">Amount</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">Date Initiated</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">Due Date</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">Review Date</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">Designated Reviewer</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600">PCO</th>
+                  <th className="px-3 py-2.5 w-16" />
                 </tr>
-              ) : (
-                orders.map((order) => (
-                  <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-2">
-                      <button
-                        onClick={() => router.push(`/projects/${projectId}/change-orders/${order.id}`)}
-                        className="px-2.5 py-0.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-100 transition-colors"
-                      >
-                        View
-                      </button>
-                    </td>
-                    <td className="px-3 py-2 text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
-                      {order.contract_name}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700">{order.number}</td>
-                    <td className="px-3 py-2 text-gray-700">{order.revision}</td>
-                    <td className="px-3 py-2 text-blue-600 hover:underline cursor-pointer max-w-xs">
-                      <button
-                        onClick={() => router.push(`/projects/${projectId}/change-orders/${order.id}`)}
-                        className="text-left"
-                      >
-                        {order.title}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.date_initiated)}</td>
-                    <td className="px-3 py-2 text-gray-700">{order.contract_company ?? ""}</td>
-                    <td className="px-3 py-2 text-gray-700">
-                      {order.designated_reviewer
-                        ? getContactNameByEmail(order.designated_reviewer)
-                        : <span className="text-gray-400">Unassigned</span>}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.due_date)}</td>
-                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.review_date)}</td>
-                    <td className="px-3 py-2 text-gray-700">{order.status}</td>
-                    <td className="px-3 py-2 text-right text-gray-700 whitespace-nowrap">{fmt(order.amount)}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1">
-                        {activeTab === "commitment" &&
-                          pendingReviewStatuses.has(order.status) &&
-                          !!order.designated_reviewer &&
-                          order.designated_reviewer.trim().toLowerCase() === username.trim().toLowerCase() && (
-                            <>
-                              <button
-                                disabled={updatingId === order.id}
-                                onClick={() => updateStatus(order.id, "Approved")}
-                                className="px-2 py-0.5 border border-green-200 text-green-700 rounded hover:bg-green-50 disabled:opacity-50"
-                                title="Approve"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                disabled={updatingId === order.id}
-                                onClick={() => updateStatus(order.id, "Rejected")}
-                                className="px-2 py-0.5 border border-red-200 text-red-700 rounded hover:bg-red-50 disabled:opacity-50"
-                                title="Reject"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          )}
-                        <button className="text-gray-400 hover:text-gray-600 transition-colors" title="Documents">
-                          <FileText className="w-3.5 h-3.5" />
-                        </button>
-                        {order.is_locked && (
-                          <button className="text-gray-400 hover:text-gray-600 transition-colors" title="Locked">
-                            <Lock className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteOrder(order)}
-                          disabled={String(order.status || "").trim().toLowerCase() === "approved"}
-                          className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          title={String(order.status || "").trim().toLowerCase() === "approved" ? "Approved change orders cannot be deleted" : "Delete"}
-                        >
-                          <XCircle className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="text-center py-20 text-gray-400">
+                      No change orders found.
                     </td>
                   </tr>
-                ))
+                ) : (
+                  filtered.map((order) => (
+                    <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => router.push(`/projects/${projectId}/change-orders/${order.id}`)}
+                          className="text-blue-600 hover:underline font-medium"
+                        >
+                          {order.number}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">{order.revision}</td>
+                      <td className="px-3 py-2 text-blue-600 hover:underline cursor-pointer max-w-xs">
+                        <button
+                          onClick={() => router.push(`/projects/${projectId}/change-orders/${order.id}`)}
+                          className="text-left"
+                        >
+                          {order.title}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          order.status === "Approved"
+                            ? "bg-green-100 text-green-700"
+                            : order.status === "Rejected" || order.status === "Void"
+                            ? "bg-red-100 text-red-700"
+                            : order.status === "Draft"
+                            ? "bg-gray-100 text-gray-600"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">{order.executed ? "Yes" : "No"}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1">
+                          {order.has_attachments && <FileText className="w-3.5 h-3.5 text-gray-400" />}
+                          {order.is_locked && <Lock className="w-3.5 h-3.5 text-gray-400" />}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-700 whitespace-nowrap">{fmt(order.amount)}</td>
+                      <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.date_initiated)}</td>
+                      <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.due_date)}</td>
+                      <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.review_date)}</td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {order.designated_reviewer
+                          ? getContactNameByEmail(order.designated_reviewer)
+                          : <span className="text-gray-400">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {order.prime_contract_change_order && order.prime_contract_change_order !== "none"
+                          ? order.prime_contract_change_order
+                          : <span className="text-gray-400">—</span>}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1">
+                          {activeTab === "commitment" &&
+                            pendingReviewStatuses.has(order.status) &&
+                            !!order.designated_reviewer &&
+                            order.designated_reviewer.trim().toLowerCase() === username.trim().toLowerCase() && (
+                              <>
+                                <button
+                                  disabled={updatingId === order.id}
+                                  onClick={() => updateStatus(order.id, "Approved")}
+                                  className="px-2 py-0.5 border border-green-200 text-green-700 rounded hover:bg-green-50 disabled:opacity-50 text-xs"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  disabled={updatingId === order.id}
+                                  onClick={() => updateStatus(order.id, "Rejected")}
+                                  className="px-2 py-0.5 border border-red-200 text-red-700 rounded hover:bg-red-50 disabled:opacity-50 text-xs"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                          <button
+                            onClick={() => deleteOrder(order)}
+                            disabled={String(order.status || "").trim().toLowerCase() === "approved"}
+                            className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            title={String(order.status || "").trim().toLowerCase() === "approved" ? "Approved change orders cannot be deleted" : "Delete"}
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {filtered.length > 0 && (
+                <tfoot>
+                  <tr className="border-t border-gray-200 bg-white">
+                    <td colSpan={6} className="px-3 py-2 text-right text-xs font-semibold text-gray-700">
+                      Total:
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900 whitespace-nowrap">
+                      {fmt(total)}
+                    </td>
+                    <td colSpan={6} />
+                  </tr>
+                </tfoot>
               )}
-            </tbody>
-            {orders.length > 0 && (
-              <tfoot>
-                <tr className="border-t border-gray-200 bg-white">
-                  <td colSpan={11} className="px-3 py-2 text-right text-xs font-semibold text-gray-700">
-                    Total:
-                  </td>
-                  <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900 whitespace-nowrap">
-                    {fmt(total)}
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        )}
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );
