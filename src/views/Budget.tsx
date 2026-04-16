@@ -218,7 +218,9 @@ function LineItemModal({
 
 export default function Budget() {
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState<"budget" | "budget_details">("budget");
+  const [activeTab, setActiveTab] = useState<
+    "budget" | "budget_details" | "forecasting" | "project_status_snapshot" | "change_history"
+  >("budget");
   const [items, setItems] = useState<BudgetLineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -478,11 +480,24 @@ export default function Budget() {
             >
               Budget Details
             </button>
-            {["Forecasting", "Project Status Snapshots", "Change History"].map((tab) => (
-              <span key={tab} className="pb-2 text-sm text-gray-400 select-none">
-                {tab}
-              </span>
-            ))}
+            <button
+              onClick={() => setActiveTab("forecasting")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "forecasting" ? "text-gray-900 border-gray-900" : "text-gray-500 border-transparent hover:text-gray-700"}`}
+            >
+              Forecasting
+            </button>
+            <button
+              onClick={() => setActiveTab("project_status_snapshot")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "project_status_snapshot" ? "text-gray-900 border-gray-900" : "text-gray-500 border-transparent hover:text-gray-700"}`}
+            >
+              Project Status Snapshot
+            </button>
+            <button
+              onClick={() => setActiveTab("change_history")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "change_history" ? "text-gray-900 border-gray-900" : "text-gray-500 border-transparent hover:text-gray-700"}`}
+            >
+              Change History
+            </button>
           </div>
         </div>
 
@@ -564,7 +579,7 @@ export default function Budget() {
               </table>
             </div>
           </div>
-        ) : (
+        ) : activeTab === "budget_details" ? (
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-4 bg-blue-50 border border-blue-100 rounded-lg p-4">
               <div className="flex items-start gap-3">
@@ -642,6 +657,93 @@ export default function Budget() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        ) : activeTab === "forecasting" ? (
+          <div className="bg-white border border-gray-100 rounded-xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-2">Forecasting</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Forecasting helps track projected cost performance for each budget line item.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Cost Code</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Description</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Revised Budget</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Forecast to Complete</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Est. Cost at Completion</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Projected Over/Under</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-10 text-center text-gray-400">
+                        Add budget line items to populate forecasting.
+                      </td>
+                    </tr>
+                  ) : (
+                    items.map((item) => {
+                      const c = calc(item);
+                      return (
+                        <tr key={`forecast-${item.id}`} className="border-b border-gray-50">
+                          <td className="px-3 py-2">{item.cost_code || "—"}</td>
+                          <td className="px-3 py-2">{item.description || "—"}</td>
+                          <td className="px-3 py-2">{fmt(c.revisedBudget)}</td>
+                          <td className="px-3 py-2">{fmt(item.forecast_to_complete)}</td>
+                          <td className="px-3 py-2">{fmt(c.estimatedCostAtCompletion)}</td>
+                          <td className={`px-3 py-2 ${c.projectedOverUnder < 0 ? "text-red-600" : "text-gray-700"}`}>
+                            {fmt(c.projectedOverUnder)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : activeTab === "project_status_snapshot" ? (
+          <div className="bg-white border border-gray-100 rounded-xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-4">Project Status Snapshot</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs uppercase tracking-wider text-gray-500">Revised Budget</p>
+                <p className="mt-2 text-2xl font-semibold text-gray-900">{fmt(totals.revisedBudget)}</p>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs uppercase tracking-wider text-gray-500">Projected Cost</p>
+                <p className="mt-2 text-2xl font-semibold text-gray-900">{fmt(totals.projectedCosts)}</p>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs uppercase tracking-wider text-gray-500">Projected Over/Under</p>
+                <p className={`mt-2 text-2xl font-semibold ${totals.projectedOverUnder < 0 ? "text-red-600" : "text-gray-900"}`}>
+                  {fmt(totals.projectedOverUnder)}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white border border-gray-100 rounded-xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-2">Change History</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              View a quick timeline of budget edits and key updates.
+            </p>
+            <div className="space-y-3">
+              {items.length === 0 ? (
+                <p className="text-sm text-gray-400">No changes yet. Add or update budget line items to generate history.</p>
+              ) : (
+                items.map((item) => (
+                  <div key={`history-${item.id}`} className="border border-gray-100 rounded-lg p-3">
+                    <p className="text-sm font-medium text-gray-800">{item.cost_code || "No Cost Code"} · {item.description || "No Description"}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Last updated {new Date(item.created_at).toLocaleDateString("en-US")} · Forecast to Complete {fmt(item.forecast_to_complete)}
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
