@@ -70,6 +70,36 @@ type ChangeOrder = {
   field_change?: boolean;
   paid_in_full?: boolean;
   has_attachments?: boolean;
+  source_change_event_ids?: string[];
+  new_substantial_completion_date?: string | null;
+  project_executive_signer?: string | null;
+  schedule_of_values?: Array<{
+    budget_code?: string | null;
+    description?: string | null;
+    amount?: number | string | null;
+  }> | null;
+};
+
+type ChangeEventLineItem = {
+  id?: string;
+  description?: string | null;
+  cost_rom?: number | null;
+};
+
+type SourceEventWithLines = {
+  id: string;
+  number: number;
+  title: string;
+  line_items?: ChangeEventLineItem[];
+};
+
+type IncludedPotentialRow = {
+  id: string;
+  number: string;
+  title: string;
+  amount: number;
+  scheduleImpact: string;
+  status: string;
 };
 
 function contactName(email: string, contacts: DirectoryContact[]): string {
@@ -129,6 +159,7 @@ export default function ChangeOrderDetailClient({
   const [referenceText, setReferenceText] = useState("");
   const [fieldChange, setFieldChange] = useState(false);
   const [paidInFull, setPaidInFull] = useState(false);
+  const [includedPotentialRows, setIncludedPotentialRows] = useState<IncludedPotentialRow[]>([]);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/directory`)
@@ -168,6 +199,68 @@ export default function ChangeOrderDetailClient({
       })
       .catch(() => setLoading(false));
   }, [projectId, changeOrderId]);
+
+  useEffect(() => {
+    const savedSov = Array.isArray(co?.schedule_of_values) ? co.schedule_of_values : [];
+    if (savedSov.length > 0) {
+      const rows: IncludedPotentialRow[] = savedSov.map((line, idx) => {
+        const description = String(line?.description || "").trim();
+        const budgetCode = String(line?.budget_code || "").trim();
+        return {
+          id: `sov-${idx}`,
+          number: co?.number || "—",
+          title: description || budgetCode || "Line Item",
+          amount: Number(line?.amount ?? 0),
+          scheduleImpact: scheduleImpact ? `${scheduleImpact} days` : "—",
+          status,
+        };
+      });
+      setIncludedPotentialRows(rows);
+      return;
+    }
+
+    if (!co?.source_change_event_ids?.length) {
+      setIncludedPotentialRows([]);
+      return;
+    }
+
+    Promise.all(
+      co.source_change_event_ids.map((eventId) =>
+        fetch(`/api/projects/${projectId}/change-events/${eventId}`).then((r) => r.json())
+      )
+    )
+      .then((events: SourceEventWithLines[]) => {
+        const rows: IncludedPotentialRow[] = [];
+        events.forEach((event) => {
+          const lines = Array.isArray(event.line_items) ? event.line_items : [];
+          if (!lines.length) {
+            rows.push({
+              id: `${event.id}-empty`,
+              number: String(event.number).padStart(3, "0"),
+              title: `CE #${String(event.number).padStart(3, "0")} - ${event.title}`,
+              amount: 0,
+              scheduleImpact: scheduleImpact ? `${scheduleImpact} days` : "—",
+              status,
+            });
+            return;
+          }
+
+          lines.forEach((line, idx) => {
+            const lineDescription = String(line.description || "").trim();
+            rows.push({
+              id: `${event.id}-${line.id || idx}`,
+              number: String(event.number).padStart(3, "0"),
+              title: lineDescription || `CE #${String(event.number).padStart(3, "0")} - ${event.title}`,
+              amount: Number(line.cost_rom ?? 0),
+              scheduleImpact: scheduleImpact ? `${scheduleImpact} days` : "—",
+              status,
+            });
+          });
+        });
+        setIncludedPotentialRows(rows);
+      })
+      .catch(() => setIncludedPotentialRows([]));
+  }, [co?.number, co?.schedule_of_values, co?.source_change_event_ids, projectId, scheduleImpact, status]);
 
   // designated_reviewer stores the email; username is session.email
   const isReviewer =
@@ -839,6 +932,77 @@ export default function ChangeOrderDetailClient({
                 </div>
               </div>
             </div>
+
+            {!isCommitment && (
+              <>
+                <div className="mt-8 border-t border-orange-300 pt-6">
+                  <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide mb-3">
+                    Additional Fields
+                  </h3>
+                  <div className="border border-gray-200 rounded divide-y divide-gray-200">
+                    <FormRow
+                      left={
+                        <Field label="New Date of Substantial Completion:">
+                          <span className="text-xs text-gray-700">
+                            {co.new_substantial_completion_date || "—"}
+                          </span>
+                        </Field>
+                      }
+                      right={
+                        <Field label="Project Executive or Project Manager Signer:">
+                          <span className="text-xs text-gray-700">
+                            {co.project_executive_signer || "—"}
+                          </span>
+                        </Field>
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-8 border-t border-orange-300 pt-6">
+                  <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide mb-3">
+                    Potential Change Orders Included In This Prime Contract Change Order ({includedPotentialRows.length})
+                  </h3>
+                  <div className="border border-gray-200 rounded overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 text-gray-700">
+                        <tr className="border-b border-gray-200">
+                          <th className="px-3 py-2 text-left w-24">#</th>
+                          <th className="px-3 py-2 text-left">Title</th>
+                          <th className="px-3 py-2 text-right w-28">Amount</th>
+                          <th className="px-3 py-2 text-left w-32">Schedule Impact</th>
+                          <th className="px-3 py-2 text-left w-28">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {includedPotentialRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-3 py-4 text-gray-400">
+                              No source change event line items were linked.
+                            </td>
+                          </tr>
+                        ) : (
+                          includedPotentialRows.map((row) => (
+                            <tr key={row.id} className="border-b last:border-b-0 border-gray-100">
+                              <td className="px-3 py-2 text-blue-700">{row.number}</td>
+                              <td className="px-3 py-2">{row.title}</td>
+                              <td className="px-3 py-2 text-right">
+                                {row.amount.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: "USD",
+                                })}
+                              </td>
+                              <td className="px-3 py-2">{row.scheduleImpact}</td>
+                              <td className="px-3 py-2">{row.status || "—"}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
