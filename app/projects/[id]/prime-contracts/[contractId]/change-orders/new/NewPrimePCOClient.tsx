@@ -167,10 +167,14 @@ export default function NewPrimePCOClient({
 
     Promise.all(
       ids.map((id) =>
-        fetch(`/api/projects/${projectId}/change-events/${id}`).then((r) => r.json())
+        fetch(`/api/projects/${projectId}/change-events/${id}`)
+          .then((r) => r.json())
+          .then((data: ChangeEvent & { error?: string }) => (data.error ? null : data))
+          .catch(() => null)
       )
     )
-      .then((events: ChangeEvent[]) => {
+      .then((results) => {
+        const events = results.filter((e): e is ChangeEvent => e !== null && !!e.id);
         if (!events.length) return;
 
         setSourceEventIds(events.map((e) => e.id));
@@ -199,8 +203,7 @@ export default function NewPrimePCOClient({
             ? stripHtml(rawDesc)
             : `CE #${String(sourceEvent.number).padStart(3, "0")} - ${sourceEvent.title}`
         );
-      })
-      .catch(() => {});
+      });
   }, [eventIds, lineItemIds, projectId]);
 
   async function handleCreate(sendEmail = false) {
