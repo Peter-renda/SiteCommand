@@ -158,24 +158,19 @@ export default function NewPrimePCOClient({
       )
     )
       .then((events: ChangeEvent[]) => {
+        if (!events.length) return;
+
         setSourceEventIds(events.map((e) => e.id));
 
-        if (events.length === 1) {
-          setTitle(events[0].title);
-          const rawDesc = events[0].description?.trim() ?? "";
-          setDescription(
-            rawDesc
-              ? stripHtml(rawDesc)
-              : `CE #${String(events[0].number).padStart(3, "0")} - ${events[0].title}`
-          );
-        } else {
-          setTitle(events.map((e) => `CE #${String(e.number).padStart(3, "0")}`).join(", "));
-          setDescription(
-            events
-              .map((e) => `CE #${String(e.number).padStart(3, "0")} - ${e.title}`)
-              .join("\n")
-          );
-        }
+        // Auto-populate from the source change event the user launched this flow from.
+        const sourceEvent = events[0];
+        setTitle(sourceEvent.title);
+        const rawDesc = sourceEvent.description?.trim() ?? "";
+        setDescription(
+          rawDesc
+            ? stripHtml(rawDesc)
+            : `CE #${String(sourceEvent.number).padStart(3, "0")} - ${sourceEvent.title}`
+        );
       })
       .catch(() => {});
   }, [eventIds, projectId]);
