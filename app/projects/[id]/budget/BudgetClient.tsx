@@ -2821,7 +2821,7 @@ export default function BudgetClient({
                   </div>
                 </div>
               );
-            })() : (
+            })() : activeTab === "budget_details" ? (
               <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
                 <div className="overflow-auto max-h-[70vh]">
                   <table className="w-full text-xs">
@@ -2879,50 +2879,6 @@ export default function BudgetClient({
                             ))}
                           </tr>
                         ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : activeTab === "forecasting" ? (
-              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                <div className="overflow-auto max-h-[70vh]">
-                  <table className="w-full text-xs">
-                    <thead className="sticky top-0 z-20">
-                      <tr className="border-b border-gray-100 bg-gray-50">
-                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Cost Code</th>
-                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Description</th>
-                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Projected Budget</th>
-                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Projected Costs</th>
-                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Forecast To Complete</th>
-                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Estimated Cost at Completion</th>
-                        <th className="text-left px-3 py-3 font-semibold text-gray-700 whitespace-nowrap">Projected Over/Under</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-3 py-12 text-center text-sm text-gray-400">
-                            No forecast rows available yet
-                          </td>
-                        </tr>
-                      ) : (
-                        items.map((item) => {
-                          const c = getItemCalc(item);
-                          return (
-                            <tr key={`forecast-${item.id}`} className="border-b border-gray-50 last:border-b-0">
-                              <td className="px-3 py-3 whitespace-nowrap">{item.cost_code || "—"}</td>
-                              <td className="px-3 py-3 whitespace-nowrap">{item.description || "—"}</td>
-                              <td className="px-3 py-3 whitespace-nowrap">{fmt(c.projectedBudget)}</td>
-                              <td className="px-3 py-3 whitespace-nowrap">{fmt(c.projectedCosts)}</td>
-                              <td className="px-3 py-3 whitespace-nowrap">{fmt(c.forecastToComplete)}</td>
-                              <td className="px-3 py-3 whitespace-nowrap">{fmt(c.estimatedCostAtCompletion)}</td>
-                              <td className={`px-3 py-3 whitespace-nowrap ${c.projectedOverUnder < 0 ? "text-red-600" : ""}`}>
-                                {fmt(c.projectedOverUnder)}
-                              </td>
-                            </tr>
-                          );
-                        })
                       )}
                     </tbody>
                   </table>
