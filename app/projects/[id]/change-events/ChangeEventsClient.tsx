@@ -24,6 +24,7 @@ type LineItem = {
   description: string | null;
   vendor: string | null;
   contract_number: string | null;
+  unit_of_measure?: string | null;
   schedule_impact: string | null;
   // Revenue
   rev_unit_qty: number | null;
@@ -327,6 +328,9 @@ export default function ChangeEventsClient({
   const allLineItemsSelected = pageLineItemIds.length > 0 && pageLineItemIds.every((id) => selectedLineItemIds.has(id));
   const someLineItemsSelected = pageLineItemIds.some((id) => selectedLineItemIds.has(id));
   const allExpandedOnPage = pageEvents.length > 0 && pageEvents.every((ev) => expandedIds.has(ev.id));
+  const showExpandedDetailColumns = pageEvents.some((ev) => expandedIds.has(ev.id));
+  const detailHeaderColSpan = showExpandedDetailColumns ? 8 : 3;
+  const detailTableColSpan = showExpandedDetailColumns ? 21 : 16;
 
   useEffect(() => {
     if (pageCheckboxRef.current) {
@@ -1144,7 +1148,7 @@ export default function ChangeEventsClient({
               {/* Column group headers */}
               <tr className="border-b border-gray-100 bg-white">
                 {/* Expand + checkbox + title area */}
-                <th colSpan={3} className="px-2 py-1">
+                <th colSpan={detailHeaderColSpan} className="px-2 py-1">
                   <button
                     onClick={toggleExpandAll}
                     disabled={pageEvents.length === 0}
@@ -1196,6 +1200,15 @@ export default function ChangeEventsClient({
                   />
                 </th>
                 <TH>Change Event</TH>
+                {showExpandedDetailColumns && (
+                  <>
+                    <TH>Budget Code</TH>
+                    <TH>Description</TH>
+                    <TH>Vendor</TH>
+                    <TH>Contract</TH>
+                    <TH>UOM</TH>
+                  </>
+                )}
                 {/* Revenue */}
                 <TH right>Unit Qty</TH>
                 <TH right>Unit Cost</TH>
@@ -1216,7 +1229,7 @@ export default function ChangeEventsClient({
             <tbody>
               {pageEvents.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="text-center py-20 text-gray-400">
+                  <td colSpan={detailTableColSpan} className="text-center py-20 text-gray-400">
                     No change events found.
                   </td>
                 </tr>
@@ -1275,6 +1288,15 @@ export default function ChangeEventsClient({
                             Change Event #{String(ev.number).padStart(3, "0")}: {ev.title}
                           </button>
                         </td>
+                        {showExpandedDetailColumns && (
+                          <>
+                            <td className="px-2 py-2" />
+                            <td className="px-2 py-2" />
+                            <td className="px-2 py-2" />
+                            <td className="px-2 py-2" />
+                            <td className="px-2 py-2" />
+                          </>
+                        )}
                         {/* Revenue */}
                         <NumCell val={ev.rev_unit_qty} qty />
                         <NumCell val={ev.rev_unit_cost} />
@@ -1296,7 +1318,7 @@ export default function ChangeEventsClient({
                       {expanded &&
                         (ev.line_items.length === 0 ? (
                           <tr key={`${ev.id}-empty`} className="bg-gray-50 border-b border-gray-100">
-                            <td colSpan={16} className="px-8 py-3 text-xs text-gray-400 italic">
+                            <td colSpan={detailTableColSpan} className="px-8 py-3 text-xs text-gray-400 italic">
                               No line items on this change event.
                             </td>
                           </tr>
@@ -1318,41 +1340,65 @@ export default function ChangeEventsClient({
                                   aria-label="Select SOV item"
                                 />
                               </td>
-                              {/* Budget code + details */}
-                              <td className="px-2 py-1.5">
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                                  {canWrite && (
-                                    <button
-                                      className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
-                                      onClick={() =>
-                                        router.push(
-                                          `/projects/${projectId}/change-events/${ev.id}/edit`
-                                        )
-                                      }
-                                    >
-                                      <Pencil className="w-2.5 h-2.5" />
-                                      Edit
-                                    </button>
-                                  )}
-                                  <span className="font-medium text-gray-700 text-xs">
-                                    {li.budget_code ?? "—"}
-                                  </span>
-                                  {li.description && (
-                                    <span className="text-gray-500 text-xs">{li.description}</span>
-                                  )}
-                                  {li.vendor && (
-                                    <span className="text-gray-500 text-xs">{li.vendor}</span>
-                                  )}
-                                  {li.contract_number && (
-                                    <span className="text-blue-500 text-xs">{li.contract_number}</span>
-                                  )}
-                                  {li.schedule_impact && (
-                                    <span className="text-gray-400 text-xs italic">
-                                      {li.schedule_impact}
+                              {showExpandedDetailColumns ? (
+                                <>
+                                  <td className="px-2 py-1.5">
+                                    {canWrite && (
+                                      <button
+                                        className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
+                                        onClick={() =>
+                                          router.push(
+                                            `/projects/${projectId}/change-events/${ev.id}/edit`
+                                          )
+                                        }
+                                      >
+                                        <Pencil className="w-2.5 h-2.5" />
+                                        Edit
+                                      </button>
+                                    )}
+                                  </td>
+                                  <td className="px-2 py-1.5 text-xs font-medium text-gray-700">{li.budget_code ?? "—"}</td>
+                                  <td className="px-2 py-1.5 text-xs text-gray-600">{li.description ?? "—"}</td>
+                                  <td className="px-2 py-1.5 text-xs text-gray-600">{li.vendor ?? "—"}</td>
+                                  <td className="px-2 py-1.5 text-xs text-gray-600">{li.contract_number ?? "—"}</td>
+                                  <td className="px-2 py-1.5 text-xs text-gray-600">{li.unit_of_measure ?? "—"}</td>
+                                </>
+                              ) : (
+                                <td className="px-2 py-1.5">
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                                    {canWrite && (
+                                      <button
+                                        className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white transition-colors"
+                                        onClick={() =>
+                                          router.push(
+                                            `/projects/${projectId}/change-events/${ev.id}/edit`
+                                          )
+                                        }
+                                      >
+                                        <Pencil className="w-2.5 h-2.5" />
+                                        Edit
+                                      </button>
+                                    )}
+                                    <span className="font-medium text-gray-700 text-xs">
+                                      {li.budget_code ?? "—"}
                                     </span>
-                                  )}
-                                </div>
-                              </td>
+                                    {li.description && (
+                                      <span className="text-gray-500 text-xs">{li.description}</span>
+                                    )}
+                                    {li.vendor && (
+                                      <span className="text-gray-500 text-xs">{li.vendor}</span>
+                                    )}
+                                    {li.contract_number && (
+                                      <span className="text-blue-500 text-xs">{li.contract_number}</span>
+                                    )}
+                                    {li.schedule_impact && (
+                                      <span className="text-gray-400 text-xs italic">
+                                        {li.schedule_impact}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
                               {/* Revenue */}
                               <NumCell val={li.rev_unit_qty} qty />
                               <NumCell val={li.rev_unit_cost} />
@@ -1399,7 +1445,7 @@ export default function ChangeEventsClient({
             {pageEvents.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-gray-300 bg-white font-semibold">
-                  <td colSpan={3} className="px-2 py-2 text-xs text-right text-gray-600">
+                  <td colSpan={detailHeaderColSpan} className="px-2 py-2 text-xs text-right text-gray-600">
                     Totals
                   </td>
                   {(
