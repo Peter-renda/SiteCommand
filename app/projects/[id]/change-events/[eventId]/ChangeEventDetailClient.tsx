@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { ChevronDown, ChevronRight, EllipsisVertical, Paperclip, Pencil } from "lucide-react";
+import { ChevronDown, ChevronRight, EllipsisVertical, Paperclip, Pencil, Search, X } from "lucide-react";
 import RelatedItemsTab from "./RelatedItemsTab";
 
 type LineItem = {
@@ -16,9 +16,12 @@ type LineItem = {
   rev_unit_qty: number | null;
   rev_unit_cost: number | null;
   rev_rom: number | null;
+  rev_prime_pco?: number | null;
+  rev_latest_price?: number | null;
   cost_unit_qty: number | null;
   cost_unit_cost: number | null;
   cost_rom: number | null;
+  cost_commitment?: number | null;
 };
 
 type ChangeEvent = {
@@ -40,6 +43,7 @@ type ChangeEvent = {
   attached_instances_count?: number;
   delete_blocked?: boolean;
 };
+type PrimePcoOption = { id: string; number: string; title: string; contract_name: string | null };
 
 type TabKey = "General" | "Related Items" | "Comments" | "Emails" | "Change History" | "Advanced Settings";
 
@@ -120,6 +124,29 @@ export default function ChangeEventDetailClient({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [cloning, setCloning] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const [selectedLineItemIds, setSelectedLineItemIds] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [matchingPcos, setMatchingPcos] = useState<PrimePcoOption[]>([]);
+  const [allPcos, setAllPcos] = useState<PrimePcoOption[]>([]);
+  const [allCommitments, setAllCommitments] = useState<{ id: string; number: number; title: string; type: string; status: string | null }[]>([]);
+  const [pcoPickerOpen, setPcoPickerOpen] = useState(false);
+  const [pcoPickerLoading, setPcoPickerLoading] = useState(false);
+  const [pcoPickerContracts, setPcoPickerContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
+  const lineItems = event?.line_items ?? [];
+  const filteredLineItems = lineItems.filter((li) =>
+    search
+      ? `${li.budget_code ?? ""} ${li.description ?? ""} ${li.vendor ?? ""} ${li.contract_number ?? ""}`
+          .toLowerCase()
+          .includes(search.toLowerCase())
+      : true
+  );
+  const selectedLineItems = lineItems.filter((li) => selectedLineItemIds.has(li.id));
+  const hasSelection = selectedLineItemIds.size > 0;
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/change-events/${eventId}`)
@@ -153,6 +180,40 @@ export default function ChangeEventDetailClient({
       });
   }, [activeTab, historyLoaded, projectId, eventId]);
 
+  useEffect(() => {
+    function closeMenus(e: MouseEvent) {
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) {
+        setActionsOpen(false);
+        setQuickActionsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", closeMenus);
+    return () => document.removeEventListener("mousedown", closeMenus);
+  }, []);
+
+  const totalRevRom = lineItems.reduce((s, li) => s + (li.rev_rom ?? 0), 0);
+  const totalCostRom = lineItems.reduce((s, li) => s + (li.cost_rom ?? 0), 0);
+  const tabs: TabKey[] = ["General", "Related Items", "Comments", "Emails", "Change History", "Advanced Settings"];
+  const canSendComment = newComment.trim().length > 0 || pendingFiles.length > 0;
+
+  useEffect(() => {
+    if (!quickActionsOpen || !hasSelection) return;
+    fetch(`/api/projects/${projectId}/change-events/matching-prime-contracts?eventIds=${eventId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setMatchingPcos(data.matching ?? []);
+        setAllPcos(data.all ?? []);
+      })
+      .catch(() => {
+        setMatchingPcos([]);
+        setAllPcos([]);
+      });
+    fetch(`/api/projects/${projectId}/commitments`)
+      .then((r) => r.json())
+      .then((data) => setAllCommitments(Array.isArray(data) ? data : []))
+      .catch(() => setAllCommitments([]));
+  }, [quickActionsOpen, hasSelection, projectId, eventId]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
@@ -170,11 +231,6 @@ export default function ChangeEventDetailClient({
       </div>
     );
   }
-
-  const totalRevRom = event.line_items.reduce((s, li) => s + (li.rev_rom ?? 0), 0);
-  const totalCostRom = event.line_items.reduce((s, li) => s + (li.cost_rom ?? 0), 0);
-  const tabs: TabKey[] = ["General", "Related Items", "Comments", "Emails", "Change History", "Advanced Settings"];
-  const canSendComment = newComment.trim().length > 0 || pendingFiles.length > 0;
 
   function handleFilePick(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
@@ -272,6 +328,65 @@ export default function ChangeEventDetailClient({
       window.alert(message);
       setDeleting(false);
     }
+  }
+
+  function toggleLineItem(id: string) {
+    setSelectedLineItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    const ids = filteredLineItems.map((li) => li.id);
+    setSelectedLineItemIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = ids.length > 0 && ids.every((id) => next.has(id));
+      if (allSelected) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  async function addSelectedSovToPrimePco(changeOrderId: string) {
+    const selectedSovLineItems = selectedLineItems;
+    const newSovLines = selectedSovLineItems.map((li) => ({
+      budget_code: (li.budget_code ?? "").trim(),
+      description: (li.description ?? "").trim(),
+      amount: Number(li.rev_rom ?? 0),
+    }));
+
+    const pcoRes = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`);
+    if (!pcoRes.ok) throw new Error("Failed to load selected PCO.");
+    const existing = await pcoRes.json() as {
+      source_change_event_ids?: string[] | null;
+      budget_codes?: string[] | null;
+      schedule_of_values?: { budget_code?: string | null; description?: string | null; amount?: number | string | null }[] | null;
+    };
+
+    const existingSov = Array.isArray(existing.schedule_of_values) ? existing.schedule_of_values : [];
+    const mergedSovMap = new Map<string, { budget_code: string; description: string; amount: number }>();
+    [...existingSov, ...newSovLines].forEach((line) => {
+      const budgetCode = String(line?.budget_code ?? "").trim();
+      const description = String(line?.description ?? "").trim();
+      const amount = Number(line?.amount ?? 0);
+      if (!budgetCode && !description && amount === 0) return;
+      const key = `${budgetCode}__${description}__${amount.toFixed(2)}`;
+      if (!mergedSovMap.has(key)) mergedSovMap.set(key, { budget_code: budgetCode, description, amount });
+    });
+
+    const patchRes = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        budget_codes: Array.from(new Set([...(Array.isArray(existing.budget_codes) ? existing.budget_codes : []), ...newSovLines.map((line) => line.budget_code).filter(Boolean)])),
+        source_change_event_ids: Array.from(new Set([...(Array.isArray(existing.source_change_event_ids) ? existing.source_change_event_ids : []), event.id])),
+        schedule_of_values: Array.from(mergedSovMap.values()),
+      }),
+    });
+    if (!patchRes.ok) throw new Error("Failed to add selected SOV to the PCO.");
   }
 
   return (
@@ -404,27 +519,70 @@ export default function ChangeEventDetailClient({
           <div className="px-4 py-3 border-b border-gray-200">
             <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Line Items</h2>
             <div className="flex flex-wrap items-center gap-2">
-              <button className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-400">Bulk Actions 0 selected</button>
+              {canWrite && (
+                <div className="relative">
+                  <button
+                    disabled={!hasSelection}
+                    onClick={() => setQuickActionsOpen((v) => !v)}
+                    className={`rounded border px-3 py-1 text-xs ${hasSelection ? "border-gray-300 text-gray-700 hover:bg-gray-50" : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"}`}
+                  >
+                    Quick Actions {selectedLineItemIds.size} selected <ChevronDown className="inline h-3 w-3" />
+                  </button>
+                  {quickActionsOpen && hasSelection && (
+                    <div className="absolute left-0 z-20 mt-1 w-72 rounded border border-gray-200 bg-white p-2 shadow-lg text-xs space-y-2">
+                      <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/new?type=purchase_order&eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Purchase Order Contract</button>
+                      <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/new?type=subcontract&eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Subcontract</button>
+                      <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/change-events/send-rfqs?eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Send RFQs</button>
+                      <button onClick={() => { setQuickActionsOpen(false); setPcoPickerLoading(true); setPcoPickerOpen(true); fetch(`/api/projects/${projectId}/prime-contracts`).then((r) => r.json()).then((data) => setPcoPickerContracts(Array.isArray(data) ? data : [])).catch(() => setPcoPickerContracts([])).finally(() => setPcoPickerLoading(false)); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Prime PCO</button>
+                      <div className="border-t border-gray-100 pt-2">
+                        <p className="px-2 pb-1 text-[11px] text-gray-500">Add to Unapproved Commitment</p>
+                        {allCommitments.filter((c) => String(c.status ?? "").trim().toLowerCase() !== "approved").slice(0, 6).map((c) => (
+                          <button key={c.id} onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/${c.id}/edit?eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">{String(c.number).padStart(3, "0")}: {c.title}</button>
+                        ))}
+                      </div>
+                      <div className="border-t border-gray-100 pt-2">
+                        <p className="px-2 pb-1 text-[11px] text-gray-500">Add to Unapproved Prime PCO</p>
+                        {[...matchingPcos, ...allPcos].slice(0, 8).map((c) => (
+                          <button
+                            key={c.id}
+                            onClick={async () => {
+                              try {
+                                await addSelectedSovToPrimePco(c.id);
+                                setQuickActionsOpen(false);
+                                router.push(`/projects/${projectId}/change-orders/${c.id}`);
+                              } catch {
+                                window.alert("Unable to add selected SOV line items to this PCO. Please try again.");
+                              }
+                            }}
+                            className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50"
+                          >
+                            PCO #{c.number}: {c.title || c.contract_name || "Untitled"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="relative">
-                <input className="rounded border border-gray-300 px-3 py-1 pr-10 text-xs w-56" placeholder="Search" />
-                <span className="absolute right-3 top-1 text-gray-400 text-xs">⌕</span>
+                <Search className="absolute left-2 top-1.5 h-3 w-3 text-gray-400" />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} className="rounded border border-gray-300 pl-7 pr-3 py-1 text-xs w-56" placeholder="Search" />
               </div>
-              <button className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-700">Add Filter ▾</button>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
               <button className="rounded border border-gray-300 px-3 py-1 text-xs">Show Rows 25 ▾</button>
-              <span>{event.line_items.length > 0 ? `1-${event.line_items.length} of ${event.line_items.length}` : "0-0 of 0"}</span>
+              <span>{filteredLineItems.length > 0 ? `1-${filteredLineItems.length} of ${filteredLineItems.length}` : "0-0 of 0"}</span>
             </div>
           </div>
 
-          {event.line_items.length === 0 ? (
+          {filteredLineItems.length === 0 ? (
             <p className="text-xs text-gray-400 italic px-4 py-3">No line items.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-gray-100 border-y border-gray-300">
-                    <th colSpan={5} className="px-3 py-2 text-left border-r border-gray-300"></th>
+                    <th colSpan={6} className="px-3 py-2 text-left border-r border-gray-300"></th>
                     <th colSpan={4} className="px-3 py-2 text-center font-semibold text-gray-700 border-r border-gray-300">
                       Revenue
                     </th>
@@ -433,6 +591,9 @@ export default function ChangeEventDetailClient({
                     </th>
                   </tr>
                   <tr className="bg-gray-100 border-b border-gray-300 text-gray-700 font-medium">
+                    <th className="px-3 py-2 text-left whitespace-nowrap">
+                      <input type="checkbox" checked={filteredLineItems.length > 0 && filteredLineItems.every((li) => selectedLineItemIds.has(li.id))} onChange={toggleSelectAll} />
+                    </th>
                     <th className="px-3 py-2 text-left whitespace-nowrap">Budget Code</th>
                     <th className="px-3 py-2 text-left whitespace-nowrap">Description</th>
                     <th className="px-3 py-2 text-left whitespace-nowrap">Vendor</th>
@@ -448,8 +609,9 @@ export default function ChangeEventDetailClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {event.line_items.map((li) => (
+                  {filteredLineItems.map((li) => (
                     <tr key={li.id} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="px-3 py-2"><input type="checkbox" checked={selectedLineItemIds.has(li.id)} onChange={() => toggleLineItem(li.id)} /></td>
                       <td className="px-3 py-2 font-medium text-gray-700">{li.budget_code ?? "—"}</td>
                       <td className="px-3 py-2 text-gray-600">{li.description ?? "—"}</td>
                       <td className="px-3 py-2 text-gray-600">{li.vendor ?? "—"}</td>
@@ -467,7 +629,7 @@ export default function ChangeEventDetailClient({
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-gray-300 bg-white font-semibold">
-                    <td colSpan={5} className="px-3 py-2 text-right text-gray-700 border-r border-gray-300">
+                    <td colSpan={6} className="px-3 py-2 text-right text-gray-700 border-r border-gray-300">
                       Totals
                     </td>
                     <td className="px-3 py-2 text-right text-gray-900">{fmtQty(event.line_items.reduce((s, li) => s + (li.rev_unit_qty ?? 0), 0))}</td>
@@ -629,6 +791,31 @@ export default function ChangeEventDetailClient({
           </section>
         )}
       </div>
+      {pcoPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) setPcoPickerOpen(false); }}>
+          <div className="bg-white rounded-lg shadow-xl w-[480px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900">Select a Prime Contract</h2>
+              <button onClick={() => setPcoPickerOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              {pcoPickerLoading ? (
+                <p className="text-xs text-gray-500 py-4 text-center">Loading contracts…</p>
+              ) : pcoPickerContracts.length === 0 ? (
+                <p className="text-xs text-gray-500 py-4 text-center">No prime contracts found for this project.</p>
+              ) : (
+                <div className="divide-y divide-gray-100 border border-gray-200 rounded">
+                  {pcoPickerContracts.map((c) => (
+                    <button key={c.id} className="w-full text-left px-3 py-2.5 text-xs text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors" onClick={() => { setPcoPickerOpen(false); router.push(`/projects/${projectId}/prime-contracts/${c.id}/change-orders/new?eventIds=${event.id}`); }}>
+                      {c.contract_number} – {c.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
