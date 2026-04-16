@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { ChevronDown, ChevronRight, Paperclip, Pencil } from "lucide-react";
+import { ChevronDown, ChevronRight, EllipsisVertical, Paperclip, Pencil } from "lucide-react";
 import RelatedItemsTab from "./RelatedItemsTab";
 
 type LineItem = {
@@ -37,6 +37,8 @@ type ChangeEvent = {
   created_at: string;
   updated_at: string;
   line_items: LineItem[];
+  attached_instances_count?: number;
+  delete_blocked?: boolean;
 };
 
 type TabKey = "General" | "Related Items" | "Comments" | "Emails" | "Change History" | "Advanced Settings";
@@ -93,6 +95,10 @@ export default function ChangeEventDetailClient({
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [newComment, setNewComment] = useState("");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [cloning, setCloning] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/change-events/${eventId}`)
@@ -102,6 +108,7 @@ export default function ChangeEventDetailClient({
           setError(data.error);
         } else {
           setEvent(data);
+          setError(null);
         }
         setLoading(false);
       })
@@ -110,6 +117,16 @@ export default function ChangeEventDetailClient({
         setLoading(false);
       });
   }, [projectId, eventId]);
+
+  useEffect(() => {
+    function handleMouseDown(e: MouseEvent) {
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) {
+        setActionsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, []);
 
   if (loading) {
     return (
@@ -155,6 +172,83 @@ export default function ChangeEventDetailClient({
     setPendingFiles([]);
   }
 
+  async function handleClone() {
+    if (!event || cloning) return;
+    setActionsOpen(false);
+    setCloning(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/change-events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${event.title} (Copy)`,
+          status: event.status || "Open",
+          origin: event.origin,
+          type: event.type,
+          change_reason: event.change_reason,
+          scope: event.scope,
+          expecting_revenue: event.expecting_revenue,
+          revenue_source: event.revenue_source,
+          prime_contract: event.prime_contract,
+          description: event.description,
+          line_items: event.line_items.map((li) => ({
+            budget_code: li.budget_code,
+            description: li.description,
+            vendor: li.vendor,
+            contract_number: li.contract_number,
+            unit_of_measure: li.unit_of_measure,
+            rev_unit_qty: li.rev_unit_qty,
+            rev_unit_cost: li.rev_unit_cost,
+            rev_rom: li.rev_rom,
+            cost_unit_qty: li.cost_unit_qty,
+            cost_unit_cost: li.cost_unit_cost,
+            cost_rom: li.cost_rom,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to clone change event");
+      const data = await res.json();
+      if (data?.id) {
+        router.push(`/projects/${projectId}/change-events/${data.id}`);
+        return;
+      }
+      router.push(`/projects/${projectId}/change-events`);
+    } catch {
+      window.alert("Unable to clone this change event.");
+    } finally {
+      setCloning(false);
+    }
+  }
+
+  function handleEmail() {
+    if (!event) return;
+    setActionsOpen(false);
+    const subject = encodeURIComponent(`Change Event #${String(event.number).padStart(3, "0")}: ${event.title}`);
+    const body = encodeURIComponent(`Please review Change Event #${String(event.number).padStart(3, "0")} in SiteCommand.`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
+
+  async function handleDelete() {
+    if (deleting) return;
+    if (event?.delete_blocked) return;
+    const confirmed = window.confirm("Delete this change event? This action cannot be undone.");
+    if (!confirmed) return;
+    setActionsOpen(false);
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/change-events/${eventId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data?.error === "string" ? data.error : "Unable to delete change event.");
+      }
+      router.push(`/projects/${projectId}/change-events`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to delete change event.";
+      window.alert(message);
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <ProjectNav projectId={projectId} />
@@ -187,6 +281,45 @@ export default function ChangeEventDetailClient({
             <button className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
               Export <ChevronDown className="h-3.5 w-3.5" />
             </button>
+            <div ref={actionsRef} className="relative">
+              <button
+                onClick={() => setActionsOpen((open) => !open)}
+                className="inline-flex items-center rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                aria-label="More actions"
+              >
+                <EllipsisVertical className="h-3.5 w-3.5" />
+              </button>
+              {actionsOpen && (
+                <div className="absolute right-0 z-20 mt-1.5 w-40 rounded-md border border-gray-200 bg-white shadow-lg">
+                  <button
+                    onClick={handleClone}
+                    disabled={cloning || deleting}
+                    className="block w-full px-3 py-2 text-left text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                  >
+                    {cloning ? "Cloning..." : "Clone"}
+                  </button>
+                  <button
+                    onClick={handleEmail}
+                    disabled={cloning || deleting}
+                    className="block w-full px-3 py-2 text-left text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                  >
+                    Email
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting || Boolean(event.delete_blocked)}
+                    title={
+                      event.delete_blocked
+                        ? "Cannot delete while related items are attached."
+                        : ""
+                    }
+                    className="block w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-white"
+                  >
+                    {deleting ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
