@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { checkProjectAccess } from "@/lib/permissions";
+import { logChangeEventHistory } from "@/lib/change-event-history";
 
 export async function GET(
   req: NextRequest,
@@ -120,6 +121,28 @@ export async function POST(
         }))
       );
     if (liError) return NextResponse.json({ error: liError.message }, { status: 500 });
+  }
+
+  await logChangeEventHistory(
+    supabase,
+    session,
+    data.id,
+    projectId,
+    "This change event was created",
+    null,
+    `Change Event #${String(data.number).padStart(3, "0")}`
+  );
+
+  if (lineItems.length > 0) {
+    await logChangeEventHistory(
+      supabase,
+      session,
+      data.id,
+      projectId,
+      "Added change event/line item",
+      "(None)",
+      `${lineItems.length} line item${lineItems.length === 1 ? "" : "s"} added`
+    );
   }
 
   return NextResponse.json(data);

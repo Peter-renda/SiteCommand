@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { checkProjectAccess } from "@/lib/permissions";
+import { logChangeEventHistory } from "@/lib/change-event-history";
 
 export async function PATCH(
   req: NextRequest,
@@ -22,6 +23,12 @@ export async function PATCH(
   }
   const supabase = getSupabase();
   const body = await req.json();
+  const { data: existingLineItem } = await supabase
+    .from("change_event_line_items")
+    .select("*")
+    .eq("id", lineItemId)
+    .eq("change_event_id", eventId)
+    .single();
 
   const updates: Record<string, unknown> = {};
   if ("budget_code" in body) updates.budget_code = body.budget_code ?? null;
@@ -45,5 +52,48 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const trackedFields: Array<{ key: string; label: string }> = [
+    { key: "budget_code", label: "Budget Code" },
+    { key: "description", label: "Description" },
+    { key: "vendor", label: "Vendor" },
+    { key: "contract_number", label: "Contract" },
+    { key: "unit_of_measure", label: "UOM" },
+    { key: "rev_unit_qty", label: "Revenue Unit Qty" },
+    { key: "rev_unit_cost", label: "Revenue Unit Cost" },
+    { key: "rev_rom", label: "Revenue ROM" },
+    { key: "cost_unit_qty", label: "Cost Unit Qty" },
+    { key: "cost_unit_cost", label: "Cost Unit Cost" },
+    { key: "cost_rom", label: "Cost ROM" },
+  ];
+
+  if (existingLineItem) {
+    for (const field of trackedFields) {
+      if (!(field.key in body)) continue;
+      const oldValueRaw = existingLineItem[field.key];
+      const newValueRaw = body[field.key];
+      const oldValue =
+        oldValueRaw === null || oldValueRaw === undefined || oldValueRaw === ""
+          ? "(None)"
+          : String(oldValueRaw);
+      const newValue =
+        newValueRaw === null || newValueRaw === undefined || newValueRaw === ""
+          ? "(None)"
+          : String(newValueRaw);
+
+      if (oldValue !== newValue) {
+        await logChangeEventHistory(
+          supabase,
+          session,
+          eventId,
+          projectId,
+          `Change event/line item ${field.label}`,
+          oldValue,
+          newValue
+        );
+      }
+    }
+  }
+
   return NextResponse.json(data);
 }

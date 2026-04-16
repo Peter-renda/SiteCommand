@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { checkProjectAccess } from "@/lib/permissions";
+import { logChangeEventHistory } from "@/lib/change-event-history";
 
 export async function GET(
   _req: NextRequest,
@@ -50,6 +51,16 @@ export async function PATCH(
 
   const supabase = getSupabase();
   const body = await req.json();
+  const { data: existingEvent } = await supabase
+    .from("change_events")
+    .select("title, status, origin, type, change_reason, scope, expecting_revenue, revenue_source, prime_contract, description")
+    .eq("id", eventId)
+    .eq("project_id", projectId)
+    .single();
+  const { count: existingLineItemCount } = await supabase
+    .from("change_event_line_items")
+    .select("id", { count: "exact", head: true })
+    .eq("change_event_id", eventId);
 
   const { data, error } = await supabase
     .from("change_events")
@@ -100,6 +111,58 @@ export async function PATCH(
           }))
         );
       if (liError) return NextResponse.json({ error: liError.message }, { status: 500 });
+    }
+
+    await logChangeEventHistory(
+      supabase,
+      session,
+      eventId,
+      projectId,
+      "Change event line items updated",
+      String(existingLineItemCount ?? 0),
+      String(body.line_items.length)
+    );
+  }
+
+  const trackedFields: Array<{ key: string; label: string }> = [
+    { key: "title", label: "Title" },
+    { key: "status", label: "Status" },
+    { key: "origin", label: "Origin" },
+    { key: "type", label: "Type" },
+    { key: "change_reason", label: "Change Reason" },
+    { key: "scope", label: "Scope" },
+    { key: "expecting_revenue", label: "Expecting Revenue" },
+    { key: "revenue_source", label: "Line Item Revenue Source" },
+    { key: "prime_contract", label: "Prime Contract for Markup Estimates" },
+    { key: "description", label: "Description" },
+  ];
+
+  if (existingEvent) {
+    for (const field of trackedFields) {
+      const oldValueRaw = existingEvent[field.key as keyof typeof existingEvent];
+      const newValueRaw = body[field.key];
+      if (newValueRaw === undefined) continue;
+
+      const oldValue =
+        oldValueRaw === null || oldValueRaw === undefined || oldValueRaw === ""
+          ? "(None)"
+          : String(oldValueRaw);
+      const newValue =
+        newValueRaw === null || newValueRaw === undefined || newValueRaw === ""
+          ? "(None)"
+          : String(newValueRaw);
+
+      if (oldValue !== newValue) {
+        await logChangeEventHistory(
+          supabase,
+          session,
+          eventId,
+          projectId,
+          `Change event field updated: ${field.label}`,
+          oldValue,
+          newValue
+        );
+      }
     }
   }
 
