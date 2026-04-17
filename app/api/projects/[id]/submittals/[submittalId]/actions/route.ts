@@ -12,6 +12,7 @@ type WorkflowStep = {
   response?: string | null;
   comments?: string | null;
   attachments?: { name: string; url: string }[];
+  forwarded_by_person_id?: string | null;
 };
 
 function nextRevisionValue(current: string | null): string {
@@ -39,6 +40,20 @@ async function getNextSubmittalNumber(projectId: string) {
   return (data?.submittal_number ?? 0) + 1;
 }
 
+function nextBallInCourtAfterResponse(steps: WorkflowStep[], actorPersonId: string): string | null {
+  const current = steps.find((step) => step.person_id === actorPersonId);
+  if (!current) return null;
+
+  if (current.forwarded_by_person_id) return current.forwarded_by_person_id;
+
+  const ordered = [...steps].sort((a, b) => a.step - b.step);
+  const currentIdx = ordered.findIndex((s) => s.person_id === actorPersonId);
+  if (currentIdx === -1) return null;
+
+  const next = ordered.slice(currentIdx + 1).find((s) => s.person_id && !s.returned_date);
+  return next?.person_id ?? null;
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; submittalId: string }> }
@@ -63,7 +78,7 @@ export async function POST(
   }
 
   if (action === "change_ball_in_court") {
-    if (!["draft", "open"].includes(existing.status)) {
+    if (!("draft" === existing.status || "open" === existing.status)) {
       return NextResponse.json({ error: "Ball in Court can only be changed on Draft/Open submittals" }, { status: 400 });
     }
     const { data, error } = await supabase
@@ -132,7 +147,7 @@ export async function POST(
         ? {
             ...step,
             sent_date: (payload?.sent_date as string | undefined) ?? step.sent_date ?? null,
-            returned_date: (payload?.returned_date as string | undefined) ?? step.returned_date ?? null,
+            returned_date: (payload?.returned_date as string | undefined) ?? step.returned_date ?? new Date().toISOString().slice(0, 10),
             response: (payload?.response as string | undefined) ?? step.response ?? null,
             comments: (payload?.comments as string | undefined) ?? step.comments ?? null,
             attachments: Array.isArray(payload?.attachments)
@@ -141,9 +156,15 @@ export async function POST(
           }
         : step
     );
+
+    const nextBallInCourt = nextBallInCourtAfterResponse(nextSteps, personId);
     const { data, error } = await supabase
       .from("submittals")
-      .update({ workflow_steps: nextSteps, status: existing.status === "draft" ? "open" : existing.status })
+      .update({
+        workflow_steps: nextSteps,
+        ball_in_court_id: nextBallInCourt,
+        status: existing.status === "draft" ? "open" : existing.status,
+      })
       .eq("id", submittalId)
       .eq("project_id", projectId)
       .eq("is_deleted", false)
@@ -173,6 +194,7 @@ export async function POST(
       attachments: Array.isArray(payload?.attachments)
         ? (payload?.attachments as { name: string; url: string }[])
         : [],
+      forwarded_by_person_id: existing.ball_in_court_id,
     };
 
     const { data, error } = await supabase

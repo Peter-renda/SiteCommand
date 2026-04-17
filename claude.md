@@ -91,3 +91,41 @@
 - Forward-for-review currently prompts for a contact ID (no directory picker modal yet).
 - Response edit/forward forms are prompt-based placeholders; add full modal UX.
 - Email notification behavior for these new action flows is not yet wired in.
+
+---
+
+# Submittals Alignment Pass – Requested Tutorials (April 17, 2026)
+
+## Tutorials reviewed
+- Respond to a Forwarded Submittal as a Reviewer
+- Respond to a Submittal as an Approver
+- Set Up Submittal Schedule Calculations
+- Upload and Submit a Submittal
+- Use Bulk Actions > Apply Workflow in the Submittals Tool
+- Use Bulk Actions > Delete in the Submittals Tool
+- Use Bulk Actions > Edit in the Submittals Tool
+- Use Bulk Actions > Retrieve in the Submittals Tool
+- View a Submittal
+
+## What was added/updated in SiteCommand
+- Added submittal schedule calculation support in API create/update flows:
+  - Inputs: required on-site date, lead time, design team review time, internal review time
+  - Derived outputs: planned return date, planned internal review completed date, planned submit by date
+  - Suggested dates: submitter due date and approver due date
+- Added DB migration for new schedule calculation fields on submittals.
+- Extended bulk action API support:
+  - apply workflow (draft-only items without existing workflow)
+  - edit (bulk field updates)
+  - retrieve (restore soft-deleted submittals from recycle bin)
+- Improved response flow behavior for workflow actions:
+  - Forwarded reviewer responses now return Ball in Court back to the forwarding user.
+  - Standard responses now advance Ball in Court to the next pending workflow step.
+- Updated submittals list UX:
+  - Added Items vs Recycle Bin toggle.
+  - Added bulk Retrieve button for Recycle Bin.
+  - Added bulk Apply Workflow and Bulk Edit actions (prompt-driven placeholder controls).
+
+## Notes / remaining parity gaps
+- Bulk Apply Workflow currently uses prompt-based input for first-step person and does not yet include template selection UI.
+- Bulk Edit UI currently includes a narrow prompt-driven control (manager update) and should be expanded to full parity field coverage.
+- Upload-and-submit and approver/reviewer response UX still uses simple prompt-based interactions in detail views; full modal parity remains recommended.

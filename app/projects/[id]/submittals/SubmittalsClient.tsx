@@ -748,11 +748,12 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
   const [creating, setCreating] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"items" | "recycle_bin">("items");
   const createMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/projects/${projectId}/submittals`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/submittals${activeTab === "recycle_bin" ? "?recycle_bin=true" : ""}`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/directory`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/specifications`).then((r) => r.json()),
     ]).then(([sData, dirData, specData]) => {
@@ -761,7 +762,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
       setSpecifications(Array.isArray(specData) ? specData : []);
       setLoading(false);
     });
-  }, [projectId]);
+  }, [projectId, activeTab]);
 
   useEffect(() => {
     function onPointerDown(e: MouseEvent) {
@@ -811,9 +812,10 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
     window.location.href = "/";
   }
 
-  async function runBulkAction(action: "mark_private" | "mark_public" | "redistribute" | "delete", payload?: Record<string, unknown>) {
+  async function runBulkAction(action: "mark_private" | "mark_public" | "redistribute" | "delete" | "retrieve" | "apply_workflow" | "edit", payload?: Record<string, unknown>) {
     if (selectedIds.length === 0 || bulkLoading) return;
     if (action === "delete" && !confirm(`Send ${selectedIds.length} submittal(s) to Recycle Bin?`)) return;
+    if (action === "retrieve" && !confirm(`Retrieve ${selectedIds.length} submittal(s) from Recycle Bin?`)) return;
     setBulkLoading(true);
     const res = await fetch(`/api/projects/${projectId}/submittals/bulk-actions`, {
       method: "POST",
@@ -827,7 +829,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
       return;
     }
     const selectedSet = new Set(selectedIds);
-    if (action === "delete") {
+    if (action === "delete" || action === "retrieve") {
       setSubmittals((prev) => prev.filter((s) => !selectedSet.has(s.id)));
     } else {
       setSubmittals((prev) =>
@@ -859,7 +861,13 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">Submittals</h1>
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Submittals</h1>
+            <div className="mt-2 inline-flex rounded-md border border-gray-200 overflow-hidden">
+              <button onClick={() => { setActiveTab("items"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-medium ${activeTab === "items" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}>Items</button>
+              <button onClick={() => { setActiveTab("recycle_bin"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-medium ${activeTab === "recycle_bin" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}>Recycle Bin</button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             {selectedIds.length > 0 && (
               <>
@@ -867,7 +875,10 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                 <button onClick={() => runBulkAction("mark_private")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Mark Private</button>
                 <button onClick={() => runBulkAction("mark_public")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Mark Public</button>
                 <button onClick={() => runBulkAction("redistribute")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Redistribute</button>
-                <button onClick={() => runBulkAction("delete")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-red-700 border border-red-200 rounded-md bg-white hover:bg-red-50 disabled:opacity-50">Delete</button>
+                <button onClick={() => runBulkAction("delete")} disabled={bulkLoading || activeTab === "recycle_bin"} className="px-2.5 py-1.5 text-xs font-medium text-red-700 border border-red-200 rounded-md bg-white hover:bg-red-50 disabled:opacity-50">Delete</button>
+                <button onClick={() => runBulkAction("retrieve")} disabled={bulkLoading || activeTab !== "recycle_bin"} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Retrieve</button>
+                <button onClick={() => { const personId = prompt("First workflow step person/contact ID:"); if (!personId) return; runBulkAction("apply_workflow", { workflow_steps: [{ step: 1, person_id: personId.trim(), role: "Approver", due_date: null }] }); }} disabled={bulkLoading || activeTab === "recycle_bin"} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Apply Workflow</button>
+                <button onClick={() => { const managerId = prompt("Bulk edit Submittal Manager contact ID (blank to cancel):"); if (!managerId) return; runBulkAction("edit", { submittal_manager_id: managerId.trim() }); }} disabled={bulkLoading || activeTab === "recycle_bin"} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Bulk Edit</button>
               </>
             )}
             <button onClick={() => exportSubmittalsPDF(submittals, directory, specifications)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
@@ -878,11 +889,11 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
               <button
                 type="button"
                 onClick={() => setShowCreateMenu((o) => !o)}
-                disabled={creating}
+                disabled={creating || activeTab === "recycle_bin"}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                {creating ? "Creating..." : "Create +"}
+                {activeTab === "recycle_bin" ? "Create disabled" : creating ? "Creating..." : "Create +"}
                 <svg className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 20 20" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" /></svg>
               </button>
               {showCreateMenu && (
