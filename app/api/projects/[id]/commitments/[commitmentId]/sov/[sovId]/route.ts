@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { canEditSov } from "@/lib/commitment-gates";
+import { requireToolLevel } from "@/lib/tool-permissions";
 
 export async function PATCH(
   req: NextRequest,
@@ -11,6 +12,9 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId, sovId } = await params;
+  const denied = await requireToolLevel(session, projectId, "commitments", "admin");
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const gate = await canEditSov(projectId, commitmentId);
@@ -58,6 +62,9 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId, sovId } = await params;
+  const denied = await requireToolLevel(session, projectId, "commitments", "admin");
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const gate = await canEditSov(projectId, commitmentId);

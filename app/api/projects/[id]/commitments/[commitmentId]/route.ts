@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { requireToolLevel } from "@/lib/tool-permissions";
 
 export async function GET(
   _req: NextRequest,
@@ -10,6 +11,9 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId } = await params;
+  const denied = await requireToolLevel(session, projectId, "commitments", "read_only");
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const { data, error } = await supabase
@@ -31,6 +35,9 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId } = await params;
+  const denied = await requireToolLevel(session, projectId, "commitments", "admin");
+  if (denied) return denied;
+
   const supabase = getSupabase();
   const body = await req.json();
 
@@ -116,6 +123,9 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId } = await params;
+  const denied = await requireToolLevel(session, projectId, "commitments", "admin");
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   // Soft delete

@@ -3,6 +3,32 @@
 import { useEffect, useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
+type ToolLevel = "none" | "read_only" | "standard" | "admin";
+
+type PermissionRow = {
+  user_id: string;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  project_role: string;
+  default_level: ToolLevel;
+  level: ToolLevel;
+  overridden: boolean;
+};
+
+const LEVEL_OPTIONS: { value: ToolLevel; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "read_only", label: "Read Only" },
+  { value: "standard", label: "Standard" },
+  { value: "admin", label: "Admin" },
+];
+
+function displayName(r: PermissionRow) {
+  const full = [r.first_name, r.last_name].filter(Boolean).join(" ");
+  return full || r.username || r.email || r.user_id;
+}
+
 export default function CommitmentSettingsClient({
   projectId,
   username,
@@ -16,6 +42,11 @@ export default function CommitmentSettingsClient({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string>("");
 
+  const [permissions, setPermissions] = useState<PermissionRow[]>([]);
+  const [permsAllowed, setPermsAllowed] = useState(true);
+  const [permsLoading, setPermsLoading] = useState(true);
+  const [savingUser, setSavingUser] = useState<string>("");
+
   useEffect(() => {
     fetch(`/api/projects/${projectId}/commitment-settings`)
       .then((r) => r.json())
@@ -24,6 +55,19 @@ export default function CommitmentSettingsClient({
         setLoading(false);
       })
       .catch(() => setLoading(false));
+
+    fetch(`/api/projects/${projectId}/commitments/permissions`)
+      .then(async (r) => {
+        if (r.status === 403) {
+          setPermsAllowed(false);
+          setPermsLoading(false);
+          return;
+        }
+        const data = await r.json();
+        setPermissions(Array.isArray(data) ? data : []);
+        setPermsLoading(false);
+      })
+      .catch(() => setPermsLoading(false));
   }, [projectId]);
 
   async function save() {
@@ -37,6 +81,29 @@ export default function CommitmentSettingsClient({
       if (res.ok) setSavedAt(new Date().toLocaleTimeString());
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function updateLevel(row: PermissionRow, nextLevel: ToolLevel) {
+    setSavingUser(row.user_id);
+    const overrideValue = nextLevel === row.default_level ? null : nextLevel;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/commitments/permissions`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: row.user_id, level: overrideValue }),
+      });
+      if (res.ok) {
+        setPermissions((prev) =>
+          prev.map((p) =>
+            p.user_id === row.user_id
+              ? { ...p, level: nextLevel, overridden: overrideValue !== null }
+              : p
+          )
+        );
+      }
+    } finally {
+      setSavingUser("");
     }
   }
 
@@ -108,6 +175,70 @@ export default function CommitmentSettingsClient({
             </span>
           </label>
           {savedAt && <p className="mt-3 text-[11px] text-green-600">Saved at {savedAt}</p>}
+        </div>
+
+        <div className="py-6">
+          <h2 className="text-base font-semibold text-gray-900 mb-1">Tool Permissions</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Per-user level for the Commitments tool. Each user inherits a level from their
+            project role; set an override to promote or restrict them.
+          </p>
+
+          {!permsAllowed ? (
+            <p className="text-sm text-gray-500">
+              You need Admin on the Commitments tool to manage permissions.
+            </p>
+          ) : permsLoading ? (
+            <p className="text-sm text-gray-400">Loading…</p>
+          ) : permissions.length === 0 ? (
+            <p className="text-sm text-gray-500">No members on this project yet.</p>
+          ) : (
+            <div className="border border-gray-200 rounded">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr className="text-left text-xs font-medium text-gray-600 uppercase">
+                    <th className="px-3 py-2">User</th>
+                    <th className="px-3 py-2">Project Role</th>
+                    <th className="px-3 py-2">Commitments Level</th>
+                    <th className="px-3 py-2 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {permissions.map((row) => (
+                    <tr key={row.user_id} className="border-b border-gray-100 last:border-0">
+                      <td className="px-3 py-2">
+                        <div className="text-gray-900">{displayName(row)}</div>
+                        <div className="text-xs text-gray-500">{row.email}</div>
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">{row.project_role}</td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={row.level}
+                          onChange={(e) => updateLevel(row, e.target.value as ToolLevel)}
+                          disabled={savingUser === row.user_id}
+                          className="text-sm border border-gray-300 rounded px-2 py-1"
+                        >
+                          {LEVEL_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                              {o.value === row.default_level ? " (default)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        {row.overridden && (
+                          <span className="text-[10px] text-orange-600 uppercase tracking-wide">
+                            override
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

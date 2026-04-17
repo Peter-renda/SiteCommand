@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { requireToolLevel } from "@/lib/tool-permissions";
 
 // Admin-only: returns an Under Review SSOV to Revise & Resubmit so the
 // invoice contact can edit and resubmit.
@@ -12,6 +13,9 @@ export async function POST(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId } = await params;
+  const denied = await requireToolLevel(session, projectId, "commitments", "admin");
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const { data: commitment } = await supabase

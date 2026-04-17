@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { requireSsovWriter } from "@/lib/tool-permissions";
 
 // Invoice-contact action: submits the Subcontractor SOV for review.
 // Only valid when the total of SSOV detail lines fully allocates the
@@ -13,6 +14,9 @@ export async function POST(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId } = await params;
+  const denied = await requireSsovWriter(session, projectId, commitmentId);
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const { data: commitment } = await supabase

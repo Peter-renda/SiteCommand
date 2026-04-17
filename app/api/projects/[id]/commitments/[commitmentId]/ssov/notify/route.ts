@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { sendSsovNotificationEmail } from "@/lib/email";
+import { requireToolLevel } from "@/lib/tool-permissions";
 
 function contactName(c: {
   type: string;
@@ -26,6 +27,9 @@ export async function POST(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId } = await params;
+  const denied = await requireToolLevel(session, projectId, "commitments", "admin");
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const { data: commitment } = await supabase

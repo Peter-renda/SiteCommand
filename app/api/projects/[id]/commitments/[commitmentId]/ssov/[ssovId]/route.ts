@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { canEditSsov } from "@/lib/commitment-gates";
+import { requireSsovWriter } from "@/lib/tool-permissions";
 
 export async function PATCH(
   req: NextRequest,
@@ -11,6 +12,9 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId, ssovId } = await params;
+  const denied = await requireSsovWriter(session, projectId, commitmentId);
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const gate = await canEditSsov(projectId, commitmentId);
@@ -45,6 +49,9 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId, ssovId } = await params;
+  const denied = await requireSsovWriter(session, projectId, commitmentId);
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const gate = await canEditSsov(projectId, commitmentId);
