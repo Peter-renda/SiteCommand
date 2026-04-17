@@ -352,3 +352,63 @@ Notes:
 - Email function: `sendCommitmentEmail()` in `/lib/email.ts` using Resend.
 - CC recipients passed directly to Resend's `cc` field.
 - Private flag shown in email footer note when enabled.
+
+## Enable Financial Markup on a Commitment
+
+### Required Permissions
+- **Admin** level on the Commitments tool.
+
+### Prerequisites
+- A Purchase Order or Subcontract must exist.
+- Financial Markup must be **enabled at the project level** first (Commitments Settings → Financial Markup section).
+
+### Workflow
+1. Enable Financial Markup at the project level: Commitments tool → **Configure Settings** (gear icon) → **Financial Markup** → check **Enable Financial Markup on Commitment Change Orders** → **Save**.
+2. Open the commitment (Commitments → Contracts tab → click contract number).
+3. Click **Edit**.
+4. In the **General Information** section, check **Enable Financial Markups on this commitment**.
+5. Click **Save**.
+
+### Key Limitation
+- Financial markup can only be applied to **Commitment Change Orders (CCOs)** — not to the original SOV.
+- Once markup is applied to a change order, that change order **cannot be added to a subcontractor invoice**.
+
+### Implementation Notes (SiteCommand)
+- Project-level toggle: `enable_financial_markup` column in `commitment_settings`, managed in `CommitmentSettingsClient.tsx`.
+- Per-commitment toggle: `financial_markup_enabled` column on `commitments` table, exposed in `EditCommitmentClient.tsx` and `NewCommitmentClient.tsx`.
+- The per-commitment checkbox is only shown/enabled when the project-level setting is on; otherwise, a link to Commitments Settings is shown.
+- Migration: `supabase/migrations/092_commitments_extended_fields.sql` (commitment column) and `093_commitment_settings_defaults.sql` (settings column already existed in 092).
+- API PATCH: `financial_markup_enabled` is an allowed field in `/api/projects/[id]/commitments/[commitmentId]/route.ts`.
+
+## Enable or Disable the SSOV Tab on the Commitments Tool
+
+### Overview
+The Subcontractor SOV (SSOV) tab lets a downstream contractor provide a detailed cost breakdown for each SOV line item before invoicing. It can be toggled at both the **project level** (as a default) and **per individual commitment**.
+
+### Required Permissions
+- **Admin** level on the Commitments tool.
+
+### Key Constraints
+- **Amount Based accounting method only** — the SSOV tab is NOT supported with Unit/Quantity Based accounting.
+- If **Enable Always Editable Schedule of Values** is active, additional workflow limitations apply.
+- SSOV detail does not sync with ERP integrations; only the general SOV does.
+
+### Project-Level Workflow (Default Setting)
+1. Open the Commitments tool → **Configure Settings** (gear icon).
+2. Navigate to the **Default Contract Settings** section.
+3. Check or uncheck **Enable Subcontractor SOV by Default**.
+4. Click **Save / Update**.
+
+Effect: all new commitments created after saving will have the SSOV tab enabled (if Amount Based accounting method is selected).
+
+### Per-Commitment Workflow
+1. Open the commitment → **Edit**.
+2. In the **Subcontractor SOV** section, check or uncheck **Enable Subcontractor SOV**.
+3. **Save**.
+
+### Implementation Notes (SiteCommand)
+- Project-level default: `enable_ssov_by_default` column in `commitment_settings` (migration `093_commitment_settings_defaults.sql`).
+- Settings UI: `CommitmentSettingsClient.tsx` → **Default Contract Settings** section.
+- New commitment: `NewCommitmentClient.tsx` fetches `commitment-settings` on mount and pre-checks `ssovEnabled` if `enable_ssov_by_default` is true; sends `ssov_enabled` in the POST body.
+- Edit commitment: `EditCommitmentClient.tsx` → **Subcontractor SOV** section toggle.
+- The SSOV toggle is hidden/disabled when the commitment uses Unit/Quantity Based accounting.

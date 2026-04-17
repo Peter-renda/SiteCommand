@@ -595,6 +595,10 @@ export default function EditCommitmentClient({
   // DocuSign
   const [signDocusign, setSignDocusign] = useState(false);
 
+  // Financial Markup (per-commitment enable)
+  const [financialMarkupEnabled, setFinancialMarkupEnabled] = useState(false);
+  const [projectFinancialMarkupEnabled, setProjectFinancialMarkupEnabled] = useState(false);
+
   // Email Contract modal
   const [emailModalOpen, setEmailModalOpen] = useState(false);
 
@@ -656,6 +660,7 @@ export default function EditCommitmentClient({
       setInclusions(c.inclusions ?? "");
       setExclusions(c.exclusions ?? "");
       setSignDocusign(c.sign_docusign ?? false);
+      setFinancialMarkupEnabled(c.financial_markup_enabled ?? false);
       setIsPrivate(c.is_private ?? true);
       setSovViewAllowed(c.sov_view_allowed ?? false);
       setSubcontractCoverLetter(c.subcontract_cover_letter ?? "");
@@ -710,6 +715,7 @@ export default function EditCommitmentClient({
       .then((r) => r.json())
       .then((data) => {
         setAlwaysEditableSov(!!data?.enable_always_editable_sov);
+        setProjectFinancialMarkupEnabled(!!data?.enable_financial_markup);
       })
       .catch(() => {});
   }, [projectId]);
@@ -893,6 +899,7 @@ export default function EditCommitmentClient({
           default_retainage: numVal(defaultRetainage),
           description,
           sign_docusign: signDocusign,
+          financial_markup_enabled: financialMarkupEnabled,
           // Subcontract dates
           start_date: commitmentType === "subcontract" ? (startDate || null) : undefined,
           estimated_completion: commitmentType === "subcontract" ? (estimatedCompletion || null) : undefined,
@@ -1128,6 +1135,34 @@ export default function EditCommitmentClient({
               </span>
             </label>
           </Field>
+
+          {projectFinancialMarkupEnabled ? (
+            <Field label="Financial Markup" className="mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={financialMarkupEnabled}
+                  onChange={(e) => setFinancialMarkupEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-gray-900"
+                />
+                <span className="text-sm text-gray-700">
+                  Enable Financial Markups on this commitment
+                  <span className="block text-xs text-gray-500 mt-0.5">
+                    Required before adding markup rules to change orders on this contract.
+                    Once markup is applied to a change order, it cannot be added to a subcontractor invoice.
+                  </span>
+                </span>
+              </label>
+            </Field>
+          ) : (
+            <p className="text-xs text-gray-400 mb-4">
+              Financial Markup is disabled at the project level. Enable it in{" "}
+              <a href={`/projects/${projectId}/commitments/settings`} className="underline hover:text-gray-600">
+                Commitments Settings
+              </a>{" "}
+              to use it on this commitment.
+            </p>
+          )}
         </Section>
 
         {/* ── Schedule of Values ── */}

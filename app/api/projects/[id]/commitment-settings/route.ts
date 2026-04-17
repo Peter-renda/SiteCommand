@@ -24,7 +24,7 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(
-    data || { project_id: projectId, enable_always_editable_sov: false }
+    data || { project_id: projectId, enable_always_editable_sov: false, enable_ssov_by_default: false, enable_financial_markup: false }
   );
 }
 
@@ -42,11 +42,18 @@ export async function PUT(
   const supabase = getSupabase();
   const body = await req.json();
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     project_id: projectId,
     enable_always_editable_sov: !!body.enable_always_editable_sov,
     updated_by: session.id,
   };
+
+  if ("enable_ssov_by_default" in body) {
+    payload.enable_ssov_by_default = !!body.enable_ssov_by_default;
+  }
+  if ("enable_financial_markup" in body) {
+    payload.enable_financial_markup = !!body.enable_financial_markup;
+  }
 
   const { data, error } = await supabase
     .from("commitment_settings")
