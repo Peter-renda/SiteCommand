@@ -115,6 +115,38 @@ Use the dropdown options at the top of the budget to:
 - Change grouping and filters.
 - Add comparison columns to analyze variance.
 
+### Budget Detail tab controls
+
+The **Budget Details** tab supports:
+
+- **View** selector (for example: Procore Standard Budget, Procore ERP Budget, Budget Changes)
+- **Group** options (such as Cost Code tiers, Cost Type, Vendor, Detail Type)
+- **Filter** options to narrow the detail table by key fields
+
+### Snapshot line-item variance analysis
+
+On **Project Status Snapshots**, you can:
+
+- Select any two snapshots.
+- Run **Analyze Variance**.
+- Review line-item deltas in one of three display modes:
+  - Comparison + Variance
+  - Comparison Only
+  - Variance Only
+
+### Unit-based + forecasting setup fields
+
+When creating or editing budget line items, include:
+
+- **Budget Unit Qty**
+- **Unit of Measure**
+- **Unit Cost**
+- **Manual Calculation** toggle
+- **Forecast Curve** inputs:
+  - Start Date
+  - End Date
+  - Curve (Linear, Bell, Front Loaded, Back Loaded, or Manual)
+
 ### Job to Date Costs visibility
 
 The budget view includes:

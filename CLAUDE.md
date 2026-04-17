@@ -259,6 +259,49 @@ Notes:
   2. Select dataset/report definition.
   3. Configure axes/measures (or columns for tabular reports).
 
+## Budget Tutorials Alignment Notes (Added April 17, 2026 - Round 2)
+
+### Add the Columns for Job Cost Transaction Syncing to a Budget View for ERP Integrations
+- Keep ERP-oriented budget views configured around **Job to Date Costs** and **Direct Costs** to preserve transaction-based visibility.
+- Treat **Direct Costs** as a calculated value tied to source-cost detail visibility controls, and keep formula help text visible in-column.
+- Maintain ERP-specific messaging that this setup is intended for supported ERP-connected workflows where job cost transactions are synced.
+
+### Add the Columns for the Budget Changes Feature to a Budget View
+- Ensure budget views used for change workflows expose source and calculated columns required for **Pending Budget Changes** and **Approved Change Order** analysis.
+- Preserve the expectation that teams may either modify an existing view or create a dedicated **Budget Changes** view, then assign it to projects.
+- Keep this configuration aligned with Change Events settings (including Budget ROM behavior).
+
+### Add the Unit-Based Columns to a Budget View
+- Support non-ERP unit-based budgeting workflows with these high-signal fields in budget experiences:
+  - **Budget Unit Qty**
+  - **Unit of Measure**
+  - **Unit Cost**
+- Preserve behavior where **manual calculation** can be toggled so teams can either enter an amount directly or derive it from unit inputs.
+- Keep ERP caveat messaging clear: unit-based syncing behavior varies by ERP connector.
+
+### Analyze Line Item Variance Between Budget Snapshots (Beta) / Analyze Variances Between Budget Snapshots
+- Snapshot comparison UX should support selecting snapshot pairs and reviewing variance at the line-item level.
+- Provide display modes for:
+  - Comparison + variance values
+  - Comparison values only
+  - Variance values only
+- Keep snapshot-level permissions language aligned with Budget tool expectations (read access for visibility, elevated access for creation/management).
+
+### Apply Advanced Forecasting Curves
+- Forecasting workflows should capture **Start Date**, **End Date**, and **Curve** per line item.
+- Supported curve language should include at least:
+  - **Linear**
+  - **Bell**
+  - **Manual**
+- Keep **Procore Standard Forecast** as the baseline concept while allowing custom forecasting views.
+
+### Apply the View, Group, and Filter Options on the Budget Detail Tab
+- Budget Details UX should expose all three controls at the top of the tab:
+  - **View**
+  - **Group**
+  - **Filter**
+- Group/filter options should account for WBS-driven behavior (for example, Cost Code tiers and cost type groupings).
+
 ## Budget View Configuration Alignment (Added April 17, 2026)
 
 ### Add a Real-Time Labor Productivity Budget View
