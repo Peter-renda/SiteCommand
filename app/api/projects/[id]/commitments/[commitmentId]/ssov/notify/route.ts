@@ -1,12 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { sendSsovNotificationEmail } from "@/lib/email";
+
+function contactName(c: {
+  type: string;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+  group_name: string | null;
+}): string {
+  if (c.type === "company") return c.company || "";
+  if (c.type === "group" || c.type === "distribution_group") return c.group_name || "";
+  return [c.first_name, c.last_name].filter(Boolean).join(" ");
+}
 
 // Admin-only: sends the Subcontractor SOV notification to the invoice contact.
 // Only available when SSOV is in Draft or Revise & Resubmit and an invoice
 // contact has been assigned on the commitment.
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string; commitmentId: string }> }
 ) {
   const session = await getSession();
@@ -17,7 +30,7 @@ export async function POST(
 
   const { data: commitment } = await supabase
     .from("commitments")
-    .select("ssov_enabled, ssov_status, sov_accounting_method, subcontractor_contact")
+    .select("number, title, original_contract_amount, ssov_enabled, ssov_status, sov_accounting_method, subcontractor_contact")
     .eq("id", commitmentId)
     .eq("project_id", projectId)
     .single();
@@ -43,6 +56,58 @@ export async function POST(
     return NextResponse.json(
       { error: "Assign an invoice contact on the commitment before sending the SSOV notification." },
       { status: 409 }
+    );
+  }
+
+  // Look up the directory contact by the stored name and find an email.
+  const { data: contactsByName } = await supabase
+    .from("directory_contacts")
+    .select("id, type, first_name, last_name, company, group_name, email")
+    .eq("project_id", projectId);
+
+  const contactMatch = (contactsByName || []).find(
+    (c) => contactName(c) === commitment.subcontractor_contact && !!c.email
+  );
+
+  if (!contactMatch?.email) {
+    return NextResponse.json(
+      {
+        error:
+          `No email is set on the invoice contact "${commitment.subcontractor_contact}". ` +
+          "Add an email to the contact in the project directory and try again.",
+      },
+      { status: 409 }
+    );
+  }
+
+  // Resolve surrounding context for the email body.
+  const [{ data: project }, { data: sender }] = await Promise.all([
+    supabase.from("projects").select("name").eq("id", projectId).single(),
+    supabase.from("users").select("username").eq("id", session.id).single(),
+  ]);
+
+  const origin =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    req.headers.get("origin") ||
+    `https://${req.headers.get("host") ?? "sitecommand.xyz"}`;
+  const ssovUrl = `${origin}/projects/${projectId}/commitments/${commitmentId}/ssov`;
+  const recipientName = contactName(contactMatch);
+
+  try {
+    await sendSsovNotificationEmail(
+      contactMatch.email,
+      recipientName,
+      sender?.username || "A SiteCommand user",
+      commitment.number,
+      commitment.title || "Commitment",
+      Number(commitment.original_contract_amount || 0),
+      project?.name || "your project",
+      ssovUrl
+    );
+  } catch (err) {
+    return NextResponse.json(
+      { error: `Failed to send SSOV notification email: ${(err as Error).message}` },
+      { status: 502 }
     );
   }
 
