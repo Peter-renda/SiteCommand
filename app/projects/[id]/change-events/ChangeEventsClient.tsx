@@ -530,14 +530,20 @@ export default function ChangeEventsClient({
         <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-50 border-b border-blue-100 shrink-0">
           <Info className="w-4 h-4 text-blue-500 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-blue-800">Change Events Just Got Faster</p>
+            <p className="text-xs font-semibold text-blue-800">Change Events + Budget Changes</p>
             <p className="text-xs text-blue-600">
-              We&apos;ve improved the Change Events beta experience with faster load times, grouped filters, and more.
+              Configure Budget ROM (In Scope, Out of Scope, TBD Scope), auto-link budget changes to change
+              events, and use Financial Impact workflows to track cost and revenue impact.
             </p>
           </div>
-          <button className="px-3 py-1 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-100 transition-colors shrink-0">
+          <a
+            href="https://v2.support.procore.com/process-guides/about-change-events/"
+            target="_blank"
+            rel="noreferrer"
+            className="px-3 py-1 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-100 transition-colors shrink-0"
+          >
             Learn More
-          </button>
+          </a>
           <button
             onClick={() => setShowBanner(false)}
             className="text-blue-400 hover:text-blue-600 transition-colors shrink-0"
