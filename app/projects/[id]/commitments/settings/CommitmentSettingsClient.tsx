@@ -40,6 +40,10 @@ export default function CommitmentSettingsClient({
   const [alwaysEditable, setAlwaysEditable] = useState(false);
   const [ssovByDefault, setSsovByDefault] = useState(false);
   const [enableFinancialMarkup, setEnableFinancialMarkup] = useState(false);
+  const [changeOrderTiers, setChangeOrderTiers] = useState(1);
+  const [allowStandardUsersCreateCcos, setAllowStandardUsersCreateCcos] = useState(false);
+  const [allowStandardUsersCreatePcos, setAllowStandardUsersCreatePcos] = useState(false);
+  const [enableFieldInitiatedCos, setEnableFieldInitiatedCos] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string>("");
@@ -56,6 +60,10 @@ export default function CommitmentSettingsClient({
         setAlwaysEditable(!!data?.enable_always_editable_sov);
         setSsovByDefault(!!data?.enable_ssov_by_default);
         setEnableFinancialMarkup(!!data?.enable_financial_markup);
+        setChangeOrderTiers(data?.number_of_change_order_tiers ?? 1);
+        setAllowStandardUsersCreateCcos(!!data?.allow_standard_users_create_ccos);
+        setAllowStandardUsersCreatePcos(!!data?.allow_standard_users_create_pcos);
+        setEnableFieldInitiatedCos(!!data?.enable_field_initiated_change_orders);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -84,6 +92,10 @@ export default function CommitmentSettingsClient({
           enable_always_editable_sov: alwaysEditable,
           enable_ssov_by_default: ssovByDefault,
           enable_financial_markup: enableFinancialMarkup,
+          number_of_change_order_tiers: changeOrderTiers,
+          allow_standard_users_create_ccos: allowStandardUsersCreateCcos,
+          allow_standard_users_create_pcos: allowStandardUsersCreatePcos,
+          enable_field_initiated_change_orders: enableFieldInitiatedCos,
         }),
       });
       if (res.ok) setSavedAt(new Date().toLocaleTimeString());

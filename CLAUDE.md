@@ -949,3 +949,143 @@ Users can customize the Commitments table: show/hide columns, change row height,
 - Changes recorded in `PATCH /api/projects/[id]/commitments/[commitmentId]` by comparing old vs new values for all tracked fields.
 - Tracked fields include: status, executed, contract_company, title, default_retainage, amounts, ssov_enabled, is_private, sov_accounting_method, financial_markup_enabled, dates, inclusions, exclusions, description.
 - Change History tab in `CommitmentDetailClient.tsx` fetches lazily on first tab click.
+
+## Commitment Change Order (CCO) Workflows
+
+### Configure the Number of Commitment Change Order Tiers
+
+#### Required Permissions
+- **Admin** level on the Commitments tool.
+
+#### Key Rule
+- Configure tiers **before** creating any change orders. Changing tiers after COs are created is not recommended.
+- **1 Tier** — direct CCO creation (no PCO step required).
+- **2 Tier** — Potential Change Order (PCO) must be created first, then promoted to a CCO.
+- **3 Tier** — PCO → Change Order Request (COR) → CCO.
+
+#### Workflow
+1. Open the Commitments tool → **Configure Settings** (gear icon).
+2. In the **Contract Configuration** section, set **Number of Commitment Change Order Tiers** to 1, 2, or 3.
+3. Optionally enable:
+   - **Allow Standard Level Users to Create CCOs** (1-tier only)
+   - **Allow Standard Level Users to Create PCOs** (2/3-tier only)
+   - **Enable Field-Initiated Change Orders** (requires "Allow Standard Users to Create PCOs" to be on)
+4. Click **Save**.
+
+#### Implementation Notes (SiteCommand)
+- Database: `commitment_settings` columns `number_of_change_order_tiers`, `allow_standard_users_create_ccos`, `allow_standard_users_create_pcos`, `enable_field_initiated_change_orders` (migration `093_commitment_change_order_configuration.sql`).
+- UI: `CommitmentSettingsClient.tsx` → **Contract Configuration** section; state variables `changeOrderTiers`, `allowStandardUsersCreateCcos`, `allowStandardUsersCreatePcos`, `enableFieldInitiatedCos` wired to GET/PUT of `/api/projects/[id]/commitment-settings`.
+- **Bug fixed**: These state variables were previously missing from the component; the API route also had undefined variable references — both are now corrected.
+
+---
+
+### Create a Commitment Change Order (CCO)
+
+#### Required Permissions
+- **Admin** level on the Commitments tool, OR
+- **Standard** + "Allow Standard Level Users to Create CCOs" setting enabled (1-tier only).
+
+#### Workflow
+1. Open a commitment → **Change Orders** tab → **Create CCO**.
+2. Fill in the form: Title, Status, Change Reason, Private, Due Date, Designated Reviewer, Request Received From, Description, Amount.
+3. Optionally add SOV line items on the **Schedule of Values** tab.
+4. If financial markup is enabled on the commitment, configure it on the **Financial Markup** tab.
+5. Click **Create**.
+
+#### Implementation Notes (SiteCommand)
+- Form: `NewCommitmentCOClient.tsx` at `/projects/[id]/commitments/[commitmentId]/change-orders/new`.
+- API: `POST /api/projects/[id]/change-orders` — creates a `change_orders` row with `type = 'commitment'` and `commitment_id`.
+- Accepts `eventIds` query param to pre-populate from change event line items.
+
+---
+
+### Approve or Reject Commitment Change Orders
+
+#### Required Permissions
+- The logged-in user must be the **Designated Reviewer** on the CCO.
+- CCO status must be **Pending - In Review** or **Pending - Revised**.
+
+#### Workflow
+1. Open the CCO detail page.
+2. If the logged-in user is the designated reviewer and the status is pending, **Approve** and **Reject** buttons appear in the header alongside a "Awaiting your review" notice.
+3. Click **Approve** or **Reject**; status updates immediately and reviewer name + date are recorded.
+
+#### Implementation Notes (SiteCommand)
+- `ChangeOrderDetailClient.tsx`: `isReviewer` checks if `username === designatedReviewer`, `pendingReview` checks for the two pending statuses.
+- `handleReview("Approved" | "Rejected")` PATCHes the change order with new status, reviewer name, and review date.
+- **Already implemented** — no code changes needed.
+
+---
+
+### Create a CCO from a Change Event (Bulk)
+
+#### Required Permissions
+- **Standard** or **Admin** on Change Events.
+- **Admin** on Commitments.
+
+#### Workflow
+1. Open the Change Events tool → select one or more line items via checkboxes.
+2. Click **Bulk Actions** → **Create Commitment CO** → select the target commitment.
+3. A new CCO is created with SOV pre-populated from the selected change event line items.
+
+#### Implementation Notes (SiteCommand)
+- `ChangeEventsClient.tsx`: "Create Commitment CO" bulk action navigates to `/projects/${projectId}/commitments/${c.id}/change-orders/new?eventIds=${eventIds}`.
+- `NewCommitmentCOClient.tsx` reads the `eventIds` query param and fetches line items to pre-populate the SOV.
+- **Already implemented** — no code changes needed.
+
+---
+
+### Bulk Create Commitment Change Orders from a Change Event
+
+#### Required Permissions
+- **Standard** or **Admin** on Change Events.
+- **Admin** on Commitments.
+
+#### Workflow (Procore)
+In Procore, users can select change event line items across multiple commitments and use "Create Bulk Draft CCOs" to auto-group by vendor and create one CCO per commitment. SiteCommand's current approach navigates to a single CCO creation form targeting one commitment at a time (user selects which commitment).
+
+#### Implementation Notes (SiteCommand)
+- SiteCommand does not auto-group by vendor. Users must select a target commitment, then the CCO form pre-populates from the selected event line items.
+- "Add to Unapproved Commitment CO" is also available as a separate bulk action.
+- Full Procore-style bulk auto-grouping is a future enhancement.
+
+---
+
+### Create a Commitment Potential Change Order (PCO) from a Change Event
+
+#### Required Permissions
+- **Admin** on Commitments, OR **Standard** + "Allow Standard Level Users to Create PCOs" setting enabled.
+- Only available in **2-tier** or **3-tier** CCO workflows.
+
+#### Workflow (Procore)
+1. Open the Change Events tool → select line items.
+2. Click **Bulk Actions** → **Create Commitment PCO** → choose a commitment.
+3. A new PCO is created with line items pre-populated.
+
+#### Implementation Notes (SiteCommand)
+- SiteCommand currently does not have a dedicated "Create Commitment PCO" bulk action in `ChangeEventsClient.tsx`. The "Create Commitment CO" path goes directly to a CCO for 1-tier setups.
+- For 2/3-tier workflows, PCO creation from change events is a pending feature — currently users must create PCOs directly from within the commitment.
+
+---
+
+### Add a Related Item to a Commitment Change Order
+
+#### Required Permissions
+- **Admin** level on the Commitments tool (to add/delete related items).
+- **Read Only** or higher (to view related items).
+
+#### Workflow
+1. Open the CCO detail page.
+2. Click the **Related Items** tab.
+3. To add: select Type, enter Description, Date, and Notes → click **Add Item**.
+4. To remove: click the × button on any row (Admin only).
+
+#### Item Types Supported
+RFI, Submittal, Task, Bid, Meeting, Drawing, Specification Section, Potential Change Order, Change Order Request, Correspondence, Punch Item, Observation, Daily Log, Attachment, Other.
+
+#### Implementation Notes (SiteCommand)
+- Database: `change_order_related_items` table (migration `098_change_order_related_items.sql`).
+- API:
+  - `GET /POST /api/projects/[id]/change-orders/[changeOrderId]/related-items` — read_only GET, admin POST.
+  - `PATCH /DELETE /api/projects/[id]/change-orders/[changeOrderId]/related-items/[itemId]` — admin only.
+- UI: `ChangeOrderDetailClient.tsx` — **Related Items** tab added alongside the **General** tab. Tab shows item count badge when items exist. Add form visible only to admin users.
