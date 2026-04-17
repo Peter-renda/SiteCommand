@@ -688,3 +688,27 @@ Notes:
 - Change orders should be forwardable via built-in email workflow to project directory users with valid email addresses.
 - Keep support for notifying designated reviewers that a response is required.
 - Preserve distinction between forwarding a Commitment CO vs Prime CO while reusing common messaging patterns.
+
+## Submittals Tutorials Alignment Notes (Added April 17, 2026)
+
+### Operational Coverage Added
+- Added lifecycle-compatible API actions for **Duplicate**, **Create Revision**, **Close**, **Distribute**, and **Change Ball in Court** on submittals.
+- Added persistence for extended submittal fields already present in the create flow:
+  - approver name
+  - owner’s manual
+  - package notes
+  - confirmed/actual delivery dates
+  - workflow steps
+  - related items
+- Added soft-delete semantics for submittals (`is_deleted`, `deleted_at`, `deleted_by`) and filtered deleted records from default list/detail views.
+
+### Workflow/Best-Practice Intent
+- Maintains separate save and notify paths on create.
+- Supports revision lineage from duplicate/revision/distribute actions.
+- Restricts Ball in Court reassignment to Draft/Open statuses.
+- Captures close/distribute metadata for auditability.
+
+### Next Phase (if requested)
+- Add reusable workflow templates and template-application UI.
+- Add restore-from-recycle-bin flow for deleted submittals.
+- Add typed related-item linking (drawings/docs/rfis) beyond generic links.
