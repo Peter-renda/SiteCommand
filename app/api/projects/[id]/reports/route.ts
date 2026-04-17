@@ -15,6 +15,8 @@ export async function GET(
   const type = searchParams.get("type");
   const startDate = searchParams.get("start");
   const endDate = searchParams.get("end");
+  const actorEmail = searchParams.get("actor_email");
+  const eventType = searchParams.get("event_type");
 
   if (!type) return NextResponse.json({ error: "Missing type" }, { status: 400 });
 
@@ -107,6 +109,41 @@ export async function GET(
       .order("item_number", { ascending: true });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data ?? []);
+  }
+
+  if (type === "user-activity") {
+    let query = supabase
+      .from("activity_log")
+      .select("id, type, description, created_at, project_id, user:users(email)")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
+
+    if (startDate) query = query.gte("created_at", `${startDate}T00:00:00.000Z`);
+    if (endDate) query = query.lte("created_at", `${endDate}T23:59:59.999Z`);
+    if (eventType) query = query.ilike("type", `%${eventType}%`);
+
+    const { data, error } = await query;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const rows = (data ?? [])
+      .map((row) => {
+        const eventTypeValue = row.type ?? "";
+        const toolName = eventTypeValue.includes(".") ? eventTypeValue.split(".")[0] : eventTypeValue;
+        const actorEmailValue =
+          row.user && typeof row.user === "object" && "email" in row.user ? (row.user.email as string | null) : null;
+        return {
+          created_at: row.created_at,
+          actor_email: actorEmailValue ?? "System",
+          event_type: eventTypeValue,
+          tool_name: toolName,
+          description: row.description,
+          project_name: "Current Project",
+          object_id: row.id,
+        };
+      })
+      .filter((row) => (actorEmail ? row.actor_email.toLowerCase().includes(actorEmail.toLowerCase()) : true));
+
+    return NextResponse.json(rows);
   }
 
   return NextResponse.json({ error: "Unknown report type" }, { status: 400 });

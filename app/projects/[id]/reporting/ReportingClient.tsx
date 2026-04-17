@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -24,6 +24,29 @@ type SavedReport = {
   updatedAt: string;
   sharedWith: string[];
   sourceReportId?: string;
+  calculatedColumns?: CalculatedColumn[];
+  distributionCount?: number;
+  lastDistributedAt?: string;
+  promotedToCompanyAt?: string;
+  promotedBy?: string;
+};
+
+type CalculatedColumnType = "basic" | "date-variance";
+type CalculatedOutput = "number" | "currency" | "percent" | "date-variance";
+
+type CalculatedColumn = {
+  id: string;
+  name: string;
+  description?: string;
+  type: CalculatedColumnType;
+  output: CalculatedOutput;
+  leftSource: string;
+  operator: "+" | "-" | "*" | "/";
+  rightSource: string;
+  leftConstant?: number;
+  rightConstant?: number;
+  decimals: number;
+  rounding: boolean;
 };
 
 type DashboardVisual = {
@@ -45,6 +68,8 @@ type SavedDashboard = {
   updatedAt: string;
   sharedWith: string[];
 };
+
+type SnapshotSchedule = "one-time" | "daily" | "weekly" | "monthly";
 
 // ─── Report definitions ───────────────────────────────────────────────────────
 
@@ -191,6 +216,22 @@ const REPORT_TYPES: ReportDef[] = [
     ],
   },
   {
+    label: "User Activity",
+    value: "user-activity",
+    group: "360 Reporting",
+    description: "Audit tool usage by actor, event type, and timestamp to monitor platform adoption and activity.",
+    hasDateRange: true,
+    columns: [
+      { key: "created_at", label: "Activity Time" },
+      { key: "actor_email", label: "Actor Email" },
+      { key: "event_type", label: "Event Type" },
+      { key: "tool_name", label: "Tool" },
+      { key: "description", label: "Description" },
+      { key: "project_name", label: "Project" },
+      { key: "object_id", label: "Object ID" },
+    ],
+  },
+  {
     label: "RFIs",
     value: "rfis",
     group: "Project Tools",
@@ -273,6 +314,52 @@ function formatCell(key: string, value: unknown): string {
   return String(value);
 }
 
+function toNumber(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toDayNumber(value: unknown): number {
+  const ms = new Date(String(value)).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function roundWithPrecision(value: number, decimals: number, rounding: boolean): number {
+  const factor = 10 ** Math.max(0, decimals);
+  const scaled = value * factor;
+  const adjusted = rounding ? Math.round(scaled) : Math.trunc(scaled);
+  return adjusted / factor;
+}
+
+function applyCalculatedColumns(rows: Record<string, unknown>[], columns: CalculatedColumn[]): Record<string, unknown>[] {
+  if (columns.length === 0) return rows;
+
+  return rows.map((row) => {
+    const nextRow = { ...row };
+    for (const col of columns) {
+      const leftRaw = col.leftSource === "constant" ? col.leftConstant ?? 0 : row[col.leftSource];
+      const rightRaw = col.rightSource === "constant" ? col.rightConstant ?? 0 : row[col.rightSource];
+
+      let result = 0;
+      if (col.type === "date-variance" || col.output === "date-variance") {
+        result = Math.floor((toDayNumber(leftRaw) - toDayNumber(rightRaw)) / (1000 * 60 * 60 * 24));
+      } else {
+        const left = toNumber(leftRaw);
+        const right = toNumber(rightRaw);
+        if (col.operator === "+") result = left + right;
+        if (col.operator === "-") result = left - right;
+        if (col.operator === "*") result = left * right;
+        if (col.operator === "/") result = right === 0 ? 0 : left / right;
+      }
+
+      const numeric = roundWithPrecision(result, col.decimals, col.rounding);
+      nextRow[col.id] = numeric;
+    }
+    return nextRow;
+  });
+}
+
 function toCSV(columns: { key: string; label: string }[], rows: Record<string, unknown>[]): string {
   const header = columns.map((c) => `"${c.label}"`).join(",");
   const body = rows
@@ -289,6 +376,17 @@ function downloadCSV(filename: string, csv: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+async function downloadXLSX(filename: string, columns: { key: string; label: string }[], rows: Record<string, unknown>[]) {
+  const xlsx = await import("xlsx");
+  const exportRows = rows.map((row) =>
+    Object.fromEntries(columns.map((col) => [col.label, formatCell(col.key, row[col.key])]))
+  );
+  const wb = xlsx.utils.book_new();
+  const ws = xlsx.utils.json_to_sheet(exportRows);
+  xlsx.utils.book_append_sheet(wb, ws, "Report");
+  xlsx.writeFile(wb, filename);
 }
 
 function makeVisualFromReport(report: SavedReport): DashboardVisual {
@@ -411,16 +509,88 @@ function TabButton({ active, label, onClick }: { active: boolean; label: string;
   );
 }
 
+type PermissionLevel = "none" | "standard" | "admin" | "template";
+type PermissionRow = { id: string; name: string; reporting: PermissionLevel; directory: PermissionLevel };
+
+function ReportingSettingsModal({
+  rows,
+  onClose,
+  onSave,
+}: {
+  rows: PermissionRow[];
+  onClose: () => void;
+  onSave: (rows: PermissionRow[]) => void;
+}) {
+  const [draft, setDraft] = useState(rows);
+
+  function setLevel(userId: string, tool: "reporting" | "directory", level: PermissionLevel) {
+    setDraft((prev) => prev.map((row) => (row.id === userId ? { ...row, [tool]: level } : row)));
+  }
+
+  const iconClass = (active: boolean, color: "green" | "red" | "gray") =>
+    `w-7 h-7 rounded-full border flex items-center justify-center text-xs ${active ? (color === "green" ? "bg-emerald-100 border-emerald-300 text-emerald-700" : color === "red" ? "bg-red-100 border-red-300 text-red-700" : "bg-gray-100 border-gray-300 text-gray-600") : "border-gray-200 text-gray-300"}`;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6">
+        <h2 className="text-sm font-semibold text-gray-900">Configure Settings · User Permissions for Reports</h2>
+        <p className="text-xs text-gray-500 mt-1">Grant access so a green check appears for each tool permission level.</p>
+        <div className="mt-3 rounded-md border border-blue-100 bg-blue-50 p-3 text-xs text-blue-900">
+          Required to align with Project 360 Reporting setup: Admin on Reporting and Admin on Project Directory.
+        </div>
+        <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs text-gray-500">User</th>
+                <th className="px-3 py-2 text-left text-xs text-gray-500">360 Reporting</th>
+                <th className="px-3 py-2 text-left text-xs text-gray-500">Project Directory</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {draft.map((row) => (
+                <tr key={row.id}>
+                  <td className="px-3 py-2 text-gray-700">{row.name}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setLevel(row.id, "reporting", "admin")} className={iconClass(row.reporting === "admin", "green")}>✓</button>
+                      <button onClick={() => setLevel(row.id, "reporting", "none")} className={iconClass(row.reporting === "none", "red")}>✕</button>
+                      <button onClick={() => setLevel(row.id, "reporting", "template")} className={iconClass(row.reporting === "template", "gray")}>●</button>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setLevel(row.id, "directory", "admin")} className={iconClass(row.directory === "admin", "green")}>✓</button>
+                      <button onClick={() => setLevel(row.id, "directory", "none")} className={iconClass(row.directory === "none", "red")}>✕</button>
+                      <button onClick={() => setLevel(row.id, "directory", "template")} className={iconClass(row.directory === "template", "gray")}>●</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 py-2 border border-gray-200 rounded-md text-sm text-gray-600">Cancel</button>
+          <button onClick={() => onSave(draft)} className="flex-1 py-2 bg-gray-900 text-white rounded-md text-sm">Save Settings</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Run Report Modal ─────────────────────────────────────────────────────────
 
 function RunReportModal({
   reportDef,
   projectId,
+  initialCalculatedColumns,
   onClose,
   onSave,
 }: {
   reportDef: ReportDef;
   projectId: string;
+  initialCalculatedColumns?: CalculatedColumn[];
   onClose: () => void;
   onSave: (report: SavedReport) => void;
 }) {
@@ -432,6 +602,32 @@ function RunReportModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [ran, setRan] = useState(false);
+  const [calculatedColumns, setCalculatedColumns] = useState<CalculatedColumn[]>(initialCalculatedColumns ?? []);
+  const [newCalcName, setNewCalcName] = useState("");
+  const [newCalcDesc, setNewCalcDesc] = useState("");
+  const [newCalcType, setNewCalcType] = useState<CalculatedOutput>("number");
+  const [newLeftSource, setNewLeftSource] = useState("constant");
+  const [newOperator, setNewOperator] = useState<"+" | "-" | "*" | "/">("+");
+  const [newRightSource, setNewRightSource] = useState("constant");
+  const [newLeftConstant, setNewLeftConstant] = useState("0");
+  const [newRightConstant, setNewRightConstant] = useState("0");
+  const [newDecimals, setNewDecimals] = useState(2);
+  const [newRounding, setNewRounding] = useState(true);
+  const [loadDataManually, setLoadDataManually] = useState(true);
+  const [groupByKey, setGroupByKey] = useState("");
+  const [actorEmailFilter, setActorEmailFilter] = useState("");
+  const [eventTypeFilter, setEventTypeFilter] = useState("");
+
+  const displayColumns = useMemo(
+    () => [
+      ...reportDef.columns,
+      ...calculatedColumns.map((c) => ({
+        key: c.id,
+        label: c.name,
+      })),
+    ],
+    [reportDef.columns, calculatedColumns]
+  );
 
   async function runReport() {
     setLoading(true);
@@ -442,6 +638,10 @@ function RunReportModal({
       if (startDate) params.set("start", startDate);
       if (endDate) params.set("end", endDate);
     }
+    if (reportDef.value === "user-activity") {
+      if (actorEmailFilter.trim()) params.set("actor_email", actorEmailFilter.trim());
+      if (eventTypeFilter.trim()) params.set("event_type", eventTypeFilter.trim());
+    }
     const res = await fetch(`/api/projects/${projectId}/reports?${params}`);
     const data = await res.json();
     setLoading(false);
@@ -451,20 +651,24 @@ function RunReportModal({
       setRows([]);
       return;
     }
-    setRows(Array.isArray(data) ? data : []);
+    let sourceRows = Array.isArray(data) ? data : [];
+    if (groupByKey) {
+      sourceRows = [...sourceRows].sort((a, b) => String(a[groupByKey] ?? "").localeCompare(String(b[groupByKey] ?? "")));
+    }
+    setRows(applyCalculatedColumns(sourceRows, calculatedColumns));
   }
 
   function handleExport() {
     if (rows.length === 0) return;
-    const csv = toCSV(reportDef.columns, rows);
+    const csv = toCSV(displayColumns, rows);
     downloadCSV(`${reportName.toLowerCase().replace(/\s+/g, "-")}.csv`, csv);
   }
 
   function handleExportPDF() {
     if (rows.length === 0) return;
-    const headerCells = reportDef.columns.map((c) => `<th>${c.label}</th>`).join("");
+    const headerCells = displayColumns.map((c) => `<th>${c.label}</th>`).join("");
     const bodyRows = rows
-      .map((row) => `<tr>${reportDef.columns.map((c) => `<td>${formatCell(c.key, row[c.key])}</td>`).join("")}</tr>`)
+      .map((row) => `<tr>${displayColumns.map((c) => `<td>${formatCell(c.key, row[c.key])}</td>`).join("")}</tr>`)
       .join("");
     const html = `<!DOCTYPE html><html><head><title>${reportName}</title><style>
       body{font-family:sans-serif;font-size:11px;margin:24px}
@@ -498,10 +702,41 @@ function RunReportModal({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       sharedWith: [],
+      calculatedColumns,
     };
     onSave(saved);
     onClose();
   }
+
+  function addCalculatedColumn() {
+    if (!newCalcName.trim()) return;
+    const type: CalculatedColumnType = newCalcType === "date-variance" ? "date-variance" : "basic";
+    const newCol: CalculatedColumn = {
+      id: `calc_${crypto.randomUUID()}`,
+      name: newCalcName.trim(),
+      description: newCalcDesc.trim() || undefined,
+      type,
+      output: newCalcType,
+      leftSource: newLeftSource,
+      operator: newOperator,
+      rightSource: newRightSource,
+      leftConstant: newLeftSource === "constant" ? toNumber(newLeftConstant) : undefined,
+      rightConstant: newRightSource === "constant" ? toNumber(newRightConstant) : undefined,
+      decimals: newCalcType === "date-variance" ? 0 : newDecimals,
+      rounding: newRounding,
+    };
+    setCalculatedColumns((prev) => [...prev, newCol]);
+    setNewCalcName("");
+    setNewCalcDesc("");
+  }
+
+  useEffect(() => {
+    if (!loadDataManually) {
+      void runReport();
+    }
+    // intentionally driven by report configuration controls
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadDataManually, startDate, endDate, actorEmailFilter, eventTypeFilter, groupByKey, calculatedColumns]);
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8">
@@ -526,7 +761,100 @@ function RunReportModal({
         </div>
 
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 shrink-0">
+          <div className="mb-3 rounded-md border border-gray-200 bg-white p-3">
+            <p className="text-xs font-medium text-gray-700 mb-2">Custom Columns (Calculation)</p>
+            <p className="text-[11px] text-gray-500 mb-3">
+              Calculated columns are saved to this report only and can use source columns or constants.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+              <input
+                value={newCalcName}
+                onChange={(e) => setNewCalcName(e.target.value)}
+                placeholder="Calculation Name"
+                className="md:col-span-2 px-2.5 py-1.5 border border-gray-200 rounded text-xs"
+              />
+              <select
+                value={newCalcType}
+                onChange={(e) => setNewCalcType(e.target.value as CalculatedOutput)}
+                className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white"
+              >
+                <option value="number">Number</option>
+                <option value="currency">Currency</option>
+                <option value="percent">Percentage</option>
+                <option value="date-variance">Date Variance</option>
+              </select>
+              <select value={newLeftSource} onChange={(e) => setNewLeftSource(e.target.value)} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="constant">Column X: Constant</option>
+                {reportDef.columns.map((col) => (
+                  <option key={col.key} value={col.key}>
+                    Column X: {col.label}
+                  </option>
+                ))}
+              </select>
+              <select value={newOperator} onChange={(e) => setNewOperator(e.target.value as "+" | "-" | "*" | "/")} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="+">+</option>
+                <option value="-">-</option>
+                <option value="*">x</option>
+                <option value="/">/</option>
+              </select>
+              <select value={newRightSource} onChange={(e) => setNewRightSource(e.target.value)} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="constant">Column Y: Constant</option>
+                {reportDef.columns.map((col) => (
+                  <option key={col.key} value={col.key}>
+                    Column Y: {col.label}
+                  </option>
+                ))}
+              </select>
+              {newLeftSource === "constant" && (
+                <input value={newLeftConstant} onChange={(e) => setNewLeftConstant(e.target.value)} placeholder="X Constant" className="px-2.5 py-1.5 border border-gray-200 rounded text-xs" />
+              )}
+              {newRightSource === "constant" && (
+                <input value={newRightConstant} onChange={(e) => setNewRightConstant(e.target.value)} placeholder="Y Constant" className="px-2.5 py-1.5 border border-gray-200 rounded text-xs" />
+              )}
+              {newCalcType !== "date-variance" && (
+                <select value={String(newDecimals)} onChange={(e) => setNewDecimals(Number(e.target.value))} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                  <option value="0">Ones (1)</option>
+                  <option value="1">Tenths (1.0)</option>
+                  <option value="2">Hundredths (1.00)</option>
+                  <option value="3">Thousandths (1.000)</option>
+                  <option value="4">Ten Thousandths (1.0000)</option>
+                  <option value="5">Hundred Thousandths (1.00000)</option>
+                  <option value="6">Millionths (1.000000)</option>
+                </select>
+              )}
+              {newCalcType !== "date-variance" && (
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                  <input type="checkbox" checked={newRounding} onChange={(e) => setNewRounding(e.target.checked)} className="rounded" />
+                  Rounding
+                </label>
+              )}
+              <button onClick={addCalculatedColumn} className="px-3 py-1.5 bg-gray-900 text-white text-xs rounded hover:bg-gray-700">
+                + Create Calculation
+              </button>
+            </div>
+            {calculatedColumns.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {calculatedColumns.map((col) => (
+                  <span key={col.id} className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 text-xs text-gray-700">
+                    {col.name}
+                    <button onClick={() => setCalculatedColumns((prev) => prev.filter((c) => c.id !== col.id))} className="text-gray-400 hover:text-red-600">
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex flex-wrap items-end gap-3">
+            <label className="inline-flex items-center gap-2 text-xs text-gray-600 mr-3">
+              <input
+                type="checkbox"
+                checked={loadDataManually}
+                onChange={(e) => setLoadDataManually(e.target.checked)}
+                className="rounded"
+              />
+              Load Data Manually
+            </label>
             {reportDef.hasDateRange && (
               <>
                 <div>
@@ -549,6 +877,43 @@ function RunReportModal({
                 </div>
               </>
             )}
+            {reportDef.value === "user-activity" && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Actor Email (optional)</label>
+                  <input
+                    value={actorEmailFilter}
+                    onChange={(e) => setActorEmailFilter(e.target.value)}
+                    placeholder="name@company.com"
+                    className="px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Event Type (optional)</label>
+                  <input
+                    value={eventTypeFilter}
+                    onChange={(e) => setEventTypeFilter(e.target.value)}
+                    placeholder="created, updated..."
+                    className="px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+              </>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Table Group</label>
+              <select
+                value={groupByKey}
+                onChange={(e) => setGroupByKey(e.target.value)}
+                className="px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+              >
+                <option value="">No grouping</option>
+                {reportDef.columns.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={runReport}
               disabled={loading}
@@ -558,6 +923,12 @@ function RunReportModal({
             </button>
             {ran && rows.length > 0 && (
               <>
+                <button
+                  onClick={() => void downloadXLSX(`${reportName.toLowerCase().replace(/\s+/g, "-")}.xlsx`, displayColumns, rows)}
+                  className="px-4 py-1.5 border border-gray-200 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Export XLSX
+                </button>
                 <button
                   onClick={handleExport}
                   className="px-4 py-1.5 border border-gray-200 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
@@ -579,6 +950,11 @@ function RunReportModal({
               </>
             )}
           </div>
+          {reportDef.value === "user-activity" && (
+            <p className="text-[11px] text-gray-500 mt-2">
+              User Activity dataset uses a single dataset without joins. Export limits: CSV 700,000 rows, XLSX 200,000 rows, PDF 5,000 rows.
+            </p>
+          )}
         </div>
 
         <div className="overflow-auto flex-1">
@@ -598,7 +974,7 @@ function RunReportModal({
               <table className="w-full text-sm">
                 <thead className="sticky top-9">
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    {reportDef.columns.map((col) => (
+                    {displayColumns.map((col) => (
                       <th
                         key={col.key}
                         className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap"
@@ -611,7 +987,7 @@ function RunReportModal({
                 <tbody className="divide-y divide-gray-50">
                   {rows.map((row, i) => (
                     <tr key={i} className="hover:bg-gray-50 transition-colors">
-                      {reportDef.columns.map((col) => (
+                      {displayColumns.map((col) => (
                         <td
                           key={col.key}
                           className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap max-w-xs truncate"
@@ -777,6 +1153,277 @@ function CreateDashboardModal({
   );
 }
 
+function TemplatePreviewModal({
+  template,
+  onClose,
+  onUseTemplate,
+}: {
+  template: ReportDef;
+  onClose: () => void;
+  onUseTemplate: (template: ReportDef) => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6">
+        <h2 className="text-base font-semibold text-gray-900">{template.label} Template</h2>
+        <p className="text-xs text-gray-500 mt-1">{template.description}</p>
+        <div className="mt-4">
+          <p className="text-xs font-medium text-gray-700 mb-2">Included Columns</p>
+          <div className="flex flex-wrap gap-1.5">
+            {template.columns.map((col) => (
+              <span key={col.key} className="px-2 py-1 rounded border border-gray-200 text-xs text-gray-600">
+                {col.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2 mt-6">
+          <button onClick={onClose} className="flex-1 py-2 border border-gray-200 rounded-md text-sm text-gray-600">
+            Cancel
+          </button>
+          <button
+            onClick={() => onUseTemplate(template)}
+            className="flex-1 py-2 bg-gray-900 text-white rounded-md text-sm"
+          >
+            Use Template
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditReportModal({
+  report,
+  onClose,
+  onSave,
+}: {
+  report: SavedReport;
+  onClose: () => void;
+  onSave: (reportId: string, patch: Partial<SavedReport>) => void;
+}) {
+  const [name, setName] = useState(report.name);
+  const [description, setDescription] = useState(report.description);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+        <h2 className="text-base font-semibold text-gray-900">Edit Report</h2>
+        <p className="text-xs text-gray-500 mt-1">Update report name and description. Calculations are preserved.</p>
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Report Name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm" />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-6">
+          <button onClick={onClose} className="flex-1 py-2 border border-gray-200 text-sm rounded-md text-gray-600">Cancel</button>
+          <button
+            onClick={() => onSave(report.id, { name: name.trim() || report.name, description: description.trim(), updatedAt: new Date().toISOString() })}
+            className="flex-1 py-2 bg-gray-900 text-white text-sm rounded-md"
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DistributeSnapshotModal({
+  report,
+  onClose,
+  onSend,
+}: {
+  report: SavedReport;
+  onClose: () => void;
+  onSend: (payload: { reportId: string; recipients: string[]; format: "pdf" | "csv" | "xlsx"; schedule: SnapshotSchedule }) => void;
+}) {
+  const [recipientText, setRecipientText] = useState("");
+  const [format, setFormat] = useState<"pdf" | "csv" | "xlsx">("pdf");
+  const [schedule, setSchedule] = useState<SnapshotSchedule>("one-time");
+
+  const recipients = recipientText
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-xl p-6">
+        <h2 className="text-base font-semibold text-gray-900">Distribute Snapshot</h2>
+        <p className="text-xs text-gray-500 mt-1">
+          Send a static snapshot of <span className="font-medium">{report.name}</span> to recipients.
+        </p>
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Recipients (comma-separated emails)</label>
+            <input
+              value={recipientText}
+              onChange={(e) => setRecipientText(e.target.value)}
+              placeholder="pm@company.com, exec@company.com"
+              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">File Format</label>
+              <select value={format} onChange={(e) => setFormat(e.target.value as "pdf" | "csv" | "xlsx")} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white">
+                <option value="pdf">PDF</option>
+                <option value="csv">CSV</option>
+                <option value="xlsx">XLSX</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Schedule</label>
+              <select value={schedule} onChange={(e) => setSchedule(e.target.value as SnapshotSchedule)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white">
+                <option value="one-time">One Time</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 text-[11px] text-gray-500">
+          Snapshots send report output as-of send time. Recipients can view without entering the report builder.
+        </div>
+        <div className="flex gap-2 mt-6">
+          <button onClick={onClose} className="flex-1 py-2 border border-gray-200 text-sm rounded-md text-gray-600">Cancel</button>
+          <button
+            disabled={recipients.length === 0}
+            onClick={() => onSend({ reportId: report.id, recipients, format, schedule })}
+            className="flex-1 py-2 bg-gray-900 text-white text-sm rounded-md disabled:opacity-40"
+          >
+            Distribute
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareReportModal({
+  report,
+  onClose,
+  onShare,
+}: {
+  report: SavedReport;
+  onClose: () => void;
+  onShare: (reportId: string, sharedWith: string[]) => void;
+}) {
+  const options = ["Company Admins", "Project Managers", "Field Engineers", "Executives", "External Collaborators"];
+  const [selected, setSelected] = useState<string[]>(report.sharedWith);
+
+  function toggle(option: string) {
+    setSelected((prev) => (prev.includes(option) ? prev.filter((v) => v !== option) : [...prev, option]));
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+        <h2 className="text-base font-semibold text-gray-900">Share Report</h2>
+        <p className="text-xs text-gray-500 mt-1">Choose who can access this report in My Reports.</p>
+        <div className="mt-4 space-y-2">
+          {options.map((option) => (
+            <label key={option} className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={selected.includes(option)} onChange={() => toggle(option)} className="rounded" />
+              {option}
+            </label>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-6">
+          <button onClick={onClose} className="flex-1 py-2 border border-gray-200 rounded-md text-sm text-gray-600">Cancel</button>
+          <button onClick={() => onShare(report.id, selected)} className="flex-1 py-2 bg-gray-900 text-white rounded-md text-sm">
+            Share
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PromoteReportModal({
+  report,
+  onClose,
+  onPromote,
+}: {
+  report: SavedReport;
+  onClose: () => void;
+  onPromote: (reportId: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+        <h2 className="text-base font-semibold text-gray-900">Promote to Company Level</h2>
+        <p className="text-sm text-gray-600 mt-2">
+          Promote <span className="font-medium">{report.name}</span> so teams can reuse this report as a company template.
+        </p>
+        <p className="text-[11px] text-gray-500 mt-2">Only company admins should perform this action.</p>
+        <div className="flex gap-2 mt-6">
+          <button onClick={onClose} className="flex-1 py-2 border border-gray-200 text-sm rounded-md text-gray-600">Cancel</button>
+          <button onClick={() => onPromote(report.id)} className="flex-1 py-2 bg-gray-900 text-white text-sm rounded-md">Promote</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssistReportModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (reportDef: ReportDef) => void;
+}) {
+  const [prompt, setPrompt] = useState("");
+  const [recommendation, setRecommendation] = useState<ReportDef | null>(null);
+
+  function suggest() {
+    const q = prompt.toLowerCase();
+    const match =
+      REPORT_TYPES.find((r) => q.includes("rfi") && r.value === "rfis") ||
+      REPORT_TYPES.find((r) => q.includes("submittal") && r.value === "submittals") ||
+      REPORT_TYPES.find((r) => q.includes("task") && r.value === "tasks") ||
+      REPORT_TYPES.find((r) => q.includes("user") && r.value === "user-activity") ||
+      REPORT_TYPES[0];
+    setRecommendation(match ?? null);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6">
+        <h2 className="text-base font-semibold text-gray-900">Get a Custom 360 Report from Assist</h2>
+        <p className="text-xs text-gray-500 mt-1">Describe the outcome you want and Assist will recommend a starting report.</p>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          rows={4}
+          placeholder="Example: Show overdue RFIs by status and responsible team..."
+          className="mt-4 w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+        />
+        <div className="flex gap-2 mt-4">
+          <button onClick={suggest} className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm">Generate Recommendation</button>
+          <button onClick={onClose} className="px-4 py-2 border border-gray-200 text-gray-600 rounded-md text-sm">Close</button>
+        </div>
+        {recommendation && (
+          <div className="mt-4 rounded border border-gray-200 p-3">
+            <p className="text-sm font-medium text-gray-900">Recommended: {recommendation.label}</p>
+            <p className="text-xs text-gray-500 mt-1">{recommendation.description}</p>
+            <button onClick={() => onCreate(recommendation)} className="mt-3 px-3 py-1.5 bg-gray-900 text-white rounded text-xs">
+              Create from Assist Suggestion
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ReportingClient({ projectId }: { projectId: string }) {
@@ -789,8 +1436,24 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
   const [dashboards, setDashboards] = useState<SavedDashboard[]>([]);
   const [showCreateDashboardModal, setShowCreateDashboardModal] = useState(false);
   const [shareDashboardId, setShareDashboardId] = useState<string | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<ReportDef | null>(null);
+  const [showAssistModal, setShowAssistModal] = useState(false);
+  const [editReportId, setEditReportId] = useState<string | null>(null);
+  const [distributeReportId, setDistributeReportId] = useState<string | null>(null);
+  const [deleteReportId, setDeleteReportId] = useState<string | null>(null);
+  const [shareReportId, setShareReportId] = useState<string | null>(null);
+  const [promoteReportId, setPromoteReportId] = useState<string | null>(null);
+  const [templateDatasetFilter, setTemplateDatasetFilter] = useState("all");
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [permissions, setPermissions] = useState<PermissionRow[]>([
+    { id: "u1", name: "Company Admin", reporting: "admin", directory: "admin" },
+    { id: "u2", name: "Project Manager", reporting: "standard", directory: "standard" },
+    { id: "u3", name: "Field Engineer", reporting: "none", directory: "standard" },
+    { id: "u4", name: "Executive (Template)", reporting: "template", directory: "template" },
+  ]);
 
   const [activeReport, setActiveReport] = useState<ReportDef | null>(null);
+  const [activeCalculatedColumns, setActiveCalculatedColumns] = useState<CalculatedColumn[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createType, setCreateType] = useState("");
 
@@ -798,6 +1461,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
 
   function openTemplate(def: ReportDef) {
     setActiveReport(def);
+    setActiveCalculatedColumns([]);
   }
 
   function openFromSaved(saved: SavedReport) {
@@ -811,7 +1475,10 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
         return expectedType === saved.reportType;
       });
 
-    if (def) setActiveReport(def);
+    if (def) {
+      setActiveReport(def);
+      setActiveCalculatedColumns(saved.calculatedColumns ?? []);
+    }
   }
 
   function handleSaveReport(report: SavedReport) {
@@ -820,6 +1487,35 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
 
   function deleteReport(id: string) {
     setMyReports((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  function updateSavedReport(reportId: string, patch: Partial<SavedReport>) {
+    setMyReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, ...patch, updatedAt: new Date().toISOString() } : r)));
+  }
+
+  function distributeSnapshot(payload: { reportId: string; recipients: string[]; format: "pdf" | "csv" | "xlsx"; schedule: SnapshotSchedule }) {
+    const now = new Date().toISOString();
+    setMyReports((prev) =>
+      prev.map((r) =>
+        r.id === payload.reportId
+          ? { ...r, distributionCount: (r.distributionCount ?? 0) + 1, lastDistributedAt: now, updatedAt: now }
+          : r
+      )
+    );
+    setDistributeReportId(null);
+  }
+
+  function shareReport(reportId: string, sharedWith: string[]) {
+    updateSavedReport(reportId, { sharedWith });
+    setShareReportId(null);
+  }
+
+  function promoteReport(reportId: string) {
+    updateSavedReport(reportId, {
+      promotedToCompanyAt: new Date().toISOString(),
+      promotedBy: "Company Admin",
+    });
+    setPromoteReportId(null);
   }
 
   function cloneReport(report: SavedReport) {
@@ -833,6 +1529,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
       updatedAt: now,
       sourceReportId: report.id,
       sharedWith: [],
+      calculatedColumns: report.calculatedColumns,
     };
     setMyReports((prev) => [clone, ...prev]);
   }
@@ -865,11 +1562,12 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
 
   const filteredTemplates = useMemo(() => {
     const q = search.toLowerCase();
-    if (!q) return REPORT_TYPES;
-    return REPORT_TYPES.filter(
+    const scoped = templateDatasetFilter === "all" ? REPORT_TYPES : REPORT_TYPES.filter((r) => r.group === templateDatasetFilter);
+    if (!q) return scoped;
+    return scoped.filter(
       (r) => r.label.toLowerCase().includes(q) || r.group.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [search, templateDatasetFilter]);
 
   const filteredMyReports = useMemo(() => {
     const q = search.toLowerCase();
@@ -893,6 +1591,11 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
   }, [dashboards, search]);
 
   const sharingDashboard = shareDashboardId ? dashboards.find((d) => d.id === shareDashboardId) ?? null : null;
+  const editingReport = editReportId ? myReports.find((r) => r.id === editReportId) ?? null : null;
+  const distributingReport = distributeReportId ? myReports.find((r) => r.id === distributeReportId) ?? null : null;
+  const deletingReport = deleteReportId ? myReports.find((r) => r.id === deleteReportId) ?? null : null;
+  const sharingReport = shareReportId ? myReports.find((r) => r.id === shareReportId) ?? null : null;
+  const promotingReport = promoteReportId ? myReports.find((r) => r.id === promoteReportId) ?? null : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -907,6 +1610,18 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
           <div className="flex items-center gap-2 shrink-0">
             <TabButton active={activeTab === "reports"} label="Reports" onClick={() => setActiveTab("reports")} />
             <TabButton active={activeTab === "dashboards"} label="Dashboards" onClick={() => setActiveTab("dashboards")} />
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="px-3 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50"
+            >
+              Configure Settings
+            </button>
+            <button
+              onClick={() => setShowAssistModal(true)}
+              className="px-3 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50"
+            >
+              Assist
+            </button>
             {activeTab === "reports" ? (
               <button
                 onClick={() => setShowCreateModal(true)}
@@ -956,7 +1671,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
               <SectionHeader
                 title="My Reports"
                 count={filteredMyReports.length}
-                subtitle="Created reports and cloned copies. Users with Standard or higher permissions can clone shared reports."
+                subtitle="Edit reports, distribute snapshots, clone copies, or permanently delete when no longer needed."
                 open={myReportsOpen}
                 onToggle={() => setMyReportsOpen((v) => !v)}
               />
@@ -979,6 +1694,8 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-32">Created By</th>
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-28">Date Created</th>
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-28">Last Modified</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-36">Last Snapshot</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-36">Company Level</th>
                           <th className="w-10" />
                         </tr>
                       </thead>
@@ -993,12 +1710,18 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                             <td className="px-4 py-3 text-gray-600">{r.createdBy}</td>
                             <td className="px-4 py-3 text-gray-500">{fmtDate(r.createdAt)}</td>
                             <td className="px-4 py-3 text-gray-500">{fmtDate(r.updatedAt)}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500">{r.lastDistributedAt ? `${fmtDate(r.lastDistributedAt)} (${r.distributionCount ?? 1})` : "Never"}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500">{r.promotedToCompanyAt ? `Promoted ${fmtDate(r.promotedToCompanyAt)}` : "Project Only"}</td>
                             <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
                               <RowMenu
                                 actions={[
                                   { label: "Run Report", onClick: () => openFromSaved(r) },
+                                  { label: "Edit Report", onClick: () => setEditReportId(r.id) },
+                                  { label: "Share Report", onClick: () => setShareReportId(r.id) },
+                                  { label: "Distribute Snapshot", onClick: () => setDistributeReportId(r.id) },
+                                  { label: "Promote to Company", onClick: () => setPromoteReportId(r.id) },
                                   { label: "Clone Report", onClick: () => cloneReport(r) },
-                                  { label: "Delete", onClick: () => deleteReport(r.id), danger: true },
+                                  { label: "Delete", onClick: () => setDeleteReportId(r.id), danger: true },
                                 ]}
                               />
                             </td>
@@ -1013,15 +1736,30 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
 
             <div>
               <SectionHeader
-                title="Popular Templates"
+                title="All Templates"
                 count={filteredTemplates.length}
-                subtitle="Choose a template to produce a report from a single project tool. Data is relative to this project."
+                subtitle="Search, filter, preview, and then save a template as a new report in My Reports."
                 open={templatesOpen}
                 onToggle={() => setTemplatesOpen((v) => !v)}
               />
 
               {templatesOpen && (
                 <div className="space-y-4 mt-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-500">Filter Data Sets</label>
+                    <select
+                      value={templateDatasetFilter}
+                      onChange={(e) => setTemplateDatasetFilter(e.target.value)}
+                      className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white"
+                    >
+                      <option value="all">All</option>
+                      {GROUPS.map((group) => (
+                        <option key={group} value={group}>
+                          {group}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   {groupedTemplates.map(({ group, items }) => (
                     <div key={group}>
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 px-1">{group}</p>
@@ -1044,7 +1782,12 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                                 </td>
                                 <td className="px-4 py-3 text-xs text-gray-500 max-w-sm">{r.description}</td>
                                 <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
-                                  <RowMenu actions={[{ label: "Run Report", onClick: () => openTemplate(r) }]} />
+                                  <RowMenu
+                                    actions={[
+                                      { label: "Preview Template", onClick: () => setPreviewTemplate(r) },
+                                      { label: "Use Template", onClick: () => openTemplate(r) },
+                                    ]}
+                                  />
                                 </td>
                               </tr>
                             ))}
@@ -1162,7 +1905,11 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
         <RunReportModal
           reportDef={activeReport}
           projectId={projectId}
-          onClose={() => setActiveReport(null)}
+          initialCalculatedColumns={activeCalculatedColumns}
+          onClose={() => {
+            setActiveReport(null);
+            setActiveCalculatedColumns([]);
+          }}
           onSave={handleSaveReport}
         />
       )}
@@ -1171,7 +1918,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
             <h2 className="text-sm font-semibold text-gray-900 mb-1">Create Report</h2>
-            <p className="text-xs text-gray-400 mb-4">Select a report type to get started.</p>
+            <p className="text-xs text-gray-400 mb-4">Create 360 Report → select dataset (or choose a template from All Templates).</p>
             <div className="mb-4">
               <label className="block text-xs font-medium text-gray-700 mb-1">Report Type</label>
               <select
@@ -1209,6 +1956,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                     setShowCreateModal(false);
                     setCreateType("");
                     setActiveReport(def);
+                    setActiveCalculatedColumns([]);
                   }
                 }}
                 className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40"
@@ -1233,6 +1981,99 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
           dashboard={sharingDashboard}
           onClose={() => setShareDashboardId(null)}
           onShare={(viewerGroups) => updateDashboard(sharingDashboard.id, { sharedWith: viewerGroups })}
+        />
+      )}
+
+      {previewTemplate && (
+        <TemplatePreviewModal
+          template={previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+          onUseTemplate={(template) => {
+            setPreviewTemplate(null);
+            openTemplate(template);
+          }}
+        />
+      )}
+
+      {showAssistModal && (
+        <AssistReportModal
+          onClose={() => setShowAssistModal(false)}
+          onCreate={(reportDef) => {
+            setShowAssistModal(false);
+            openTemplate(reportDef);
+          }}
+        />
+      )}
+
+      {editingReport && (
+        <EditReportModal
+          report={editingReport}
+          onClose={() => setEditReportId(null)}
+          onSave={(reportId, patch) => {
+            updateSavedReport(reportId, patch);
+            setEditReportId(null);
+          }}
+        />
+      )}
+
+      {distributingReport && (
+        <DistributeSnapshotModal
+          report={distributingReport}
+          onClose={() => setDistributeReportId(null)}
+          onSend={distributeSnapshot}
+        />
+      )}
+
+      {sharingReport && (
+        <ShareReportModal
+          report={sharingReport}
+          onClose={() => setShareReportId(null)}
+          onShare={shareReport}
+        />
+      )}
+
+      {promotingReport && (
+        <PromoteReportModal
+          report={promotingReport}
+          onClose={() => setPromoteReportId(null)}
+          onPromote={promoteReport}
+        />
+      )}
+
+      {deletingReport && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-base font-semibold text-gray-900">Delete Report</h2>
+            <p className="text-sm text-gray-600 mt-2">
+              Are you sure you want to permanently delete <span className="font-medium">{deletingReport.name}</span>?
+            </p>
+            <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setDeleteReportId(null)} className="flex-1 py-2 border border-gray-200 text-sm rounded-md text-gray-600">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteReport(deletingReport.id);
+                  setDeleteReportId(null);
+                }}
+                className="flex-1 py-2 bg-red-600 text-white text-sm rounded-md"
+              >
+                Delete Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSettingsModal && (
+        <ReportingSettingsModal
+          rows={permissions}
+          onClose={() => setShowSettingsModal(false)}
+          onSave={(rows) => {
+            setPermissions(rows);
+            setShowSettingsModal(false);
+          }}
         />
       )}
     </div>
