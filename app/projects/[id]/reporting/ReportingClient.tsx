@@ -14,6 +14,31 @@ type ReportDef = {
   hasDateRange: boolean;
 };
 
+type VisualType = "table" | "bar" | "horizontal-bar" | "line" | "donut" | "stacked-bar" | "scorecard";
+
+type VisualConfig = {
+  visualType: VisualType;
+  xAxisKey?: string;
+  yAxisKey?: string;
+  secondaryMeasureKey?: string;
+  sortByKey?: string;
+  sortDirection?: "asc" | "desc";
+  showLegend?: boolean;
+  showValueLabels?: boolean;
+  showPoints?: boolean;
+  maxBars?: number;
+  useDualAxis?: boolean;
+  decimalPlaces?: number;
+  displayUnits?: "none" | "thousands" | "millions";
+};
+
+type VisualCard = {
+  id: string;
+  title: string;
+  description?: string;
+  config: VisualConfig;
+};
+
 type SavedReport = {
   id: string;
   name: string;
@@ -25,6 +50,9 @@ type SavedReport = {
   sharedWith: string[];
   sourceReportId?: string;
   calculatedColumns?: CalculatedColumn[];
+  visualConfig?: VisualConfig;
+  visualCards?: VisualCard[];
+  lastRunRecordCount?: number;
   distributionCount?: number;
   lastDistributedAt?: string;
   promotedToCompanyAt?: string;
@@ -56,6 +84,8 @@ type DashboardVisual = {
   title: string;
   metricLabel: string;
   metricValue: string;
+  visualType: VisualType;
+  summary?: string;
 };
 
 type SavedDashboard = {
@@ -70,6 +100,7 @@ type SavedDashboard = {
 };
 
 type SnapshotSchedule = "one-time" | "daily" | "weekly" | "monthly";
+type AggregateFunction = "none" | "count" | "sum" | "min" | "max" | "avg";
 
 // ─── Report definitions ───────────────────────────────────────────────────────
 
@@ -346,6 +377,15 @@ const REPORT_TYPES: ReportDef[] = [
 
 const GROUPS = Array.from(new Set(REPORT_TYPES.map((r) => r.group)));
 const VIEWER_OPTIONS = ["Company Admins", "Project Managers", "Field Team", "Executives"];
+const VISUAL_TYPE_OPTIONS: { value: VisualType; label: string; description: string }[] = [
+  { value: "table", label: "Tabular Report", description: "Detailed row and column output for audits and exports." },
+  { value: "bar", label: "Bar Chart", description: "Compare values across categories." },
+  { value: "horizontal-bar", label: "Horizontal Bar Chart", description: "Compare categories with long labels." },
+  { value: "line", label: "Line Chart", description: "Trend values over time or sequence." },
+  { value: "donut", label: "Donut Chart", description: "Show proportion-of-total by category." },
+  { value: "stacked-bar", label: "Stacked Bar Chart", description: "Compare totals with part-to-whole composition." },
+  { value: "scorecard", label: "Scorecard", description: "Highlight a single KPI for dashboard headers." },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -409,6 +449,18 @@ function applyCalculatedColumns(rows: Record<string, unknown>[], columns: Calcul
   });
 }
 
+function calculateAggregate(rows: Record<string, unknown>[], key: string, fn: AggregateFunction): string {
+  if (fn === "none") return "";
+  if (fn === "count") return String(rows.length);
+  const numeric = rows.map((row) => toNumber(row[key]));
+  if (numeric.length === 0) return "0";
+  if (fn === "sum") return String(numeric.reduce((sum, value) => sum + value, 0));
+  if (fn === "min") return String(Math.min(...numeric));
+  if (fn === "max") return String(Math.max(...numeric));
+  if (fn === "avg") return String(roundWithPrecision(numeric.reduce((sum, value) => sum + value, 0) / numeric.length, 2, true));
+  return "";
+}
+
 function toCSV(columns: { key: string; label: string }[], rows: Record<string, unknown>[]): string {
   const header = columns.map((c) => `"${c.label}"`).join(",");
   const body = rows
@@ -439,6 +491,9 @@ async function downloadXLSX(filename: string, columns: { key: string; label: str
 }
 
 function makeVisualFromReport(report: SavedReport): DashboardVisual {
+  const visualType = report.visualConfig?.visualType ?? "table";
+  const selectedXAxis = report.visualConfig?.xAxisKey ? `X: ${report.visualConfig.xAxisKey}` : "";
+  const selectedYAxis = report.visualConfig?.yAxisKey ? `Y: ${report.visualConfig.yAxisKey}` : "";
   return {
     id: `visual-${report.id}`,
     reportId: report.id,
@@ -446,6 +501,8 @@ function makeVisualFromReport(report: SavedReport): DashboardVisual {
     title: `${report.name} · Snapshot`,
     metricLabel: "Last Updated",
     metricValue: fmtDate(report.updatedAt),
+    visualType,
+    summary: [selectedXAxis, selectedYAxis].filter(Boolean).join(" · ") || undefined,
   };
 }
 
@@ -643,18 +700,22 @@ function ReportingSettingsModal({
 function RunReportModal({
   reportDef,
   projectId,
+  existingReport,
   initialCalculatedColumns,
   onClose,
   onSave,
+  onUpdate,
 }: {
   reportDef: ReportDef;
   projectId: string;
+  existingReport?: SavedReport | null;
   initialCalculatedColumns?: CalculatedColumn[];
   onClose: () => void;
   onSave: (report: SavedReport) => void;
+  onUpdate?: (reportId: string, patch: Partial<SavedReport>) => void;
 }) {
   const today = new Date();
-  const [reportName, setReportName] = useState(reportDef.label);
+  const [reportName, setReportName] = useState(existingReport?.name ?? reportDef.label);
   const [startDate, setStartDate] = useState(`${today.getFullYear()}-01-01`);
   const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
@@ -674,8 +735,22 @@ function RunReportModal({
   const [newRounding, setNewRounding] = useState(true);
   const [loadDataManually, setLoadDataManually] = useState(true);
   const [groupByKey, setGroupByKey] = useState("");
+  const [visualType, setVisualType] = useState<VisualType>(existingReport?.visualConfig?.visualType ?? "table");
+  const [xAxisKey, setXAxisKey] = useState(existingReport?.visualConfig?.xAxisKey ?? "");
+  const [yAxisKey, setYAxisKey] = useState(existingReport?.visualConfig?.yAxisKey ?? "");
+  const [secondaryMeasureKey, setSecondaryMeasureKey] = useState(existingReport?.visualConfig?.secondaryMeasureKey ?? "");
+  const [sortByKey, setSortByKey] = useState(existingReport?.visualConfig?.sortByKey ?? "");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(existingReport?.visualConfig?.sortDirection ?? "asc");
+  const [showLegend, setShowLegend] = useState(existingReport?.visualConfig?.showLegend ?? true);
+  const [showValueLabels, setShowValueLabels] = useState(existingReport?.visualConfig?.showValueLabels ?? false);
+  const [showPoints, setShowPoints] = useState(existingReport?.visualConfig?.showPoints ?? false);
+  const [maxBars, setMaxBars] = useState(existingReport?.visualConfig?.maxBars ?? 10);
+  const [useDualAxis, setUseDualAxis] = useState(existingReport?.visualConfig?.useDualAxis ?? false);
+  const [decimalPlaces, setDecimalPlaces] = useState(existingReport?.visualConfig?.decimalPlaces ?? 2);
+  const [displayUnits, setDisplayUnits] = useState<"none" | "thousands" | "millions">(existingReport?.visualConfig?.displayUnits ?? "none");
   const [actorEmailFilter, setActorEmailFilter] = useState("");
   const [eventTypeFilter, setEventTypeFilter] = useState("");
+  const [aggregateByColumn, setAggregateByColumn] = useState<Record<string, AggregateFunction>>({});
 
   const displayColumns = useMemo(
     () => [
@@ -713,6 +788,16 @@ function RunReportModal({
     let sourceRows = Array.isArray(data) ? data : [];
     if (groupByKey) {
       sourceRows = [...sourceRows].sort((a, b) => String(a[groupByKey] ?? "").localeCompare(String(b[groupByKey] ?? "")));
+    }
+    if (sortByKey) {
+      sourceRows = [...sourceRows].sort((a, b) => {
+        const av = String(a[sortByKey] ?? "");
+        const bv = String(b[sortByKey] ?? "");
+        return sortDirection === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      });
+    }
+    if (maxBars > 0 && visualType !== "table" && sourceRows.length > maxBars) {
+      sourceRows = sourceRows.slice(0, maxBars);
     }
     setRows(applyCalculatedColumns(sourceRows, calculatedColumns));
   }
@@ -752,12 +837,37 @@ function RunReportModal({
   }
 
   function handleSave() {
-    const reportType =
-      reportDef.group === "Daily Log"
-        ? "Daily Log Report"
-        : reportDef.group === "Financial Management"
-        ? "Financial Report"
-        : "Single Tool Report";
+    const visualConfig: VisualConfig = {
+      visualType,
+      xAxisKey: xAxisKey || undefined,
+      yAxisKey: yAxisKey || undefined,
+      secondaryMeasureKey: secondaryMeasureKey || undefined,
+      sortByKey: sortByKey || undefined,
+      sortDirection,
+      showLegend,
+      showValueLabels,
+      showPoints,
+      maxBars,
+      useDualAxis,
+      decimalPlaces,
+      displayUnits,
+    };
+
+    if (existingReport && onUpdate) {
+      onUpdate(existingReport.id, {
+        name: reportName,
+        calculatedColumns,
+        visualConfig,
+        visualCards: existingReport.visualCards?.length
+          ? existingReport.visualCards.map((card, idx) => (idx === 0 ? { ...card, title: reportName, config: visualConfig } : card))
+          : [{ id: crypto.randomUUID(), title: reportName, description: reportDef.description, config: visualConfig }],
+        lastRunRecordCount: rows.length,
+        updatedAt: new Date().toISOString(),
+      });
+      onClose();
+      return;
+    }
+
     const saved: SavedReport = {
       id: crypto.randomUUID(),
       name: reportName,
@@ -768,6 +878,9 @@ function RunReportModal({
       updatedAt: new Date().toISOString(),
       sharedWith: [],
       calculatedColumns,
+      visualConfig,
+      visualCards: [{ id: crypto.randomUUID(), title: reportName, description: reportDef.description, config: visualConfig }],
+      lastRunRecordCount: rows.length,
     };
     onSave(saved);
     onClose();
@@ -826,6 +939,103 @@ function RunReportModal({
         </div>
 
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 shrink-0">
+          <div className="mb-3 rounded-md border border-gray-200 bg-white p-3">
+            <p className="text-xs font-medium text-gray-700 mb-2">Visual Type & Configuration</p>
+            <p className="text-[11px] text-gray-500 mb-3">
+              Aligns with 360 Reporting visuals: choose a visual tile, map axes/measures, then configure sort and advanced options.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <select value={visualType} onChange={(e) => setVisualType(e.target.value as VisualType)} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                {VISUAL_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select value={xAxisKey} onChange={(e) => setXAxisKey(e.target.value)} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="">X-Axis / Category (optional)</option>
+                {reportDef.columns.map((col) => (
+                  <option key={col.key} value={col.key}>
+                    {col.label}
+                  </option>
+                ))}
+              </select>
+              <select value={yAxisKey} onChange={(e) => setYAxisKey(e.target.value)} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="">Y-Axis / Measure (optional)</option>
+                {reportDef.columns.map((col) => (
+                  <option key={col.key} value={col.key}>
+                    {col.label}
+                  </option>
+                ))}
+              </select>
+              {(visualType === "line" || visualType === "stacked-bar") && (
+                <select
+                  value={secondaryMeasureKey}
+                  onChange={(e) => setSecondaryMeasureKey(e.target.value)}
+                  className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white"
+                >
+                  <option value="">Secondary Measure (optional)</option>
+                  {reportDef.columns.map((col) => (
+                    <option key={col.key} value={col.key}>
+                      {col.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <select value={sortByKey} onChange={(e) => setSortByKey(e.target.value)} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="">Sort By (optional)</option>
+                {reportDef.columns.map((col) => (
+                  <option key={col.key} value={col.key}>
+                    {col.label}
+                  </option>
+                ))}
+              </select>
+              <select value={sortDirection} onChange={(e) => setSortDirection(e.target.value as "asc" | "desc")} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="asc">Sort: Ascending</option>
+                <option value="desc">Sort: Descending</option>
+              </select>
+              <select value={String(maxBars)} onChange={(e) => setMaxBars(Number(e.target.value))} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="10">Max Bars: 10</option>
+                <option value="25">Max Bars: 25</option>
+                <option value="50">Max Bars: 50</option>
+                <option value="100">Max Bars: 100</option>
+              </select>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <label className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                <input type="checkbox" checked={showLegend} onChange={(e) => setShowLegend(e.target.checked)} className="rounded" />
+                Show Legend
+              </label>
+              <label className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                <input type="checkbox" checked={showValueLabels} onChange={(e) => setShowValueLabels(e.target.checked)} className="rounded" />
+                Show Value Labels
+              </label>
+              {visualType === "line" && (
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                  <input type="checkbox" checked={showPoints} onChange={(e) => setShowPoints(e.target.checked)} className="rounded" />
+                  Show Points on Line
+                </label>
+              )}
+              {(visualType === "line" || visualType === "stacked-bar") && (
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                  <input type="checkbox" checked={useDualAxis} onChange={(e) => setUseDualAxis(e.target.checked)} className="rounded" />
+                  Use Dual Axis
+                </label>
+              )}
+              <select value={String(decimalPlaces)} onChange={(e) => setDecimalPlaces(Number(e.target.value))} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="0">0 Decimal Places</option>
+                <option value="1">1 Decimal Place</option>
+                <option value="2">2 Decimal Places</option>
+                <option value="3">3 Decimal Places</option>
+              </select>
+              <select value={displayUnits} onChange={(e) => setDisplayUnits(e.target.value as "none" | "thousands" | "millions")} className="px-2.5 py-1.5 border border-gray-200 rounded text-xs bg-white">
+                <option value="none">Display Units: None</option>
+                <option value="thousands">Display Units: Thousands</option>
+                <option value="millions">Display Units: Millions</option>
+              </select>
+            </div>
+          </div>
+
           <div className="mb-3 rounded-md border border-gray-200 bg-white p-3">
             <p className="text-xs font-medium text-gray-700 mb-2">Custom Columns (Calculation)</p>
             <p className="text-[11px] text-gray-500 mb-3">
@@ -920,6 +1130,7 @@ function RunReportModal({
               />
               Load Data Manually
             </label>
+            <p className="text-[11px] text-gray-500 mr-2">Default ON for large datasets. Turn OFF to auto-run when filters/configuration changes.</p>
             {reportDef.hasDateRange && (
               <>
                 <div>
@@ -979,6 +1190,30 @@ function RunReportModal({
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Aggregate (fx)</label>
+              <select
+                value=""
+                onChange={(e) => {
+                  const [key, fn] = e.target.value.split(":");
+                  if (!key || !fn) return;
+                  setAggregateByColumn((prev) => ({ ...prev, [key]: fn as AggregateFunction }));
+                  e.currentTarget.value = "";
+                }}
+                className="px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+              >
+                <option value="">Select column + function</option>
+                {displayColumns.map((c) => (
+                  <optgroup key={c.key} label={c.label}>
+                    <option value={`${c.key}:count`}>Count</option>
+                    <option value={`${c.key}:sum`}>Sum</option>
+                    <option value={`${c.key}:min`}>Min</option>
+                    <option value={`${c.key}:max`}>Max</option>
+                    <option value={`${c.key}:avg`}>Average</option>
+                  </optgroup>
+                ))}
+              </select>
+            </div>
             <button
               onClick={runReport}
               disabled={loading}
@@ -1010,11 +1245,32 @@ function RunReportModal({
                   onClick={handleSave}
                   className="px-4 py-1.5 border border-gray-200 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
                 >
-                  Save Report
+                  {existingReport ? "Update Report" : "Save Report"}
                 </button>
               </>
             )}
           </div>
+          {Object.entries(aggregateByColumn).length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {Object.entries(aggregateByColumn).map(([key, fn]) => (
+                <span key={key} className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 text-xs text-gray-700">
+                  {displayColumns.find((col) => col.key === key)?.label ?? key}: {fn.toUpperCase()}
+                  <button
+                    onClick={() =>
+                      setAggregateByColumn((prev) => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      })
+                    }
+                    className="text-gray-400 hover:text-red-600"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           {reportDef.value === "user-activity" && (
             <p className="text-[11px] text-gray-500 mt-2">
               User Activity dataset uses a single dataset without joins. Export limits: CSV 700,000 rows, XLSX 200,000 rows, PDF 5,000 rows.
@@ -1064,6 +1320,20 @@ function RunReportModal({
                     </tr>
                   ))}
                 </tbody>
+                {Object.keys(aggregateByColumn).length > 0 && (
+                  <tfoot className="sticky bottom-0 bg-gray-50 border-t border-gray-200">
+                    <tr>
+                      {displayColumns.map((col) => {
+                        const fn = aggregateByColumn[col.key];
+                        return (
+                          <td key={col.key} className="px-4 py-2 text-xs font-semibold text-gray-700 whitespace-nowrap">
+                            {fn && fn !== "none" ? `${fn.toUpperCase()}: ${calculateAggregate(rows, col.key, fn)}` : "—"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </>
           )}
@@ -1191,6 +1461,10 @@ function CreateDashboardModal({
                   <div>
                     <p className="text-sm font-medium text-gray-900">{visual.title}</p>
                     <p className="text-xs text-gray-500">Source report: {visual.reportName}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {VISUAL_TYPE_OPTIONS.find((option) => option.value === visual.visualType)?.label ?? "Visual"}
+                      {visual.summary ? ` · ${visual.summary}` : ""}
+                    </p>
                   </div>
                 </label>
               ))}
@@ -1489,6 +1763,55 @@ function AssistReportModal({
   );
 }
 
+function PreviewInDashboardModal({
+  report,
+  onClose,
+  onCreate,
+}: {
+  report: SavedReport;
+  onClose: () => void;
+  onCreate: (dashboardName: string) => void;
+}) {
+  const [dashboardName, setDashboardName] = useState(`${report.name} Dashboard`);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-xl p-6">
+        <h2 className="text-base font-semibold text-gray-900">Preview in Dashboard</h2>
+        <p className="text-xs text-gray-500 mt-1">
+          Design your dashboard from this report first. You can go back before saving if you change your mind.
+        </p>
+        <div className="mt-4 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+          Conversion follows the 360 flow: report → preview in dashboard → modify visuals → save dashboard.
+        </div>
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-gray-700 mb-1">Dashboard Name</label>
+          <input
+            value={dashboardName}
+            onChange={(e) => setDashboardName(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+          />
+        </div>
+        <div className="mt-3 rounded border border-gray-200 bg-gray-50 p-3">
+          <p className="text-sm font-medium text-gray-900">{report.name}</p>
+          <p className="text-xs text-gray-500 mt-1">The saved report snapshot will be added as the first dashboard visual.</p>
+        </div>
+        <div className="flex gap-2 mt-6">
+          <button onClick={onClose} className="flex-1 py-2 border border-gray-200 text-sm rounded-md text-gray-600">
+            Go Back
+          </button>
+          <button
+            onClick={() => onCreate(dashboardName)}
+            className="flex-1 py-2 bg-gray-900 text-white text-sm rounded-md"
+          >
+            Save Dashboard Draft
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ReportingClient({ projectId }: { projectId: string }) {
@@ -1503,6 +1826,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
   const [shareDashboardId, setShareDashboardId] = useState<string | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<ReportDef | null>(null);
   const [showAssistModal, setShowAssistModal] = useState(false);
+  const [previewInDashboardReportId, setPreviewInDashboardReportId] = useState<string | null>(null);
   const [editReportId, setEditReportId] = useState<string | null>(null);
   const [distributeReportId, setDistributeReportId] = useState<string | null>(null);
   const [deleteReportId, setDeleteReportId] = useState<string | null>(null);
@@ -1510,6 +1834,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
   const [promoteReportId, setPromoteReportId] = useState<string | null>(null);
   const [templateDatasetFilter, setTemplateDatasetFilter] = useState("all");
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [statusBanner, setStatusBanner] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<PermissionRow[]>([
     { id: "u1", name: "Company Admin", reporting: "admin", directory: "admin" },
     { id: "u2", name: "Project Manager", reporting: "standard", directory: "standard" },
@@ -1519,6 +1844,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
 
   const [activeReport, setActiveReport] = useState<ReportDef | null>(null);
   const [activeCalculatedColumns, setActiveCalculatedColumns] = useState<CalculatedColumn[]>([]);
+  const [activeSavedReport, setActiveSavedReport] = useState<SavedReport | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createType, setCreateType] = useState("");
 
@@ -1526,6 +1852,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
 
   function openTemplate(def: ReportDef) {
     setActiveReport(def);
+    setActiveSavedReport(null);
     setActiveCalculatedColumns([]);
   }
 
@@ -1542,6 +1869,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
 
     if (def) {
       setActiveReport(def);
+      setActiveSavedReport(saved);
       setActiveCalculatedColumns(saved.calculatedColumns ?? []);
     }
   }
@@ -1588,7 +1916,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
     const clone: SavedReport = {
       ...report,
       id: crypto.randomUUID(),
-      name: `Copy of ${report.name}`,
+      name: `${report.name}-Copy`,
       createdBy: "Me",
       createdAt: now,
       updatedAt: now,
@@ -1597,6 +1925,30 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
       calculatedColumns: report.calculatedColumns,
     };
     setMyReports((prev) => [clone, ...prev]);
+    setStatusBanner(`Copy created: ${clone.name}`);
+  }
+
+  function addVisualToReport(report: SavedReport) {
+    if (report.createdBy !== "Me") {
+      setStatusBanner("Only the report creator can add new visuals.");
+      return;
+    }
+    if ((report.lastRunRecordCount ?? 0) >= 2500) {
+      setStatusBanner("Add Visual is available only for reports under 2,500 records.");
+      return;
+    }
+    const baseConfig = report.visualConfig ?? { visualType: "bar" as VisualType };
+    const nextCards = [
+      ...(report.visualCards ?? []),
+      {
+        id: crypto.randomUUID(),
+        title: `${report.name} Visual ${(report.visualCards?.length ?? 0) + 1}`,
+        description: "Added from report menu",
+        config: baseConfig,
+      },
+    ];
+    updateSavedReport(report.id, { visualCards: nextCards });
+    setStatusBanner(`Visual added to ${report.name}.`);
   }
 
   function createDashboard(payload: { name: string; visualIds: string[] }) {
@@ -1613,6 +1965,24 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
     };
     setDashboards((prev) => [dashboard, ...prev]);
     setShowCreateDashboardModal(false);
+  }
+
+  function createDashboardFromReport(report: SavedReport, name?: string) {
+    const visual = makeVisualFromReport(report);
+    const now = new Date().toISOString();
+    const dashboard: SavedDashboard = {
+      id: crypto.randomUUID(),
+      name: name?.trim() || `${report.name} Dashboard`,
+      visualIds: [visual.id],
+      isPublished: false,
+      createdBy: "Me",
+      createdAt: now,
+      updatedAt: now,
+      sharedWith: [],
+    };
+    setDashboards((prev) => [dashboard, ...prev]);
+    setActiveTab("dashboards");
+    setPreviewInDashboardReportId(null);
   }
 
   function updateDashboard(id: string, patch: Partial<SavedDashboard>) {
@@ -1661,6 +2031,13 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
   const deletingReport = deleteReportId ? myReports.find((r) => r.id === deleteReportId) ?? null : null;
   const sharingReport = shareReportId ? myReports.find((r) => r.id === shareReportId) ?? null : null;
   const promotingReport = promoteReportId ? myReports.find((r) => r.id === promoteReportId) ?? null : null;
+  const previewingReport = previewInDashboardReportId ? myReports.find((r) => r.id === previewInDashboardReportId) ?? null : null;
+
+  useEffect(() => {
+    if (!statusBanner) return;
+    const timer = setTimeout(() => setStatusBanner(null), 4000);
+    return () => clearTimeout(timer);
+  }, [statusBanner]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1729,6 +2106,11 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
             className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-gray-900"
           />
         </div>
+        {statusBanner && (
+          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+            {statusBanner}
+          </div>
+        )}
 
         {activeTab === "reports" && (
           <>
@@ -1759,6 +2141,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-32">Created By</th>
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-28">Date Created</th>
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-28">Last Modified</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-20">Visuals</th>
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-36">Last Snapshot</th>
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-36">Company Level</th>
                           <th className="w-10" />
@@ -1775,17 +2158,21 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                             <td className="px-4 py-3 text-gray-600">{r.createdBy}</td>
                             <td className="px-4 py-3 text-gray-500">{fmtDate(r.createdAt)}</td>
                             <td className="px-4 py-3 text-gray-500">{fmtDate(r.updatedAt)}</td>
+                            <td className="px-4 py-3 text-gray-500">{Math.max(1, r.visualCards?.length ?? 0)}</td>
                             <td className="px-4 py-3 text-xs text-gray-500">{r.lastDistributedAt ? `${fmtDate(r.lastDistributedAt)} (${r.distributionCount ?? 1})` : "Never"}</td>
                             <td className="px-4 py-3 text-xs text-gray-500">{r.promotedToCompanyAt ? `Promoted ${fmtDate(r.promotedToCompanyAt)}` : "Project Only"}</td>
                             <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
                               <RowMenu
                                 actions={[
                                   { label: "Run Report", onClick: () => openFromSaved(r) },
+                                  { label: "Edit (Visuals & Layout)", onClick: () => openFromSaved(r) },
+                                  { label: "Add Visual", onClick: () => addVisualToReport(r) },
                                   { label: "Edit Report", onClick: () => setEditReportId(r.id) },
                                   { label: "Share Report", onClick: () => setShareReportId(r.id) },
                                   { label: "Distribute Snapshot", onClick: () => setDistributeReportId(r.id) },
+                                  { label: "Preview in Dashboard", onClick: () => setPreviewInDashboardReportId(r.id) },
                                   { label: "Promote to Company", onClick: () => setPromoteReportId(r.id) },
-                                  { label: "Clone Report", onClick: () => cloneReport(r) },
+                                  { label: "Make a Copy", onClick: () => cloneReport(r) },
                                   { label: "Delete", onClick: () => setDeleteReportId(r.id), danger: true },
                                 ]}
                               />
@@ -1951,6 +2338,10 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                             <div key={visual.id} className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
                               <p className="text-xs font-medium text-gray-700">{visual.title}</p>
                               <p className="text-[11px] text-gray-500 mt-0.5">
+                                {VISUAL_TYPE_OPTIONS.find((option) => option.value === visual.visualType)?.label ?? "Visual"}
+                                {visual.summary ? ` · ${visual.summary}` : ""}
+                              </p>
+                              <p className="text-[11px] text-gray-500 mt-0.5">
                                 {visual.metricLabel}: {visual.metricValue}
                               </p>
                             </div>
@@ -1970,12 +2361,15 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
         <RunReportModal
           reportDef={activeReport}
           projectId={projectId}
+          existingReport={activeSavedReport}
           initialCalculatedColumns={activeCalculatedColumns}
           onClose={() => {
             setActiveReport(null);
+            setActiveSavedReport(null);
             setActiveCalculatedColumns([]);
           }}
           onSave={handleSaveReport}
+          onUpdate={updateSavedReport}
         />
       )}
 
@@ -2021,6 +2415,7 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                     setShowCreateModal(false);
                     setCreateType("");
                     setActiveReport(def);
+                    setActiveSavedReport(null);
                     setActiveCalculatedColumns([]);
                   }
                 }}
@@ -2102,6 +2497,14 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
           report={promotingReport}
           onClose={() => setPromoteReportId(null)}
           onPromote={promoteReport}
+        />
+      )}
+
+      {previewingReport && (
+        <PreviewInDashboardModal
+          report={previewingReport}
+          onClose={() => setPreviewInDashboardReportId(null)}
+          onCreate={(dashboardName) => createDashboardFromReport(previewingReport, dashboardName)}
         />
       )}
 
