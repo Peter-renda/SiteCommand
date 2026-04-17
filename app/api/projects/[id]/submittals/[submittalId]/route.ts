@@ -17,6 +17,7 @@ export async function GET(
     .select("*")
     .eq("id", submittalId)
     .eq("project_id", projectId)
+    .eq("is_deleted", false)
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Submittal not found" }, { status: 404 });
@@ -35,10 +36,12 @@ export async function PATCH(
 
   const allowed = [
     "title", "revision", "specification_id", "submittal_type", "status",
-    "responsible_contractor_id", "received_from_id", "submittal_manager_id",
+    "responsible_contractor_id", "received_from_id", "submittal_manager_id", "approver_name_id",
     "submit_by", "received_date", "issue_date", "final_due_date",
     "cost_code", "linked_drawings", "distribution_list", "ball_in_court_id",
     "lead_time", "required_on_site_date", "private", "description", "attachments",
+    "owners_manual", "package_notes", "confirmed_delivery_date", "actual_delivery_date",
+    "workflow_steps", "related_items", "closed_at", "closed_by", "distributed_at", "distributed_by",
   ];
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
@@ -51,6 +54,7 @@ export async function PATCH(
     .update(update)
     .eq("id", submittalId)
     .eq("project_id", projectId)
+    .eq("is_deleted", false)
     .select()
     .single();
 
@@ -70,9 +74,10 @@ export async function DELETE(
 
   const { error } = await supabase
     .from("submittals")
-    .delete()
+    .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: session.id })
     .eq("id", submittalId)
-    .eq("project_id", projectId);
+    .eq("project_id", projectId)
+    .eq("is_deleted", false);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

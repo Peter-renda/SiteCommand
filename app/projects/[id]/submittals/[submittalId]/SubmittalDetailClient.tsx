@@ -40,6 +40,10 @@ type Submittal = {
   private: boolean;
   description: string | null;
   attachments: { name: string; url: string }[];
+  workflow_steps: { step: number; person_id: string | null; role: string; due_date: string | null }[];
+  related_items: { type: string; title: string; href: string }[];
+  distributed_at: string | null;
+  closed_at: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -153,6 +157,45 @@ export default function SubmittalDetailClient({
   const [generalOpen, setGeneralOpen] = useState(true);
   const [showAllRecipients, setShowAllRecipients] = useState(false);
 
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  async function runAction(action: string, payload?: Record<string, unknown>) {
+    setActionLoading(action);
+    const res = await fetch(`/api/projects/${projectId}/submittals/${submittalId}/actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, payload: payload ?? {} }),
+    });
+    const data = await res.json();
+    setActionLoading(null);
+    if (!res.ok) {
+      alert(data.error || "Action failed");
+      return;
+    }
+    if (action === "duplicate" || action === "create_revision") {
+      window.location.href = `/projects/${projectId}/submittals/${data.id}`;
+      return;
+    }
+    if (action === "distribute" && data.revision?.id) {
+      window.location.href = `/projects/${projectId}/submittals/${data.revision.id}`;
+      return;
+    }
+    window.location.reload();
+  }
+
+  async function deleteSubmittal() {
+    if (!confirm("Send this submittal to Recycle Bin?")) return;
+    setActionLoading("delete");
+    const res = await fetch(`/api/projects/${projectId}/submittals/${submittalId}`, { method: "DELETE" });
+    setActionLoading(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Delete failed");
+      return;
+    }
+    window.location.href = `/projects/${projectId}/submittals`;
+  }
+
   useEffect(() => {
     Promise.all([
       fetch(`/api/projects/${projectId}/submittals/${submittalId}`),
@@ -250,12 +293,19 @@ export default function SubmittalDetailClient({
             {statusLabel}
           </span>
           {canEdit && (
-            <a
-              href={`/projects/${projectId}/submittals/${submittal.id}/edit`}
-              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-            >
-              Edit
-            </a>
+            <>
+              <button onClick={() => runAction("duplicate")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Duplicate</button>
+              <button onClick={() => runAction("create_revision")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Create Revision</button>
+              <button onClick={() => runAction("close")} disabled={actionLoading !== null || submittal.status === "closed"} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Close</button>
+              <button onClick={() => runAction("distribute", { create_revision_upon_distribution: false })} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-50">Distribute</button>
+              <button onClick={deleteSubmittal} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-300 rounded hover:bg-red-50 transition-colors disabled:opacity-50">Delete</button>
+              <a
+                href={`/projects/${projectId}/submittals/${submittal.id}/edit`}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              >
+                Edit
+              </a>
+            </>
           )}
         </div>
       </div>
@@ -567,6 +617,22 @@ export default function SubmittalDetailClient({
                 </div>
               </dl>
             </div>
+          )}
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">Related Items</h3>
+          {(submittal.related_items ?? []).length === 0 ? (
+            <p className="text-sm text-gray-500">No related items added.</p>
+          ) : (
+            <ul className="space-y-2">
+              {(submittal.related_items ?? []).map((item, idx) => (
+                <li key={`${item.href}-${idx}`} className="text-sm">
+                  <a href={item.href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{item.title || item.href}</a>
+                  <span className="text-gray-500"> · {item.type || "link"}</span>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 
