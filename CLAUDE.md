@@ -194,6 +194,28 @@ Notes:
   - Bulk activation.
 - Permission baseline should mirror Project Admin + WBS granular permission controls.
 
+## Budget Tutorials Alignment Notes (Added April 17, 2026)
+
+### Add a Budget Line Item
+- Require both **Cost Code** and **Cost Type** when creating or editing a budget line item.
+- Treat **Cost Code + Cost Type** as a unique budget code combination at the project level to prevent duplicates.
+- Keep support for setting an original amount on unlocked budgets and preserve lock behavior on original amounts after budget lock.
+
+### Add a GST to a Budget
+- Provide a dedicated quick action for creating a **GST Budget Line Item**.
+- GST entries should default the cost type to **Other** while still allowing users to set a dedicated tax cost code.
+- Keep GST line items visually identifiable in the table so teams can report/govern tax tracking more clearly.
+
+### Add a Job to Date Costs Column to a Budget View
+- Keep **Job to Date Costs** visible as a source column in the Budget table and preserve a clear formula relationship with **Direct Costs**.
+- Continue surfacing column-level formula help text so users can understand how calculated values are produced.
+- For non-ERP projects, maintain language and UX that treats this as a configurable budget-view reporting column behavior.
+
+### Add a Partial Budget Line Item
+- Support creating **partial/unbudgeted budget line items** directly in the budget workflow.
+- Partial line items should be created with a **$0 Original Budget Amount** and remain editable through downstream budget-change workflows.
+- Keep partial line items visually marked (for example, with a `?` indicator) to help users identify unbudgeted scope quickly.
+
 ## 360 Reporting – Workflow Alignment Notes
 
 ### Export a Report
