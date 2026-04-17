@@ -467,6 +467,12 @@ export default function EditCommitmentClient({
   // Track original dbIds so we can delete removed existing items
   const removedDbIds = useRef<string[]>([]);
 
+  // Subcontractor SOV
+  const [ssovEnabled, setSsovEnabled] = useState(false);
+
+  // Commitment project-level settings
+  const [alwaysEditableSov, setAlwaysEditableSov] = useState(false);
+
   useEffect(() => {
     Promise.all([
       fetch(`/api/projects/${projectId}/directory`).then((r) => r.json()),
@@ -497,6 +503,7 @@ export default function EditCommitmentClient({
       setShowCoverLetter(c.show_cover_letter ?? false);
       setShowExecutedCoverLetter(c.show_executed_cover_letter ?? false);
       setSovMethod(c.sov_accounting_method ?? "unit_quantity");
+      setSsovEnabled(c.ssov_enabled ?? false);
 
       // Map SOV items
       if (Array.isArray(sov)) {
@@ -533,6 +540,15 @@ export default function EditCommitmentClient({
       setLoading(false);
     });
   }, [projectId, commitmentId]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/commitment-settings`)
+      .then((r) => r.json())
+      .then((data) => {
+        setAlwaysEditableSov(!!data?.enable_always_editable_sov);
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/budget`)
@@ -725,6 +741,7 @@ export default function EditCommitmentClient({
           show_cover_letter: showCoverLetter,
           show_executed_cover_letter: showExecutedCoverLetter,
           sov_accounting_method: sovMethod,
+          ssov_enabled: sovMethod === "amount" ? ssovEnabled : false,
           original_contract_amount: sovTotal,
         }),
       });
@@ -887,6 +904,13 @@ export default function EditCommitmentClient({
 
         {/* ── Schedule of Values ── */}
         <Section title="Schedule of Values">
+          {status !== "draft" && !alwaysEditableSov && (
+            <div className="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Schedule of Values can only be edited when the commitment is in Draft, unless
+              &ldquo;Enable Always Editable Schedule of Values&rdquo; is turned on in Commitments settings.
+              Any SOV changes below will be rejected on save.
+            </div>
+          )}
           <SovTable
             lines={sovLines}
             method={sovMethod}
@@ -898,6 +922,32 @@ export default function EditCommitmentClient({
             onUpdate={updateSovLine}
             onRemove={removeSovLine}
           />
+        </Section>
+
+        {/* ── Subcontractor SOV ── */}
+        <Section title="Subcontractor SOV">
+          {sovMethod !== "amount" ? (
+            <p className="text-xs text-gray-500">
+              The Subcontractor SOV tab is only supported by the Amount Based accounting method.
+              Switch the SOV above to Amount to enable it.
+            </p>
+          ) : (
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={ssovEnabled}
+                onChange={(e) => setSsovEnabled(e.target.checked)}
+                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
+              />
+              <span className="text-sm text-gray-700">
+                Enable Subcontractor SOV
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  Lets the invoice contact provide a detailed cost breakdown for each SOV line item.
+                  Editable while the SSOV is in Draft or Revise &amp; Resubmit.
+                </span>
+              </span>
+            </label>
+          )}
         </Section>
 
         {/* ── Contract Dates ── */}
@@ -960,6 +1010,9 @@ export default function EditCommitmentClient({
                     <option key={c.id} value={contactName(c)}>{contactName(c)}</option>
                   ))}
                 </select>
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Also used as the Invoice Contact for the Subcontractor SOV.
+                </p>
               </Field>
             </div>
           )}

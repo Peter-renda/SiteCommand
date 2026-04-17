@@ -333,3 +333,35 @@ export async function sendDocumentTrackingEmail(
     `,
   });
 }
+
+export async function sendSsovNotificationEmail(
+  to: string,
+  recipientName: string,
+  senderName: string,
+  commitmentNumber: number,
+  commitmentTitle: string,
+  committedAmount: number,
+  projectName: string,
+  ssovUrl: string,
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // silent if not configured
+
+  const resend = new Resend(apiKey);
+  const amountLine = committedAmount
+    ? `<p style="font-size:13px;color:#555;"><strong>Committed Amount:</strong> $${committedAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>`
+    : "";
+  await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `Action required: Subcontractor SOV for #${commitmentNumber} ${commitmentTitle} — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
+      <p style="font-size:14px;"><strong>${senderName}</strong> has requested that you provide the Subcontractor Schedule of Values for <strong>#${commitmentNumber} ${commitmentTitle}</strong> on <strong>${projectName}</strong>.</p>
+      ${amountLine}
+      <p style="font-size:13px;color:#555;">Add detail lines until <strong>Remaining to Allocate</strong> is $0.00, then click <strong>Submit</strong>.</p>
+      <p><a href="${ssovUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open Subcontractor SOV</a></p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are the invoice contact on this commitment in SiteCommand.</p>
+    `,
+  });
+}

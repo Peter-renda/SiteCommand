@@ -26,7 +26,10 @@ type Commitment = {
   signed_po_received_date: string | null;
   is_private: boolean;
   sov_view_allowed: boolean;
+  ssov_enabled: boolean;
   ssov_status: string;
+  ssov_notified_at: string | null;
+  ssov_submitted_at: string | null;
   original_contract_amount: number;
   approved_change_orders: number;
   pending_change_orders: number;
@@ -41,6 +44,31 @@ type Commitment = {
   show_executed_cover_letter: boolean;
   sov_accounting_method: string;
   created_at: string;
+};
+
+type SsovItem = {
+  id: string;
+  sov_item_id: string | null;
+  budget_code: string;
+  description: string;
+  amount: number;
+  sort_order: number;
+};
+
+const SSOV_STATUS_LABELS: Record<string, string> = {
+  "": "Not Started",
+  draft: "Draft",
+  under_review: "Under Review",
+  revise_resubmit: "Revise & Resubmit",
+  approved: "Approved",
+};
+
+const SSOV_STATUS_COLORS: Record<string, string> = {
+  "": "bg-gray-100 text-gray-500",
+  draft: "bg-gray-100 text-gray-600",
+  under_review: "bg-amber-100 text-amber-700",
+  revise_resubmit: "bg-orange-100 text-orange-700",
+  approved: "bg-green-100 text-green-700",
 };
 
 type SovItem = {
@@ -126,6 +154,171 @@ function Section({
   );
 }
 
+function SsovPanel({
+  status,
+  invoiceContact,
+  notifiedAt,
+  submittedAt,
+  committedAmount,
+  items,
+  busy,
+  errorMessage,
+  onNotify,
+  onSubmit,
+  onRevise,
+  editHref,
+}: {
+  status: string;
+  invoiceContact: string;
+  notifiedAt: string | null;
+  submittedAt: string | null;
+  committedAmount: number;
+  items: SsovItem[];
+  busy: boolean;
+  errorMessage: string;
+  onNotify: () => void;
+  onSubmit: () => void;
+  onRevise: () => void;
+  editHref: string;
+}) {
+  const allocated = items.reduce((sum, i) => sum + Number(i.amount || 0), 0);
+  const remaining = committedAmount - allocated;
+  const canEdit = status === "draft" || status === "revise_resubmit";
+  const canNotify = canEdit && !!invoiceContact;
+  const canSubmit = canEdit && Math.round(remaining * 100) === 0 && items.length > 0;
+  const canRevise = status === "under_review";
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              SSOV_STATUS_COLORS[status] ?? "bg-gray-100 text-gray-500"
+            }`}
+          >
+            {SSOV_STATUS_LABELS[status] ?? status}
+          </span>
+          {invoiceContact ? (
+            <span className="text-xs text-gray-500">
+              Invoice Contact: <span className="text-gray-700">{invoiceContact}</span>
+            </span>
+          ) : (
+            <span className="text-xs text-red-500">No invoice contact assigned</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {canNotify && (
+            <button
+              onClick={onNotify}
+              disabled={busy}
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60"
+            >
+              Send SSOV Notification
+            </button>
+          )}
+          {canEdit && (
+            <a
+              href={editHref}
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
+            >
+              Edit Subcontractor SOV
+            </a>
+          )}
+          {canEdit && (
+            <button
+              onClick={onSubmit}
+              disabled={busy || !canSubmit}
+              title={
+                !canSubmit
+                  ? "Submit is disabled until Remaining to Allocate is $0.00"
+                  : undefined
+              }
+              className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded hover:bg-orange-600 disabled:opacity-60"
+            >
+              Submit
+            </button>
+          )}
+          {canRevise && (
+            <button
+              onClick={onRevise}
+              disabled={busy}
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60"
+            >
+              Return to Revise & Resubmit
+            </button>
+          )}
+        </div>
+      </div>
+
+      {errorMessage && (
+        <div className="mb-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
+          {errorMessage}
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+          <p className="text-xs font-medium text-gray-500 mb-1">Committed Amount</p>
+          <p className="text-base font-semibold text-gray-900 tabular-nums">{fmt(committedAmount)}</p>
+        </div>
+        <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+          <p className="text-xs font-medium text-gray-500 mb-1">Allocated</p>
+          <p className="text-base font-semibold text-gray-900 tabular-nums">{fmt(allocated)}</p>
+        </div>
+        <div
+          className={`border rounded-lg p-4 ${
+            Math.round(remaining * 100) === 0
+              ? "bg-green-50 border-green-100"
+              : "bg-amber-50 border-amber-100"
+          }`}
+        >
+          <p className="text-xs font-medium text-gray-500 mb-1">Remaining to Allocate</p>
+          <p className="text-base font-semibold text-gray-900 tabular-nums">{fmt(remaining)}</p>
+        </div>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-sm text-gray-400">No subcontractor detail lines yet.</p>
+      ) : (
+        <div className="border border-gray-200 rounded overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-3 py-2 text-left font-medium text-gray-500 w-10">#</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-500">Budget Code</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-500">Description</th>
+                <th className="px-3 py-2 text-right font-medium text-gray-500">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <tr key={item.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+                  <td className="px-3 py-2 text-gray-400">{idx + 1}</td>
+                  <td className="px-3 py-2 text-gray-700">{item.budget_code || "—"}</td>
+                  <td className="px-3 py-2 text-gray-700">{item.description || "—"}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-gray-900">{fmt(item.amount)}</td>
+                </tr>
+              ))}
+              <tr className="bg-gray-50 border-t border-gray-200 font-semibold">
+                <td colSpan={3} className="px-3 py-2 text-right text-gray-700">Allocated</td>
+                <td className="px-3 py-2 text-right tabular-nums text-gray-900">{fmt(allocated)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {(notifiedAt || submittedAt) && (
+        <p className="mt-3 text-[11px] text-gray-400">
+          {notifiedAt && <>Notification sent {new Date(notifiedAt).toLocaleString()}. </>}
+          {submittedAt && <>Last submitted {new Date(submittedAt).toLocaleString()}.</>}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function CommitmentDetailClient({
@@ -140,18 +333,51 @@ export default function CommitmentDetailClient({
 }) {
   const [commitment, setCommitment] = useState<Commitment | null>(null);
   const [sovItems, setSovItems] = useState<SovItem[]>([]);
+  const [ssovItems, setSsovItems] = useState<SsovItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ssovBusy, setSsovBusy] = useState(false);
+  const [ssovError, setSsovError] = useState<string>("");
+
+  async function reloadCommitment() {
+    const [c, ssov] = await Promise.all([
+      fetch(`/api/projects/${projectId}/commitments/${commitmentId}`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/commitments/${commitmentId}/ssov`).then((r) => r.json()),
+    ]);
+    setCommitment(c);
+    setSsovItems(Array.isArray(ssov) ? ssov : []);
+  }
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/projects/${projectId}/commitments/${commitmentId}`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/commitments/${commitmentId}/sov`).then((r) => r.json()),
-    ]).then(([c, sov]) => {
+      fetch(`/api/projects/${projectId}/commitments/${commitmentId}/ssov`).then((r) => r.json()),
+    ]).then(([c, sov, ssov]) => {
       setCommitment(c);
       setSovItems(Array.isArray(sov) ? sov : []);
+      setSsovItems(Array.isArray(ssov) ? ssov : []);
       setLoading(false);
     });
   }, [projectId, commitmentId]);
+
+  async function callSsovAction(action: "notify" | "submit" | "revise") {
+    setSsovBusy(true);
+    setSsovError("");
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/commitments/${commitmentId}/ssov/${action}`,
+        { method: "POST" }
+      );
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "Request failed" }));
+        setSsovError(error || "Request failed");
+        return;
+      }
+      await reloadCommitment();
+    } finally {
+      setSsovBusy(false);
+    }
+  }
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -277,7 +503,17 @@ export default function CommitmentDetailClient({
               <span className={`text-sm italic ${erpColor}`}>{erpLabel}</span>
             </DetailField>
             <DetailField label="SSOV Status">
-              {commitment.ssov_status || <span className="text-gray-400">—</span>}
+              {commitment.ssov_enabled ? (
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    SSOV_STATUS_COLORS[commitment.ssov_status || "draft"]
+                  }`}
+                >
+                  {SSOV_STATUS_LABELS[commitment.ssov_status || "draft"]}
+                </span>
+              ) : (
+                <span className="text-gray-400">Not enabled</span>
+              )}
             </DetailField>
           </div>
           {commitment.description && (
@@ -379,6 +615,32 @@ export default function CommitmentDetailClient({
             </div>
           )}
         </Section>
+
+        {/* ── Subcontractor SOV ── */}
+        {commitment.ssov_enabled && (
+          <Section title="Subcontractor SOV">
+            {commitment.sov_accounting_method !== "amount" ? (
+              <p className="text-sm text-gray-500">
+                The Subcontractor SOV tab is only supported by the Amount Based accounting method.
+              </p>
+            ) : (
+              <SsovPanel
+                status={commitment.ssov_status || "draft"}
+                invoiceContact={commitment.subcontractor_contact}
+                notifiedAt={commitment.ssov_notified_at}
+                submittedAt={commitment.ssov_submitted_at}
+                committedAmount={commitment.original_contract_amount}
+                items={ssovItems}
+                busy={ssovBusy}
+                errorMessage={ssovError}
+                onNotify={() => callSsovAction("notify")}
+                onSubmit={() => callSsovAction("submit")}
+                onRevise={() => callSsovAction("revise")}
+                editHref={`/projects/${projectId}/commitments/${commitmentId}/ssov`}
+              />
+            )}
+          </Section>
+        )}
 
         {/* ── Contract Dates ── */}
         <Section title="Contract Dates">

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
-import { canEditSov } from "@/lib/commitment-gates";
-import { requireToolLevel } from "@/lib/tool-permissions";
+import { canEditSsov } from "@/lib/commitment-gates";
+import { requireToolLevel, requireSsovWriter } from "@/lib/tool-permissions";
 
 export async function GET(
   _req: NextRequest,
@@ -18,7 +18,7 @@ export async function GET(
   const supabase = getSupabase();
 
   const { data, error } = await supabase
-    .from("commitment_sov_items")
+    .from("commitment_ssov_items")
     .select("*")
     .eq("commitment_id", commitmentId)
     .eq("project_id", projectId)
@@ -37,45 +37,26 @@ export async function POST(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, commitmentId } = await params;
-  const denied = await requireToolLevel(session, projectId, "commitments", "admin");
+  const denied = await requireSsovWriter(session, projectId, commitmentId);
   if (denied) return denied;
 
   const supabase = getSupabase();
 
-  const gate = await canEditSov(projectId, commitmentId);
+  const gate = await canEditSsov(projectId, commitmentId);
   if (!gate.allowed) return NextResponse.json({ error: gate.reason }, { status: 409 });
 
   const body = await req.json();
-
-  const {
-    is_group_header,
-    group_name,
-    change_event_line_item,
-    budget_code,
-    description,
-    qty,
-    uom,
-    unit_cost,
-    amount,
-    billed_to_date,
-    sort_order,
-  } = body;
+  const { sov_item_id, budget_code, description, amount, sort_order } = body;
 
   const { data, error } = await supabase
-    .from("commitment_sov_items")
+    .from("commitment_ssov_items")
     .insert({
       commitment_id: commitmentId,
       project_id: projectId,
-      is_group_header: is_group_header ?? false,
-      group_name: group_name || "",
-      change_event_line_item: change_event_line_item || "",
+      sov_item_id: sov_item_id || null,
       budget_code: budget_code || "",
       description: description || "",
-      qty: qty ?? 0,
-      uom: uom || "",
-      unit_cost: unit_cost ?? 0,
       amount: amount ?? 0,
-      billed_to_date: billed_to_date ?? 0,
       sort_order: sort_order ?? 0,
     })
     .select()
