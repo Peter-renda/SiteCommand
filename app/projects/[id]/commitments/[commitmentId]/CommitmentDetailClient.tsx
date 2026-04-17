@@ -44,6 +44,20 @@ type Commitment = {
   show_executed_cover_letter: boolean;
   sov_accounting_method: string;
   created_at: string;
+  // Subcontract-specific dates
+  start_date: string | null;
+  estimated_completion: string | null;
+  actual_completion: string | null;
+  signed_contract_received: string | null;
+  // Subcontract scope
+  inclusions: string;
+  exclusions: string;
+  // PO-specific dates
+  contract_date: string | null;
+  issued_on_date: string | null;
+  // DocuSign / markup
+  sign_docusign: boolean;
+  financial_markup_enabled: boolean;
 };
 
 type SsovItem = {
@@ -337,6 +351,7 @@ export default function CommitmentDetailClient({
   const [loading, setLoading] = useState(true);
   const [ssovBusy, setSsovBusy] = useState(false);
   const [ssovError, setSsovError] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<"general" | "financial_markup">("general");
 
   async function reloadCommitment() {
     const [c, ssov] = await Promise.all([
@@ -445,32 +460,101 @@ export default function CommitmentDetailClient({
       <ProjectNav projectId={projectId} />
 
       {/* Page header bar */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-8 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+        <div className="px-8 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <a
+              href={`/projects/${projectId}/commitments`}
+              className="text-sm text-gray-400 hover:text-gray-700 transition-colors"
+            >
+              ← Commitments
+            </a>
+            <span className="text-gray-200">/</span>
+            <h1 className="text-sm font-semibold text-gray-900">
+              #{commitment.number} — {commitment.title || typeLabel}
+            </h1>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+              {typeLabel}
+            </span>
+            {commitment.sign_docusign && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
+                DocuSign®
+              </span>
+            )}
+          </div>
           <a
-            href={`/projects/${projectId}/commitments`}
-            className="text-sm text-gray-400 hover:text-gray-700 transition-colors"
+            href={`/projects/${projectId}/commitments/${commitmentId}/edit`}
+            className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
           >
-            ← Commitments
+            Edit
           </a>
-          <span className="text-gray-200">/</span>
-          <h1 className="text-sm font-semibold text-gray-900">
-            #{commitment.number} — {commitment.title || typeLabel}
-          </h1>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-            {typeLabel}
-          </span>
         </div>
-        <a
-          href={`/projects/${projectId}/commitments/${commitmentId}/edit`}
-          className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
-        >
-          Edit
-        </a>
+        {/* Tab bar */}
+        <div className="px-8 flex items-center gap-0 border-t border-gray-100">
+          <button
+            onClick={() => setActiveTab("general")}
+            className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "general"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            General
+          </button>
+          {commitment.financial_markup_enabled && (
+            <button
+              onClick={() => setActiveTab("financial_markup")}
+              className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "financial_markup"
+                  ? "border-orange-500 text-orange-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Financial Markup
+            </button>
+          )}
+          {!commitment.financial_markup_enabled && (
+            <span className="py-2 px-4 text-sm text-gray-300 cursor-not-allowed" title="Enable Financial Markup in settings to access this tab">
+              Financial Markup
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Content */}
       <div className="max-w-5xl mx-auto px-8">
+
+        {/* ── Financial Markup Tab ── */}
+        {activeTab === "financial_markup" && (
+          <Section title="Financial Markup">
+            <div className="mb-4 flex items-start gap-2 bg-blue-50 border border-blue-200 rounded px-4 py-3 text-xs text-blue-800">
+              <svg className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+              </svg>
+              <div>
+                <p className="font-medium mb-1">Financial Markup on Change Orders</p>
+                <ul className="space-y-0.5 text-blue-700">
+                  <li>Financial markup is distributed proportionally on each line item in a change order&apos;s Schedule of Values.</li>
+                  <li>After applying financial markup to a commitment change order, the change order <strong>cannot be added to a subcontractor invoice</strong>.</li>
+                  <li>To add markup to a change order, open the change order and use the Financial Markup section.</li>
+                </ul>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500">
+              Financial markup is configured per change order. Open a change order on this commitment to add horizontal or vertical markup rules.
+            </p>
+            <div className="mt-4">
+              <a
+                href={`/projects/${projectId}/commitments/${commitmentId}/change-orders/new`}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+              >
+                Create Change Order with Markup
+              </a>
+            </div>
+          </Section>
+        )}
+
+        {activeTab === "general" && (<>
 
         {/* ── General Information ── */}
         <Section title="General Information">
@@ -516,6 +600,25 @@ export default function CommitmentDetailClient({
               )}
             </DetailField>
           </div>
+          {commitment.type === "purchase_order" && (
+            <div className="grid grid-cols-3 gap-6 mb-6">
+              <DetailField label="Bill To">
+                {commitment.bill_to || <span className="text-gray-400">—</span>}
+              </DetailField>
+              <DetailField label="Assigned To">
+                {commitment.assigned_to || <span className="text-gray-400">—</span>}
+              </DetailField>
+              <DetailField label="Payment Terms">
+                {commitment.payment_terms || <span className="text-gray-400">—</span>}
+              </DetailField>
+              <DetailField label="Ship To">
+                {commitment.ship_to || <span className="text-gray-400">—</span>}
+              </DetailField>
+              <DetailField label="Ship Via">
+                {commitment.ship_via || <span className="text-gray-400">—</span>}
+              </DetailField>
+            </div>
+          )}
           {commitment.description && (
             <div className="mt-2">
               <p className="text-xs font-medium text-gray-500 mb-1">Description</p>
@@ -523,6 +626,28 @@ export default function CommitmentDetailClient({
                 className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
                 dangerouslySetInnerHTML={{ __html: commitment.description }}
               />
+            </div>
+          )}
+          {commitment.type === "subcontract" && (commitment.inclusions || commitment.exclusions) && (
+            <div className="mt-4 grid grid-cols-1 gap-4">
+              {commitment.inclusions && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Inclusions — Scope of Work</p>
+                  <div
+                    className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: commitment.inclusions }}
+                  />
+                </div>
+              )}
+              {commitment.exclusions && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Exclusions</p>
+                  <div
+                    className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: commitment.exclusions }}
+                  />
+                </div>
+              )}
             </div>
           )}
         </Section>
@@ -644,14 +769,37 @@ export default function CommitmentDetailClient({
 
         {/* ── Contract Dates ── */}
         <Section title="Contract Dates">
-          <div className="grid grid-cols-2 gap-8">
-            <DetailField label="Delivery Date">
-              {formatDate(commitment.delivery_date)}
-            </DetailField>
-            <DetailField label="Signed Purchase Order Received Date">
-              {formatDate(commitment.signed_po_received_date)}
-            </DetailField>
-          </div>
+          {commitment.type === "purchase_order" ? (
+            <div className="grid grid-cols-2 gap-8">
+              <DetailField label="Contract Date">
+                {formatDate(commitment.contract_date ?? null)}
+              </DetailField>
+              <DetailField label="Delivery Date">
+                {formatDate(commitment.delivery_date)}
+              </DetailField>
+              <DetailField label="Signed Purchase Order Received">
+                {formatDate(commitment.signed_po_received_date)}
+              </DetailField>
+              <DetailField label="Issued On">
+                {formatDate(commitment.issued_on_date ?? null)}
+              </DetailField>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-8">
+              <DetailField label="Start Date">
+                {formatDate(commitment.start_date ?? null)}
+              </DetailField>
+              <DetailField label="Estimated Completion">
+                {formatDate(commitment.estimated_completion ?? null)}
+              </DetailField>
+              <DetailField label="Actual Completion">
+                {formatDate(commitment.actual_completion ?? null)}
+              </DetailField>
+              <DetailField label="Signed Contract Received">
+                {formatDate(commitment.signed_contract_received ?? null)}
+              </DetailField>
+            </div>
+          )}
         </Section>
 
         {/* ── Contract Privacy ── */}
@@ -668,9 +816,8 @@ export default function CommitmentDetailClient({
 
         {/* ── Additional Information ── */}
         <Section title="Additional Information">
-          {commitment.type === "subcontract" && (
-            <div className="mb-8">
-              <h3 className="text-sm font-semibold text-gray-800 mb-4">Subcontract Fields</h3>
+          {commitment.type === "subcontract" ? (
+            <div>
               <div className="grid grid-cols-2 gap-6 mb-6">
                 <DetailField label="Cover Letter">
                   {commitment.subcontract_cover_letter || <span className="text-gray-400">—</span>}
@@ -678,18 +825,16 @@ export default function CommitmentDetailClient({
                 <DetailField label="Bond Amount">
                   {commitment.bond_amount > 0 ? fmt(commitment.bond_amount) : <span className="text-gray-400">—</span>}
                 </DetailField>
-              </div>
-              <div className="grid grid-cols-2 gap-6 mb-6">
                 <DetailField label="Trades">
                   {commitment.trades || <span className="text-gray-400">—</span>}
                 </DetailField>
-                <DetailField label="Subcontractor Contact">
+                <DetailField label="Invoice Contact">
                   {commitment.subcontractor_contact || <span className="text-gray-400">—</span>}
                 </DetailField>
               </div>
               {commitment.exhibit_a_scope && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 mb-1">Exhibit A Scope of Work</p>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Exhibit A — Scope of Work</p>
                   <div
                     className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{ __html: commitment.exhibit_a_scope }}
@@ -697,25 +842,34 @@ export default function CommitmentDetailClient({
                 </div>
               )}
             </div>
-          )}
-
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">Purchase Order Fields</h3>
-            <div className="grid grid-cols-2 gap-6">
-              <DetailField label="Subcontract Type">
-                {commitment.subcontract_type
-                  ? commitment.subcontract_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-                  : <span className="text-gray-400">—</span>}
-              </DetailField>
-              <DetailField label="Show Cover Letter">
-                {commitment.show_cover_letter ? "Yes" : "No"}
-              </DetailField>
-              <DetailField label="Show Executed Cover Letter">
-                {commitment.show_executed_cover_letter ? "Yes" : "No"}
-              </DetailField>
+          ) : (
+            <div>
+              <div className="grid grid-cols-2 gap-6 mb-4">
+                <DetailField label="Contract Type">
+                  {commitment.subcontract_type
+                    ? commitment.subcontract_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+                    : <span className="text-gray-400">—</span>}
+                </DetailField>
+                <DetailField label="Show Cover Letter">
+                  {commitment.show_cover_letter ? "Yes" : "No"}
+                </DetailField>
+                <DetailField label="Show Executed Cover Letter">
+                  {commitment.show_executed_cover_letter ? "Yes" : "No"}
+                </DetailField>
+                <DetailField label="Financial Markup Enabled">
+                  {commitment.financial_markup_enabled ? (
+                    <span className="text-green-600 font-medium">Enabled</span>
+                  ) : (
+                    <span className="text-gray-400">Disabled</span>
+                  )}
+                </DetailField>
+              </div>
             </div>
-          </div>
+          )}
         </Section>
+
+        {/* close activeTab === "general" fragment */}
+        </>)}
 
       </div>
     </div>
