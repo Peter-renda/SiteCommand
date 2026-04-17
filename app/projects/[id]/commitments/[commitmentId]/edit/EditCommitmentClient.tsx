@@ -229,7 +229,13 @@ function SovTable({
         </span>
         <button
           type="button"
-          onClick={() => onMethodChange(method === "unit_quantity" ? "amount" : "unit_quantity")}
+          onClick={() => {
+            const hasItems = visible.filter((l) => !l.is_group_header).length > 0;
+            if (hasItems) {
+              if (!confirm("The accounting method can only be changed BEFORE adding line items. Changing it now will clear all existing SOV lines. Continue?")) return;
+            }
+            onMethodChange(method === "unit_quantity" ? "amount" : "unit_quantity");
+          }}
           className="text-xs px-3 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50 transition-colors"
         >
           Change to {method === "unit_quantity" ? "Amount" : "Unit/Quantity"}
@@ -405,6 +411,138 @@ function SovTable({
   );
 }
 
+// ── Email Contract Modal ──────────────────────────────────────────────────────
+
+function EmailContractModal({
+  directory,
+  commitmentNumber,
+  commitmentType,
+  onClose,
+  onSend,
+}: {
+  directory: DirectoryContact[];
+  commitmentNumber: string;
+  commitmentType: "subcontract" | "purchase_order";
+  onClose: () => void;
+  onSend: (payload: { to: string[]; cc: string[]; subject: string; message: string; isPrivate: boolean }) => Promise<void>;
+}) {
+  const typeLabel = commitmentType === "purchase_order" ? "Purchase Order" : "Subcontract";
+  const [toInputs, setToInputs] = useState<string[]>([""]);
+  const [ccInputs, setCcInputs] = useState<string[]>([""]);
+  const [subject, setSubject] = useState(`${typeLabel} #${commitmentNumber}`);
+  const [message, setMessage] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const emailOptions = directory
+    .filter((c) => c.email)
+    .map((c) => ({ label: `${contactName(c)} <${c.email}>`, value: c.email! }));
+
+  async function handleSend() {
+    const to = toInputs.filter(Boolean);
+    if (to.length === 0) { setError("At least one recipient is required."); return; }
+    setSending(true);
+    setError("");
+    try {
+      await onSend({ to, cc: ccInputs.filter(Boolean), subject, message, isPrivate });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send");
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-base font-semibold text-gray-900 mb-4">Email {typeLabel}</h2>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">To <span className="text-red-500">*</span></label>
+            {toInputs.map((val, idx) => (
+              <div key={idx} className="flex gap-2 mb-1">
+                <select
+                  value={val}
+                  onChange={(e) => setToInputs((prev) => prev.map((v, i) => i === idx ? e.target.value : v))}
+                  className={selectCls}
+                >
+                  <option value="">Select recipient from directory…</option>
+                  {emailOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                {toInputs.length > 1 && (
+                  <button type="button" onClick={() => setToInputs((prev) => prev.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 px-1">✕</button>
+                )}
+              </div>
+            ))}
+            <button type="button" onClick={() => setToInputs((prev) => [...prev, ""])} className="text-xs text-blue-600 hover:underline mt-1">+ Add recipient</button>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Cc</label>
+            {ccInputs.map((val, idx) => (
+              <div key={idx} className="flex gap-2 mb-1">
+                <select
+                  value={val}
+                  onChange={(e) => setCcInputs((prev) => prev.map((v, i) => i === idx ? e.target.value : v))}
+                  className={selectCls}
+                >
+                  <option value="">Select recipient from directory…</option>
+                  {emailOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                {ccInputs.length > 1 && (
+                  <button type="button" onClick={() => setCcInputs((prev) => prev.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 px-1">✕</button>
+                )}
+              </div>
+            ))}
+            <button type="button" onClick={() => setCcInputs((prev) => [...prev, ""])} className="text-xs text-blue-600 hover:underline mt-1">+ Add Cc</button>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} className="w-4 h-4 rounded border-gray-300" />
+              <span className="text-xs font-medium text-gray-700">Private — restrict viewing to admins and email recipients only</span>
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Subject</label>
+            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className={inputCls} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Message</label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
+              placeholder="Add instructions or context for recipients…"
+              className={inputCls + " resize-y"}
+            />
+          </div>
+
+          <p className="text-xs text-gray-500">
+            Recipients will receive an email with a link to view the contract online (if they have access) or download it as a PDF.
+            Recipients must be in the Project Directory.
+          </p>
+
+          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">{error}</p>}
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} disabled={sending} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60">
+            Cancel
+          </button>
+          <button onClick={handleSend} disabled={sending} className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 disabled:opacity-60">
+            {sending ? "Sending…" : "Send"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function EditCommitmentClient({
@@ -439,9 +577,26 @@ export default function EditCommitmentClient({
   const [defaultRetainage, setDefaultRetainage] = useState("10");
   const [description, setDescription] = useState("");
 
-  // Contract Dates
+  // Contract Dates – Subcontract
+  const [startDate, setStartDate] = useState("");
+  const [estimatedCompletion, setEstimatedCompletion] = useState("");
+  const [actualCompletion, setActualCompletion] = useState("");
+  const [signedContractReceived, setSignedContractReceived] = useState("");
+  // Contract Dates – Purchase Order
+  const [contractDate, setContractDate] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [signedPoDate, setSignedPoDate] = useState("");
+  const [issuedOnDate, setIssuedOnDate] = useState("");
+
+  // Scope of Work (Subcontract)
+  const [inclusions, setInclusions] = useState("");
+  const [exclusions, setExclusions] = useState("");
+
+  // DocuSign
+  const [signDocusign, setSignDocusign] = useState(false);
+
+  // Email Contract modal
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   // Contract Privacy
   const [isPrivate, setIsPrivate] = useState(true);
@@ -490,8 +645,17 @@ export default function EditCommitmentClient({
       setExecuted(c.executed ?? false);
       setDefaultRetainage(String(c.default_retainage ?? 10));
       setDescription(c.description ?? "");
+      setStartDate(c.start_date ?? "");
+      setEstimatedCompletion(c.estimated_completion ?? "");
+      setActualCompletion(c.actual_completion ?? "");
+      setSignedContractReceived(c.signed_contract_received ?? "");
+      setContractDate(c.contract_date ?? "");
       setDeliveryDate(c.delivery_date ?? "");
       setSignedPoDate(c.signed_po_received_date ?? "");
+      setIssuedOnDate(c.issued_on_date ?? "");
+      setInclusions(c.inclusions ?? "");
+      setExclusions(c.exclusions ?? "");
+      setSignDocusign(c.sign_docusign ?? false);
       setIsPrivate(c.is_private ?? true);
       setSovViewAllowed(c.sov_view_allowed ?? false);
       setSubcontractCoverLetter(c.subcontract_cover_letter ?? "");
@@ -728,8 +892,20 @@ export default function EditCommitmentClient({
           executed,
           default_retainage: numVal(defaultRetainage),
           description,
-          delivery_date: deliveryDate || null,
-          signed_po_received_date: signedPoDate || null,
+          sign_docusign: signDocusign,
+          // Subcontract dates
+          start_date: commitmentType === "subcontract" ? (startDate || null) : undefined,
+          estimated_completion: commitmentType === "subcontract" ? (estimatedCompletion || null) : undefined,
+          actual_completion: commitmentType === "subcontract" ? (actualCompletion || null) : undefined,
+          signed_contract_received: commitmentType === "subcontract" ? (signedContractReceived || null) : undefined,
+          // PO dates
+          contract_date: commitmentType === "purchase_order" ? (contractDate || null) : undefined,
+          delivery_date: commitmentType === "purchase_order" ? (deliveryDate || null) : undefined,
+          signed_po_received_date: commitmentType === "purchase_order" ? (signedPoDate || null) : undefined,
+          issued_on_date: commitmentType === "purchase_order" ? (issuedOnDate || null) : undefined,
+          // Scope
+          inclusions: commitmentType === "subcontract" ? inclusions : undefined,
+          exclusions: commitmentType === "subcontract" ? exclusions : undefined,
           is_private: isPrivate,
           sov_view_allowed: sovViewAllowed,
           subcontract_cover_letter: subcontractCoverLetter,
@@ -794,6 +970,24 @@ export default function EditCommitmentClient({
     }
   }
 
+  async function handleEmailContract(payload: {
+    to: string[];
+    cc: string[];
+    subject: string;
+    message: string;
+    isPrivate: boolean;
+  }) {
+    const res = await fetch(`/api/projects/${projectId}/commitments/${commitmentId}/email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: "Failed to send" }));
+      throw new Error(error || "Failed to send");
+    }
+  }
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
@@ -832,6 +1026,13 @@ export default function EditCommitmentClient({
           <h1 className="text-sm font-semibold text-gray-900">Edit {typeLabel}</h1>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setEmailModalOpen(true)}
+            className="px-4 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+          >
+            Email Contract
+          </button>
           <a
             href={`/projects/${projectId}/commitments/${commitmentId}`}
             className="px-4 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
@@ -845,6 +1046,16 @@ export default function EditCommitmentClient({
           >
             {saving ? "Saving…" : `Save ${typeLabel}`}
           </button>
+          {signDocusign && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-1.5 text-sm font-medium text-blue-700 border border-blue-300 bg-blue-50 rounded hover:bg-blue-100 transition-colors disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Complete with DocuSign®"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -900,6 +1111,23 @@ export default function EditCommitmentClient({
           <Field label="Description" className="mb-4">
             <RichTextEditor value={description} onChange={setDescription} minHeight="100px" />
           </Field>
+
+          <Field label="DocuSign®" className="mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={signDocusign}
+                onChange={(e) => setSignDocusign(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">
+                Enable DocuSign® signature collection
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  When enabled, &ldquo;Complete with DocuSign®&rdquo; appears as a save option.
+                </span>
+              </span>
+            </label>
+          </Field>
         </Section>
 
         {/* ── Schedule of Values ── */}
@@ -952,14 +1180,37 @@ export default function EditCommitmentClient({
 
         {/* ── Contract Dates ── */}
         <Section title="Contract Dates">
-          <div className="grid grid-cols-2 gap-8">
-            <Field label="Delivery Date">
-              <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="Signed Purchase Order Received Date">
-              <input type="date" value={signedPoDate} onChange={(e) => setSignedPoDate(e.target.value)} className={inputCls} />
-            </Field>
-          </div>
+          {commitmentType === "subcontract" ? (
+            <div className="grid grid-cols-2 gap-8">
+              <Field label="Start Date">
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Estimated Completion">
+                <input type="date" value={estimatedCompletion} onChange={(e) => setEstimatedCompletion(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Actual Completion">
+                <input type="date" value={actualCompletion} onChange={(e) => setActualCompletion(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Signed Contract Received">
+                <input type="date" value={signedContractReceived} onChange={(e) => setSignedContractReceived(e.target.value)} className={inputCls} />
+              </Field>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-8">
+              <Field label="Contract Date">
+                <input type="date" value={contractDate} onChange={(e) => setContractDate(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Delivery Date">
+                <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Signed Purchase Order Received Date">
+                <input type="date" value={signedPoDate} onChange={(e) => setSignedPoDate(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Issued On">
+                <input type="date" value={issuedOnDate} onChange={(e) => setIssuedOnDate(e.target.value)} className={inputCls} />
+              </Field>
+            </div>
+          )}
         </Section>
 
         {/* ── Contract Privacy ── */}
@@ -1003,7 +1254,7 @@ export default function EditCommitmentClient({
               <Field label="Trades" className="mb-4">
                 <input type="text" value={trades} onChange={(e) => setTrades(e.target.value)} className={inputCls} />
               </Field>
-              <Field label="Subcontractor Contact">
+              <Field label="Invoice Contact">
                 <select value={subcontractorContact} onChange={(e) => setSubcontractorContact(e.target.value)} className={selectCls}>
                   <option value="" />
                   {directory.map((c) => (
@@ -1011,8 +1262,20 @@ export default function EditCommitmentClient({
                   ))}
                 </select>
                 <p className="mt-1 text-[11px] text-gray-500">
-                  Also used as the Invoice Contact for the Subcontractor SOV.
+                  The invoice contact receives SSOV notifications and can edit the Subcontractor SOV.
                 </p>
+              </Field>
+            </div>
+          )}
+
+          {commitmentType === "subcontract" && (
+            <div className="mb-8">
+              <h3 className="text-sm font-semibold text-gray-800 mb-4">Scope of Work</h3>
+              <Field label="Inclusions" className="mb-4">
+                <RichTextEditor value={inclusions} onChange={setInclusions} minHeight="120px" />
+              </Field>
+              <Field label="Exclusions" className="mb-4">
+                <RichTextEditor value={exclusions} onChange={setExclusions} minHeight="120px" />
               </Field>
             </div>
           )}
@@ -1040,6 +1303,17 @@ export default function EditCommitmentClient({
         </Section>
 
       </div>
+
+      {/* Email Contract modal */}
+      {emailModalOpen && (
+        <EmailContractModal
+          directory={directory}
+          commitmentNumber={contractNumber}
+          commitmentType={commitmentType}
+          onClose={() => setEmailModalOpen(false)}
+          onSend={handleEmailContract}
+        />
+      )}
     </div>
   );
 }

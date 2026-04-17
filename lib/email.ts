@@ -365,3 +365,56 @@ export async function sendSsovNotificationEmail(
     `,
   });
 }
+
+export async function sendCommitmentEmail({
+  to,
+  cc,
+  subject,
+  message,
+  commitmentNumber,
+  commitmentTitle,
+  commitmentType,
+  projectName,
+  commitmentUrl,
+  isPrivate,
+}: {
+  to: string;
+  cc: string[];
+  subject: string;
+  message: string;
+  commitmentNumber: number;
+  commitmentTitle: string;
+  commitmentType: string;
+  projectName: string;
+  commitmentUrl: string;
+  isPrivate: boolean;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  const resend = new Resend(apiKey);
+  const typeLabel = commitmentType === "purchase_order" ? "Purchase Order" : "Subcontract";
+  const msgLine = message ? `<p style="color:#555;font-size:13px;">${message}</p>` : "";
+  const privacyNote = isPrivate
+    ? `<p style="color:#888;font-size:11px;">This contract is marked private and is only visible to admins and selected recipients.</p>`
+    : "";
+
+  const { error } = await resend.emails.send({
+    from: "SiteCommand <invites@sitecommand.xyz>",
+    to,
+    cc: cc.length > 0 ? cc : undefined,
+    subject,
+    html: `
+      <p style="font-size:14px;">You have received a ${typeLabel} from <strong>${projectName}</strong>.</p>
+      <p style="font-size:16px;font-weight:600;">${typeLabel} #${commitmentNumber}: ${commitmentTitle || "Untitled"}</p>
+      ${msgLine}
+      <p>
+        <a href="${commitmentUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-right:8px;">View Online</a>
+        <a href="${commitmentUrl}/pdf" style="background:#fff;color:#111;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;border:1px solid #ddd;">Download PDF</a>
+      </p>
+      ${privacyNote}
+      <p style="color:#aaa;font-size:11px;">Recipients need appropriate project access to view this contract online. Sent via SiteCommand.</p>
+    `,
+  });
+  if (error) throw new Error(error.message);
+}
