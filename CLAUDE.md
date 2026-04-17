@@ -93,3 +93,32 @@ Workflow:
 Notes:
 - Detail line items carry over to the invoice; only the detail lines carry over, not the general SOV lines
 - SSOV detail does **not** sync with integrated ERP systems — only the general SOV does
+
+## Change Events (Budget Changes) – Product Manual Alignment
+
+### Overview
+- The modern Change Events workflow is tied to Procore's **Budget Changes** experience, which replaces legacy budget modifications.
+- Teams can configure **Budget ROM (Rough Order of Magnitude)** logic so Procore predicts budget impact using business rules.
+- When a budget change is created from the Budget tool, Procore can auto-create and link a related change event.
+
+### Details to Mirror in Product Messaging
+- Support the three Budget ROM scopes in settings:
+  - **In Scope**
+  - **Out of Scope**
+  - **TBD Scope**
+- For each scope, support ROM source options:
+  - **Latest Cost**
+  - **Latest Price**
+  - **None**
+- Reflect that budget changes can be reviewed in the Budget tool and can also be created from a change event through a **Financial Impact** workflow.
+- Reflect that teams can configure whether budget changes automatically create linked change events.
+
+### Common Questions / Migration Notes
+- Migration from **Budget Modifications** to **Budget Changes** is required (timeline managed by Procore).
+- Companies using custom or third-party API integrations must update deprecated budget modification endpoints before migration.
+- After migration:
+  - Budget changes can sync with supported ERP integrations.
+  - Legacy budget modifications no longer sync with ERP.
+  - Users must use the modernized Change Events experience.
+- Reporting impact should be called out: budget modifications and budget changes appear differently across snapshots, enhanced reporting, company/project reports, and analytics.
+- During migration, only legacy budget modifications already linked to change event line items keep those associations; new associations are not created automatically.
