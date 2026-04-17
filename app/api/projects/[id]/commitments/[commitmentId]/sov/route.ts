@@ -3,6 +3,7 @@ import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { canEditSov } from "@/lib/commitment-gates";
 import { requireToolLevel } from "@/lib/tool-permissions";
+import { canViewCommitmentSov } from "@/lib/commitment-visibility";
 
 export async function GET(
   _req: NextRequest,
@@ -14,6 +15,9 @@ export async function GET(
   const { id: projectId, commitmentId } = await params;
   const denied = await requireToolLevel(session, projectId, "commitments", "read_only");
   if (denied) return denied;
+
+  const canView = await canViewCommitmentSov(session, projectId, commitmentId);
+  if (!canView) return NextResponse.json([]);
 
   const supabase = getSupabase();
 
