@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { calculateSubmittalSchedule } from "@/lib/submittalSchedule";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -13,6 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from("submittals")
     .select("*")
     .eq("project_id", projectId)
+     .eq("is_deleted", req.nextUrl.searchParams.get("recycle_bin") === "true")
     .order("submittal_number", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -30,6 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from("submittals")
     .select("submittal_number")
     .eq("project_id", projectId)
+    .eq("is_deleted", false)
     .order("submittal_number", { ascending: false })
     .limit(1)
     .single();
@@ -46,6 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     responsible_contractor_id,
     received_from_id,
     submittal_manager_id,
+    approver_name_id,
     submit_by,
     received_date,
     issue_date,
@@ -59,7 +63,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     private: isPrivate,
     description,
     attachments,
+    owners_manual,
+    package_notes,
+    confirmed_delivery_date,
+    actual_delivery_date,
+    workflow_steps,
+    related_items,
+    design_team_review_time,
+    internal_review_time,
   } = body;
+
+
+  const scheduleDates = calculateSubmittalSchedule({
+    required_on_site_date: required_on_site_date || null,
+    lead_time: lead_time != null ? Number(lead_time) : null,
+    design_team_review_time: design_team_review_time != null ? Number(design_team_review_time) : null,
+    internal_review_time: internal_review_time != null ? Number(internal_review_time) : null,
+  });
 
   const { data, error } = await supabase
     .from("submittals")
@@ -74,6 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       responsible_contractor_id: responsible_contractor_id || null,
       received_from_id: received_from_id || null,
       submittal_manager_id: submittal_manager_id || null,
+      approver_name_id: approver_name_id || null,
       submit_by: submit_by || null,
       received_date: received_date || null,
       issue_date: issue_date || null,
@@ -83,10 +104,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       distribution_list: distribution_list ?? [],
       ball_in_court_id: ball_in_court_id || null,
       lead_time: lead_time != null ? Number(lead_time) : null,
+      design_team_review_time: design_team_review_time != null ? Number(design_team_review_time) : null,
+      internal_review_time: internal_review_time != null ? Number(internal_review_time) : null,
       required_on_site_date: required_on_site_date || null,
+      ...scheduleDates,
       private: isPrivate ?? false,
       description: description || null,
       attachments: attachments ?? [],
+      owners_manual: owners_manual || null,
+      package_notes: package_notes || null,
+      confirmed_delivery_date: confirmed_delivery_date || null,
+      actual_delivery_date: actual_delivery_date || null,
+      workflow_steps: workflow_steps ?? [],
+      related_items: related_items ?? [],
       created_by: session.id,
     })
     .select()

@@ -59,6 +59,9 @@ type ChangeOrder = {
   date_initiated: string | null;
   due_date: string | null;
   designated_reviewer: string | null;
+  executed?: boolean;
+  change_reason?: string | null;
+  prime_contract_change_order?: string | null;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -222,6 +225,10 @@ export default function PrimeContractDetailClient({
     key: "number",
     direction: "desc",
   });
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [executedFilters, setExecutedFilters] = useState<string[]>([]);
+  const [reasonFilters, setReasonFilters] = useState<string[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -343,6 +350,21 @@ export default function PrimeContractDetailClient({
                   ? compareDate(a.date_initiated, b.date_initiated)
                   : compareDate(a.due_date, b.due_date);
     return changeOrderSort.direction === "asc" ? base : -base;
+  });
+
+  const statusOptions = Array.from(new Set(changeOrders.map((co) => String(co.status || "").trim()).filter(Boolean)));
+  const changeReasonOptions = Array.from(new Set(changeOrders.map((co) => String(co.change_reason || "").trim()).filter(Boolean)));
+  const changeTypeOptions = Array.from(new Set(changeOrders.map((co) => String(co.prime_contract_change_order || "").trim()).filter(Boolean)));
+
+  const filteredAndSortedChangeOrders = sortedChangeOrders.filter((co) => {
+    if (statusFilters.length > 0 && !statusFilters.includes(co.status)) return false;
+    if (executedFilters.length > 0) {
+      const executedLabel = co.executed ? "Yes" : "No";
+      if (!executedFilters.includes(executedLabel)) return false;
+    }
+    if (reasonFilters.length > 0 && !reasonFilters.includes(String(co.change_reason || "").trim())) return false;
+    if (typeFilters.length > 0 && !typeFilters.includes(String(co.prime_contract_change_order || "").trim())) return false;
+    return true;
   });
 
   function sortHeaderButton(label: string, sortKey: ChangeOrderSortKey, align: "left" | "right" = "left") {
@@ -636,6 +658,70 @@ export default function PrimeContractDetailClient({
                 New Change Order
               </button>
             </div>
+            <div className="px-8 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
+              <select
+                value=""
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val && !statusFilters.includes(val)) setStatusFilters((prev) => [...prev, val]);
+                }}
+                className="px-2 py-1 text-xs border border-gray-300 rounded"
+              >
+                <option value="">Add Filter: Status</option>
+                {statusOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <select
+                value=""
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val && !executedFilters.includes(val)) setExecutedFilters((prev) => [...prev, val]);
+                }}
+                className="px-2 py-1 text-xs border border-gray-300 rounded"
+              >
+                <option value="">Add Filter: Executed</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+              <select
+                value=""
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val && !reasonFilters.includes(val)) setReasonFilters((prev) => [...prev, val]);
+                }}
+                className="px-2 py-1 text-xs border border-gray-300 rounded"
+              >
+                <option value="">Add Filter: Change Reason</option>
+                {changeReasonOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <select
+                value=""
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val && !typeFilters.includes(val)) setTypeFilters((prev) => [...prev, val]);
+                }}
+                className="px-2 py-1 text-xs border border-gray-300 rounded"
+              >
+                <option value="">Add Filter: Change Type</option>
+                {changeTypeOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => {
+                  setStatusFilters([]);
+                  setExecutedFilters([]);
+                  setReasonFilters([]);
+                  setTypeFilters([]);
+                }}
+                className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+              >
+                Clear All
+              </button>
+            </div>
             {changeOrders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-gray-400">
                 <p className="text-sm font-medium text-gray-500 mb-1">No change orders</p>
@@ -655,7 +741,7 @@ export default function PrimeContractDetailClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedChangeOrders.map((co) => {
+                  {filteredAndSortedChangeOrders.map((co) => {
                     const statusCls = CO_STATUS_COLORS[co.status] ?? "bg-gray-100 text-gray-600";
                     return (
                       <tr
@@ -677,6 +763,13 @@ export default function PrimeContractDetailClient({
                       </tr>
                     );
                   })}
+                  {filteredAndSortedChangeOrders.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+                        No change orders match the selected filters.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             )}

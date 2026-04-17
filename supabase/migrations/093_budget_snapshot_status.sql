@@ -1,0 +1,3 @@
+ALTER TABLE budget_snapshots
+ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Draft';
+

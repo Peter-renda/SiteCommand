@@ -153,6 +153,69 @@ Notes:
 - When linked, T&M ticket line items transfer to the change event.
 - T&M ticket references/attachments should be represented in the change event description context.
 
+## Budget + ERP + WBS Alignment Notes (Added April 17, 2026)
+
+### About the Procore Standard Forecast View
+- Treat **Procore Standard Forecast** as the default baseline forecasting layout.
+- Keep Advanced Forecasting behavior configurable at the tool/settings level.
+- Forecasting views should be assignable per project and designed as templates layered on top of the standard baseline.
+- Forecasting UX should keep these high-signal columns visible by default:
+  - Revised Budget
+  - Projected Budget
+  - Projected Costs
+  - Forecast to Complete
+  - Estimated Cost at Completion
+  - Projected Over/Under
+
+### About the Project Status Snapshots Tab
+- The Budget tool should expose a dedicated **Project Status Snapshots** experience.
+- Users should be able to:
+  - View all snapshots over the project lifecycle.
+  - Export snapshot list data to CSV.
+  - Change snapshot status for approval tracking.
+  - Compare two snapshots to analyze variance.
+- Permissions baseline:
+  - Read-only or higher on Budget to view snapshot list.
+  - Elevated permissions for creating/updating snapshots.
+
+### Accept or Reject a Budget for Export to ERP
+- Budgets sent to ERP should pass through an accounting review state before export.
+- Accounting approvers should be able to **Accept** (export) or **Reject** (return to editable budget state with reason).
+- ERP-specific revision metadata may appear even for original budgets; users can ignore revision fields when no revision is being exported.
+- Restriction messaging should be explicit:
+  - ERP-exported budgets impact unlock/edit behavior.
+  - Import/export rules vary by ERP connector.
+
+### Activate Budget Codes on a Project
+- Budget codes should support active/inactive lifecycle at the project level.
+- Inactive codes should be excluded from budget-code dropdowns in project financial tools.
+- Activation should support:
+  - Single-code activation.
+  - Bulk activation.
+- Permission baseline should mirror Project Admin + WBS granular permission controls.
+
+## Budget Tutorials Alignment Notes (Added April 17, 2026)
+
+### Add a Budget Line Item
+- Require both **Cost Code** and **Cost Type** when creating or editing a budget line item.
+- Treat **Cost Code + Cost Type** as a unique budget code combination at the project level to prevent duplicates.
+- Keep support for setting an original amount on unlocked budgets and preserve lock behavior on original amounts after budget lock.
+
+### Add a GST to a Budget
+- Provide a dedicated quick action for creating a **GST Budget Line Item**.
+- GST entries should default the cost type to **Other** while still allowing users to set a dedicated tax cost code.
+- Keep GST line items visually identifiable in the table so teams can report/govern tax tracking more clearly.
+
+### Add a Job to Date Costs Column to a Budget View
+- Keep **Job to Date Costs** visible as a source column in the Budget table and preserve a clear formula relationship with **Direct Costs**.
+- Continue surfacing column-level formula help text so users can understand how calculated values are produced.
+- For non-ERP projects, maintain language and UX that treats this as a configurable budget-view reporting column behavior.
+
+### Add a Partial Budget Line Item
+- Support creating **partial/unbudgeted budget line items** directly in the budget workflow.
+- Partial line items should be created with a **$0 Original Budget Amount** and remain editable through downstream budget-change workflows.
+- Keep partial line items visually marked (for example, with a `?` indicator) to help users identify unbudgeted scope quickly.
+
 ## 360 Reporting – Workflow Alignment Notes
 
 ### Export a Report
@@ -195,6 +258,137 @@ Notes:
   1. Select visual type.
   2. Select dataset/report definition.
   3. Configure axes/measures (or columns for tabular reports).
+
+## Change Orders + Financials Workflow Notes (Added April 17, 2026)
+
+### Enable the Change Orders Tool
+- Keep Change Orders as a configurable, project-level active tool.
+- Admin workflow expectation:
+  1. Open project **Admin**.
+  2. Open **Active Tools**.
+  3. Enable **Change Orders**.
+  4. Save/update tool settings.
+- Permission baseline: project Admin-level users manage tool activation.
+
+### Enable Labor Productivity Cost Features
+- In project Admin advanced settings, expose a toggle equivalent to **Labor Productivity for Budget, Change Events, and Change Orders**.
+- This setting should be treated as a project-financials capability flag that influences Budget, Change Events, and Change Orders experiences together.
+
+### View Change Orders
+- Change Orders should remain a centralized viewing tool for both:
+  - Prime Contract Change Orders (PCCOs)
+  - Commitment Change Orders (CCOs)
+- Keep separate tabs for Prime Contracts and Commitments.
+- Change order creation should continue to happen from the parent financial contract workflows, not from the viewing list itself.
+
+### Export a Single Change Order
+- Support exporting an individual change order directly to **PDF** from its detail page.
+- Support quick PDF export from list context where possible.
+- Export should preserve key contract/accounting context (including budget code/SOV line data when present).
+
+### Export a List of Change Orders (CSV/PDF)
+- Support both **CSV** and **PDF** list exports from the Change Orders list UI.
+- Exports should apply:
+  - active tab scope (Prime vs Commitment),
+  - current filters,
+  - current sort order.
+
+### Approve or Reject Change Orders (Reviewer Flow)
+- A change order may have exactly one **Designated Reviewer**.
+- Reviewer action eligibility:
+  - User must be the designated reviewer.
+  - Status must be a pending review state (for example, **Pending - In Review** or **Pending - Revised**).
+- On Approve/Reject response:
+  - update status,
+  - set reviewer identity,
+  - stamp review date,
+  - persist reviewer response history context.
+
+### Determine Approval Order
+- Track an explicit **approved timestamp** on each change order.
+- Surface approval chronology in the log so teams can identify the most recently approved item first.
+- If an approved item needs to be edited/deleted, enforce or guide reverse-order unapproval behavior (latest approved first).
+
+### Create Budget Codes in Financial Tools
+- Continue supporting budget-code creation inline from financial line item/SOV entry flows.
+- Support segmented budget-code composition from project WBS segments.
+- Allow default concatenated description and optional custom description when creating a new code.
+
+## Budget Tutorials Alignment Notes (Added April 17, 2026 - Round 2)
+
+### Add the Columns for Job Cost Transaction Syncing to a Budget View for ERP Integrations
+- Keep ERP-oriented budget views configured around **Job to Date Costs** and **Direct Costs** to preserve transaction-based visibility.
+- Treat **Direct Costs** as a calculated value tied to source-cost detail visibility controls, and keep formula help text visible in-column.
+- Maintain ERP-specific messaging that this setup is intended for supported ERP-connected workflows where job cost transactions are synced.
+
+### Add the Columns for the Budget Changes Feature to a Budget View
+- Ensure budget views used for change workflows expose source and calculated columns required for **Pending Budget Changes** and **Approved Change Order** analysis.
+- Preserve the expectation that teams may either modify an existing view or create a dedicated **Budget Changes** view, then assign it to projects.
+- Keep this configuration aligned with Change Events settings (including Budget ROM behavior).
+
+### Add the Unit-Based Columns to a Budget View
+- Support non-ERP unit-based budgeting workflows with these high-signal fields in budget experiences:
+  - **Budget Unit Qty**
+  - **Unit of Measure**
+  - **Unit Cost**
+- Preserve behavior where **manual calculation** can be toggled so teams can either enter an amount directly or derive it from unit inputs.
+- Keep ERP caveat messaging clear: unit-based syncing behavior varies by ERP connector.
+
+### Analyze Line Item Variance Between Budget Snapshots (Beta) / Analyze Variances Between Budget Snapshots
+- Snapshot comparison UX should support selecting snapshot pairs and reviewing variance at the line-item level.
+- Provide display modes for:
+  - Comparison + variance values
+  - Comparison values only
+  - Variance values only
+- Keep snapshot-level permissions language aligned with Budget tool expectations (read access for visibility, elevated access for creation/management).
+
+### Apply Advanced Forecasting Curves
+- Forecasting workflows should capture **Start Date**, **End Date**, and **Curve** per line item.
+- Supported curve language should include at least:
+  - **Linear**
+  - **Bell**
+  - **Manual**
+- Keep **Procore Standard Forecast** as the baseline concept while allowing custom forecasting views.
+
+### Apply the View, Group, and Filter Options on the Budget Detail Tab
+- Budget Details UX should expose all three controls at the top of the tab:
+  - **View**
+  - **Group**
+  - **Filter**
+- Group/filter options should account for WBS-driven behavior (for example, Cost Code tiers and cost type groupings).
+
+## Budget View Configuration Alignment (Added April 17, 2026)
+
+### Add a Real-Time Labor Productivity Budget View
+- Budget workflows should support a labor-productivity-focused layout that combines:
+  - Budgeted production quantities
+  - Installed quantities
+  - Actual labor hours and labor cost
+- The Budget UI should expose labor productivity metrics (for example units/hour and cost/hour) using live project entries.
+- Messaging should reflect that this view is intended to reduce manual waiting/entry for labor cost visibility.
+
+### Add Budgeted Production Quantities to a Project's Budget
+- Include a dedicated Production Quantities experience at the project budget level.
+- Line items should support:
+  - Budgeted quantity
+  - UOM
+  - Installed quantity
+- Require Budget admin-level access in role/permission mapping for editing production quantity entries.
+
+### Add Cost ROM, RFQ, and Non-Commitment Cost Source Columns
+- Budget views should allow Change Event source columns for:
+  - Cost ROM
+  - Cost RFQ
+  - Non-Commitment Cost (NCC)
+- Keep these values visible as distinct source data from standard budget amounts.
+- Preserve workflow clarity that these columns are intended for Change Event financial impact tracking before/without commitment linkage.
+
+### Add the ERP Direct Costs Column to a Budget View
+- Budget views should support ERP-specific job cost source data:
+  - ERP Job to Date Costs (source)
+  - ERP Direct Costs (calculated from direct cost + ERP job cost source)
+- Surface this as budget-view configuration behavior for ERP-integrated projects.
+- Keep UI language clear that ERP-based columns are integration-driven and may be unavailable when ERP configuration is not enabled.
   4. Configure sort direction and optional advanced options.
 - Advanced options should include as applicable:
   - Display units
@@ -258,71 +452,212 @@ Notes:
   - Append `-Copy` to the report name.
   - Preserve share-safe visibility semantics (copy only reveals data user can access).
 
-## Delete a Purchase Order or Subcontract
+## Procore Process-Guide Alignment Notes (Added April 17, 2026)
 
-### Required Permissions
-- **Admin** level on the Commitments tool.
+### Sources Reviewed
+- https://v2.support.procore.com/process-guides/about-budget-changes/
+- https://v2.support.procore.com/process-guides/about-budget-changes-on-owner-invoices/
+- https://v2.support.procore.com/process-guides/budget-and-forecast-snapshots-user-guide/
+- https://v2.support.procore.com/process-guides/company-administration-work-breakdown-structure-guide/
 
-### Prerequisites
-- A Purchase Order or Subcontract must have been previously created.
+### Budget Changes + Change Events
+- Keep language aligned to modern **Budget Changes** (not legacy Budget Modifications) for net-new workflows.
+- Keep **Budget ROM** framing explicit across three scopes:
+  - In Scope
+  - Out of Scope
+  - TBD Scope
+- Keep ROM source guidance visible in UX copy and workflow docs:
+  - Latest Cost
+  - Latest Price
+  - None
+- Preserve messaging that Budget Changes can auto-create linked Change Events and can also be handled through Financial Impact workflows.
 
-### Workflow
-1. Open the project's Commitments tool → **Contracts** tab.
-2. Locate the contract and click **View** to open it.
-3. Click the **Delete** button.
-   - The Delete button is **disabled** when the contract status is **Approved**. Change the status first.
-4. Click **OK** to confirm deletion.
+### Budget Changes on Owner Invoices
+- Reflect that not every financial adjustment must use a Prime Contract Change Order (PCCO), especially in GMP/allowance-contingency scenarios.
+- Keep support for adding approved budget changes to the latest owner invoice and grouping those lines for billing review.
+- Keep owner-invoice workflow references in change-management guidance to reduce CO-overuse.
 
-### Important Notes
-- Deleted contracts are **permanently moved to the Recycle Bin** and cannot be recovered.
-- For ERP-synced contracts, follow the "Delete a Commitment Synced with ERP" guide before proceeding.
-- In SiteCommand, deletion is a **soft delete** (sets `deleted_at` timestamp); implement Recycle Bin view if needed.
+### Budget + Forecast Snapshots
+- Treat snapshots as point-in-time financial baselines for variance analysis.
+- Maintain user guidance for snapshot lifecycle actions:
+  - Create snapshot
+  - View snapshot
+  - Configure/apply budget view context
+  - Analyze variance
+  - Export snapshot / export snapshot list
+- Position snapshots as monthly-close and executive reporting controls.
 
-### Implementation Notes (SiteCommand)
-- Delete button in `CommitmentDetailClient.tsx` is disabled when `commitment.status === "approved"`.
-- Confirmation dialog warns user the action is permanent.
-- ERP-synced contracts (`erp_status === "synced"`) display an additional warning in the confirmation dialog.
-- API: `DELETE /api/projects/[id]/commitments/[commitmentId]` — requires Admin tool permission.
+### WBS (Company Administration)
+- Treat WBS as a company-governed setup sequence before project-level execution:
+  1. Define custom segments.
+  2. Define segment items.
+  3. Configure default cost code and cost type segments (including UOM where needed).
+  4. Enable optional sub jobs.
+  5. Set budget code structure and project edit controls.
+- Keep project-level financial workflows dependent on stable company-level WBS governance.
 
-## Edit a Subcontract
+### 360 Reporting Alignment Checklist
+- Ensure report exports support **CSV, XLSX, and PDF** from current visible report state.
+- Keep Assist flow lightweight: prompt -> recommendation -> create draft.
+- Keep promotion audit metadata explicit (promoted timestamp + actor).
+- Keep sharing model report-specific and distinct from dashboard sharing.
+- Keep Add Visual threshold behavior explicit for large datasets (2,500+ row constraint messaging).
+- Keep dashboard publish-before-share behavior explicit.
 
-### Required Permissions
-- **Admin** on Commitments tool, OR
-- **Read Only** or **Standard** with the **Update Work Order Contract** granular permission enabled.
+## Change Orders / ERP Alignment Notes (Added April 17, 2026)
 
-### Prerequisites
-- A Subcontract must have been previously created.
-- ERP-integrated companies: these steps only apply to contracts not yet synced with the integrated system.
+### Edit a Change Order
+- The project-level **Change Orders** tool should be treated as a central index for locating change orders, not as the sole authority for edit permissions.
+- Edit eligibility should continue to defer to the parent financial tool permissions:
+  - **Commitment Change Orders (CCOs)**: Admin on Commitments.
+  - **Prime/Client/Funding Change Orders**: Admin on the corresponding contract tool.
+- Keep explicit UX messaging that users may be blocked from editing/deleting based on status order and approval sequencing (for example, older approved COs may require rollback of newer approvals before edits).
 
-### Editable Fields
-1. **Basic Information**: Contract Number (display only, auto-increments), Contract Company, Title
-2. **General Information**: Status (Draft / Approved / Void / Terminated), Executed checkbox, Default Retainage, Description (rich text)
-3. **DocuSign®**: Toggle to enable DocuSign® signature collection. When enabled, a "Complete with DocuSign®" save option appears.
-4. **Contract Access**: Private toggle, Invoice Contact (selected from Contract Company employees in project directory)
-5. **Contract Dates**: Start Date, Estimated Completion, Actual Completion, Signed Contract Received
-6. **Scope of Work**: Inclusions (rich text), Exclusions (rich text)
-7. **Accounting Method**: Amount Based or Unit/Quantity Based.
-   - **Can only be changed BEFORE adding SOV line items.** If line items exist, the user is warned that changing will clear existing lines.
-8. **Schedule of Values**: Add lines manually (Add Line) or import via CSV (upload template). Options: Add Additional lines or Replace Existing (unavailable if invoices exist and setting is enabled).
-9. **Attachments**: Attach files from computer, Photos, Drawings, Forms, or Documents.
+### Configure Settings: Change Orders (Project Tool)
+- Maintain project-level settings for:
+  - Show/hide line items on **PCCO PDF exports**.
+  - Show/hide line items on **CCO PDF exports**.
+  - **Change reason behavior** mode:
 
-### Save Actions
-- **Save Subcontract** — saves and returns to view mode.
-- **Complete with DocuSign®** — visible only when DocuSign® is enabled; initiates signature workflow.
+## Procore Tutorial Alignment Notes (Added April 17, 2026 - DocuSign/ERP/Prime CO Round)
 
-### Implementation Notes (SiteCommand)
-- Form lives at `EditCommitmentClient.tsx`.
-- Subcontract-specific dates (`start_date`, `estimated_completion`, `actual_completion`, `signed_contract_received`) shown conditionally for subcontracts.
-- PO-specific dates (`contract_date`, `delivery_date`, `signed_po_received_date`, `issued_on_date`) shown conditionally for purchase orders.
-- Inclusions/Exclusions added to the "Additional Information" section for subcontracts.
-- "Subcontractor Contact" renamed to **Invoice Contact** in the UI.
-- Accounting method change triggers `confirm()` dialog if SOV lines already exist.
-- All new fields sent in `PATCH /api/projects/[id]/commitments/[commitmentId]`.
+### Sources Reviewed
+- https://v2.support.procore.com/product-manuals/docusign/tutorials/link-your-docusign-account-to-a-procore-project/
+- https://v2.support.procore.com/product-manuals/erp-integrations-company/tutorials/retrieve-a-cco-from-erp-integrations-before-acceptance/
+- https://v2.support.procore.com/product-manuals/commitments-project/tutorials/submit-a-field-initiated-change-order-as-a-collaborator/
+- https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/add-a-related-item-to-a-prime-contract-change-order/
+- https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/add-filters-to-the-change-orders-tab-on-a-prime-contract/
+- https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/add-financial-markup-to-prime-contract-change-orders/
+- https://v2.support.procore.com/product-manuals/change-orders-project/tutorials/approve-or-reject-prime-contract-change-orders/
+- https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/configure-the-number-of-prime-contract-change-order-tiers/
 
-## Email a Purchase Order or Subcontract
+### Link Your DocuSign Account to a Project
+- Preserve two linking paths in guidance:
+  - Link from profile settings.
+  - Link from a DocuSign-enabled project workflow.
+- Make synced-state messaging explicit once credentials are linked.
 
-### Required Permissions
-- **Standard** or **Admin** level on the Commitments tool.
+### Retrieve a CCO from ERP Integrations Before Acceptance
+- Keep a **Retrieve from ERP** action available while a CCO is still pending accounting acceptance.
+- After retrieval, unlock editing and allow re-send after correction.
+- Keep permission baseline aligned with Commitments/Change Orders admin workflows.
+
+### Submit a Field-Initiated Change Order as a Collaborator
+- Keep collaborator flow scoped to approved commitments with correct permissions.
+- Preserve private-by-default behavior for collaborator-initiated commitment COs.
+- Keep auto-linked contract context and sequential numbering behavior in form guidance.
+
+### Add a Related Item to a Prime Contract Change Order
+- Keep related-item concept explicit as a cross-tool linkage between project records.
+- Require active tools + view permissions for type/description selection visibility.
+- Keep this as a detail-record workflow (open change order -> related items -> edit/save).
+
+### Add Filters to the Change Orders Tab on a Prime Contract
+- Keep Add Filter controls for:
+  - Status
+  - Executed
+  - Change Reason
+  - Change Type
+- Preserve clear-all and per-filter clear behavior in UX expectations.
+
+### Add Financial Markup to Prime Contract Change Orders
+- Keep financial markup language aligned to two concepts:
+  - Horizontal (line-level)
+  - Vertical (subtotal-level)
+- Keep project/tool-level prerequisites and permission messaging visible in workflow copy.
+
+### Approve or Reject Prime Contract Change Orders
+- Keep designated-reviewer logic strict:
+  - Exactly one reviewer assigned.
+  - Review actions allowed only in **Pending - In Review** or **Pending - Revised**.
+- Record reviewer identity, comments context, and review date on response.
+
+### Configure Number of Prime Contract Change Order Tiers
+- Keep supported tier modes aligned to 1-tier, 2-tier (default), and 3-tier guidance.
+- Enforce that tier configuration is set before creating the first prime-side CO.
+- Disallow tier reconfiguration after first prime CO exists on the project.
+    - predefined drop-down list, or
+    - freeform text input.
+- Keep permissions messaging explicit that these settings require **Admin** on the project Change Orders tool.
+
+### Company Defaults: Change Management
+- Company Admin should be the source of truth for default change-management lists:
+  - **Change Reasons**
+  - **Change Types**
+  - **Change Event Statuses**
+- Project tools should consume company defaults while allowing project-level availability toggles.
+- Do not allow deletion of reasons/types/statuses that are already referenced by existing records.
+
+### Commitment Change Orders + ERP Accounting Acceptance
+- Add/maintain a clear pre-export accounting review stage for CCOs:
+  - **Ready to Export** queue for accounting approvers.
+  - **Accept** path exports to ERP.
+  - **Reject** path returns CCO to editable project state with a required reason.
+- Permissions model should distinguish between general ERP access and explicit “can push to accounting” privileges.
+
+### Commitment Tool: Collaborator / Field-Initiated Change Orders
+- Commitments advanced settings should support:
+  - **Number of Commitment Change Order Tiers** (1, 2, or 3).
+  - One-tier option for **Allow Standard Users to Create CCOs**.
+  - Multi-tier option for **Allow Standard Users to Create PCOs**.
+  - **Enable Field-Initiated Change Orders** (dependent on multi-tier + standard-user PCO setting).
+- Field-initiated flows should support collaborator submissions against approved commitments while preserving contract privacy boundaries.
+
+### Configure Number of Change Order Tiers (Cross-Tool Concept)
+- Treat tier configuration as a contract lifecycle decision that should be set before live CO workflows begin.
+- Preserve tool-specific tier behavior (Client Contracts, Commitments, Funding, Prime Contracts) while keeping the UX language consistent across financial tools.
+
+### Create a Change Order / Create from Change Event
+- Keep direct CO creation and change-event-originated CO creation as first-class flows.
+- When creating from change events, preserve source linkage metadata so downstream reporting and audit history can show origin context.
+
+### Prime Contracts: Enable Financial Markup
+- Prime contract advanced settings should include a dedicated **Enable Financial Markup** toggle at the contract level.
+- Enabling this setting is prerequisite behavior for applying markup rules on associated prime contract change orders.
+
+## Commitment CO Workflow Notes from Procore Tutorials (Added April 17, 2026)
+
+### Add a Change Event Line Item to an Unapproved Commitment CO
+- Keep a bulk action labeled **Add to Unapproved Commitment CO** in Change Events.
+- Allow selecting line items across multiple change events.
+- Only show commitment CO targets that are not **Approved**.
+- Result expectation: selected change event line items append as additional SOV lines on the chosen commitment CO.
+- Permissions baseline:
+  - **Admin** on Change Events.
+  - **Admin** on Commitments.
+- ERP caveat: linked ERP workflows may alter which options appear in bulk-action menus.
+
+### Add a Related Item to a Commitment Change Order
+- Commitment CO detail should support a **Related Items** association pattern.
+- Only project tools that are active should appear as selectable related-item types.
+- Related-item picker options should honor record-level view permissions in each tool.
+- Permissions baseline:
+  - **Admin** on Change Orders.
+
+### Add Financial Markup to CCOs
+- Require commitment-level financial markup enablement before rule entry on CCOs.
+- Preserve proportional distribution behavior of markup across CCO SOV lines.
+- Keep horizontal + vertical markup interaction explicit in UI/help text.
+- Preserve limitation messaging:
+  - CCOs with financial markup cannot be used on subcontractor invoices.
+- Permissions baseline:
+  - **Admin** on Commitments.
+
+### Approve or Reject Commitment Change Orders
+- Approval actions should be available to the assigned **Designated Reviewer** when CCO status is in pending review states.
+- Keep reviewer identity + review date captured when action is submitted.
+- Permission baseline:
+  - **Standard** or above on Commitments and Change Orders, plus reviewer assignment.
+
+### Bulk Create Commitment Change Orders from a Change Event
+- Support bulk creation from selected change event line items where possible.
+- Keep tiering guidance explicit in UX:
+  - 2-tier: CE > CPCO > CCO
+  - 3-tier: CE > CPCO > COR > CCO
+- Preserve vendor/contract grouping context before record creation.
+- Permissions baseline:
+  - **Standard+** on Change Events.
+  - **Admin** on Commitments.
 
 ### Prerequisites
 - A commitment (Purchase Order or Subcontract) must exist.

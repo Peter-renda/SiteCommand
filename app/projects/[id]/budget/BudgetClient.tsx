@@ -30,6 +30,8 @@ type BudgetLineItem = {
   start_date: string | null;
   end_date: string | null;
   curve: string;
+  is_partial_line_item?: boolean;
+  is_gst_line_item?: boolean;
   sort_order: number;
   created_at: string;
 };
@@ -38,6 +40,8 @@ type BudgetSnapshot = {
   id: string;
   name: string;
   created_at: string;
+  status?: "Draft" | "Under Review" | "Approved" | "Archived";
+  snapshot_data?: BudgetLineItem[];
 };
 
 type CommitmentSovRow = {
@@ -124,6 +128,7 @@ type ForecastingViewTemplate = {
 
 type ForecastGroupByKey = "sub_job" | "cost_code_part_1" | "cost_code_part_2";
 type ForecastFilterKey = "cost_code" | "description" | "cost_type" | "sub_job";
+type SnapshotVarianceMode = "comparison_and_variance" | "comparison_only" | "variance_only";
 
 // ── Calculated helpers ────────────────────────────────────────────────────────
 
@@ -353,7 +358,12 @@ function exportPDF(items: BudgetLineItem[], forecastEdits: Record<string, Foreca
 
 type LineItemFormData = {
   cost_code: string;
+  cost_type: string;
   description: string;
+  manual_calculation: boolean;
+  unit_qty: string;
+  unit_of_measure: string;
+  unit_cost: string;
   original_budget_amount: string;
   budget_modifications: string;
   approved_cos: string;
@@ -362,11 +372,21 @@ type LineItemFormData = {
   job_to_date_costs: string;
   commitments_invoiced: string;
   pending_cost_changes: string;
+  start_date: string;
+  end_date: string;
+  curve: string;
+  is_partial_line_item: boolean;
+  is_gst_line_item: boolean;
 };
 
 const emptyForm: LineItemFormData = {
   cost_code: "",
+  cost_type: "",
   description: "",
+  manual_calculation: true,
+  unit_qty: "",
+  unit_of_measure: "",
+  unit_cost: "",
   original_budget_amount: "",
   budget_modifications: "",
   approved_cos: "",
@@ -375,6 +395,11 @@ const emptyForm: LineItemFormData = {
   job_to_date_costs: "",
   commitments_invoiced: "",
   pending_cost_changes: "",
+  start_date: "",
+  end_date: "",
+  curve: "Linear",
+  is_partial_line_item: false,
+  is_gst_line_item: false,
 };
 
 function numVal(s: string): number {
@@ -456,11 +481,13 @@ function MoneyInput({
 
 function LineItemModal({
   initial,
+  defaults,
   lockOriginalBudgetAmount = false,
   onConfirm,
   onCancel,
 }: {
   initial?: BudgetLineItem;
+  defaults?: Partial<LineItemFormData>;
   lockOriginalBudgetAmount?: boolean;
   onConfirm: (data: LineItemFormData) => void;
   onCancel: () => void;
@@ -469,7 +496,12 @@ function LineItemModal({
     initial
       ? {
           cost_code: initial.cost_code,
+          cost_type: initial.cost_type,
           description: initial.description,
+          manual_calculation: Boolean(initial.manual_calculation),
+          unit_qty: initial.unit_qty !== 0 ? String(initial.unit_qty) : "",
+          unit_of_measure: initial.unit_of_measure || "",
+          unit_cost: initial.unit_cost !== 0 ? String(initial.unit_cost) : "",
           original_budget_amount: initial.original_budget_amount !== 0 ? String(initial.original_budget_amount) : "",
           budget_modifications: initial.budget_modifications !== 0 ? String(initial.budget_modifications) : "",
           approved_cos: initial.approved_cos !== 0 ? String(initial.approved_cos) : "",
@@ -478,8 +510,13 @@ function LineItemModal({
           job_to_date_costs: initial.job_to_date_costs !== 0 ? String(initial.job_to_date_costs) : "",
           commitments_invoiced: initial.commitments_invoiced !== 0 ? String(initial.commitments_invoiced) : "",
           pending_cost_changes: initial.pending_cost_changes !== 0 ? String(initial.pending_cost_changes) : "",
+          start_date: initial.start_date || "",
+          end_date: initial.end_date || "",
+          curve: initial.curve || "Linear",
+          is_partial_line_item: Boolean(initial.is_partial_line_item),
+          is_gst_line_item: Boolean(initial.is_gst_line_item),
         }
-      : emptyForm
+      : { ...emptyForm, ...defaults }
   );
 
   const ref = useRef<HTMLDivElement>(null);
@@ -492,13 +529,13 @@ function LineItemModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onCancel]);
 
-  function set(key: keyof LineItemFormData, val: string) {
+  function set(key: keyof LineItemFormData, val: string | boolean) {
     setForm((f) => ({ ...f, [key]: val }));
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.cost_code.trim() && !form.description.trim()) return;
+    if (!form.cost_code.trim() || !form.cost_type.trim()) return;
     onConfirm(form);
   }
 
@@ -526,6 +563,17 @@ function LineItemModal({
                 className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </Field>
+            <Field label="Cost Type">
+              <input
+                type="text"
+                value={form.cost_type}
+                onChange={(e) => set("cost_type", e.target.value)}
+                placeholder="e.g. Labor or Other"
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <Field label="Description">
               <input
                 type="text"
@@ -537,17 +585,82 @@ function LineItemModal({
             </Field>
           </div>
 
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Unit-Based Fields</p>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Manual Calculation">
+              <select
+                value={form.manual_calculation ? "true" : "false"}
+                onChange={(e) => set("manual_calculation", e.target.value === "true")}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              >
+                <option value="true">True (enter Original Budget Amount manually)</option>
+                <option value="false">False (calculate from Unit Qty × Unit Cost)</option>
+              </select>
+            </Field>
+            <Field label="Unit of Measure">
+              <input
+                type="text"
+                value={form.unit_of_measure}
+                onChange={(e) => set("unit_of_measure", e.target.value)}
+                placeholder="e.g. HR, EA, SF"
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </Field>
+            <Field label="Budget Unit Qty">
+              <MoneyInput value={form.unit_qty} onChange={(v) => set("unit_qty", v)} />
+            </Field>
+            <Field label="Unit Cost">
+              <MoneyInput value={form.unit_cost} onChange={(v) => set("unit_cost", v)} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <label className="flex items-start gap-2 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.is_partial_line_item}
+                onChange={(e) => set("is_partial_line_item", e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block font-medium text-gray-700">Partial budget line item</span>
+                Adds an unbudgeted line item with $0 original amount for missing budget code combinations.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.is_gst_line_item}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setForm((prev) => ({
+                    ...prev,
+                    is_gst_line_item: checked,
+                    cost_type: checked ? "Other" : prev.cost_type,
+                  }));
+                }}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block font-medium text-gray-700">GST line item</span>
+                Marks this line for GST tracking and defaults cost type to &quot;Other&quot;.
+              </span>
+            </label>
+          </div>
+
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Budget</p>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Original Budget Amount">
               <MoneyInput
                 value={form.original_budget_amount}
                 onChange={(v) => set("original_budget_amount", v)}
-                disabled={lockOriginalBudgetAmount}
+                disabled={lockOriginalBudgetAmount || form.is_partial_line_item}
               />
-              {lockOriginalBudgetAmount && (
+              {(lockOriginalBudgetAmount || form.is_partial_line_item) && (
                 <p className="mt-1 text-[11px] text-gray-500">
-                  Original Budget Amount is locked for this budget.
+                  {form.is_partial_line_item
+                    ? "Partial budget line items are created with a $0 Original Budget Amount."
+                    : "Original Budget Amount is locked for this budget."}
                 </p>
               )}
             </Field>
@@ -575,6 +688,39 @@ function LineItemModal({
             </Field>
             <Field label="Pending Cost Changes">
               <MoneyInput value={form.pending_cost_changes} onChange={(v) => set("pending_cost_changes", v)} />
+            </Field>
+          </div>
+
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Advanced Forecasting Curve</p>
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Start Date">
+              <input
+                type="date"
+                value={form.start_date}
+                onChange={(e) => set("start_date", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </Field>
+            <Field label="End Date">
+              <input
+                type="date"
+                value={form.end_date}
+                onChange={(e) => set("end_date", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </Field>
+            <Field label="Curve">
+              <select
+                value={form.curve || "Linear"}
+                onChange={(e) => set("curve", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              >
+                <option value="Linear">Linear</option>
+                <option value="Bell">Bell</option>
+                <option value="Front Loaded">Front Loaded</option>
+                <option value="Back Loaded">Back Loaded</option>
+                <option value="Manual">Manual</option>
+              </select>
             </Field>
           </div>
 
@@ -974,6 +1120,7 @@ export default function BudgetClient({
 
   // Modal state
   const [showLineItemModal, setShowLineItemModal] = useState(false);
+  const [lineItemDefaults, setLineItemDefaults] = useState<Partial<LineItemFormData> | undefined>(undefined);
   const [editingItem, setEditingItem] = useState<BudgetLineItem | null>(null);
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
   const [showBudgetChangeModal, setShowBudgetChangeModal] = useState(false);
@@ -986,8 +1133,9 @@ export default function BudgetClient({
   const [forecastEdits, setForecastEdits] = useState<Record<string, ForecastEdit>>({});
   const [selectedForecastItemId, setSelectedForecastItemId] = useState<string | null>(null);
   const [isBudgetLocked, setIsBudgetLocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<"budget" | "budget_details" | "forecasting">("budget");
+  const [activeTab, setActiveTab] = useState<"budget" | "budget_details" | "forecasting" | "project_status_snapshot">("budget");
   const [groupBy, setGroupBy] = useState<GroupByKey | null>(null);
+  const [selectedBudgetDetailView, setSelectedBudgetDetailView] = useState("Procore Standard Budget");
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [activeFilterKey, setActiveFilterKey] = useState<FilterKey | null>(null);
@@ -1015,6 +1163,8 @@ export default function BudgetClient({
   });
   const [showForecastFilterMenu, setShowForecastFilterMenu] = useState(false);
   const [showCreateForecastViewModal, setShowCreateForecastViewModal] = useState(false);
+  const [selectedSnapshotIds, setSelectedSnapshotIds] = useState<string[]>([]);
+  const [snapshotVarianceMode, setSnapshotVarianceMode] = useState<SnapshotVarianceMode>("comparison_and_variance");
 
   // Dropdown refs
   const exportRef = useRef<HTMLDivElement>(null);
@@ -1073,8 +1223,13 @@ export default function BudgetClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cost_code: data.cost_code,
+        cost_type: data.cost_type,
         description: data.description,
-        original_budget_amount: numVal(data.original_budget_amount),
+        manual_calculation: data.manual_calculation,
+        unit_qty: numVal(data.unit_qty),
+        unit_of_measure: data.unit_of_measure,
+        unit_cost: numVal(data.unit_cost),
+        original_budget_amount: data.is_partial_line_item ? 0 : numVal(data.original_budget_amount),
         budget_modifications: numVal(data.budget_modifications),
         approved_cos: numVal(data.approved_cos),
         pending_budget_changes: numVal(data.pending_budget_changes),
@@ -1082,14 +1237,23 @@ export default function BudgetClient({
         job_to_date_costs: numVal(data.job_to_date_costs),
         commitments_invoiced: numVal(data.commitments_invoiced),
         pending_cost_changes: numVal(data.pending_cost_changes),
+        start_date: data.start_date || null,
+        end_date: data.end_date || null,
+        curve: data.curve || "Linear",
+        is_partial_line_item: data.is_partial_line_item,
+        is_gst_line_item: data.is_gst_line_item,
         sort_order: items.length,
       }),
     });
     if (res.ok) {
       const newItem: BudgetLineItem = await res.json();
       setItems((prev) => [...prev, newItem]);
+      setLineItemDefaults(undefined);
+      setShowLineItemModal(false);
+      return;
     }
-    setShowLineItemModal(false);
+    const payload = await res.json().catch(() => null);
+    window.alert(payload?.error || "Unable to create budget line item.");
   }
 
   async function handleEditLineItem(data: LineItemFormData) {
@@ -1099,8 +1263,15 @@ export default function BudgetClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cost_code: data.cost_code,
+        cost_type: data.cost_type,
         description: data.description,
-        original_budget_amount: isBudgetLocked
+        manual_calculation: data.manual_calculation,
+        unit_qty: numVal(data.unit_qty),
+        unit_of_measure: data.unit_of_measure,
+        unit_cost: numVal(data.unit_cost),
+        original_budget_amount: data.is_partial_line_item
+          ? 0
+          : isBudgetLocked
           ? editingItem.original_budget_amount
           : numVal(data.original_budget_amount),
         budget_modifications: numVal(data.budget_modifications),
@@ -1110,13 +1281,21 @@ export default function BudgetClient({
         job_to_date_costs: numVal(data.job_to_date_costs),
         commitments_invoiced: numVal(data.commitments_invoiced),
         pending_cost_changes: numVal(data.pending_cost_changes),
+        start_date: data.start_date || null,
+        end_date: data.end_date || null,
+        curve: data.curve || "Linear",
+        is_partial_line_item: data.is_partial_line_item,
+        is_gst_line_item: data.is_gst_line_item,
       }),
     });
     if (res.ok) {
       const updated: BudgetLineItem = await res.json();
       setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      setEditingItem(null);
+      return;
     }
-    setEditingItem(null);
+    const payload = await res.json().catch(() => null);
+    window.alert(payload?.error || "Unable to update budget line item.");
   }
 
   async function handleLockBudget() {
@@ -1148,6 +1327,91 @@ export default function BudgetClient({
     setShowSnapshotModal(false);
   }
 
+  async function handleUpdateSnapshotStatus(
+    snapshotId: string,
+    status: "Draft" | "Under Review" | "Approved" | "Archived"
+  ) {
+    const res = await fetch(`/api/projects/${projectId}/budget/snapshots`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ snapshot_id: snapshotId, status }),
+    });
+    if (!res.ok) return;
+    const updated: BudgetSnapshot = await res.json();
+    setSnapshots((prev) => prev.map((snap) => (snap.id === updated.id ? { ...snap, ...updated } : snap)));
+  }
+
+  function exportSnapshotListCsv() {
+    const rows = snapshots.map((snapshot) => ({
+      name: snapshot.name,
+      status: snapshot.status ?? "Draft",
+      created_at: new Date(snapshot.created_at).toISOString(),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Project Status Snapshots");
+    XLSX.writeFile(wb, `project-status-snapshots-${projectId}.csv`, { bookType: "csv" });
+  }
+
+  function compareSelectedSnapshots() {
+    if (selectedSnapshotIds.length !== 2) {
+      window.alert("Select exactly two snapshots to analyze variance.");
+      return;
+    }
+  }
+
+  const selectedSnapshotsForVariance = useMemo(() => {
+    if (selectedSnapshotIds.length !== 2) return null;
+    const [left, right] = selectedSnapshotIds
+      .map((id) => snapshots.find((s) => s.id === id))
+      .filter(Boolean) as BudgetSnapshot[];
+    if (!left || !right) return null;
+    return { left, right };
+  }, [selectedSnapshotIds, snapshots]);
+
+  const snapshotVarianceRows = useMemo(() => {
+    if (!selectedSnapshotsForVariance) return [];
+    const { left, right } = selectedSnapshotsForVariance;
+    const leftData = Array.isArray(left.snapshot_data) ? left.snapshot_data : [];
+    const rightData = Array.isArray(right.snapshot_data) ? right.snapshot_data : [];
+
+    const leftMap = new Map(
+      leftData.map((item) => [`${item.cost_code}||${item.cost_type}`, { item, calc: calc(item) }])
+    );
+    const rightMap = new Map(
+      rightData.map((item) => [`${item.cost_code}||${item.cost_type}`, { item, calc: calc(item) }])
+    );
+    const allKeys = Array.from(new Set([...leftMap.keys(), ...rightMap.keys()])).sort((a, b) => a.localeCompare(b));
+
+    return allKeys.map((key) => {
+      const leftEntry = leftMap.get(key);
+      const rightEntry = rightMap.get(key);
+      const labelItem = rightEntry?.item ?? leftEntry?.item;
+
+      const leftProjectedBudget = leftEntry?.calc.projectedBudget ?? 0;
+      const rightProjectedBudget = rightEntry?.calc.projectedBudget ?? 0;
+      const leftProjectedCosts = leftEntry?.calc.projectedCosts ?? 0;
+      const rightProjectedCosts = rightEntry?.calc.projectedCosts ?? 0;
+      const leftProjectedOverUnder = leftEntry?.calc.projectedOverUnder ?? 0;
+      const rightProjectedOverUnder = rightEntry?.calc.projectedOverUnder ?? 0;
+
+      return {
+        key,
+        budgetCode: labelItem ? `${labelItem.cost_code} · ${labelItem.cost_type || "None"}` : key,
+        description: labelItem?.description || "—",
+        leftProjectedBudget,
+        rightProjectedBudget,
+        leftProjectedCosts,
+        rightProjectedCosts,
+        leftProjectedOverUnder,
+        rightProjectedOverUnder,
+        projectedBudgetVariance: rightProjectedBudget - leftProjectedBudget,
+        projectedCostsVariance: rightProjectedCosts - leftProjectedCosts,
+        projectedOverUnderVariance: rightProjectedOverUnder - leftProjectedOverUnder,
+      };
+    });
+  }, [selectedSnapshotsForVariance]);
+
   async function handleCreateBudgetChange(payload: { itemId: string; amount: number }) {
     const targetItem = items.find((item) => item.id === payload.itemId);
     if (!targetItem) return;
@@ -1156,6 +1420,7 @@ export default function BudgetClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cost_code: targetItem.cost_code,
+        cost_type: targetItem.cost_type,
         description: targetItem.description,
         original_budget_amount: targetItem.original_budget_amount,
         budget_modifications: targetItem.budget_modifications,
@@ -1165,6 +1430,8 @@ export default function BudgetClient({
         job_to_date_costs: targetItem.job_to_date_costs,
         commitments_invoiced: targetItem.commitments_invoiced,
         pending_cost_changes: targetItem.pending_cost_changes,
+        is_partial_line_item: targetItem.is_partial_line_item ?? false,
+        is_gst_line_item: targetItem.is_gst_line_item ?? false,
       }),
     });
     if (res.ok) {
@@ -1194,6 +1461,7 @@ export default function BudgetClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cost_code: item.cost_code,
+          cost_type: item.cost_type,
           description: item.description,
           original_budget_amount: item.original_budget_amount,
           budget_modifications: item.budget_modifications + delta,
@@ -1203,6 +1471,8 @@ export default function BudgetClient({
           job_to_date_costs: item.job_to_date_costs,
           commitments_invoiced: item.commitments_invoiced,
           pending_cost_changes: item.pending_cost_changes,
+          is_partial_line_item: item.is_partial_line_item ?? false,
+          is_gst_line_item: item.is_gst_line_item ?? false,
         }),
       });
       if (res.ok) {
@@ -1329,10 +1599,10 @@ export default function BudgetClient({
             curve: readString(row.Curve ?? row.curve),
           };
         })
-        .filter((row) => row.cost_code || row.description);
+        .filter((row) => row.cost_code && row.cost_type);
 
       if (importedItems.length === 0) {
-        window.alert("No valid budget rows found. Include at least a Cost Code or Description per row.");
+        window.alert("No valid budget rows found. Include both Cost Code and Cost Type for each row.");
         return;
       }
 
@@ -1395,6 +1665,7 @@ export default function BudgetClient({
   const totals = items.reduce(
     (acc, item) => {
       const c = getItemCalc(item);
+      acc.unit_qty += item.unit_qty;
       acc.original_budget_amount += item.original_budget_amount;
       acc.budget_modifications += item.budget_modifications;
       acc.approved_cos += item.approved_cos;
@@ -1412,7 +1683,10 @@ export default function BudgetClient({
       acc.projectedOverUnder += c.projectedOverUnder;
       return acc;
     },
-    sumItems([])
+    {
+      ...sumItems([]),
+      unit_qty: 0,
+    }
   );
   const selectedForecastItem = items.find((item) => item.id === selectedForecastItemId) ?? null;
   const selectedForecastEdit = selectedForecastItem
@@ -1439,6 +1713,9 @@ export default function BudgetClient({
     tooltip?: ColTooltip;
   }> = [
     { key: "description", label: "Description", width: "min-w-[180px]" },
+    { key: "unit_qty", label: "Budget Unit Qty", width: "min-w-[110px]" },
+    { key: "unit_of_measure", label: "UOM", width: "min-w-[90px]" },
+    { key: "unit_cost", label: "Unit Cost", width: "min-w-[100px]" },
     { key: "original_budget_amount", label: "Original Budget Amount", width: "min-w-[130px]" },
     { key: "budget_modifications", label: "Budget Modifications", width: "min-w-[120px]" },
     {
@@ -1548,6 +1825,9 @@ export default function BudgetClient({
       // Totals row
       switch (key) {
         case "description": return <span className="font-semibold text-gray-900">Total</span>;
+        case "unit_qty": return <span className="font-semibold">{totals.unit_qty.toLocaleString("en-US")}</span>;
+        case "unit_of_measure": return <span className="font-semibold">—</span>;
+        case "unit_cost": return <span className="font-semibold">—</span>;
         case "original_budget_amount": return <span className="font-semibold">{fmt(totals.original_budget_amount)}</span>;
         case "budget_modifications": return <span className="font-semibold">{fmt(totals.budget_modifications)}</span>;
         case "approved_cos": return <span className="font-semibold">{fmt(totals.approved_cos)}</span>;
@@ -1575,10 +1855,32 @@ export default function BudgetClient({
       case "description":
         return (
           <div>
-            <p className="text-xs font-medium text-gray-500">{item!.cost_code}</p>
-            <p className="text-xs text-blue-600">{item!.description}</p>
+            <p className="text-xs font-medium text-gray-500">
+              {item!.cost_code}
+              {item!.cost_type ? ` · ${item!.cost_type}` : ""}
+            </p>
+            <p className="text-xs text-blue-600 flex items-center gap-1.5">
+              <span>{item!.description || "No description"}</span>
+              {item!.is_partial_line_item && (
+                <span
+                  className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-[10px] font-semibold text-amber-700"
+                  title="Partial budget line item"
+                  aria-label="Partial budget line item"
+                >
+                  ?
+                </span>
+              )}
+              {item!.is_gst_line_item && (
+                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                  GST
+                </span>
+              )}
+            </p>
           </div>
         );
+      case "unit_qty": return item!.unit_qty.toLocaleString("en-US");
+      case "unit_of_measure": return item!.unit_of_measure || "—";
+      case "unit_cost": return fmt(item!.unit_cost || 0);
       case "original_budget_amount": return <span className="text-blue-600">{fmt(item!.original_budget_amount)}</span>;
       case "budget_modifications": return fmt(item!.budget_modifications);
       case "approved_cos": return fmt(item!.approved_cos);
@@ -1905,10 +2207,28 @@ export default function BudgetClient({
                 {showCreateMenu && (
                   <div className="absolute left-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
                     <button
-                      onClick={() => { setShowLineItemModal(true); setShowCreateMenu(false); }}
+                      onClick={() => {
+                        setLineItemDefaults(undefined);
+                        setShowLineItemModal(true);
+                        setShowCreateMenu(false);
+                      }}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Budget Line Item
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLineItemDefaults({
+                          is_gst_line_item: true,
+                          cost_type: "Other",
+                          description: "GST",
+                        });
+                        setShowLineItemModal(true);
+                        setShowCreateMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      GST Budget Line Item
                     </button>
                     <button
                       onClick={() => { setShowBudgetModificationModal(true); setShowCreateMenu(false); }}
@@ -2068,12 +2388,36 @@ export default function BudgetClient({
             >
               Forecasting
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("project_status_snapshot")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "project_status_snapshot"
+                  ? "border-orange-500 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Project Status Snapshots
+            </button>
           </div>
         </div>
 
         {activeTab === "budget_details" && (
           <div className="mb-4 flex items-center gap-2">
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">View</label>
+              <select
+                value={selectedBudgetDetailView}
+                onChange={(e) => setSelectedBudgetDetailView(e.target.value)}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white"
+              >
+                <option value="Procore Standard Budget">Procore Standard Budget</option>
+                <option value="Procore ERP Budget">Procore ERP Budget</option>
+                <option value="Budget Changes">Budget Changes</option>
+              </select>
+            </div>
             <div ref={groupMenuRef} className="relative">
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Group</label>
               <button
                 type="button"
                 onClick={() => setShowGroupMenu((v) => !v)}
@@ -2121,6 +2465,7 @@ export default function BudgetClient({
             </div>
 
             <div ref={filterMenuRef} className="relative">
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Filter</label>
               <button
                 type="button"
                 onClick={() => setShowFilterMenu((v) => !v)}
@@ -2886,6 +3231,27 @@ export default function BudgetClient({
               </div>
             ) : activeTab === "project_status_snapshot" ? (
               <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={exportSnapshotListCsv}
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+                  >
+                    Export Snapshot List (CSV)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedSnapshotIds.length !== 2}
+                    onClick={compareSelectedSnapshots}
+                    className={`px-3 py-2 text-sm rounded-md ${
+                      selectedSnapshotIds.length === 2
+                        ? "border border-gray-300 bg-white hover:bg-gray-50"
+                        : "border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    Analyze Variance (Select 2)
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white border border-gray-100 rounded-xl p-4">
                     <p className="text-xs uppercase tracking-wider text-gray-500">Projected Budget</p>
@@ -2911,12 +3277,120 @@ export default function BudgetClient({
                   ) : (
                     <ul className="divide-y divide-gray-100">
                       {snapshots.map((snapshot) => (
-                        <li key={snapshot.id} className="px-4 py-3 text-sm flex items-center justify-between">
-                          <span className="text-gray-800">{snapshot.name}</span>
-                          <span className="text-gray-500">{new Date(snapshot.created_at).toLocaleDateString("en-US")}</span>
+                        <li key={snapshot.id} className="px-4 py-3 text-sm flex items-center justify-between gap-4">
+                          <label className="inline-flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedSnapshotIds.includes(snapshot.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedSnapshotIds((prev) => [...prev, snapshot.id].slice(-2));
+                                } else {
+                                  setSelectedSnapshotIds((prev) => prev.filter((id) => id !== snapshot.id));
+                                }
+                              }}
+                            />
+                            <span className="text-gray-800">{snapshot.name}</span>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={snapshot.status ?? "Draft"}
+                              onChange={(e) =>
+                                handleUpdateSnapshotStatus(
+                                  snapshot.id,
+                                  e.target.value as "Draft" | "Under Review" | "Approved" | "Archived"
+                                )
+                              }
+                              className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                            >
+                              <option value="Draft">Draft</option>
+                              <option value="Under Review">Under Review</option>
+                              <option value="Approved">Approved</option>
+                              <option value="Archived">Archived</option>
+                            </select>
+                            <span className="text-gray-500">{new Date(snapshot.created_at).toLocaleDateString("en-US")}</span>
+                          </div>
                         </li>
                       ))}
                     </ul>
+                  )}
+                </div>
+                <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-gray-900">Line Item Variance Analysis</h3>
+                    <select
+                      value={snapshotVarianceMode}
+                      onChange={(e) => setSnapshotVarianceMode(e.target.value as SnapshotVarianceMode)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                    >
+                      <option value="comparison_and_variance">Comparison + Variance</option>
+                      <option value="comparison_only">Comparison Only</option>
+                      <option value="variance_only">Variance Only</option>
+                    </select>
+                  </div>
+                  {!selectedSnapshotsForVariance ? (
+                    <p className="px-4 py-6 text-sm text-gray-500">
+                      Select two snapshots above, then click <span className="font-medium">Analyze Variance</span>.
+                    </p>
+                  ) : (
+                    <div className="overflow-auto max-h-[40vh]">
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-100">
+                          <tr>
+                            <th className="text-left px-3 py-2 font-semibold text-gray-700">Budget Code</th>
+                            <th className="text-left px-3 py-2 font-semibold text-gray-700">Description</th>
+                            {snapshotVarianceMode !== "variance_only" && (
+                              <>
+                                <th className="text-left px-3 py-2 font-semibold text-gray-700">
+                                  {selectedSnapshotsForVariance.left.name} Projected Budget
+                                </th>
+                                <th className="text-left px-3 py-2 font-semibold text-gray-700">
+                                  {selectedSnapshotsForVariance.right.name} Projected Budget
+                                </th>
+                              </>
+                            )}
+                            {snapshotVarianceMode !== "comparison_only" && (
+                              <th className="text-left px-3 py-2 font-semibold text-gray-700">Projected Budget Δ</th>
+                            )}
+                            {snapshotVarianceMode !== "comparison_only" && (
+                              <th className="text-left px-3 py-2 font-semibold text-gray-700">Projected Costs Δ</th>
+                            )}
+                            {snapshotVarianceMode !== "comparison_only" && (
+                              <th className="text-left px-3 py-2 font-semibold text-gray-700">Projected O/U Δ</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {snapshotVarianceRows.map((row) => (
+                            <tr key={row.key} className="border-b border-gray-50">
+                              <td className="px-3 py-2 whitespace-nowrap">{row.budgetCode}</td>
+                              <td className="px-3 py-2">{row.description}</td>
+                              {snapshotVarianceMode !== "variance_only" && (
+                                <>
+                                  <td className="px-3 py-2 whitespace-nowrap">{fmt(row.leftProjectedBudget)}</td>
+                                  <td className="px-3 py-2 whitespace-nowrap">{fmt(row.rightProjectedBudget)}</td>
+                                </>
+                              )}
+                              {snapshotVarianceMode !== "comparison_only" && (
+                                <td className={`px-3 py-2 whitespace-nowrap ${row.projectedBudgetVariance < 0 ? "text-red-600" : ""}`}>
+                                  {fmt(row.projectedBudgetVariance)}
+                                </td>
+                              )}
+                              {snapshotVarianceMode !== "comparison_only" && (
+                                <td className={`px-3 py-2 whitespace-nowrap ${row.projectedCostsVariance < 0 ? "text-red-600" : ""}`}>
+                                  {fmt(row.projectedCostsVariance)}
+                                </td>
+                              )}
+                              {snapshotVarianceMode !== "comparison_only" && (
+                                <td className={`px-3 py-2 whitespace-nowrap ${row.projectedOverUnderVariance < 0 ? "text-red-600" : ""}`}>
+                                  {fmt(row.projectedOverUnderVariance)}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
               </div>
@@ -2946,7 +3420,10 @@ export default function BudgetClient({
           {!isBudgetLocked && (activeTab === "budget" || activeTab === "budget_details") && (
           <aside className="bg-white border border-gray-100 rounded-xl p-4 space-y-2">
             <button
-              onClick={() => setShowLineItemModal(true)}
+              onClick={() => {
+                setLineItemDefaults(undefined);
+                setShowLineItemModal(true);
+              }}
               className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
             >
               + Create Budget Line Item
@@ -3097,7 +3574,14 @@ export default function BudgetClient({
 
       {/* Modals */}
       {showLineItemModal && (
-        <LineItemModal onConfirm={handleAddLineItem} onCancel={() => setShowLineItemModal(false)} />
+        <LineItemModal
+          defaults={lineItemDefaults}
+          onConfirm={handleAddLineItem}
+          onCancel={() => {
+            setShowLineItemModal(false);
+            setLineItemDefaults(undefined);
+          }}
+        />
       )}
       {editingItem && (
         <LineItemModal

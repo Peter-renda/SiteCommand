@@ -39,7 +39,19 @@ type Submittal = {
   private: boolean;
   description: string | null;
   attachments: { name: string; url: string }[];
+  distributed_at?: string | null;
   created_by: string | null;
+  created_at: string;
+};
+
+type SubmittalPackage = {
+  id: string;
+  package_number: number;
+  title: string;
+  specification_id: string | null;
+  description: string | null;
+  submittal_count: number;
+  distributed_count: number;
   created_at: string;
 };
 
@@ -739,26 +751,32 @@ function exportSubmittalsPDF(submittals: Submittal[], directory: DirectoryContac
 
 export default function SubmittalsClient({ projectId, role, username, userId }: { projectId: string; role: string; username: string; userId: string }) {
   const [submittals, setSubmittals] = useState<Submittal[]>([]);
+  const [packages, setPackages] = useState<SubmittalPackage[]>([]);
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
   const [specifications, setSpecifications] = useState<Specification[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"items" | "packages" | "recycle_bin">("items");
   const createMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/projects/${projectId}/submittals`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/submittals${activeTab === "recycle_bin" ? "?recycle_bin=true" : ""}`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/submittal-packages`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/directory`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/specifications`).then((r) => r.json()),
-    ]).then(([sData, dirData, specData]) => {
+    ]).then(([sData, pData, dirData, specData]) => {
       setSubmittals(Array.isArray(sData) ? sData : []);
+      setPackages(Array.isArray(pData) ? pData : []);
       setDirectory(Array.isArray(dirData) ? dirData : []);
       setSpecifications(Array.isArray(specData) ? specData : []);
       setLoading(false);
     });
-  }, [projectId]);
+  }, [projectId, activeTab]);
 
   useEffect(() => {
     function onPointerDown(e: MouseEvent) {
@@ -808,6 +826,41 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
     window.location.href = "/";
   }
 
+  async function runBulkAction(action: "mark_private" | "mark_public" | "redistribute" | "delete" | "retrieve" | "apply_workflow" | "edit", payload?: Record<string, unknown>) {
+    if (selectedIds.length === 0 || bulkLoading) return;
+    if (action === "delete" && !confirm(`Send ${selectedIds.length} submittal(s) to Recycle Bin?`)) return;
+    if (action === "retrieve" && !confirm(`Retrieve ${selectedIds.length} submittal(s) from Recycle Bin?`)) return;
+    setBulkLoading(true);
+    const res = await fetch(`/api/projects/${projectId}/submittals/bulk-actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, submittal_ids: selectedIds, payload: payload ?? {} }),
+    });
+    setBulkLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Bulk action failed");
+      return;
+    }
+    const selectedSet = new Set(selectedIds);
+    if (action === "delete" || action === "retrieve") {
+      setSubmittals((prev) => prev.filter((s) => !selectedSet.has(s.id)));
+    } else {
+      setSubmittals((prev) =>
+        prev.map((s) =>
+          selectedSet.has(s.id)
+            ? {
+                ...s,
+                private: action === "mark_private" ? true : action === "mark_public" ? false : s.private,
+                distributed_at: action === "redistribute" ? new Date().toISOString() : s.distributed_at,
+              }
+            : s
+        )
+      );
+    }
+    setSelectedIds([]);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
@@ -822,9 +875,28 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">Submittals</h1>
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Submittals</h1>
+            <div className="mt-2 inline-flex rounded-md border border-gray-200 overflow-hidden">
+              <button onClick={() => { setActiveTab("items"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-medium ${activeTab === "items" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}>Items</button>
+              <button onClick={() => { setActiveTab("packages"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-medium ${activeTab === "packages" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}>Packages</button>
+              <button onClick={() => { setActiveTab("recycle_bin"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-medium ${activeTab === "recycle_bin" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}>Recycle Bin</button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => exportSubmittalsPDF(submittals, directory, specifications)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
+            {selectedIds.length > 0 && activeTab !== "packages" && (
+              <>
+                <span className="text-xs text-gray-500 mr-1">{selectedIds.length} selected</span>
+                <button onClick={() => runBulkAction("mark_private")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Mark Private</button>
+                <button onClick={() => runBulkAction("mark_public")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Mark Public</button>
+                <button onClick={() => runBulkAction("redistribute")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Redistribute</button>
+                <button onClick={() => runBulkAction("delete")} disabled={bulkLoading || activeTab === "recycle_bin"} className="px-2.5 py-1.5 text-xs font-medium text-red-700 border border-red-200 rounded-md bg-white hover:bg-red-50 disabled:opacity-50">Delete</button>
+                <button onClick={() => runBulkAction("retrieve")} disabled={bulkLoading || activeTab !== "recycle_bin"} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Retrieve</button>
+                <button onClick={() => { const personId = prompt("First workflow step person/contact ID:"); if (!personId) return; runBulkAction("apply_workflow", { workflow_steps: [{ step: 1, person_id: personId.trim(), role: "Approver", due_date: null }] }); }} disabled={bulkLoading || activeTab === "recycle_bin"} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Apply Workflow</button>
+                <button onClick={() => { const managerId = prompt("Bulk edit Submittal Manager contact ID (blank to cancel):"); if (!managerId) return; runBulkAction("edit", { submittal_manager_id: managerId.trim() }); }} disabled={bulkLoading || activeTab === "recycle_bin"} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Bulk Edit</button>
+              </>
+            )}
+            <button onClick={() => exportSubmittalsPDF(submittals, directory, specifications)} disabled={activeTab === "packages"} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors disabled:opacity-50">
               <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               Export as PDF
             </button>
@@ -832,11 +904,11 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
               <button
                 type="button"
                 onClick={() => setShowCreateMenu((o) => !o)}
-                disabled={creating}
+                disabled={creating || activeTab === "recycle_bin" || activeTab === "packages"}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                {creating ? "Creating..." : "Create +"}
+                {activeTab !== "items" ? "Create disabled" : creating ? "Creating..." : "Create +"}
                 <svg className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 20 20" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" /></svg>
               </button>
               {showCreateMenu && (
@@ -870,6 +942,40 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
 
         {loading ? (
           <p className="text-sm text-gray-400">Loading...</p>
+        ) : activeTab === "packages" ? (
+          packages.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
+              <p className="text-sm text-gray-400">No submittal packages yet</p>
+              <p className="text-xs text-gray-300 mt-1">Click Create + and choose Submittal Package</p>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-100 rounded-xl overflow-x-auto">
+              <table className="w-full min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Package #</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Title</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Spec Section</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Submittals</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Distributed</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {packages.map((pkg) => (
+                    <tr key={pkg.id} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer" onClick={() => { window.location.href = `/projects/${projectId}/submittal-packages/${pkg.id}`; }}>
+                      <td className="px-4 py-3 text-sm font-mono text-gray-700">{pkg.package_number}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{pkg.title}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{getSpecName(specifications, pkg.specification_id)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{pkg.submittal_count}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{pkg.distributed_count}/{pkg.submittal_count}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{new Date(pkg.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         ) : submittals.length === 0 ? (
           <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
             <p className="text-sm text-gray-400">No submittals yet</p>
@@ -880,7 +986,13 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider w-10"></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider w-10">
+                    <input
+                      type="checkbox"
+                      checked={submittals.length > 0 && selectedIds.length === submittals.length}
+                      onChange={(e) => setSelectedIds(e.target.checked ? submittals.map((s) => s.id) : [])}
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">#</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Title</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
@@ -899,6 +1011,16 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 cursor-pointer"
                   >
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(s.id)}
+                        onChange={(e) =>
+                          setSelectedIds((prev) =>
+                            e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id)
+                          )
+                        }
+                        className="mr-2"
+                      />
                       <a href={`/projects/${projectId}/submittals/${s.id}`} className="inline-flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </a>

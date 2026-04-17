@@ -11,12 +11,49 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data, error } = await supabase
     .from("submittal_packages")
-    .select("*")
+    .select("id, project_id, package_number, title, specification_id, description, attachments, created_by, created_at")
     .eq("project_id", projectId)
     .order("package_number", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+
+  const packageIds = (data ?? []).map((pkg) => pkg.id);
+  if (packageIds.length === 0) return NextResponse.json([]);
+
+  const { data: links } = await supabase
+    .from("submittal_package_items")
+    .select("package_id, submittal_id")
+    .in("package_id", packageIds);
+
+  const counts = new Map<string, number>();
+  const submittalIds = new Set<string>();
+  for (const row of links ?? []) {
+    counts.set(row.package_id, (counts.get(row.package_id) ?? 0) + 1);
+    submittalIds.add(row.submittal_id);
+  }
+
+  let distributedMap = new Map<string, number>();
+  if (submittalIds.size > 0) {
+    const { data: subs } = await supabase
+      .from("submittals")
+      .select("id, distributed_at")
+      .in("id", Array.from(submittalIds));
+    const distributedById = new Map<string, boolean>();
+    for (const s of subs ?? []) distributedById.set(s.id, Boolean(s.distributed_at));
+    distributedMap = new Map<string, number>();
+    for (const row of links ?? []) {
+      if (!distributedById.get(row.submittal_id)) continue;
+      distributedMap.set(row.package_id, (distributedMap.get(row.package_id) ?? 0) + 1);
+    }
+  }
+
+  return NextResponse.json(
+    (data ?? []).map((pkg) => ({
+      ...pkg,
+      submittal_count: counts.get(pkg.id) ?? 0,
+      distributed_count: distributedMap.get(pkg.id) ?? 0,
+    }))
+  );
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

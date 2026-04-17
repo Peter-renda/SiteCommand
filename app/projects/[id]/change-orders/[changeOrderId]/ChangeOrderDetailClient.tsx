@@ -273,10 +273,6 @@ export default function ChangeOrderDetailClient({
   const pendingReview = new Set([
     "Pending - In Review",
     "Pending - Revised",
-    "Pending - Pricing",
-    "Pending - Not Pricing",
-    "Pending - Proceeding",
-    "Pending - Not Proceeding",
   ]).has(status);
 
   async function handleSave() {
@@ -355,6 +351,29 @@ export default function ChangeOrderDetailClient({
     }
   }
 
+  async function handleRetrieveFromErp() {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          erp_status: "not_synced",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSaveError(err?.error || `Server error (${res.status})`);
+        return;
+      }
+      const updated: ChangeOrder = await res.json();
+      setCo(updated);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col h-screen bg-white">
@@ -379,9 +398,39 @@ export default function ChangeOrderDetailClient({
 
   const isCommitment = co.type === "commitment";
   const isSyncedToErp = String(co.erp_status || "").trim().toLowerCase() === "synced";
+  const isPendingErpAcceptance = String(co.erp_status || "").trim().toLowerCase() === "pending";
   const canEdit = !isCommitment || !isSyncedToErp;
   const inputsDisabled = isCommitment && !isEditing;
   const dateCreatedDisplay = co.date_initiated ? fmtDateTime(co.date_initiated) : "—";
+
+  function exportCurrentChangeOrderPdf() {
+    const heading = `${isCommitment ? "Commitment Change Order" : "Potential Change Order"} #${co.number}`;
+    const win = window.open("", "_blank", "width=1000,height=800");
+    if (!win) return;
+    win.document.write(`
+      <html><head><title>${heading}</title><style>
+      body{font-family:Arial,sans-serif;padding:24px;color:#111}
+      h1{font-size:20px;margin-bottom:12px}
+      .grid{display:grid;grid-template-columns:220px 1fr;gap:6px 12px;font-size:12px}
+      .label{color:#666}
+      </style></head><body>
+      <h1>${heading}</h1>
+      <div class="grid">
+        <div class="label">Status</div><div>${status}</div>
+        <div class="label">Title</div><div>${title || "—"}</div>
+        <div class="label">Amount</div><div>$${Number(amount || 0).toFixed(2)}</div>
+        <div class="label">Contract</div><div>${co.contract_name || "—"}</div>
+        <div class="label">Designated Reviewer</div><div>${designatedReviewer || "—"}</div>
+        <div class="label">Review Date</div><div>${reviewDate || "—"}</div>
+        <div class="label">Due Date</div><div>${dueDate || "—"}</div>
+        <div class="label">Description</div><div>${(description || "—").replaceAll("\n", "<br/>")}</div>
+      </div>
+      </body></html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
 
   function resetFormFromCurrentCo() {
     setRevision(String(co.revision ?? 0));
@@ -464,8 +513,24 @@ export default function ChangeOrderDetailClient({
             {isCommitment ? "Commitment Change Order" : "Potential Change Order"} #{co.number}
           </h1>
           <div className="flex items-center gap-2">
+            <button
+              onClick={exportCurrentChangeOrderPdf}
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+            >
+              Export PDF
+            </button>
             {isCommitment && (
               <>
+                {isPendingErpAcceptance && (
+                  <button
+                    onClick={handleRetrieveFromErp}
+                    disabled={saving}
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Retrieve this CCO from ERP acceptance so you can edit it again."
+                  >
+                    Retrieve from ERP
+                  </button>
+                )}
                 {!isEditing ? (
                   <button
                     onClick={() => setIsEditing(true)}
@@ -489,7 +554,7 @@ export default function ChangeOrderDetailClient({
               </>
             )}
             {/* Reviewer actions shown when current user is the designated reviewer and status is pending */}
-            {isCommitment && isReviewer && pendingReview && (
+            {isReviewer && pendingReview && (
               <>
               <span className="text-xs text-amber-600 font-medium">
                 Awaiting your review as {contactName(designatedReviewer, directoryContacts)}

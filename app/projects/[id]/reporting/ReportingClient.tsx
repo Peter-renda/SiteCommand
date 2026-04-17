@@ -386,6 +386,23 @@ const VISUAL_TYPE_OPTIONS: { value: VisualType; label: string; description: stri
   { value: "stacked-bar", label: "Stacked Bar Chart", description: "Compare totals with part-to-whole composition." },
   { value: "scorecard", label: "Scorecard", description: "Highlight a single KPI for dashboard headers." },
 ];
+const NUMERIC_COLUMN_HINTS = [
+  "amount",
+  "cost",
+  "price",
+  "qty",
+  "quantity",
+  "hours",
+  "count",
+  "total",
+  "variance",
+  "duration",
+  "rate",
+  "percent",
+  "score",
+  "days",
+  "value",
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -459,6 +476,12 @@ function calculateAggregate(rows: Record<string, unknown>[], key: string, fn: Ag
   if (fn === "max") return String(Math.max(...numeric));
   if (fn === "avg") return String(roundWithPrecision(numeric.reduce((sum, value) => sum + value, 0) / numeric.length, 2, true));
   return "";
+}
+
+function getAggregateFunctionsForColumn(key: string): AggregateFunction[] {
+  const normalized = key.toLowerCase();
+  const isNumeric = NUMERIC_COLUMN_HINTS.some((hint) => normalized.includes(hint));
+  return isNumeric ? ["count", "sum", "min", "max", "avg"] : ["count"];
 }
 
 function toCSV(columns: { key: string; label: string }[], rows: Record<string, unknown>[]): string {
@@ -1205,11 +1228,11 @@ function RunReportModal({
                 <option value="">Select column + function</option>
                 {displayColumns.map((c) => (
                   <optgroup key={c.key} label={c.label}>
-                    <option value={`${c.key}:count`}>Count</option>
-                    <option value={`${c.key}:sum`}>Sum</option>
-                    <option value={`${c.key}:min`}>Min</option>
-                    <option value={`${c.key}:max`}>Max</option>
-                    <option value={`${c.key}:avg`}>Average</option>
+                    {getAggregateFunctionsForColumn(c.key).map((fn) => (
+                      <option key={`${c.key}:${fn}`} value={`${c.key}:${fn}`}>
+                        {fn === "avg" ? "Average" : fn.charAt(0).toUpperCase() + fn.slice(1)}
+                      </option>
+                    ))}
                   </optgroup>
                 ))}
               </select>

@@ -166,6 +166,84 @@ export default function CommitmentSettingsClient({
 
       <div className="max-w-3xl mx-auto px-8 py-8">
         <div className="py-6 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Contract Configuration</h2>
+          <div className="space-y-4">
+            <label className="block text-sm text-gray-700">
+              <span className="font-medium">Number of Commitment Change Order Tiers</span>
+              <select
+                value={changeOrderTiers}
+                onChange={(e) => {
+                  const next = Number(e.target.value) || 1;
+                  setChangeOrderTiers(next);
+                  if (next === 1) {
+                    setAllowStandardUsersCreatePcos(false);
+                    setEnableFieldInitiatedCos(false);
+                  } else {
+                    setAllowStandardUsersCreateCcos(false);
+                  }
+                }}
+                className="mt-1 block w-56 border border-gray-300 rounded px-2 py-1.5 text-sm"
+              >
+                <option value={1}>1 Tier</option>
+                <option value={2}>2 Tier</option>
+                <option value={3}>3 Tier</option>
+              </select>
+              <span className="block text-xs text-gray-500 mt-1">
+                Set this before creating change orders. 1-tier supports direct CCOs. 2- and 3-tier workflows require potential change orders.
+              </span>
+            </label>
+
+            {changeOrderTiers === 1 ? (
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowStandardUsersCreateCcos}
+                  onChange={(e) => setAllowStandardUsersCreateCcos(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
+                />
+                <span className="text-sm text-gray-700">
+                  Allow Standard Level Users to Create CCOs
+                </span>
+              </label>
+            ) : (
+              <>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowStandardUsersCreatePcos}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setAllowStandardUsersCreatePcos(checked);
+                      if (!checked) setEnableFieldInitiatedCos(false);
+                    }}
+                    className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Allow Standard Level Users to Create PCOs
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enableFieldInitiatedCos}
+                    disabled={!allowStandardUsersCreatePcos}
+                    onChange={(e) => setEnableFieldInitiatedCos(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900 disabled:opacity-50"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Enable Field-Initiated Change Orders
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      Lets collaborators submit commitment change requests without direct access to the Change Events tool.
+                    </span>
+                  </span>
+                </label>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="py-6 border-b border-gray-200">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Schedule of Values</h2>
           <label className="flex items-start gap-2 cursor-pointer">
             <input

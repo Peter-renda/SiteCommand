@@ -79,6 +79,13 @@ type PrimePcoOption = {
   title: string;
   contract_name: string | null;
 };
+type CommitmentCcoOption = {
+  id: string;
+  number: string;
+  title: string;
+  contract_name: string | null;
+  status: string | null;
+};
 
 type RomPopup = {
   lineItemId: string;
@@ -136,6 +143,7 @@ export default function ChangeEventsClient({
   const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null);
   const [matchingPcos, setMatchingPcos] = useState<PrimePcoOption[]>([]);
   const [allPcos, setAllPcos] = useState<PrimePcoOption[]>([]);
+  const [allCommitmentCcos, setAllCommitmentCcos] = useState<CommitmentCcoOption[]>([]);
   const [allCommitments, setAllCommitments] = useState<{ id: string; number: number; title: string; type: string; status: string | null }[]>([]);
   const [pcoPickerOpen, setPcoPickerOpen] = useState(false);
   const [pcoPickerLoading, setPcoPickerLoading] = useState(false);
@@ -236,6 +244,19 @@ export default function ChangeEventsClient({
       .then((r) => r.json())
       .then((data) => setAllCommitments(Array.isArray(data) ? data : []))
       .catch(() => setAllCommitments([]));
+    fetch(`/api/projects/${projectId}/change-orders?type=commitment`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!Array.isArray(data)) {
+          setAllCommitmentCcos([]);
+          return;
+        }
+        const unapproved = data.filter(
+          (row) => String(row?.status ?? "").trim().toLowerCase() !== "approved"
+        );
+        setAllCommitmentCcos(unapproved);
+      })
+      .catch(() => setAllCommitmentCcos([]));
   }, [quickActionsOpen, hasSelection, selectedEventIds, projectId]);
 
   // Filtering
@@ -647,6 +668,64 @@ export default function ChangeEventsClient({
               if (!patchRes.ok) throw new Error("Failed to add selected SOV to the PCO.");
             }
 
+            async function addSelectedSovToCommitmentCco(changeOrderId: string) {
+              const sourceEventIds = Array.from(selectedEventIds);
+              const newSovLines = selectedSovLineItems.map((li) => ({
+                budget_code: (li.budget_code ?? "").trim(),
+                description: (li.description ?? "").trim(),
+                amount: Number(li.cost_rom ?? 0),
+              }));
+
+              const ccoRes = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`);
+              if (!ccoRes.ok) throw new Error("Failed to load selected commitment CO.");
+              const existing = await ccoRes.json() as {
+                source_change_event_ids?: string[] | null;
+                budget_codes?: string[] | null;
+                schedule_of_values?: { budget_code?: string | null; description?: string | null; amount?: number | string | null }[] | null;
+              };
+
+              const existingSov = Array.isArray(existing.schedule_of_values) ? existing.schedule_of_values : [];
+              const mergedSovMap = new Map<string, { budget_code: string; description: string; amount: number }>();
+
+              [...existingSov, ...newSovLines].forEach((line) => {
+                const budgetCode = String(line?.budget_code ?? "").trim();
+                const description = String(line?.description ?? "").trim();
+                const amount = Number(line?.amount ?? 0);
+                if (!budgetCode && !description && amount === 0) return;
+                const key = `${budgetCode}__${description}__${amount.toFixed(2)}`;
+                if (!mergedSovMap.has(key)) mergedSovMap.set(key, { budget_code: budgetCode, description, amount });
+              });
+
+              const mergedBudgetCodes = Array.from(
+                new Set([
+                  ...(Array.isArray(existing.budget_codes) ? existing.budget_codes : []),
+                  ...newSovLines.map((line) => line.budget_code).filter(Boolean),
+                ])
+              );
+              const mergedSourceEventIds = Array.from(
+                new Set([
+                  ...(Array.isArray(existing.source_change_event_ids) ? existing.source_change_event_ids : []),
+                  ...sourceEventIds,
+                ])
+              );
+              const totalAmount = Array.from(mergedSovMap.values()).reduce(
+                (sum, line) => sum + Number(line.amount ?? 0),
+                0
+              );
+
+              const patchRes = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  budget_codes: mergedBudgetCodes,
+                  source_change_event_ids: mergedSourceEventIds,
+                  schedule_of_values: Array.from(mergedSovMap.values()),
+                  amount: totalAmount,
+                }),
+              });
+              if (!patchRes.ok) throw new Error("Failed to add selected SOV to the commitment CO.");
+            }
+
             // Reusable commitment submenu shared by "Add to Unapproved Commitment" and "Create Commitment CO"
             function CommitmentSubmenu({ navSuffix, unapprovedOnly = false }: { navSuffix: string; unapprovedOnly?: boolean }) {
               const scopedCommitments = unapprovedOnly ? allCommitments.filter((c) => isUnapproved(c.status)) : allCommitments;
@@ -749,6 +828,7 @@ export default function ChangeEventsClient({
 
             type Action =
               | { label: string; type: "commitment-submenu"; navSuffix: string; unapprovedOnly?: boolean; disabled?: boolean }
+              | { label: string; type: "commitment-co-submenu" }
               | { label: string; type: "prime-submenu" }
               | { label: string; type: "prime-action" }
               | { label: string; type: "new-commitment"; commitmentType: string }
@@ -756,7 +836,8 @@ export default function ChangeEventsClient({
 
             const actions: Action[] = [
               { label: "Add to Unapproved Commitment", type: "commitment-submenu", navSuffix: "", unapprovedOnly: true, disabled: selectedHasCostAssociation },
-              { label: "Add to Unapproved Client Contract CO", type: "prime-submenu" },
+              { label: "Add to Unapproved Commitment CO", type: "commitment-co-submenu" },
+              { label: "Add to Unapproved Prime PCO", type: "prime-submenu" },
               { label: "Create Commitment CO", type: "commitment-submenu", navSuffix: "?action=co" },
               { label: "Create Client Contract CO", type: "prime-action" },
               { label: "Create Purchase Order Contract", type: "new-commitment", commitmentType: "purchase_order" },
@@ -818,7 +899,7 @@ export default function ChangeEventsClient({
                           />
                         )}
                       </span>
-                      {(action.type === "commitment-submenu" || action.type === "prime-submenu") && !action.disabled && (
+                      {(action.type === "commitment-submenu" || action.type === "prime-submenu" || action.type === "commitment-co-submenu") && !action.disabled && (
                         <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
                       )}
                     </button>
@@ -826,6 +907,39 @@ export default function ChangeEventsClient({
                     {/* Commitment submenu */}
                     {action.type === "commitment-submenu" && hoveredAction === action.label && !action.disabled && (
                       <CommitmentSubmenu navSuffix={action.navSuffix} unapprovedOnly={action.unapprovedOnly} />
+                    )}
+
+                    {/* Commitment CO submenu (all unapproved commitment COs) */}
+                    {action.type === "commitment-co-submenu" && hoveredAction === action.label && (
+                      <div
+                        className="absolute left-full top-0 bg-white border border-gray-200 rounded shadow-lg z-40 w-80 py-1 max-h-72 overflow-y-auto"
+                        onMouseEnter={() => setHoveredAction(action.label)}
+                      >
+                        {allCommitmentCcos.length === 0 ? (
+                          <div className="px-3 py-2 text-xs text-gray-500">
+                            No unapproved commitment change orders.
+                          </div>
+                        ) : (
+                          allCommitmentCcos.map((c) => (
+                            <button
+                              key={c.id}
+                              className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                              onClick={async () => {
+                                try {
+                                  await addSelectedSovToCommitmentCco(c.id);
+                                  setQuickActionsOpen(false);
+                                  router.push(`/projects/${projectId}/change-orders/${c.id}`);
+                                } catch (err) {
+                                  console.error(err);
+                                  window.alert("Unable to add selected SOV line items to this commitment CO. Please try again.");
+                                }
+                              }}
+                            >
+                              CCO #{c.number}: {c.title || c.contract_name || "Untitled"}
+                            </button>
+                          ))
+                        )}
+                      </div>
                     )}
 
                     {/* Prime PCO submenu (matching + all unapproved prime PCOs) */}

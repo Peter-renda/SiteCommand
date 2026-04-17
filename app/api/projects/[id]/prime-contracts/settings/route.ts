@@ -50,9 +50,46 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const body = await req.json();
   const supabase = getSupabase();
 
+  const { count: existingChangeOrderCount, error: countError } = await supabase
+    .from("change_orders")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", projectId)
+    .eq("type", "prime")
+    .is("deleted_at", null);
+
+  if (countError) {
+    return NextResponse.json({ error: "Failed to validate change order tier configuration", detail: countError.message }, { status: 500 });
+  }
+
+  const requestedTierCount = Number(body.number_of_change_order_tiers) || 2;
+  const clampedTierCount = Math.min(3, Math.max(1, requestedTierCount));
+
+  if ((existingChangeOrderCount || 0) > 0) {
+    const { data: existingSettings, error: existingSettingsError } = await supabase
+      .from("prime_contract_settings")
+      .select("number_of_change_order_tiers")
+      .eq("project_id", projectId)
+      .maybeSingle();
+
+    if (existingSettingsError) {
+      return NextResponse.json({ error: "Failed to validate existing tier configuration", detail: existingSettingsError.message }, { status: 500 });
+    }
+
+    const existingTierCount = Number(existingSettings?.number_of_change_order_tiers || DEFAULT_SETTINGS.number_of_change_order_tiers);
+    if (clampedTierCount !== existingTierCount) {
+      return NextResponse.json(
+        {
+          error:
+            "You cannot change the number of Prime Contract Change Order tiers after the first Prime change order is created.",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   const payload = {
     project_id: projectId,
-    number_of_change_order_tiers: Math.min(4, Math.max(1, Number(body.number_of_change_order_tiers) || 2)),
+    number_of_change_order_tiers: clampedTierCount,
     allow_standard_users_create_pccos: Boolean(body.allow_standard_users_create_pccos),
     allow_standard_users_create_pcos: Boolean(body.allow_standard_users_create_pcos),
     enable_always_editable_sov: Boolean(body.enable_always_editable_sov),

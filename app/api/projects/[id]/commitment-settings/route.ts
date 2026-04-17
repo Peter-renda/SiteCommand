@@ -44,7 +44,12 @@ export async function PUT(
 
   const payload: Record<string, unknown> = {
     project_id: projectId,
+    number_of_change_order_tiers: tiers,
+    allow_standard_users_create_ccos: allowStandardUsersCreateCcos,
+    allow_standard_users_create_pcos: allowStandardUsersCreatePcos,
+    enable_field_initiated_change_orders: enableFieldInitiated,
     enable_always_editable_sov: !!body.enable_always_editable_sov,
+    enable_financial_markup: !!body.enable_financial_markup,
     updated_by: session.id,
   };
 
