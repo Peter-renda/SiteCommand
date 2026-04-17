@@ -153,6 +153,47 @@ Notes:
 - When linked, T&M ticket line items transfer to the change event.
 - T&M ticket references/attachments should be represented in the change event description context.
 
+## Budget + ERP + WBS Alignment Notes (Added April 17, 2026)
+
+### About the Procore Standard Forecast View
+- Treat **Procore Standard Forecast** as the default baseline forecasting layout.
+- Keep Advanced Forecasting behavior configurable at the tool/settings level.
+- Forecasting views should be assignable per project and designed as templates layered on top of the standard baseline.
+- Forecasting UX should keep these high-signal columns visible by default:
+  - Revised Budget
+  - Projected Budget
+  - Projected Costs
+  - Forecast to Complete
+  - Estimated Cost at Completion
+  - Projected Over/Under
+
+### About the Project Status Snapshots Tab
+- The Budget tool should expose a dedicated **Project Status Snapshots** experience.
+- Users should be able to:
+  - View all snapshots over the project lifecycle.
+  - Export snapshot list data to CSV.
+  - Change snapshot status for approval tracking.
+  - Compare two snapshots to analyze variance.
+- Permissions baseline:
+  - Read-only or higher on Budget to view snapshot list.
+  - Elevated permissions for creating/updating snapshots.
+
+### Accept or Reject a Budget for Export to ERP
+- Budgets sent to ERP should pass through an accounting review state before export.
+- Accounting approvers should be able to **Accept** (export) or **Reject** (return to editable budget state with reason).
+- ERP-specific revision metadata may appear even for original budgets; users can ignore revision fields when no revision is being exported.
+- Restriction messaging should be explicit:
+  - ERP-exported budgets impact unlock/edit behavior.
+  - Import/export rules vary by ERP connector.
+
+### Activate Budget Codes on a Project
+- Budget codes should support active/inactive lifecycle at the project level.
+- Inactive codes should be excluded from budget-code dropdowns in project financial tools.
+- Activation should support:
+  - Single-code activation.
+  - Bulk activation.
+- Permission baseline should mirror Project Admin + WBS granular permission controls.
+
 ## 360 Reporting – Workflow Alignment Notes
 
 ### Export a Report

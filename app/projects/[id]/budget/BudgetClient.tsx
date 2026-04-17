@@ -38,6 +38,8 @@ type BudgetSnapshot = {
   id: string;
   name: string;
   created_at: string;
+  status?: "Draft" | "Under Review" | "Approved" | "Archived";
+  snapshot_data?: BudgetLineItem[];
 };
 
 type CommitmentSovRow = {
@@ -986,7 +988,7 @@ export default function BudgetClient({
   const [forecastEdits, setForecastEdits] = useState<Record<string, ForecastEdit>>({});
   const [selectedForecastItemId, setSelectedForecastItemId] = useState<string | null>(null);
   const [isBudgetLocked, setIsBudgetLocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<"budget" | "budget_details" | "forecasting">("budget");
+  const [activeTab, setActiveTab] = useState<"budget" | "budget_details" | "forecasting" | "project_status_snapshot">("budget");
   const [groupBy, setGroupBy] = useState<GroupByKey | null>(null);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -1015,6 +1017,7 @@ export default function BudgetClient({
   });
   const [showForecastFilterMenu, setShowForecastFilterMenu] = useState(false);
   const [showCreateForecastViewModal, setShowCreateForecastViewModal] = useState(false);
+  const [selectedSnapshotIds, setSelectedSnapshotIds] = useState<string[]>([]);
 
   // Dropdown refs
   const exportRef = useRef<HTMLDivElement>(null);
@@ -1146,6 +1149,57 @@ export default function BudgetClient({
       setSnapshots((prev) => [snap, ...prev]);
     }
     setShowSnapshotModal(false);
+  }
+
+  async function handleUpdateSnapshotStatus(
+    snapshotId: string,
+    status: "Draft" | "Under Review" | "Approved" | "Archived"
+  ) {
+    const res = await fetch(`/api/projects/${projectId}/budget/snapshots`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ snapshot_id: snapshotId, status }),
+    });
+    if (!res.ok) return;
+    const updated: BudgetSnapshot = await res.json();
+    setSnapshots((prev) => prev.map((snap) => (snap.id === updated.id ? { ...snap, ...updated } : snap)));
+  }
+
+  function exportSnapshotListCsv() {
+    const rows = snapshots.map((snapshot) => ({
+      name: snapshot.name,
+      status: snapshot.status ?? "Draft",
+      created_at: new Date(snapshot.created_at).toISOString(),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Project Status Snapshots");
+    XLSX.writeFile(wb, `project-status-snapshots-${projectId}.csv`, { bookType: "csv" });
+  }
+
+  function compareSelectedSnapshots() {
+    if (selectedSnapshotIds.length !== 2) return;
+    const [left, right] = selectedSnapshotIds
+      .map((id) => snapshots.find((s) => s.id === id))
+      .filter(Boolean) as BudgetSnapshot[];
+    if (!left || !right) return;
+    const leftData = Array.isArray(left.snapshot_data) ? left.snapshot_data : [];
+    const rightData = Array.isArray(right.snapshot_data) ? right.snapshot_data : [];
+    const leftTotals = sumItems(leftData);
+    const rightTotals = sumItems(rightData);
+    const variance = {
+      projectedBudget: rightTotals.projectedBudget - leftTotals.projectedBudget,
+      projectedCosts: rightTotals.projectedCosts - leftTotals.projectedCosts,
+      projectedOverUnder: rightTotals.projectedOverUnder - leftTotals.projectedOverUnder,
+    };
+    window.alert(
+      [
+        `Comparing "${left.name}" → "${right.name}"`,
+        `Projected Budget Δ: ${fmt(variance.projectedBudget)}`,
+        `Projected Costs Δ: ${fmt(variance.projectedCosts)}`,
+        `Projected Over/Under Δ: ${fmt(variance.projectedOverUnder)}`,
+      ].join("\n")
+    );
   }
 
   async function handleCreateBudgetChange(payload: { itemId: string; amount: number }) {
@@ -2068,6 +2122,17 @@ export default function BudgetClient({
             >
               Forecasting
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("project_status_snapshot")}
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "project_status_snapshot"
+                  ? "border-orange-500 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Project Status Snapshots
+            </button>
           </div>
         </div>
 
@@ -2886,6 +2951,27 @@ export default function BudgetClient({
               </div>
             ) : activeTab === "project_status_snapshot" ? (
               <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={exportSnapshotListCsv}
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+                  >
+                    Export Snapshot List (CSV)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedSnapshotIds.length !== 2}
+                    onClick={compareSelectedSnapshots}
+                    className={`px-3 py-2 text-sm rounded-md ${
+                      selectedSnapshotIds.length === 2
+                        ? "border border-gray-300 bg-white hover:bg-gray-50"
+                        : "border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    Analyze Variance (Select 2)
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white border border-gray-100 rounded-xl p-4">
                     <p className="text-xs uppercase tracking-wider text-gray-500">Projected Budget</p>
@@ -2911,9 +2997,39 @@ export default function BudgetClient({
                   ) : (
                     <ul className="divide-y divide-gray-100">
                       {snapshots.map((snapshot) => (
-                        <li key={snapshot.id} className="px-4 py-3 text-sm flex items-center justify-between">
-                          <span className="text-gray-800">{snapshot.name}</span>
-                          <span className="text-gray-500">{new Date(snapshot.created_at).toLocaleDateString("en-US")}</span>
+                        <li key={snapshot.id} className="px-4 py-3 text-sm flex items-center justify-between gap-4">
+                          <label className="inline-flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedSnapshotIds.includes(snapshot.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedSnapshotIds((prev) => [...prev, snapshot.id].slice(-2));
+                                } else {
+                                  setSelectedSnapshotIds((prev) => prev.filter((id) => id !== snapshot.id));
+                                }
+                              }}
+                            />
+                            <span className="text-gray-800">{snapshot.name}</span>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={snapshot.status ?? "Draft"}
+                              onChange={(e) =>
+                                handleUpdateSnapshotStatus(
+                                  snapshot.id,
+                                  e.target.value as "Draft" | "Under Review" | "Approved" | "Archived"
+                                )
+                              }
+                              className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                            >
+                              <option value="Draft">Draft</option>
+                              <option value="Under Review">Under Review</option>
+                              <option value="Approved">Approved</option>
+                              <option value="Archived">Archived</option>
+                            </select>
+                            <span className="text-gray-500">{new Date(snapshot.created_at).toLocaleDateString("en-US")}</span>
+                          </div>
                         </li>
                       ))}
                     </ul>
