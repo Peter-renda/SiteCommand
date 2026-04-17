@@ -448,3 +448,56 @@ Notes:
 - Keep sharing model report-specific and distinct from dashboard sharing.
 - Keep Add Visual threshold behavior explicit for large datasets (2,500+ row constraint messaging).
 - Keep dashboard publish-before-share behavior explicit.
+
+## Change Orders / ERP Alignment Notes (Added April 17, 2026)
+
+### Edit a Change Order
+- The project-level **Change Orders** tool should be treated as a central index for locating change orders, not as the sole authority for edit permissions.
+- Edit eligibility should continue to defer to the parent financial tool permissions:
+  - **Commitment Change Orders (CCOs)**: Admin on Commitments.
+  - **Prime/Client/Funding Change Orders**: Admin on the corresponding contract tool.
+- Keep explicit UX messaging that users may be blocked from editing/deleting based on status order and approval sequencing (for example, older approved COs may require rollback of newer approvals before edits).
+
+### Configure Settings: Change Orders (Project Tool)
+- Maintain project-level settings for:
+  - Show/hide line items on **PCCO PDF exports**.
+  - Show/hide line items on **CCO PDF exports**.
+  - **Change reason behavior** mode:
+    - predefined drop-down list, or
+    - freeform text input.
+- Keep permissions messaging explicit that these settings require **Admin** on the project Change Orders tool.
+
+### Company Defaults: Change Management
+- Company Admin should be the source of truth for default change-management lists:
+  - **Change Reasons**
+  - **Change Types**
+  - **Change Event Statuses**
+- Project tools should consume company defaults while allowing project-level availability toggles.
+- Do not allow deletion of reasons/types/statuses that are already referenced by existing records.
+
+### Commitment Change Orders + ERP Accounting Acceptance
+- Add/maintain a clear pre-export accounting review stage for CCOs:
+  - **Ready to Export** queue for accounting approvers.
+  - **Accept** path exports to ERP.
+  - **Reject** path returns CCO to editable project state with a required reason.
+- Permissions model should distinguish between general ERP access and explicit “can push to accounting” privileges.
+
+### Commitment Tool: Collaborator / Field-Initiated Change Orders
+- Commitments advanced settings should support:
+  - **Number of Commitment Change Order Tiers** (1, 2, or 3).
+  - One-tier option for **Allow Standard Users to Create CCOs**.
+  - Multi-tier option for **Allow Standard Users to Create PCOs**.
+  - **Enable Field-Initiated Change Orders** (dependent on multi-tier + standard-user PCO setting).
+- Field-initiated flows should support collaborator submissions against approved commitments while preserving contract privacy boundaries.
+
+### Configure Number of Change Order Tiers (Cross-Tool Concept)
+- Treat tier configuration as a contract lifecycle decision that should be set before live CO workflows begin.
+- Preserve tool-specific tier behavior (Client Contracts, Commitments, Funding, Prime Contracts) while keeping the UX language consistent across financial tools.
+
+### Create a Change Order / Create from Change Event
+- Keep direct CO creation and change-event-originated CO creation as first-class flows.
+- When creating from change events, preserve source linkage metadata so downstream reporting and audit history can show origin context.
+
+### Prime Contracts: Enable Financial Markup
+- Prime contract advanced settings should include a dedicated **Enable Financial Markup** toggle at the contract level.
+- Enabling this setting is prerequisite behavior for applying markup rules on associated prime contract change orders.
