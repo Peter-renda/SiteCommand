@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { calculateSubmittalSchedule } from "@/lib/submittalSchedule";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -13,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from("submittals")
     .select("*")
     .eq("project_id", projectId)
-    .eq("is_deleted", false)
+     .eq("is_deleted", req.nextUrl.searchParams.get("recycle_bin") === "true")
     .order("submittal_number", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -68,7 +69,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     actual_delivery_date,
     workflow_steps,
     related_items,
+    design_team_review_time,
+    internal_review_time,
   } = body;
+
+
+  const scheduleDates = calculateSubmittalSchedule({
+    required_on_site_date: required_on_site_date || null,
+    lead_time: lead_time != null ? Number(lead_time) : null,
+    design_team_review_time: design_team_review_time != null ? Number(design_team_review_time) : null,
+    internal_review_time: internal_review_time != null ? Number(internal_review_time) : null,
+  });
 
   const { data, error } = await supabase
     .from("submittals")
@@ -93,7 +104,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       distribution_list: distribution_list ?? [],
       ball_in_court_id: ball_in_court_id || null,
       lead_time: lead_time != null ? Number(lead_time) : null,
+      design_team_review_time: design_team_review_time != null ? Number(design_team_review_time) : null,
+      internal_review_time: internal_review_time != null ? Number(internal_review_time) : null,
       required_on_site_date: required_on_site_date || null,
+      ...scheduleDates,
       private: isPrivate ?? false,
       description: description || null,
       attachments: attachments ?? [],
