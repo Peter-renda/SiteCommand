@@ -218,7 +218,7 @@ export default function ChangeEventsClient({
   }, [selectedIds, selectedLineItems]);
   const hasSelection = selectedEventIds.size > 0;
 
-  // Fetch matching/unmatched unapproved prime PCOs and all commitments whenever the quick actions dropdown opens
+  // Fetch matching/unmatched unapproved prime PCOs and all commitments whenever the bulk actions dropdown opens
   useEffect(() => {
     if (!quickActionsOpen || !hasSelection) return;
     const ids = Array.from(selectedEventIds).join(",");
@@ -555,7 +555,7 @@ export default function ChangeEventsClient({
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-white shrink-0">
-        {/* Quick Actions dropdown – write-access users only */}
+        {/* Bulk Actions dropdown – write-access users only */}
         {canWrite && <div ref={quickActionsRef} className="relative">
           <button
             disabled={!hasSelection}
@@ -570,7 +570,7 @@ export default function ChangeEventsClient({
                 : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
             }`}
           >
-            Quick Actions <ChevronDown className="w-3 h-3" />
+            Bulk Actions <ChevronDown className="w-3 h-3" />
           </button>
 
           {quickActionsOpen && hasSelection && (() => {
