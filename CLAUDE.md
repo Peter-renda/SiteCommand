@@ -257,3 +257,98 @@ Notes:
   - Be independent snapshots from the source report.
   - Append `-Copy` to the report name.
   - Preserve share-safe visibility semantics (copy only reveals data user can access).
+
+## Delete a Purchase Order or Subcontract
+
+### Required Permissions
+- **Admin** level on the Commitments tool.
+
+### Prerequisites
+- A Purchase Order or Subcontract must have been previously created.
+
+### Workflow
+1. Open the project's Commitments tool → **Contracts** tab.
+2. Locate the contract and click **View** to open it.
+3. Click the **Delete** button.
+   - The Delete button is **disabled** when the contract status is **Approved**. Change the status first.
+4. Click **OK** to confirm deletion.
+
+### Important Notes
+- Deleted contracts are **permanently moved to the Recycle Bin** and cannot be recovered.
+- For ERP-synced contracts, follow the "Delete a Commitment Synced with ERP" guide before proceeding.
+- In SiteCommand, deletion is a **soft delete** (sets `deleted_at` timestamp); implement Recycle Bin view if needed.
+
+### Implementation Notes (SiteCommand)
+- Delete button in `CommitmentDetailClient.tsx` is disabled when `commitment.status === "approved"`.
+- Confirmation dialog warns user the action is permanent.
+- ERP-synced contracts (`erp_status === "synced"`) display an additional warning in the confirmation dialog.
+- API: `DELETE /api/projects/[id]/commitments/[commitmentId]` — requires Admin tool permission.
+
+## Edit a Subcontract
+
+### Required Permissions
+- **Admin** on Commitments tool, OR
+- **Read Only** or **Standard** with the **Update Work Order Contract** granular permission enabled.
+
+### Prerequisites
+- A Subcontract must have been previously created.
+- ERP-integrated companies: these steps only apply to contracts not yet synced with the integrated system.
+
+### Editable Fields
+1. **Basic Information**: Contract Number (display only, auto-increments), Contract Company, Title
+2. **General Information**: Status (Draft / Approved / Void / Terminated), Executed checkbox, Default Retainage, Description (rich text)
+3. **DocuSign®**: Toggle to enable DocuSign® signature collection. When enabled, a "Complete with DocuSign®" save option appears.
+4. **Contract Access**: Private toggle, Invoice Contact (selected from Contract Company employees in project directory)
+5. **Contract Dates**: Start Date, Estimated Completion, Actual Completion, Signed Contract Received
+6. **Scope of Work**: Inclusions (rich text), Exclusions (rich text)
+7. **Accounting Method**: Amount Based or Unit/Quantity Based.
+   - **Can only be changed BEFORE adding SOV line items.** If line items exist, the user is warned that changing will clear existing lines.
+8. **Schedule of Values**: Add lines manually (Add Line) or import via CSV (upload template). Options: Add Additional lines or Replace Existing (unavailable if invoices exist and setting is enabled).
+9. **Attachments**: Attach files from computer, Photos, Drawings, Forms, or Documents.
+
+### Save Actions
+- **Save Subcontract** — saves and returns to view mode.
+- **Complete with DocuSign®** — visible only when DocuSign® is enabled; initiates signature workflow.
+
+### Implementation Notes (SiteCommand)
+- Form lives at `EditCommitmentClient.tsx`.
+- Subcontract-specific dates (`start_date`, `estimated_completion`, `actual_completion`, `signed_contract_received`) shown conditionally for subcontracts.
+- PO-specific dates (`contract_date`, `delivery_date`, `signed_po_received_date`, `issued_on_date`) shown conditionally for purchase orders.
+- Inclusions/Exclusions added to the "Additional Information" section for subcontracts.
+- "Subcontractor Contact" renamed to **Invoice Contact** in the UI.
+- Accounting method change triggers `confirm()` dialog if SOV lines already exist.
+- All new fields sent in `PATCH /api/projects/[id]/commitments/[commitmentId]`.
+
+## Email a Purchase Order or Subcontract
+
+### Required Permissions
+- **Standard** or **Admin** level on the Commitments tool.
+
+### Prerequisites
+- A commitment (Purchase Order or Subcontract) must exist.
+
+### Workflow
+1. Open the project's Commitments tool → **Contracts** tab → locate the contract.
+2. Click **Edit**.
+3. Click **Email Contract** (in the edit page header).
+4. Fill in the email form:
+   - **To** — select recipients from the Project Directory (must be in directory to receive emails)
+   - **Cc** — additional directory contacts for carbon copy
+   - **Private** — check to restrict viewing to admins and email recipients only
+   - **Subject** — email subject line
+   - **Message** — instructions or context for recipients
+5. Click **Send**.
+
+### What Recipients Receive
+- An email with:
+  - A **View Online** link (requires appropriate project access permissions).
+  - A **Download PDF** link.
+- Recipients must be added to the Project Directory.
+
+### Implementation Notes (SiteCommand)
+- "Email Contract" button in the edit page header (`EditCommitmentClient.tsx`).
+- Opens `EmailContractModal` — recipients selected from project directory contacts with emails.
+- API: `POST /api/projects/[id]/commitments/[commitmentId]/email` — requires Standard or Admin tool permission.
+- Email function: `sendCommitmentEmail()` in `/lib/email.ts` using Resend.
+- CC recipients passed directly to Resend's `cc` field.
+- Private flag shown in email footer note when enabled.

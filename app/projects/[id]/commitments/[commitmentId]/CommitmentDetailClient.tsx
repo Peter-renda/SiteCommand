@@ -352,6 +352,26 @@ export default function CommitmentDetailClient({
   const [ssovBusy, setSsovBusy] = useState(false);
   const [ssovError, setSsovError] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"general" | "financial_markup">("general");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/commitments/${commitmentId}`, { method: "DELETE" });
+      if (res.ok) {
+        window.location.href = `/projects/${projectId}/commitments`;
+      } else {
+        const { error } = await res.json().catch(() => ({ error: "Delete failed" }));
+        alert(error || "Delete failed");
+        setDeleting(false);
+        setShowDeleteConfirm(false);
+      }
+    } catch {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  }
 
   async function reloadCommitment() {
     const [c, ssov] = await Promise.all([
@@ -482,12 +502,22 @@ export default function CommitmentDetailClient({
               </span>
             )}
           </div>
-          <a
-            href={`/projects/${projectId}/commitments/${commitmentId}/edit`}
-            className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
-          >
-            Edit
-          </a>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={commitment?.status === "approved"}
+              title={commitment?.status === "approved" ? "Cannot delete an Approved contract. Change status first." : "Delete this contract"}
+              className="px-4 py-1.5 text-sm font-medium text-red-600 border border-red-200 rounded hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Delete
+            </button>
+            <a
+              href={`/projects/${projectId}/commitments/${commitmentId}/edit`}
+              className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+            >
+              Edit
+            </a>
+          </div>
         </div>
         {/* Tab bar */}
         <div className="px-8 flex items-center gap-0 border-t border-gray-100">
@@ -872,6 +902,40 @@ export default function CommitmentDetailClient({
         </>)}
 
       </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-2">Delete {typeLabel}?</h2>
+            <p className="text-sm text-gray-600 mb-1">
+              This will permanently move <strong>#{commitment.number} — {commitment.title || typeLabel}</strong> to the Recycle Bin.
+            </p>
+            <p className="text-xs text-red-600 mb-6">This action cannot be undone.</p>
+            {commitment.erp_status === "synced" && (
+              <div className="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                This contract is synced with an ERP system. Please follow your ERP integration guide before deleting.
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-60"
+              >
+                {deleting ? "Deleting…" : "OK — Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
