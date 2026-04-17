@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 
+type WorkflowStep = {
+  step: number;
+  person_id: string | null;
+  role: string;
+  due_date: string | null;
+  sent_date?: string | null;
+  returned_date?: string | null;
+  response?: string | null;
+  comments?: string | null;
+  attachments?: { name: string; url: string }[];
+};
+
 function nextRevisionValue(current: string | null): string {
   const value = (current ?? "0").trim();
   if (/^\d+$/.test(value)) return String(Number(value) + 1);
@@ -57,6 +69,135 @@ export async function POST(
     const { data, error } = await supabase
       .from("submittals")
       .update({ ball_in_court_id: payload?.ball_in_court_id ?? null })
+      .eq("id", submittalId)
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  if (action === "mark_private" || action === "mark_public") {
+    const { data, error } = await supabase
+      .from("submittals")
+      .update({ private: action === "mark_private" })
+      .eq("id", submittalId)
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  if (action === "remove_workflow_person") {
+    const personId = payload?.person_id as string | undefined;
+    if (!personId) {
+      return NextResponse.json({ error: "person_id is required" }, { status: 400 });
+    }
+    const currentSteps = Array.isArray(existing.workflow_steps) ? (existing.workflow_steps as WorkflowStep[]) : [];
+    const nextSteps = currentSteps
+      .filter((s) => s.person_id !== personId)
+      .map((s, idx) => ({ ...s, step: idx + 1 }));
+    const nextBallInCourt = existing.ball_in_court_id === personId ? null : existing.ball_in_court_id;
+    const { data, error } = await supabase
+      .from("submittals")
+      .update({ workflow_steps: nextSteps, ball_in_court_id: nextBallInCourt })
+      .eq("id", submittalId)
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  if (action === "edit_response") {
+    const personId = payload?.person_id as string | undefined;
+    if (!personId) return NextResponse.json({ error: "person_id is required" }, { status: 400 });
+    if (payload?.forward_for_review_to) {
+      return NextResponse.json(
+        { error: "Forward for Review is not available when editing a response on behalf of another user" },
+        { status: 400 }
+      );
+    }
+    if (existing.ball_in_court_id !== personId) {
+      return NextResponse.json({ error: "Only the current Ball In Court workflow user can be edited" }, { status: 400 });
+    }
+
+    const currentSteps = Array.isArray(existing.workflow_steps) ? (existing.workflow_steps as WorkflowStep[]) : [];
+    const nextSteps = currentSteps.map((step) =>
+      step.person_id === personId
+        ? {
+            ...step,
+            sent_date: (payload?.sent_date as string | undefined) ?? step.sent_date ?? null,
+            returned_date: (payload?.returned_date as string | undefined) ?? step.returned_date ?? null,
+            response: (payload?.response as string | undefined) ?? step.response ?? null,
+            comments: (payload?.comments as string | undefined) ?? step.comments ?? null,
+            attachments: Array.isArray(payload?.attachments)
+              ? (payload?.attachments as { name: string; url: string }[])
+              : step.attachments ?? [],
+          }
+        : step
+    );
+    const { data, error } = await supabase
+      .from("submittals")
+      .update({ workflow_steps: nextSteps, status: existing.status === "draft" ? "open" : existing.status })
+      .eq("id", submittalId)
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  if (action === "forward_for_review") {
+    const toPersonId = payload?.to_person_id as string | undefined;
+    const actorContactId = payload?.actor_contact_id as string | undefined;
+    if (!toPersonId) return NextResponse.json({ error: "to_person_id is required" }, { status: 400 });
+    if (actorContactId && existing.ball_in_court_id !== actorContactId) {
+      return NextResponse.json({ error: "Only the Ball In Court reviewer can forward for review" }, { status: 400 });
+    }
+
+    const currentSteps = Array.isArray(existing.workflow_steps) ? (existing.workflow_steps as WorkflowStep[]) : [];
+    const maxStep = currentSteps.reduce((max, step) => Math.max(max, step.step || 0), 0);
+    const inserted: WorkflowStep = {
+      step: maxStep + 1,
+      person_id: toPersonId,
+      role: "Reviewer",
+      due_date: (payload?.due_date as string | undefined) ?? null,
+      sent_date: (payload?.sent_date as string | undefined) ?? new Date().toISOString().slice(0, 10),
+      comments: (payload?.comments as string | undefined) ?? null,
+      attachments: Array.isArray(payload?.attachments)
+        ? (payload?.attachments as { name: string; url: string }[])
+        : [],
+    };
+
+    const { data, error } = await supabase
+      .from("submittals")
+      .update({
+        workflow_steps: [...currentSteps, inserted],
+        ball_in_court_id: toPersonId,
+        status: existing.status === "draft" ? "open" : existing.status,
+      })
+      .eq("id", submittalId)
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  if (action === "redistribute") {
+    const { data, error } = await supabase
+      .from("submittals")
+      .update({
+        distributed_at: new Date().toISOString(),
+        distributed_by: session.id,
+      })
       .eq("id", submittalId)
       .eq("project_id", projectId)
       .eq("is_deleted", false)

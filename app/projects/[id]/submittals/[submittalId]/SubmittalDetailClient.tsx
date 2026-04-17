@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import { useRouter } from "next/navigation";
 
 type DirContact = { id: string; name: string; email: string | null };
 type DirectoryContact = {
@@ -40,7 +41,17 @@ type Submittal = {
   private: boolean;
   description: string | null;
   attachments: { name: string; url: string }[];
-  workflow_steps: { step: number; person_id: string | null; role: string; due_date: string | null }[];
+  workflow_steps: {
+    step: number;
+    person_id: string | null;
+    role: string;
+    due_date: string | null;
+    sent_date?: string | null;
+    returned_date?: string | null;
+    response?: string | null;
+    comments?: string | null;
+    attachments?: { name: string; url: string }[];
+  }[];
   related_items: { type: string; title: string; href: string }[];
   distributed_at: string | null;
   closed_at: string | null;
@@ -146,6 +157,7 @@ export default function SubmittalDetailClient({
   username: string;
   userId: string;
 }) {
+  const router = useRouter();
   const [submittal, setSubmittal] = useState<Submittal | null>(null);
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
   const [specifications, setSpecifications] = useState<Specification[]>([]);
@@ -173,14 +185,14 @@ export default function SubmittalDetailClient({
       return;
     }
     if (action === "duplicate" || action === "create_revision") {
-      window.location.href = `/projects/${projectId}/submittals/${data.id}`;
+      router.push(`/projects/${projectId}/submittals/${data.id}`);
       return;
     }
     if (action === "distribute" && data.revision?.id) {
-      window.location.href = `/projects/${projectId}/submittals/${data.revision.id}`;
+      router.push(`/projects/${projectId}/submittals/${data.revision.id}`);
       return;
     }
-    window.location.reload();
+    router.refresh();
   }
 
   async function deleteSubmittal() {
@@ -193,7 +205,37 @@ export default function SubmittalDetailClient({
       alert(data.error || "Delete failed");
       return;
     }
-    window.location.href = `/projects/${projectId}/submittals`;
+    router.push(`/projects/${projectId}/submittals`);
+  }
+
+  async function editWorkflowResponse(personId: string) {
+    const response = prompt("Response (for example: Approved / Revise and Resubmit):");
+    if (response == null) return;
+    const comments = prompt("Comments (optional):") ?? "";
+    await runAction("edit_response", {
+      person_id: personId,
+      response: response.trim() || null,
+      comments: comments.trim() || null,
+      sent_date: new Date().toISOString().slice(0, 10),
+      returned_date: new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  async function forwardForReview() {
+    const toPersonId = prompt("Forward to contact ID (from directory):");
+    if (!toPersonId) return;
+    const comments = prompt("Forward comments (optional):") ?? "";
+    await runAction("forward_for_review", {
+      to_person_id: toPersonId.trim(),
+      actor_contact_id: submittal?.ball_in_court_id ?? null,
+      comments: comments.trim() || null,
+      sent_date: new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  async function removeWorkflowPerson(personId: string) {
+    if (!confirm("Remove this submitter/approver from the workflow?")) return;
+    await runAction("remove_workflow_person", { person_id: personId });
   }
 
   useEffect(() => {
@@ -213,7 +255,7 @@ export default function SubmittalDetailClient({
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/";
+    router.push("/");
   }
 
   if (loading) {
@@ -250,7 +292,7 @@ export default function SubmittalDetailClient({
   const statusLabel = STATUS_LABELS[submittal.status] ?? submittal.status;
 
   const fromContact = getContactById(directory, submittal.received_from_id);
-  const approverContact = getContactById(directory, submittal.approver_name_id);
+  const workflowSteps = (submittal.workflow_steps ?? []).slice().sort((a, b) => a.step - b.step);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -298,6 +340,8 @@ export default function SubmittalDetailClient({
               <button onClick={() => runAction("create_revision")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Create Revision</button>
               <button onClick={() => runAction("close")} disabled={actionLoading !== null || submittal.status === "closed"} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Close</button>
               <button onClick={() => runAction("distribute", { create_revision_upon_distribution: false })} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-50">Distribute</button>
+              <button onClick={() => runAction("redistribute")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Redistribute</button>
+              <button onClick={() => runAction(submittal.private ? "mark_public" : "mark_private")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">{submittal.private ? "Mark Public" : "Mark Private"}</button>
               <button onClick={deleteSubmittal} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-300 rounded hover:bg-red-50 transition-colors disabled:opacity-50">Delete</button>
               <a
                 href={`/projects/${projectId}/submittals/${submittal.id}/edit`}
@@ -453,46 +497,87 @@ export default function SubmittalDetailClient({
                     </td>
                     <td colSpan={7} />
                     <td className="px-3 py-2.5 text-right">
-                      <button className="px-3 py-1 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors whitespace-nowrap">
+                      <button
+                        onClick={() => {
+                          const contactId = prompt("Set Ball in Court to contact ID:");
+                          if (!contactId) return;
+                          runAction("change_ball_in_court", { ball_in_court_id: contactId.trim() });
+                        }}
+                        className="px-3 py-1 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors whitespace-nowrap"
+                      >
                         Set Ball in Court
                       </button>
                     </td>
                   </tr>
 
-                  {/* Approver row */}
-                  {approverContact ? (
-                    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-start gap-1.5">
-                          <span className="text-yellow-400 text-sm leading-none mt-0.5">★</span>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 leading-snug">
-                              {contactDisplayName(approverContact)}
-                            </p>
-                            {approverContact.company && (
-                              <p className="text-xs text-gray-500">{approverContact.company}</p>
+                  {workflowSteps.length > 0 ? (
+                    workflowSteps.map((step) => {
+                      const stepContact = getContactById(directory, step.person_id);
+                      const isBallInCourt = submittal.ball_in_court_id && step.person_id === submittal.ball_in_court_id;
+                      return (
+                        <tr key={`${step.step}-${step.person_id ?? "unassigned"}`} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3">
+                            {stepContact ? (
+                              <div className="flex items-start gap-1.5">
+                                <span className={`${isBallInCourt ? "text-yellow-400" : "text-gray-300"} text-sm leading-none mt-0.5`}>★</span>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900 leading-snug">
+                                    {contactDisplayName(stepContact)}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{step.role}</p>
+                                  {stepContact.company && (
+                                    <p className="text-xs text-gray-500">{stepContact.company}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-400 italic">Unassigned</p>
                             )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDate(submittal.issue_date)}</td>
-                      <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDate(submittal.final_due_date)}</td>
-                      <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDate(submittal.received_date)}</td>
-                      <td className="px-3 py-3 text-sm text-gray-600">{statusLabel}</td>
-                      <td className="px-3 py-3 text-sm text-gray-400">--</td>
-                      <td className="px-3 py-3 text-sm text-gray-400">--</td>
-                      <td className="px-3 py-3">
-                        <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded border border-green-300 uppercase">
-                          Current
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className="text-gray-400">—</span>
-                      </td>
-                    </tr>
+                          </td>
+                          <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDate(step.sent_date ?? submittal.issue_date)}</td>
+                          <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDate(step.due_date)}</td>
+                          <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDate(step.returned_date)}</td>
+                          <td className="px-3 py-3 text-sm text-gray-600">{step.response ?? "—"}</td>
+                          <td className="px-3 py-3 text-sm text-gray-600">{step.comments ?? "—"}</td>
+                          <td className="px-3 py-3 text-sm text-gray-400">{(step.attachments ?? []).length > 0 ? `${step.attachments?.length} file(s)` : "--"}</td>
+                          <td className="px-3 py-3">
+                            {isBallInCourt ? (
+                              <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded border border-green-300 uppercase">
+                                Current
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">Step {step.step}</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-2">
+                              {canEdit && step.person_id && isBallInCourt && (
+                                <button
+                                  onClick={() => editWorkflowResponse(step.person_id!)}
+                                  className="text-xs text-blue-600 hover:underline"
+                                >
+                                  Edit Response
+                                </button>
+                              )}
+                              {canEdit && step.person_id && isBallInCourt && (
+                                <button onClick={forwardForReview} className="text-xs text-blue-600 hover:underline">Forward</button>
+                              )}
+                              {canEdit && step.person_id && (
+                                <button
+                                  onClick={() => removeWorkflowPerson(step.person_id!)}
+                                  className="text-xs text-red-600 hover:underline"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr className="border-b border-gray-100">
-                      <td colSpan={9} className="px-4 py-3 text-sm text-gray-400 italic">No reviewer assigned</td>
+                      <td colSpan={9} className="px-4 py-3 text-sm text-gray-400 italic">No workflow steps configured</td>
                     </tr>
                   )}
                 </tbody>

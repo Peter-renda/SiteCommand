@@ -39,6 +39,7 @@ type Submittal = {
   private: boolean;
   description: string | null;
   attachments: { name: string; url: string }[];
+  distributed_at?: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -745,6 +746,8 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
   const [showCreate, setShowCreate] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const createMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -808,6 +811,40 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
     window.location.href = "/";
   }
 
+  async function runBulkAction(action: "mark_private" | "mark_public" | "redistribute" | "delete", payload?: Record<string, unknown>) {
+    if (selectedIds.length === 0 || bulkLoading) return;
+    if (action === "delete" && !confirm(`Send ${selectedIds.length} submittal(s) to Recycle Bin?`)) return;
+    setBulkLoading(true);
+    const res = await fetch(`/api/projects/${projectId}/submittals/bulk-actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, submittal_ids: selectedIds, payload: payload ?? {} }),
+    });
+    setBulkLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Bulk action failed");
+      return;
+    }
+    const selectedSet = new Set(selectedIds);
+    if (action === "delete") {
+      setSubmittals((prev) => prev.filter((s) => !selectedSet.has(s.id)));
+    } else {
+      setSubmittals((prev) =>
+        prev.map((s) =>
+          selectedSet.has(s.id)
+            ? {
+                ...s,
+                private: action === "mark_private" ? true : action === "mark_public" ? false : s.private,
+                distributed_at: action === "redistribute" ? new Date().toISOString() : s.distributed_at,
+              }
+            : s
+        )
+      );
+    }
+    setSelectedIds([]);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
@@ -824,6 +861,15 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Submittals</h1>
           <div className="flex items-center gap-2">
+            {selectedIds.length > 0 && (
+              <>
+                <span className="text-xs text-gray-500 mr-1">{selectedIds.length} selected</span>
+                <button onClick={() => runBulkAction("mark_private")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Mark Private</button>
+                <button onClick={() => runBulkAction("mark_public")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Mark Public</button>
+                <button onClick={() => runBulkAction("redistribute")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50">Redistribute</button>
+                <button onClick={() => runBulkAction("delete")} disabled={bulkLoading} className="px-2.5 py-1.5 text-xs font-medium text-red-700 border border-red-200 rounded-md bg-white hover:bg-red-50 disabled:opacity-50">Delete</button>
+              </>
+            )}
             <button onClick={() => exportSubmittalsPDF(submittals, directory, specifications)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
               <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               Export as PDF
@@ -880,7 +926,13 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider w-10"></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider w-10">
+                    <input
+                      type="checkbox"
+                      checked={submittals.length > 0 && selectedIds.length === submittals.length}
+                      onChange={(e) => setSelectedIds(e.target.checked ? submittals.map((s) => s.id) : [])}
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">#</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Title</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
@@ -899,6 +951,16 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 cursor-pointer"
                   >
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(s.id)}
+                        onChange={(e) =>
+                          setSelectedIds((prev) =>
+                            e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id)
+                          )
+                        }
+                        className="mr-2"
+                      />
                       <a href={`/projects/${projectId}/submittals/${s.id}`} className="inline-flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </a>
