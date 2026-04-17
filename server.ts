@@ -300,25 +300,103 @@ async function startServer() {
     res.json(items);
   });
   app.post("/api/projects/:id/budget", authenticate, (req, res) => {
-    const { cost_code, description, original_budget_amount, budget_modifications, approved_cos, pending_budget_changes, committed_costs, direct_costs, pending_cost_changes, forecast_to_complete } = req.body;
-    if (!cost_code?.trim() && !description?.trim()) {
-      return res.status(400).json({ error: "Cost code or description is required" });
+    const {
+      cost_code,
+      cost_type,
+      description,
+      original_budget_amount,
+      budget_modifications,
+      approved_cos,
+      pending_budget_changes,
+      committed_costs,
+      direct_costs,
+      erp_job_to_date_costs,
+      cost_rom,
+      cost_rfq,
+      non_commitment_cost,
+      pending_cost_changes,
+      forecast_to_complete,
+      budgeted_quantity,
+      budgeted_uom,
+      installed_quantity,
+      actual_labor_hours,
+      actual_labor_cost,
+      is_gst,
+      is_partial,
+    } = req.body;
+    if (!cost_code?.trim() || !cost_type?.trim()) {
+      return res.status(400).json({ error: "Cost code and cost type are required." });
+    }
+    const duplicate = db.prepare(`
+      SELECT id FROM budget_line_items
+      WHERE project_id = ? AND lower(cost_code) = lower(?) AND lower(cost_type) = lower(?)
+    `).get(req.params.id, cost_code, cost_type) as { id?: string } | undefined;
+    if (duplicate?.id) {
+      return res.status(409).json({ error: "Budget code combination (cost code + cost type) already exists for this project." });
     }
     const items = db.prepare("SELECT COUNT(*) as count FROM budget_line_items WHERE project_id = ?").get(req.params.id) as any;
     const id = uuidv4();
     db.prepare(`
-      INSERT INTO budget_line_items (id, project_id, cost_code, description, original_budget_amount, budget_modifications, approved_cos, pending_budget_changes, committed_costs, direct_costs, pending_cost_changes, forecast_to_complete, sort_order)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, req.params.id, cost_code || "", description || "", original_budget_amount ?? 0, budget_modifications ?? 0, approved_cos ?? 0, pending_budget_changes ?? 0, committed_costs ?? 0, direct_costs ?? 0, pending_cost_changes ?? 0, forecast_to_complete ?? 0, items.count);
+      INSERT INTO budget_line_items (
+        id, project_id, cost_code, cost_type, description, original_budget_amount, budget_modifications, approved_cos, pending_budget_changes,
+        committed_costs, direct_costs, erp_job_to_date_costs, cost_rom, cost_rfq, non_commitment_cost, pending_cost_changes, forecast_to_complete,
+        budgeted_quantity, budgeted_uom, installed_quantity, actual_labor_hours, actual_labor_cost, is_gst, is_partial, sort_order
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, req.params.id, cost_code || "", cost_type || "", description || "", original_budget_amount ?? 0, budget_modifications ?? 0, approved_cos ?? 0,
+      pending_budget_changes ?? 0, committed_costs ?? 0, direct_costs ?? 0, erp_job_to_date_costs ?? 0, cost_rom ?? 0, cost_rfq ?? 0, non_commitment_cost ?? 0,
+      pending_cost_changes ?? 0, forecast_to_complete ?? 0, budgeted_quantity ?? 0, budgeted_uom ?? "", installed_quantity ?? 0, actual_labor_hours ?? 0,
+      actual_labor_cost ?? 0, is_gst ? 1 : 0, is_partial ? 1 : 0, items.count
+    );
     const newItem = db.prepare("SELECT * FROM budget_line_items WHERE id = ?").get(id);
     res.json(newItem);
   });
   app.patch("/api/projects/:id/budget/:lineItemId", authenticate, (req, res) => {
-    const { cost_code, description, original_budget_amount, budget_modifications, approved_cos, pending_budget_changes, committed_costs, direct_costs, pending_cost_changes, forecast_to_complete } = req.body;
+    const {
+      cost_code,
+      cost_type,
+      description,
+      original_budget_amount,
+      budget_modifications,
+      approved_cos,
+      pending_budget_changes,
+      committed_costs,
+      direct_costs,
+      erp_job_to_date_costs,
+      cost_rom,
+      cost_rfq,
+      non_commitment_cost,
+      pending_cost_changes,
+      forecast_to_complete,
+      budgeted_quantity,
+      budgeted_uom,
+      installed_quantity,
+      actual_labor_hours,
+      actual_labor_cost,
+      is_gst,
+      is_partial,
+    } = req.body;
+    if (!cost_code?.trim() || !cost_type?.trim()) {
+      return res.status(400).json({ error: "Cost code and cost type are required." });
+    }
+    const duplicate = db.prepare(`
+      SELECT id FROM budget_line_items
+      WHERE project_id = ? AND lower(cost_code) = lower(?) AND lower(cost_type) = lower(?) AND id != ?
+    `).get(req.params.id, cost_code, cost_type, req.params.lineItemId) as { id?: string } | undefined;
+    if (duplicate?.id) {
+      return res.status(409).json({ error: "Budget code combination (cost code + cost type) already exists for this project." });
+    }
     db.prepare(`
-      UPDATE budget_line_items SET cost_code = ?, description = ?, original_budget_amount = ?, budget_modifications = ?, approved_cos = ?, pending_budget_changes = ?, committed_costs = ?, direct_costs = ?, pending_cost_changes = ?, forecast_to_complete = ?
+      UPDATE budget_line_items
+      SET cost_code = ?, cost_type = ?, description = ?, original_budget_amount = ?, budget_modifications = ?, approved_cos = ?, pending_budget_changes = ?, committed_costs = ?, direct_costs = ?, erp_job_to_date_costs = ?, cost_rom = ?, cost_rfq = ?, non_commitment_cost = ?, pending_cost_changes = ?, forecast_to_complete = ?, budgeted_quantity = ?, budgeted_uom = ?, installed_quantity = ?, actual_labor_hours = ?, actual_labor_cost = ?, is_gst = ?, is_partial = ?
       WHERE id = ? AND project_id = ?
-    `).run(cost_code ?? "", description ?? "", original_budget_amount ?? 0, budget_modifications ?? 0, approved_cos ?? 0, pending_budget_changes ?? 0, committed_costs ?? 0, direct_costs ?? 0, pending_cost_changes ?? 0, forecast_to_complete ?? 0, req.params.lineItemId, req.params.id);
+    `).run(
+      cost_code ?? "", cost_type ?? "", description ?? "", original_budget_amount ?? 0, budget_modifications ?? 0, approved_cos ?? 0, pending_budget_changes ?? 0,
+      committed_costs ?? 0, direct_costs ?? 0, erp_job_to_date_costs ?? 0, cost_rom ?? 0, cost_rfq ?? 0, non_commitment_cost ?? 0, pending_cost_changes ?? 0,
+      forecast_to_complete ?? 0, budgeted_quantity ?? 0, budgeted_uom ?? "", installed_quantity ?? 0, actual_labor_hours ?? 0, actual_labor_cost ?? 0,
+      is_gst ? 1 : 0, is_partial ? 1 : 0, req.params.lineItemId, req.params.id
+    );
     const updated = db.prepare("SELECT * FROM budget_line_items WHERE id = ?").get(req.params.lineItemId);
     res.json(updated);
   });
