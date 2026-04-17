@@ -106,9 +106,18 @@ export default function TMTicketsClient({ projectId, username }: { projectId: st
                 <div className="mt-6 rounded border border-orange-100 bg-orange-50 px-4 py-3 text-left text-sm text-gray-700 max-w-xl">
                   <p className="font-semibold text-gray-900">Bulk Actions workflow</p>
                   <p className="mt-1">
-                    Select one or more T&amp;M tickets and use <span className="font-medium">Bulk Actions</span> to either
-                    <span className="font-medium"> Add to an Existing Change Event</span> or <span className="font-medium">Create Change Event</span>.
+                    Select one or more T&amp;M tickets and use <span className="font-medium">Bulk Actions</span> &gt;{" "}
+                    <span className="font-medium">Create Change Event</span> to generate a new change event from the selected tickets.
                   </p>
+                  <p className="mt-1">
+                    Include ticket links and attachments in the change event description so reviewers can trace supporting backup.
+                  </p>
+                  <a
+                    href={`/projects/${projectId}/change-events/workflows`}
+                    className="mt-3 inline-flex items-center rounded border border-orange-200 bg-white px-2.5 py-1 text-xs font-medium text-orange-700 hover:bg-orange-100"
+                  >
+                    Open workflow guides
+                  </a>
                 </div>
               )}
             </div>

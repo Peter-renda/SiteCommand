@@ -808,7 +808,15 @@ function LineItemsTable({
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-export default function NewChangeEventClient({ projectId }: { projectId: string }) {
+export default function NewChangeEventClient({
+  projectId,
+  sourceType,
+  sourceId,
+}: {
+  projectId: string;
+  sourceType?: string;
+  sourceId?: string;
+}) {
   const router = useRouter();
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -900,6 +908,25 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
       })
       .catch(() => {});
   }, [projectId]);
+
+  // Optional prefill from a source workflow (currently RFI only).
+  useEffect(() => {
+    if (!sourceId || sourceType !== "rfi") return;
+    fetch(`/api/projects/${projectId}/rfis/${sourceId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((rfi) => {
+        if (!rfi) return;
+        const rfiNumber = rfi.rfi_number ?? rfi.number ?? "";
+        const rfiSubject = typeof rfi.subject === "string" ? rfi.subject.trim() : "";
+        const rfiQuestion = typeof rfi.question === "string" ? rfi.question.trim() : "";
+        setTitle(rfiSubject || `RFI #${String(rfiNumber).padStart(3, "0")}`);
+        setOrigin(`RFI #${String(rfiNumber).padStart(3, "0")}${rfiSubject ? `: ${rfiSubject}` : ""}`);
+        if (editorRef.current && !editorRef.current.innerHTML.trim()) {
+          editorRef.current.innerHTML = rfiQuestion || "";
+        }
+      })
+      .catch(() => {});
+  }, [projectId, sourceId, sourceType]);
 
   async function handleCreateBudgetCode(code: string, description: string) {
     await fetch(`/api/projects/${projectId}/budget`, {

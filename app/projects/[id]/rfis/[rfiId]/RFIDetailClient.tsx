@@ -343,6 +343,12 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
           RFI #{rfi.rfi_number}: {rfi.subject || "No subject"}
         </h1>
         <div className="flex items-center gap-2 flex-shrink-0">
+          <a
+            href={`/projects/${projectId}/change-events/new?sourceType=rfi&sourceId=${rfi.id}`}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+          >
+            + Create Change Event
+          </a>
           <button
             onClick={handleCloseRFI}
             disabled={closingRFI}
@@ -391,7 +397,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                   {processingAction === "email" ? "Emailing..." : "Email"}
                 </button>
                 <a
-                  href={`/projects/${projectId}/change-events/new`}
+                  href={`/projects/${projectId}/change-events/new?sourceType=rfi&sourceId=${rfi.id}`}
                   onClick={() => setShowActionsMenu(false)}
                   className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >

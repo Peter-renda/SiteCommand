@@ -689,7 +689,7 @@ export default function ChangeEventDetailClient({
                       <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/new?type=purchase_order&eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Purchase Order Contract</button>
                       <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/new?type=subcontract&eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Subcontract</button>
                       <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/change-events/send-rfqs?eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Send RFQs</button>
-                      <button onClick={() => { setQuickActionsOpen(false); setPcoPickerLoading(true); setPcoPickerOpen(true); fetch(`/api/projects/${projectId}/prime-contracts`).then((r) => r.json()).then((data) => setPcoPickerContracts(Array.isArray(data) ? data : [])).catch(() => setPcoPickerContracts([])).finally(() => setPcoPickerLoading(false)); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Prime PCO</button>
+                      <button onClick={() => { setQuickActionsOpen(false); setPcoPickerLoading(true); setPcoPickerOpen(true); fetch(`/api/projects/${projectId}/prime-contracts`).then((r) => r.json()).then((data) => setPcoPickerContracts(Array.isArray(data) ? data : [])).catch(() => setPcoPickerContracts([])).finally(() => setPcoPickerLoading(false)); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Client Contract CO</button>
                       <div className="border-t border-gray-100 pt-2">
                         <p className="px-2 pb-1 text-[11px] text-gray-500">Add to Unapproved Commitment</p>
                         {allCommitments.filter((c) => String(c.status ?? "").trim().toLowerCase() !== "approved").slice(0, 6).map((c) => (
@@ -698,7 +698,7 @@ export default function ChangeEventDetailClient({
                         <p className="px-2 pt-1 text-[11px] text-gray-400">Approved commitments are excluded.</p>
                       </div>
                       <div className="border-t border-gray-100 pt-2">
-                        <p className="px-2 pb-1 text-[11px] text-gray-500">Add to Unapproved Prime PCO</p>
+                        <p className="px-2 pb-1 text-[11px] text-gray-500">Add to Unapproved Client Contract CO</p>
                         {[...matchingPcos, ...allPcos].slice(0, 8).map((c) => (
                           <button
                             key={c.id}
