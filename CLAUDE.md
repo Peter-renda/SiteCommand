@@ -518,6 +518,64 @@ Notes:
   - Show/hide line items on **PCCO PDF exports**.
   - Show/hide line items on **CCO PDF exports**.
   - **Change reason behavior** mode:
+
+## Procore Tutorial Alignment Notes (Added April 17, 2026 - DocuSign/ERP/Prime CO Round)
+
+### Sources Reviewed
+- https://v2.support.procore.com/product-manuals/docusign/tutorials/link-your-docusign-account-to-a-procore-project/
+- https://v2.support.procore.com/product-manuals/erp-integrations-company/tutorials/retrieve-a-cco-from-erp-integrations-before-acceptance/
+- https://v2.support.procore.com/product-manuals/commitments-project/tutorials/submit-a-field-initiated-change-order-as-a-collaborator/
+- https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/add-a-related-item-to-a-prime-contract-change-order/
+- https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/add-filters-to-the-change-orders-tab-on-a-prime-contract/
+- https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/add-financial-markup-to-prime-contract-change-orders/
+- https://v2.support.procore.com/product-manuals/change-orders-project/tutorials/approve-or-reject-prime-contract-change-orders/
+- https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/configure-the-number-of-prime-contract-change-order-tiers/
+
+### Link Your DocuSign Account to a Project
+- Preserve two linking paths in guidance:
+  - Link from profile settings.
+  - Link from a DocuSign-enabled project workflow.
+- Make synced-state messaging explicit once credentials are linked.
+
+### Retrieve a CCO from ERP Integrations Before Acceptance
+- Keep a **Retrieve from ERP** action available while a CCO is still pending accounting acceptance.
+- After retrieval, unlock editing and allow re-send after correction.
+- Keep permission baseline aligned with Commitments/Change Orders admin workflows.
+
+### Submit a Field-Initiated Change Order as a Collaborator
+- Keep collaborator flow scoped to approved commitments with correct permissions.
+- Preserve private-by-default behavior for collaborator-initiated commitment COs.
+- Keep auto-linked contract context and sequential numbering behavior in form guidance.
+
+### Add a Related Item to a Prime Contract Change Order
+- Keep related-item concept explicit as a cross-tool linkage between project records.
+- Require active tools + view permissions for type/description selection visibility.
+- Keep this as a detail-record workflow (open change order -> related items -> edit/save).
+
+### Add Filters to the Change Orders Tab on a Prime Contract
+- Keep Add Filter controls for:
+  - Status
+  - Executed
+  - Change Reason
+  - Change Type
+- Preserve clear-all and per-filter clear behavior in UX expectations.
+
+### Add Financial Markup to Prime Contract Change Orders
+- Keep financial markup language aligned to two concepts:
+  - Horizontal (line-level)
+  - Vertical (subtotal-level)
+- Keep project/tool-level prerequisites and permission messaging visible in workflow copy.
+
+### Approve or Reject Prime Contract Change Orders
+- Keep designated-reviewer logic strict:
+  - Exactly one reviewer assigned.
+  - Review actions allowed only in **Pending - In Review** or **Pending - Revised**.
+- Record reviewer identity, comments context, and review date on response.
+
+### Configure Number of Prime Contract Change Order Tiers
+- Keep supported tier modes aligned to 1-tier, 2-tier (default), and 3-tier guidance.
+- Enforce that tier configuration is set before creating the first prime-side CO.
+- Disallow tier reconfiguration after first prime CO exists on the project.
     - predefined drop-down list, or
     - freeform text input.
 - Keep permissions messaging explicit that these settings require **Admin** on the project Change Orders tool.

@@ -245,6 +245,134 @@ const WORKFLOWS: WorkflowCard[] = [
     ctaLabel: "Open Change Orders",
   },
   {
+    title: "Link Your DocuSign Account to a Project",
+    summary:
+      "Link your personal DocuSign account from profile settings or while completing a supported signature workflow in a project.",
+    steps: [
+      "Open a project, then go to your profile settings.",
+      "Click Login with DocuSign and complete DocuSign authentication.",
+      "Confirm the account shows as synced before routing signatures.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/docusign/tutorials/link-your-docusign-account-to-a-procore-project/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "SiteCommand supports DocuSign toggles and completion paths; profile-level sync UX is available through integration setup flows.",
+    ctaPath: "/settings/integrations",
+    ctaLabel: "Open Integrations",
+  },
+  {
+    title: "Retrieve a CCO from ERP Before Acceptance",
+    summary:
+      "If a commitment change order was sent to ERP by mistake, retrieve it while it is still pending accounting acceptance.",
+    steps: [
+      "Open the commitment change order in Change Orders.",
+      "Use Retrieve from ERP while the ERP status is still pending.",
+      "Update the CCO details, then resend when ready.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/erp-integrations-company/tutorials/retrieve-a-cco-from-erp-integrations-before-acceptance/",
+    siteCommandParity: "Supported",
+    ctaPath: "/projects/:projectId/change-orders",
+    ctaLabel: "Open Change Orders",
+  },
+  {
+    title: "Submit a Field-Initiated CO as a Collaborator",
+    summary:
+      "External collaborators can draft commitment-side change orders on approved contracts when project permissions allow.",
+    steps: [
+      "Open Commitments and select the approved contract.",
+      "Create a new Commitment CO and complete required fields.",
+      "Keep the CO private and route it for review.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/commitments-project/tutorials/submit-a-field-initiated-change-order-as-a-collaborator/",
+    siteCommandParity: "Supported",
+    ctaPath: "/projects/:projectId/commitments",
+    ctaLabel: "Open Commitments",
+  },
+  {
+    title: "Add Related Items to a Prime Contract CO",
+    summary:
+      "Link related records (RFIs, tasks, drawings, and other objects) from a prime contract change order to improve traceability.",
+    steps: [
+      "Open the prime/contract-side change order record.",
+      "Use Related Items and choose the linked object type.",
+      "Save links and verify references are visible in context.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/add-a-related-item-to-a-prime-contract-change-order/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "Related-items parity is strongest in Change Events today; prime CO related-item controls continue to expand.",
+    ctaPath: "/projects/:projectId/change-orders",
+    ctaLabel: "Open Change Orders",
+  },
+  {
+    title: "Add Filters on Prime Contract Change Orders Tab",
+    summary:
+      "Use the prime contract Change Orders tab filters to quickly narrow records by status, executed state, change reason, and change type.",
+    steps: [
+      "Open a prime contract and switch to the Change Orders tab.",
+      "Apply one or more Add Filter controls.",
+      "Clear all or remove individual filters to reset the table.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/add-filters-to-the-change-orders-tab-on-a-prime-contract/",
+    siteCommandParity: "Supported",
+    ctaPath: "/projects/:projectId/prime-contracts",
+    ctaLabel: "Open Prime Contracts",
+  },
+  {
+    title: "Add Financial Markup to Prime Contract COs",
+    summary:
+      "Configure and apply financial markup behavior for prime contract workflows where project settings permit markup.",
+    steps: [
+      "Enable prime contract financial markup in project settings.",
+      "Create or edit a prime contract change order and apply markup.",
+      "Review resulting totals before final approval.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/add-financial-markup-to-prime-contract-change-orders/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "Project-level controls are available; advanced line-level markup parity on prime COs is still in progress.",
+    ctaPath: "/projects/:projectId/prime-contracts",
+    ctaLabel: "Open Prime Contracts",
+  },
+  {
+    title: "Approve or Reject Prime Contract Change Orders",
+    summary:
+      "Only the assigned designated reviewer can approve or reject a prime contract change order while it is in active review statuses.",
+    steps: [
+      "Open the assigned prime contract change order.",
+      "Review details in Pending - In Review or Pending - Revised status.",
+      "Submit Approve or Reject with reviewer context.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-orders-project/tutorials/approve-or-reject-prime-contract-change-orders/",
+    siteCommandParity: "Supported",
+    ctaPath: "/projects/:projectId/change-orders",
+    ctaLabel: "Open Change Orders",
+  },
+  {
+    title: "Configure Number of Prime CO Tiers",
+    summary:
+      "Set one-, two-, or three-tier prime contract change order mode before the first prime-side change order is created.",
+    steps: [
+      "Open Prime Contract settings.",
+      "Choose the desired number of change-order tiers.",
+      "Save the setting before creating the first prime change order.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/prime-contracts-project/tutorials/configure-the-number-of-prime-contract-change-order-tiers/",
+    siteCommandParity: "Supported",
+    note:
+      "SiteCommand enforces immutability of this setting once prime change orders already exist on the project.",
+    ctaPath: "/projects/:projectId/prime-contracts",
+    ctaLabel: "Open Prime Contracts",
+  },
+  {
     title: "Complete a CCO with DocuSign",
     summary:
       "Route CCO signatures through DocuSign when contract and integration settings are enabled.",

@@ -273,10 +273,6 @@ export default function ChangeOrderDetailClient({
   const pendingReview = new Set([
     "Pending - In Review",
     "Pending - Revised",
-    "Pending - Pricing",
-    "Pending - Not Pricing",
-    "Pending - Proceeding",
-    "Pending - Not Proceeding",
   ]).has(status);
 
   async function handleSave() {
@@ -355,6 +351,29 @@ export default function ChangeOrderDetailClient({
     }
   }
 
+  async function handleRetrieveFromErp() {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          erp_status: "not_synced",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSaveError(err?.error || `Server error (${res.status})`);
+        return;
+      }
+      const updated: ChangeOrder = await res.json();
+      setCo(updated);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col h-screen bg-white">
@@ -379,6 +398,7 @@ export default function ChangeOrderDetailClient({
 
   const isCommitment = co.type === "commitment";
   const isSyncedToErp = String(co.erp_status || "").trim().toLowerCase() === "synced";
+  const isPendingErpAcceptance = String(co.erp_status || "").trim().toLowerCase() === "pending";
   const canEdit = !isCommitment || !isSyncedToErp;
   const inputsDisabled = isCommitment && !isEditing;
   const dateCreatedDisplay = co.date_initiated ? fmtDateTime(co.date_initiated) : "—";
@@ -501,6 +521,16 @@ export default function ChangeOrderDetailClient({
             </button>
             {isCommitment && (
               <>
+                {isPendingErpAcceptance && (
+                  <button
+                    onClick={handleRetrieveFromErp}
+                    disabled={saving}
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Retrieve this CCO from ERP acceptance so you can edit it again."
+                  >
+                    Retrieve from ERP
+                  </button>
+                )}
                 {!isEditing ? (
                   <button
                     onClick={() => setIsEditing(true)}
