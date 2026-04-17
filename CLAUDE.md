@@ -182,3 +182,78 @@ Notes:
 - **Edit**: users can update report metadata post-creation without losing calculation configuration.
 - **Distribute Snapshot**: users can send static report snapshots to recipients with format + schedule options.
 - **Delete**: destructive action must require confirmation and clearly state irreversibility.
+
+### Visual Type Configuration Expectations
+- Offer visual tiles for at least:
+  - Tabular Report
+  - Bar Chart (vertical + horizontal)
+  - Line Chart
+  - Donut Chart
+  - Stacked Bar Chart
+  - Scorecard
+- Creating a visual should follow a consistent sequence:
+  1. Select visual type.
+  2. Select dataset/report definition.
+  3. Configure axes/measures (or columns for tabular reports).
+  4. Configure sort direction and optional advanced options.
+- Advanced options should include as applicable:
+  - Display units
+  - Decimal precision
+  - Max bars displayed
+  - Legend/value labels toggles
+  - Dual-axis and line-point toggles for line/combined visuals
+
+### Filters and Calculations Expectations
+- Keep **Load Data Manually** enabled by default to support larger datasets.
+- Allow users to switch to auto-load behavior when needed.
+- Filters should support common string conditions (match, contains, starts/ends with) and be composable.
+- Calculation builder should support:
+  - Basic math calculations with source columns and constants
+  - Date variance calculations
+  - Output format controls (number/currency/percent/date variance)
+  - Decimal place and rounding behavior
+
+### Convert Report to Dashboard Expectations
+- Support converting an existing saved report directly into a draft dashboard.
+- Conversion flow should mirror:
+  - Open report
+  - Preview in dashboard
+  - Optional edits/additional visuals
+  - Save as draft/publish later
+- Dashboards should clearly enforce publish-before-share behavior.
+
+### Edit 360 Report (Visuals + Dashboard Layout) Expectations
+- Report editing should support:
+  - Updating report title and description.
+  - Adding tabs and reordering tabs.
+  - Tab menu actions (rename, duplicate, delete).
+  - Adding visuals from the editor and saving report-level changes.
+- Visual card controls should include:
+  - Edit card settings (title/description/config).
+  - Duplicate card.
+  - Delete card (irreversible warning).
+  - Fullscreen card viewing/editing when possible.
+
+### Add Visual to Project Single Tool Report Expectations
+- Add Visual should be accessible from a report-level editor/menu flow.
+- Respect workflow constraints:
+  - Only report creator can add visuals to a cloned report.
+  - Add Visual is available when record count is below the configured large-data threshold (2,500 in current guidance).
+- Support PDF export including visuals when visuals are present.
+
+### Aggregate Data in Project Single Tool Report Expectations
+- Provide aggregate functions per column:
+  - Count
+  - Sum
+  - Min
+  - Max
+  - Average
+- Aggregation should be configurable from report edit controls and rendered in report output (e.g., summary/footer row).
+- Function options should be constrained by field type where feasible (non-numeric fields default to count-only).
+
+### Copy Project Single Tool Report Expectations
+- Provide a **Make a Copy** action from report row actions and from within an opened report context.
+- New copies should:
+  - Be independent snapshots from the source report.
+  - Append `-Copy` to the report name.
+  - Preserve share-safe visibility semantics (copy only reveals data user can access).
