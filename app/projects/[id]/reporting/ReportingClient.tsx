@@ -216,19 +216,68 @@ const REPORT_TYPES: ReportDef[] = [
     ],
   },
   {
-    label: "User Activity",
-    value: "user-activity",
-    group: "360 Reporting",
-    description: "Audit tool usage by actor, event type, and timestamp to monitor platform adoption and activity.",
-    hasDateRange: true,
+    label: "Commitments Summary",
+    value: "commitments-summary",
+    group: "Financial Management",
+    description: "All purchase orders and subcontracts with status, contract amounts, approved change orders, and remaining balances.",
+    hasDateRange: false,
     columns: [
-      { key: "created_at", label: "Activity Time" },
-      { key: "actor_email", label: "Actor Email" },
-      { key: "event_type", label: "Event Type" },
-      { key: "tool_name", label: "Tool" },
+      { key: "number", label: "#" },
+      { key: "type", label: "Type" },
+      { key: "contract_company", label: "Company" },
+      { key: "title", label: "Title" },
+      { key: "status", label: "Status" },
+      { key: "sov_accounting_method", label: "Accounting Method" },
+      { key: "original_contract_amount", label: "Original Amount" },
+      { key: "approved_change_orders", label: "Approved COs" },
+      { key: "pending_change_orders", label: "Pending COs" },
+      { key: "erp_status", label: "ERP Status" },
+    ],
+  },
+  {
+    label: "Change Events",
+    value: "change-events",
+    group: "Financial Management",
+    description: "Change events log with scope classification, ROM amounts, and linkage to change orders.",
+    hasDateRange: false,
+    columns: [
+      { key: "number", label: "#" },
+      { key: "title", label: "Title" },
+      { key: "status", label: "Status" },
+      { key: "scope", label: "Scope" },
+      { key: "rom_amount", label: "ROM Amount" },
+      { key: "created_at", label: "Created" },
+    ],
+  },
+  {
+    label: "Commitment Change Orders",
+    value: "commitment-change-orders",
+    group: "Financial Management",
+    description: "All commitment change orders across the project, including status, amount, and linked contracts.",
+    hasDateRange: false,
+    columns: [
+      { key: "number", label: "#" },
+      { key: "title", label: "Title" },
+      { key: "status", label: "Status" },
+      { key: "contract_company", label: "Company" },
+      { key: "contract_name", label: "Contract" },
+      { key: "amount", label: "Amount" },
+      { key: "change_reason", label: "Change Reason" },
+      { key: "due_date", label: "Due Date" },
+    ],
+  },
+  {
+    label: "Budget Summary",
+    value: "budget-summary",
+    group: "Financial Management",
+    description: "Budget line items showing original budget, committed costs, and variance by cost code.",
+    hasDateRange: false,
+    columns: [
+      { key: "cost_code", label: "Cost Code" },
       { key: "description", label: "Description" },
-      { key: "project_name", label: "Project" },
-      { key: "object_id", label: "Object ID" },
+      { key: "original_budget", label: "Original Budget" },
+      { key: "committed_costs", label: "Committed Costs" },
+      { key: "variance", label: "Variance" },
     ],
   },
   {
@@ -403,9 +452,19 @@ function makeVisualFromReport(report: SavedReport): DashboardVisual {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function TypeBadge({ group }: { group: string }) {
+  const label =
+    group === "Daily Log"
+      ? "Daily Log Report"
+      : group === "Financial Management"
+      ? "Financial Report"
+      : "Single Tool Report";
+  const cls =
+    group === "Financial Management"
+      ? "border-emerald-200 text-emerald-700 bg-emerald-50"
+      : "border-gray-300 text-gray-600";
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded border border-gray-300 text-xs text-gray-600 whitespace-nowrap">
-      {group === "Daily Log" ? "Daily Log Report" : "Single Tool Report"}
+    <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs whitespace-nowrap ${cls}`}>
+      {label}
     </span>
   );
 }
@@ -693,10 +752,16 @@ function RunReportModal({
   }
 
   function handleSave() {
+    const reportType =
+      reportDef.group === "Daily Log"
+        ? "Daily Log Report"
+        : reportDef.group === "Financial Management"
+        ? "Financial Report"
+        : "Single Tool Report";
     const saved: SavedReport = {
       id: crypto.randomUUID(),
       name: reportName,
-      reportType: reportDef.group === "Daily Log" ? "Daily Log Report" : "Single Tool Report",
+      reportType,
       description: reportDef.description,
       createdBy: "Me",
       createdAt: new Date().toISOString(),

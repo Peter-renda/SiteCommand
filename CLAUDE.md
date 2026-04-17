@@ -153,32 +153,108 @@ Notes:
 - When linked, T&M ticket line items transfer to the change event.
 - T&M ticket references/attachments should be represented in the change event description context.
 
-## 360 Reporting – Workflow Alignment Notes
+## Create Purchase Orders – Workflow Alignment
 
-### Export a Report
-- Support export formats directly from report output:
-  - **CSV**
-  - **XLSX**
-  - **PDF**
-- Export actions should use the currently visible report state (filters, date range, calculated columns, grouping context when applicable).
-- Clearly communicate row-limit constraints in the UI for heavy datasets when required.
+### Prerequisites
+- Complete **Configure Advanced Settings: Commitments** before creating a purchase order.
+- Companies using ERP integrations may have additional requirements.
 
-### Get a Custom 360 Report from Assist
-- Provide an **Assist** entry point in Reporting for users to describe desired outcomes in plain language.
-- Assist should recommend a starting report/template and allow immediate creation from that recommendation.
-- Keep the Assist flow lightweight: prompt → recommendation → create report draft.
+### Required Permissions
+- Admin-level access to the Commitments tool, OR
+- Standard-level access AND "Allow Users to See SOV Items" enabled with user selected.
 
-### Promote a Project Report to Company Level
-- Project reports can be promoted for reuse at the company level by authorized users.
-- Promotion should be explicit and auditable in UI state (timestamp and actor).
-- After promotion, report should be treated as a reusable company template while the project copy remains traceable.
+### Create Purchase Order – Step-by-Step
+1. Navigate to project **Commitments** tool → **Contracts** tab → **Create** → **Purchase Order**
+2. **Basic Information**: Contract Number (auto-incremented, duplicates prohibited), Contract Company (from project directory), Title, Sign with DocuSign toggle
+3. **General Information**: Status (default applied), Executed checkbox (legally binding), Default Retainage % (*affects first invoice only; adjust subsequent manually*), Bill To, Assigned To, Payment Terms, Ship To, Ship Via, Description
+4. **Attachments**: My Computer, Photos, Drawings, Forms, Documents
+5. **Accounting Method**: Amount-Based or Unit/Quantity-Based — **must be set before adding line items; cannot change afterward**; applies to all change orders and invoices
+6. **Schedule of Values (SOV)**:
+   - **Amount-Based fields**: line # (auto), Change Event Line Item (optional), Budget Code, Description, Amount, Billed to Date (auto), Amount Remaining, Tax Code (if enabled)
+   - **Unit/Quantity-Based fields**: same + Qty, UOM, Unit Cost (amount auto-calculates from Qty × Unit Cost)
+   - Option to **Import SOV from CSV** (download template, edit, upload; choose Add or Replace)
+7. **Contract Dates**: Contract Date, Delivery Date, Signed Purchase Order Received, Issued On
+8. **Contract Privacy**: Private toggle (default on), Invoice Contact from Contract Company employees
+9. **Save**: Create / Create & Send with DocuSign / Cancel
 
-### Share a Report
-- Sharing should be report-specific and separate from dashboard sharing.
-- Allow selecting target audiences (internal groups and, when allowed, external collaborators).
-- Save share recipients with the report and reflect shared state in report management views.
+### Key Notes
+- No required fields; saving without data creates a Draft.
+- Change orders and invoices require contract status **Approved** or **Complete**.
+- ERP-integrated companies: character limits may apply; additional prerequisites for ERP sync.
 
-### Edit / Distribute / Delete Lifecycle Expectations
-- **Edit**: users can update report metadata post-creation without losing calculation configuration.
-- **Distribute Snapshot**: users can send static report snapshots to recipients with format + schedule options.
-- **Delete**: destructive action must require confirmation and clearly state irreversibility.
+## Create Subcontracts – Workflow Alignment
+
+### Prerequisites
+- Configure Commitments tool settings beforehand.
+- DocuSign integration setup (optional).
+
+### Required Permissions
+- Admin-level Commitments permissions, OR Standard + "Allow Users to See SOV Items", OR
+- Read Only or Standard with **Create Work Order Contract** granular permission (creates only, no SOV access).
+
+### Create Subcontract – Step-by-Step
+1. Navigate to project **Commitments** tool → **Contracts** tab → **Create** → **Subcontract**
+2. **Basic Information**: Contract Number (auto or manual, no duplicates), Contract Company (from directory), Title, Sign with DocuSign toggle
+3. **General Information**: Status, Executed checkbox, Default Retainage %, Description (rich text)
+4. **Inclusions**: Specify what's covered (formatted text)
+5. **Exclusions**: Define what is NOT included (formatted text)
+6. **Contract Dates**: Start Date, Estimated Completion, Actual Completion, Signed Contract Received
+7. **Accounting Method**: Amount-Based or Unit/Quantity-Based — **cannot change after creation**
+8. **Schedule of Values (SOV)**: Same as Purchase Order (see above). CSV import supported.
+9. **Attachments**: Multiple sources (My Computer, Photos, Drawings, Forms, Documents)
+10. **Contract Privacy**: Private toggle (default on), Invoice Contact from Contract Company employees
+11. **Additional Fields**: Cover Letter selection, Bond Amount, Trades, Exhibit A Scope of Work, Exhibit D/I Attachments, Subcontractor Contact
+12. **Save**: Create / Complete with DocuSign® / Cancel
+
+### Key Notes
+- Duplicate contract number shows warning; can suppress future warnings.
+- 1-Tier, 2-Tier, and 3-Tier change order configurations have different workflows.
+- Alternative creation method: "Award a Winning Bid and Convert it into a Subcontract."
+
+## Financial Markup on Commitment Change Orders (CCOs)
+
+### Prerequisites
+- **Enable Financial Markup** must be turned on for the parent commitment (set when creating or editing the commitment via the Additional Information section).
+- Requires **Admin** on the Commitments tool.
+
+### Workflow
+1. Open the commitment → locate the change order (or create a new one).
+2. On the Change Order form, click the **Financial Markup** tab.
+3. Enable financial markup for this change order.
+4. Click **Add Horizontal Markup** (displayed in same row as line items) or **Add Vertical Markup** (displayed below line items).
+5. Complete the markup form:
+   - **Markup Name** — identifier (e.g. "OH&P", "Insurance")
+   - **Markup Percentage** — percentage value
+   - **Calculation Type**:
+     - *Basic Calculation*
+     - *Compounds all Above*
+     - *Selective Compounding* (requires selecting existing markups)
+     - *Iterative Calculation (Margin)*
+   - **Application Criteria**: Apply to all line items, OR apply to specific line items (Segment: Cost Code or Type; Condition: Includes or Excludes; Values)
+6. Click **Save**.
+
+### Important Restrictions
+- Financial markup is distributed **proportionally** on each SOV line item in the change order.
+- After applying financial markup to a CCO, **the change order cannot be added to a subcontractor invoice**.
+- Markup settings apply on a **per-change-order** basis.
+
+## 360 Reporting – Financial Management Alignment
+
+The SiteCommand Reporting tool (Project 360 Reporting) includes a **Financial Management** report group with the following templates that align with the Commitments and Change Events tools:
+
+| Report | Description |
+|--------|-------------|
+| **Commitments Summary** | All POs and subcontracts — status, amounts, approved/pending COs, ERP status |
+| **Change Events** | Change events log — scope classification, ROM amounts, linkage to COs |
+| **Commitment Change Orders** | All CCOs — status, amount, linked contract, change reason, due date |
+| **Budget Summary** | Budget line items — original budget, committed costs, variance by cost code |
+
+### Report Groups in 360 Reporting
+- **Daily Log** — Delays, Manpower, Weather, Safety, Accidents, Inspections, Deliveries, Visitors, Notes
+- **Project Tools** — RFIs, Submittals, Tasks, Punch List
+- **Financial Management** — Commitments Summary, Change Events, Commitment Change Orders, Budget Summary
+
+### Reporting Permissions
+- Users with **Standard or higher** permissions can clone shared reports.
+- Dashboards must be **published** before Standard or Read Only users can view them.
+- Financial Management reports require **Read Only or higher** on the Commitments tool.

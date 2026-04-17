@@ -75,6 +75,29 @@ type CommitmentCOSovLine = {
   amount: number;
 };
 
+type MarkupRule = {
+  _key: string;
+  markup_type: "horizontal" | "vertical";
+  markup_name: string;
+  markup_percentage: string;
+  calculation_type: "basic" | "compounds_all" | "selective" | "iterative_margin";
+  apply_to: "all" | "specific";
+  apply_segment: string;
+  apply_condition: string;
+  apply_values: string;
+};
+
+function markupUid(): string {
+  return Math.random().toString(36).slice(2);
+}
+
+const CALC_TYPE_LABELS: Record<string, string> = {
+  basic: "Basic Calculation",
+  compounds_all: "Compounds all Above",
+  selective: "Selective Compounding",
+  iterative_margin: "Iterative Calculation (Margin)",
+};
+
 export default function NewCommitmentCOClient({
   projectId,
   commitmentId,
@@ -97,6 +120,11 @@ export default function NewCommitmentCOClient({
   const [budgetCodes, setBudgetCodes] = useState<string[]>([]);
   const [scheduleOfValues, setScheduleOfValues] = useState<CommitmentCOSovLine[]>([]);
   const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
+
+  // Financial Markup
+  const [markupEnabled, setMarkupEnabled] = useState(false);
+  const [markupRules, setMarkupRules] = useState<MarkupRule[]>([]);
+  const [activeFormTab, setActiveFormTab] = useState<"general" | "financial_markup">("general");
 
   // Form fields
   const [revision, setRevision] = useState("0");
@@ -195,6 +223,33 @@ export default function NewCommitmentCOClient({
       .catch(() => {});
   }, [eventIds, projectId]);
 
+  function addMarkupRule() {
+    setMarkupRules((prev) => [
+      ...prev,
+      {
+        _key: markupUid(),
+        markup_type: "horizontal",
+        markup_name: "",
+        markup_percentage: "",
+        calculation_type: "basic",
+        apply_to: "all",
+        apply_segment: "",
+        apply_condition: "includes",
+        apply_values: "",
+      },
+    ]);
+  }
+
+  function updateMarkupRule(key: string, field: keyof MarkupRule, value: string) {
+    setMarkupRules((prev) =>
+      prev.map((r) => (r._key === key ? { ...r, [field]: value } : r))
+    );
+  }
+
+  function removeMarkupRule(key: string) {
+    setMarkupRules((prev) => prev.filter((r) => r._key !== key));
+  }
+
   async function handleCreate() {
     setSaving(true);
     setSaveError(null);
@@ -226,6 +281,17 @@ export default function NewCommitmentCOClient({
           source_change_event_ids: sourceEventIds,
           budget_codes: budgetCodes,
           schedule_of_values: scheduleOfValues,
+          financial_markup_enabled: markupEnabled,
+          markup_rules: markupEnabled ? markupRules.map((r) => ({
+            markup_type: r.markup_type,
+            markup_name: r.markup_name,
+            markup_percentage: parseFloat(r.markup_percentage) || 0,
+            calculation_type: r.calculation_type,
+            apply_to: r.apply_to,
+            apply_segment: r.apply_segment,
+            apply_condition: r.apply_condition,
+            apply_values: r.apply_values,
+          })) : [],
         }),
       });
 
@@ -279,14 +345,211 @@ export default function NewCommitmentCOClient({
         </div>
 
         {/* Tab bar */}
-        <div className="px-6 border-b border-gray-200 shrink-0">
-          <button className="py-2 px-1 text-sm font-medium text-gray-900 border-b-2 border-orange-500 -mb-px">
+        <div className="px-6 border-b border-gray-200 shrink-0 flex items-center">
+          <button
+            onClick={() => setActiveFormTab("general")}
+            className={`py-2 px-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeFormTab === "general"
+                ? "text-gray-900 border-orange-500"
+                : "text-gray-500 border-transparent hover:text-gray-700"
+            }`}
+          >
             General
+          </button>
+          <button
+            onClick={() => setActiveFormTab("financial_markup")}
+            className={`py-2 px-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeFormTab === "financial_markup"
+                ? "text-gray-900 border-orange-500"
+                : "text-gray-500 border-transparent hover:text-gray-700"
+            }`}
+          >
+            Financial Markup
+            {markupRules.length > 0 && (
+              <span className="ml-1.5 text-xs bg-orange-100 text-orange-700 rounded-full px-1.5 py-0.5">
+                {markupRules.length}
+              </span>
+            )}
           </button>
         </div>
 
         {/* Scrollable form body */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
+
+          {/* ── Financial Markup Tab ── */}
+          {activeFormTab === "financial_markup" && (
+            <div className="max-w-5xl">
+              {/* Prerequisite note */}
+              <div className="mb-5 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded px-4 py-3 text-xs text-amber-800">
+                <svg className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+                </svg>
+                <div>
+                  <p className="font-medium mb-1">Prerequisites</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-amber-700">
+                    <li>Financial Markup must be enabled on the parent commitment (set when creating or editing the commitment).</li>
+                    <li>Requires <strong>Admin</strong> on the Commitments tool.</li>
+                    <li>After applying financial markup, this change order <strong>cannot be added to a subcontractor invoice</strong>.</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Enable toggle */}
+              <div className="mb-5 p-4 border border-gray-200 rounded bg-gray-50 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Enable Financial Markup on this Change Order</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Markup is distributed proportionally across each SOV line item.</p>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={markupEnabled}
+                    onChange={(e) => setMarkupEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-gray-900"
+                  />
+                  <span className="text-sm text-gray-700">{markupEnabled ? "Enabled" : "Disabled"}</span>
+                </label>
+              </div>
+
+              {markupEnabled && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Markup Rules</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { addMarkupRule(); setMarkupRules((prev) => prev.map((r, i) => i === prev.length - 1 ? { ...r, markup_type: "horizontal" } : r)); }}
+                        className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded bg-white hover:bg-gray-50 transition-colors"
+                      >
+                        Add Horizontal Markup
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { addMarkupRule(); setMarkupRules((prev) => prev.map((r, i) => i === prev.length - 1 ? { ...r, markup_type: "vertical" } : r)); }}
+                        className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded bg-white hover:bg-gray-50 transition-colors"
+                      >
+                        Add Vertical Markup
+                      </button>
+                    </div>
+                  </div>
+
+                  {markupRules.length === 0 ? (
+                    <div className="border border-dashed border-gray-300 rounded py-10 text-center text-sm text-gray-400">
+                      No markup rules yet. Click &quot;Add Horizontal Markup&quot; or &quot;Add Vertical Markup&quot; to start.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {markupRules.map((rule, idx) => (
+                        <div key={rule._key} className="border border-gray-200 rounded p-4 bg-white">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              {rule.markup_type === "horizontal" ? "Horizontal" : "Vertical"} Markup #{idx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeMarkupRule(rule._key)}
+                              className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Markup Name</label>
+                              <input
+                                type="text"
+                                value={rule.markup_name}
+                                onChange={(e) => updateMarkupRule(rule._key, "markup_name", e.target.value)}
+                                placeholder="e.g. OH&P, Insurance"
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Markup Percentage</label>
+                              <div className="flex items-center">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={rule.markup_percentage}
+                                  onChange={(e) => updateMarkupRule(rule._key, "markup_percentage", e.target.value)}
+                                  placeholder="0.00"
+                                  className="w-full px-2 py-1.5 border border-gray-300 rounded-l text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                                />
+                                <span className="px-2 py-1.5 border border-l-0 border-gray-300 rounded-r text-xs text-gray-500 bg-gray-50">%</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mb-3">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Calculation Type</label>
+                            <select
+                              value={rule.calculation_type}
+                              onChange={(e) => updateMarkupRule(rule._key, "calculation_type", e.target.value)}
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white"
+                            >
+                              {Object.entries(CALC_TYPE_LABELS).map(([val, label]) => (
+                                <option key={val} value={val}>{label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Application Criteria</label>
+                            <select
+                              value={rule.apply_to}
+                              onChange={(e) => updateMarkupRule(rule._key, "apply_to", e.target.value)}
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white mb-2"
+                            >
+                              <option value="all">Apply to all line items</option>
+                              <option value="specific">Apply to specific line items</option>
+                            </select>
+                            {rule.apply_to === "specific" && (
+                              <div className="grid grid-cols-3 gap-2 mt-2">
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Segment</label>
+                                  <select
+                                    value={rule.apply_segment}
+                                    onChange={(e) => updateMarkupRule(rule._key, "apply_segment", e.target.value)}
+                                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs bg-white"
+                                  >
+                                    <option value="">Select…</option>
+                                    <option value="cost_code">Cost Code</option>
+                                    <option value="type">Type</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Condition</label>
+                                  <select
+                                    value={rule.apply_condition}
+                                    onChange={(e) => updateMarkupRule(rule._key, "apply_condition", e.target.value)}
+                                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs bg-white"
+                                  >
+                                    <option value="includes">Includes</option>
+                                    <option value="excludes">Excludes</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Values</label>
+                                  <input
+                                    type="text"
+                                    value={rule.apply_values}
+                                    onChange={(e) => updateMarkupRule(rule._key, "apply_values", e.target.value)}
+                                    placeholder="e.g. 03-100"
+                                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── General Tab ── */}
+          {activeFormTab === "general" && (
           <div className="max-w-5xl">
             <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
               General Information
@@ -592,6 +855,8 @@ export default function NewCommitmentCOClient({
               />
             </div>
           </div>
+          )} {/* end activeFormTab === "general" */}
+
         </div>
 
         {/* Footer */}

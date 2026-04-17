@@ -177,6 +177,32 @@ export default function CommitmentSettingsClient({
           {savedAt && <p className="mt-3 text-[11px] text-green-600">Saved at {savedAt}</p>}
         </div>
 
+        <div className="py-6 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Financial Markup</h2>
+          <p className="text-xs text-gray-500 mb-3">
+            When enabled at the project level, users with Admin access can enable financial markup per commitment and add markup rules to change orders.
+          </p>
+          <div className="space-y-3">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={false}
+                readOnly
+                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900 opacity-50"
+              />
+              <span className="text-sm text-gray-700">
+                Enable Financial Markup on Commitment Change Orders
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  Allows horizontal and vertical markup rules (Basic, Compounds All Above, Selective Compounding, Iterative/Margin) to be added to individual change orders. After applying, the change order cannot be added to a subcontractor invoice.
+                </span>
+              </span>
+            </label>
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Financial Markup is toggled per commitment when creating or editing a commitment. This section documents the feature prerequisites.
+            </p>
+          </div>
+        </div>
+
         <div className="py-6">
           <h2 className="text-base font-semibold text-gray-900 mb-1">Tool Permissions</h2>
           <p className="text-xs text-gray-500 mb-4">

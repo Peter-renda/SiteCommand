@@ -746,6 +746,26 @@ export default function NewCommitmentClient({
   const [showCoverLetter, setShowCoverLetter] = useState(false);
   const [showExecutedCoverLetter, setShowExecutedCoverLetter] = useState(false);
 
+  // PO-specific dates
+  const [contractDate, setContractDate] = useState("");
+  const [issuedOnDate, setIssuedOnDate] = useState("");
+
+  // Subcontract-specific dates
+  const [startDate, setStartDate] = useState("");
+  const [estimatedCompletion, setEstimatedCompletion] = useState("");
+  const [actualCompletion, setActualCompletion] = useState("");
+  const [signedContractReceived, setSignedContractReceived] = useState("");
+
+  // Subcontract scope of work
+  const [inclusions, setInclusions] = useState("");
+  const [exclusions, setExclusions] = useState("");
+
+  // DocuSign
+  const [signDocuSign, setSignDocuSign] = useState(false);
+
+  // Financial markup
+  const [financialMarkupEnabled, setFinancialMarkupEnabled] = useState(false);
+
   // SOV
   const [sovMethod, setSovMethod] = useState<"unit_quantity" | "amount">(
     "unit_quantity"
@@ -928,6 +948,20 @@ export default function NewCommitmentClient({
           show_cover_letter: showCoverLetter,
           show_executed_cover_letter: showExecutedCoverLetter,
           sov_accounting_method: sovMethod,
+          // Subcontract-specific dates
+          start_date: startDate || null,
+          estimated_completion: estimatedCompletion || null,
+          actual_completion: actualCompletion || null,
+          signed_contract_received: signedContractReceived || null,
+          // Subcontract scope
+          inclusions,
+          exclusions,
+          // PO-specific dates
+          contract_date: contractDate || null,
+          issued_on_date: issuedOnDate || null,
+          // DocuSign / markup
+          sign_docusign: signDocuSign,
+          financial_markup_enabled: financialMarkupEnabled,
         }),
       });
 
@@ -1074,6 +1108,20 @@ export default function NewCommitmentClient({
             </Field>
           </div>
 
+          {/* Sign with DocuSign */}
+          <div className="mb-4 flex items-center gap-3 p-3 border border-gray-200 rounded bg-gray-50">
+            <input
+              type="checkbox"
+              id="sign-docusign"
+              checked={signDocuSign}
+              onChange={(e) => setSignDocuSign(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-gray-900"
+            />
+            <label htmlFor="sign-docusign" className="text-sm text-gray-700 cursor-pointer">
+              Sign with DocuSign® — enable signature collection via Procore + DocuSign integration
+            </label>
+          </div>
+
           <div className="grid grid-cols-3 gap-4 mb-4">
             <Field label="Status" required>
               <select
@@ -1087,7 +1135,7 @@ export default function NewCommitmentClient({
                 <option value="terminated">Terminated</option>
               </select>
             </Field>
-            <Field label="Executed" required>
+            <Field label="Executed">
               <div className="flex items-center h-9 mt-0.5">
                 <input
                   type="checkbox"
@@ -1095,6 +1143,7 @@ export default function NewCommitmentClient({
                   onChange={(e) => setExecuted(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
                 />
+                <span className="ml-2 text-xs text-gray-500">Legally binding agreement signed by authorized parties</span>
               </div>
             </Field>
           </div>
@@ -1113,8 +1162,65 @@ export default function NewCommitmentClient({
                   %
                 </span>
               </div>
+              <p className="text-xs text-gray-400 mt-1">Affects first invoice only; subsequent invoices require manual adjustment.</p>
             </Field>
           </div>
+
+          {/* PO-specific fields */}
+          {commitmentType === "purchase_order" && (
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <Field label="Bill To">
+                <input
+                  type="text"
+                  value={billTo}
+                  onChange={(e) => setBillTo(e.target.value)}
+                  placeholder="Business contact / payment address"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Assigned To">
+                <select
+                  value={assignedTo}
+                  onChange={(e) => setAssignedTo(e.target.value)}
+                  className={selectCls}
+                >
+                  <option value="">Select person…</option>
+                  {users.map((c) => (
+                    <option key={c.id} value={contactName(c)}>
+                      {contactName(c)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Payment Terms">
+                <input
+                  type="text"
+                  value={paymentTerms}
+                  onChange={(e) => setPaymentTerms(e.target.value)}
+                  placeholder="e.g. Net 30"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Ship To">
+                <input
+                  type="text"
+                  value={shipTo}
+                  onChange={(e) => setShipTo(e.target.value)}
+                  placeholder="Delivery destination"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Ship Via">
+                <input
+                  type="text"
+                  value={shipVia}
+                  onChange={(e) => setShipVia(e.target.value)}
+                  placeholder="Shipping method / carrier"
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+          )}
 
           <Field label="Description" className="mb-4">
             <RichTextEditor
@@ -1123,6 +1229,26 @@ export default function NewCommitmentClient({
               minHeight="100px"
             />
           </Field>
+
+          {/* Subcontract Inclusions / Exclusions */}
+          {commitmentType === "subcontract" && (
+            <>
+              <Field label="Inclusions — Scope of Work" className="mb-4">
+                <RichTextEditor
+                  value={inclusions}
+                  onChange={setInclusions}
+                  minHeight="80px"
+                />
+              </Field>
+              <Field label="Exclusions — What is NOT included" className="mb-4">
+                <RichTextEditor
+                  value={exclusions}
+                  onChange={setExclusions}
+                  minHeight="80px"
+                />
+              </Field>
+            </>
+          )}
 
           <Field label="Attachments">
             <AttachmentZone
@@ -1137,6 +1263,14 @@ export default function NewCommitmentClient({
 
         {/* ── Schedule of Values ── */}
         <Section title="Schedule of Values">
+          <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded px-4 py-2 text-xs text-amber-800">
+            <svg className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+            </svg>
+            <span>
+              <strong>Accounting method cannot be changed after the contract is created.</strong> It applies to all change orders and invoices for this contract. Choose before adding line items.
+            </span>
+          </div>
           <SovTable
             lines={sovLines}
             method={sovMethod}
@@ -1152,24 +1286,77 @@ export default function NewCommitmentClient({
 
         {/* ── Contract Dates ── */}
         <Section title="Contract Dates">
-          <div className="grid grid-cols-2 gap-8">
-            <Field label="Delivery Date">
-              <input
-                type="date"
-                value={deliveryDate}
-                onChange={(e) => setDeliveryDate(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-            <Field label="Signed Purchase Order Received Date">
-              <input
-                type="date"
-                value={signedPoDate}
-                onChange={(e) => setSignedPoDate(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-          </div>
+          {commitmentType === "purchase_order" ? (
+            <div className="grid grid-cols-2 gap-8">
+              <Field label="Contract Date">
+                <input
+                  type="date"
+                  value={contractDate}
+                  onChange={(e) => setContractDate(e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Delivery Date">
+                <input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Signed Purchase Order Received Date">
+                <input
+                  type="date"
+                  value={signedPoDate}
+                  onChange={(e) => setSignedPoDate(e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Issued On">
+                <input
+                  type="date"
+                  value={issuedOnDate}
+                  onChange={(e) => setIssuedOnDate(e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-8">
+              <Field label="Start Date">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Estimated Completion">
+                <input
+                  type="date"
+                  value={estimatedCompletion}
+                  onChange={(e) => setEstimatedCompletion(e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Actual Completion">
+                <input
+                  type="date"
+                  value={actualCompletion}
+                  onChange={(e) => setActualCompletion(e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Signed Contract Received">
+                <input
+                  type="date"
+                  value={signedContractReceived}
+                  onChange={(e) => setSignedContractReceived(e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+          )}
         </Section>
 
         {/* ── Contract Privacy ── */}
@@ -1285,80 +1472,48 @@ export default function NewCommitmentClient({
 
         {/* ── Additional Information ── */}
         <Section title="Additional Information">
-          {commitmentType === "subcontract" && (
-            <div className="mb-8">
-              <h3 className="text-sm font-semibold text-gray-800 mb-4">
-                Subcontract Additional Fields
-              </h3>
-              <Field label="Subcontract Cover Letter-please choose one" className="mb-4">
+          {commitmentType === "subcontract" ? (
+            <div>
+              <Field label="Cover Letter" className="mb-4">
                 <select
                   value={subcontractCoverLetter}
                   onChange={(e) => setSubcontractCoverLetter(e.target.value)}
                   className={selectCls}
                 >
-                  <option value="" />
+                  <option value="">Select cover letter…</option>
                   <option value="standard">Standard Cover Letter</option>
                   <option value="custom">Custom Cover Letter</option>
                   <option value="none">No Cover Letter</option>
                 </select>
               </Field>
               <Field label="Bond Amount" className="mb-4">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={bondAmount}
-                  onChange={(e) => setBondAmount(e.target.value)}
-                  className={inputCls}
-                />
-              </Field>
-              <Field label="Exhibit A Scope of Work" className="mb-4">
-                <RichTextEditor
-                  value={exhibitAScope}
-                  onChange={setExhibitAScope}
-                  minHeight="120px"
-                />
+                <div className="flex items-center">
+                  <span className="px-3 py-2 border border-r-0 border-gray-300 rounded-l text-sm text-gray-500 bg-gray-50">$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={bondAmount}
+                    onChange={(e) => setBondAmount(e.target.value)}
+                    className={inputCls + " rounded-l-none"}
+                  />
+                </div>
               </Field>
               <Field label="Trades" className="mb-4">
                 <input
                   type="text"
                   value={trades}
                   onChange={(e) => setTrades(e.target.value)}
+                  placeholder="e.g. Electrical, Plumbing"
                   className={inputCls}
                 />
               </Field>
-              <Field label="Exhibit D Attachments" className="mb-4">
-                <AttachmentZone
-                  files={exhibitDFiles}
-                  onAdd={(f) =>
-                    setExhibitDFiles((prev) => [...prev, ...f])
-                  }
-                  onRemove={(name) =>
-                    setExhibitDFiles((prev) =>
-                      prev.filter((f) => f.name !== name)
-                    )
-                  }
-                />
-              </Field>
-              <Field label="Exhibit I Attachments" className="mb-4">
-                <AttachmentZone
-                  files={exhibitIFiles}
-                  onAdd={(f) =>
-                    setExhibitIFiles((prev) => [...prev, ...f])
-                  }
-                  onRemove={(name) =>
-                    setExhibitIFiles((prev) =>
-                      prev.filter((f) => f.name !== name)
-                    )
-                  }
-                />
-              </Field>
-              <Field label="Subcontractor Contact">
+              <Field label="Subcontractor Contact (Invoice Contact)" className="mb-4">
                 <select
                   value={subcontractorContact}
                   onChange={(e) => setSubcontractorContact(e.target.value)}
                   className={selectCls}
                 >
-                  <option value="" />
+                  <option value="">Select contact…</option>
                   {directory.map((c) => (
                     <option key={c.id} value={contactName(c)}>
                       {contactName(c)}
@@ -1366,48 +1521,80 @@ export default function NewCommitmentClient({
                   ))}
                 </select>
               </Field>
+              <Field label="Exhibit A — Scope of Work" className="mb-4">
+                <RichTextEditor
+                  value={exhibitAScope}
+                  onChange={setExhibitAScope}
+                  minHeight="120px"
+                />
+              </Field>
+              <Field label="Exhibit D Attachments" className="mb-4">
+                <AttachmentZone
+                  files={exhibitDFiles}
+                  onAdd={(f) => setExhibitDFiles((prev) => [...prev, ...f])}
+                  onRemove={(name) =>
+                    setExhibitDFiles((prev) => prev.filter((f) => f.name !== name))
+                  }
+                />
+              </Field>
+              <Field label="Exhibit I Attachments">
+                <AttachmentZone
+                  files={exhibitIFiles}
+                  onAdd={(f) => setExhibitIFiles((prev) => [...prev, ...f])}
+                  onRemove={(name) =>
+                    setExhibitIFiles((prev) => prev.filter((f) => f.name !== name))
+                  }
+                />
+              </Field>
+            </div>
+          ) : (
+            <div>
+              <Field label="Contract Type" className="mb-4">
+                <select
+                  value={subcontractType}
+                  onChange={(e) => setSubcontractType(e.target.value)}
+                  className={selectCls}
+                >
+                  <option value="">Select type…</option>
+                  <option value="lump_sum">Lump Sum</option>
+                  <option value="unit_price">Unit Price</option>
+                  <option value="cost_plus">Cost Plus</option>
+                  <option value="time_and_material">Time and Material</option>
+                </select>
+              </Field>
+              <div className="grid grid-cols-2 gap-8 mb-4">
+                <Field label="Show Cover Letter">
+                  <input
+                    type="checkbox"
+                    checked={showCoverLetter}
+                    onChange={(e) => setShowCoverLetter(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-gray-900"
+                  />
+                </Field>
+                <Field label="Show Executed Cover Letter">
+                  <input
+                    type="checkbox"
+                    checked={showExecutedCoverLetter}
+                    onChange={(e) => setShowExecutedCoverLetter(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-gray-900"
+                  />
+                </Field>
+              </div>
+              <div className="pt-4 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-700 mb-2">Financial Markup</p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={financialMarkupEnabled}
+                    onChange={(e) => setFinancialMarkupEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-gray-900"
+                  />
+                  <span className="text-sm text-gray-700">Enable Financial Markup on this commitment</span>
+                </label>
+                <p className="text-xs text-gray-400 mt-1">Required before adding markup to change orders on this contract.</p>
+              </div>
             </div>
           )}
-
-          {/* PO Additional Fields — shown for both types if applicable */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">
-              Purchase Order Additional Fields
-            </h3>
-            <Field label="Subcontract Type (please choose one)" className="mb-4">
-              <select
-                value={subcontractType}
-                onChange={(e) => setSubcontractType(e.target.value)}
-                className={selectCls}
-              >
-                <option value="" />
-                <option value="lump_sum">Lump Sum</option>
-                <option value="unit_price">Unit Price</option>
-                <option value="cost_plus">Cost Plus</option>
-                <option value="time_and_material">Time and Material</option>
-              </select>
-            </Field>
-            <div className="grid grid-cols-2 gap-8">
-              <Field label="Show Cover Letter">
-                <input
-                  type="checkbox"
-                  checked={showCoverLetter}
-                  onChange={(e) => setShowCoverLetter(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-gray-900"
-                />
-              </Field>
-              <Field label="Show Executed Cover Letter">
-                <input
-                  type="checkbox"
-                  checked={showExecutedCoverLetter}
-                  onChange={(e) =>
-                    setShowExecutedCoverLetter(e.target.checked)
-                  }
-                  className="w-4 h-4 rounded border-gray-300 text-gray-900"
-                />
-              </Field>
-            </div>
-          </div>
         </Section>
 
       </div>

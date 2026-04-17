@@ -75,6 +75,20 @@ export async function PATCH(
     "sov_accounting_method",
     "sort_order",
     "deleted_at",
+    // Subcontract-specific dates
+    "start_date",
+    "estimated_completion",
+    "actual_completion",
+    "signed_contract_received",
+    // Subcontract scope
+    "inclusions",
+    "exclusions",
+    // PO-specific dates
+    "contract_date",
+    "issued_on_date",
+    // DocuSign / markup
+    "sign_docusign",
+    "financial_markup_enabled",
   ];
   // ssov_status is intentionally excluded — transitions go through the
   // dedicated /ssov/notify, /ssov/submit and /ssov/revise endpoints.

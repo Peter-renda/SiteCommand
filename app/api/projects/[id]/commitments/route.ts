@@ -129,6 +129,20 @@ export async function POST(
     show_executed_cover_letter,
     sov_accounting_method,
     sort_order,
+    // Subcontract-specific dates
+    start_date,
+    estimated_completion,
+    actual_completion,
+    signed_contract_received,
+    // Subcontract scope
+    inclusions,
+    exclusions,
+    // PO-specific dates
+    contract_date,
+    issued_on_date,
+    // DocuSign / markup
+    sign_docusign,
+    financial_markup_enabled,
   } = body;
 
   let nextNumber: number;
@@ -183,6 +197,20 @@ export async function POST(
       show_executed_cover_letter: show_executed_cover_letter ?? false,
       sov_accounting_method: sov_accounting_method || "unit_quantity",
       sort_order: sort_order ?? nextNumber,
+      // Subcontract-specific dates
+      start_date: start_date || null,
+      estimated_completion: estimated_completion || null,
+      actual_completion: actual_completion || null,
+      signed_contract_received: signed_contract_received || null,
+      // Subcontract scope
+      inclusions: inclusions || "",
+      exclusions: exclusions || "",
+      // PO-specific dates
+      contract_date: contract_date || null,
+      issued_on_date: issued_on_date || null,
+      // DocuSign / markup
+      sign_docusign: sign_docusign ?? false,
+      financial_markup_enabled: financial_markup_enabled ?? false,
     })
     .select()
     .single();
