@@ -136,6 +136,95 @@ const ERP_COLORS: Record<string, string> = {
   pending: "text-amber-500",
 };
 
+// ── Export helpers ────────────────────────────────────────────────────────────
+
+function exportSovCSV(commitment: Commitment, sovItems: SovItem[]) {
+  const isUQ = commitment.sov_accounting_method === "unit_quantity";
+  const headers = isUQ
+    ? ["#", "Budget Code", "Description", "Qty", "UOM", "Unit Cost", "Amount", "Billed to Date"]
+    : ["#", "Budget Code", "Description", "Amount", "Billed to Date"];
+  const rows = sovItems
+    .filter((l) => !l.is_group_header)
+    .map((l, i) =>
+      isUQ
+        ? [i + 1, l.budget_code, l.description, l.qty, l.uom, l.unit_cost, l.qty * l.unit_cost, l.billed_to_date]
+        : [i + 1, l.budget_code, l.description, l.amount, l.billed_to_date]
+    );
+  const csv = [headers, ...rows]
+    .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `commitment-${commitment.number}-sov.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportCommitmentPDF(commitment: Commitment, sovItems: SovItem[], typeLabel: string) {
+  const isUQ = commitment.sov_accounting_method === "unit_quantity";
+  const sovRows = sovItems
+    .filter((l) => !l.is_group_header)
+    .map((l, i) => {
+      const amt = isUQ ? l.qty * l.unit_cost : l.amount;
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${l.budget_code || ""}</td>
+        <td>${l.description || ""}</td>
+        ${isUQ ? `<td>${l.qty}</td><td>${l.uom}</td><td>$${l.unit_cost.toFixed(2)}</td>` : ""}
+        <td>${fmt(amt)}</td>
+        <td>${fmt(l.billed_to_date)}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const revised = commitment.original_contract_amount + commitment.approved_change_orders;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${typeLabel} #${commitment.number}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:9px;padding:20px;color:#111}
+      h1{font-size:14px;margin-bottom:4px}
+      .meta{color:#555;font-size:8px;margin-bottom:16px}
+      .amounts{display:flex;gap:24px;margin-bottom:16px}
+      .amt-block{background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px;padding:6px 10px}
+      .amt-label{font-size:7px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:2px}
+      .amt-value{font-size:11px;font-weight:600}
+      table{width:100%;border-collapse:collapse;margin-top:8px}
+      th{background:#f3f4f6;text-align:left;padding:4px 6px;font-size:7px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border-bottom:1px solid #e5e7eb}
+      td{padding:4px 6px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+      @media print{body{padding:0}}
+    </style></head><body>
+    <h1>${typeLabel} #${commitment.number}${commitment.title ? " — " + commitment.title : ""}</h1>
+    <div class="meta">${commitment.contract_company || ""} &bull; ${commitment.status}</div>
+    <div class="amounts">
+      <div class="amt-block"><div class="amt-label">Original Contract</div><div class="amt-value">${fmt(commitment.original_contract_amount)}</div></div>
+      <div class="amt-block"><div class="amt-label">Approved COs</div><div class="amt-value">${fmt(commitment.approved_change_orders)}</div></div>
+      <div class="amt-block"><div class="amt-label">Revised Contract</div><div class="amt-value">${fmt(revised)}</div></div>
+    </div>
+    ${sovRows ? `<h2 style="font-size:11px;margin-bottom:6px">Schedule of Values</h2>
+    <table><thead><tr>
+      <th>#</th><th>Budget Code</th><th>Description</th>
+      ${isUQ ? "<th>Qty</th><th>UOM</th><th>Unit Cost</th>" : ""}
+      <th>Amount</th><th>Billed to Date</th>
+    </tr></thead><tbody>${sovRows}</tbody></table>` : ""}
+    </body></html>`;
+
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:0;";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) { document.body.removeChild(iframe); return; }
+  doc.open(); doc.write(html); doc.close();
+  setTimeout(() => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    setTimeout(() => document.body.removeChild(iframe), 500);
+  }, 300);
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function DetailField({
@@ -354,6 +443,7 @@ export default function CommitmentDetailClient({
   const [activeTab, setActiveTab] = useState<"general" | "financial_markup">("general");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   async function handleDelete() {
     setDeleting(true);
@@ -511,6 +601,45 @@ export default function CommitmentDetailClient({
             >
               Delete
             </button>
+
+            {/* Export dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu((o) => !o)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export
+                <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showExportMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                  <button
+                    onClick={() => { exportCommitmentPDF(commitment, sovItems, typeLabel); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                    </svg>
+                    Export as PDF
+                  </button>
+                  <button
+                    onClick={() => { exportSovCSV(commitment, sovItems); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                    </svg>
+                    Export SOV as CSV
+                  </button>
+                </div>
+              )}
+            </div>
+
             <a
               href={`/projects/${projectId}/commitments/${commitmentId}/edit`}
               className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"

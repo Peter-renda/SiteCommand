@@ -659,56 +659,188 @@ Notes:
   - **Standard+** on Change Events.
   - **Admin** on Commitments.
 
-### Complete a Commitment Change Order with DocuSign
-- Require DocuSign integration enablement at company and project levels.
-- Keep CCO-level **Sign with DocuSign** behavior explicit before final completion.
-- Preserve flow expectations:
-  1. Open CCO.
-  2. Launch DocuSign.
-  3. Prepare envelope (documents, recipients, message, preview/send).
-- Keep re-authentication state messaging clear when DocuSign token expires.
+### Prerequisites
+- A commitment (Purchase Order or Subcontract) must exist.
 
-### Create a Commitment Change Order (CCO)
-- Maintain support for creating CCOs from commitments with tier-aware behavior.
-- If Change Events are enabled, steer users into change-event-first creation flow when direct create is restricted.
-- Keep prerequisites explicit:
-  - Existing commitment.
-  - Optional DocuSign completion path.
+### Workflow
+1. Open the project's Commitments tool → **Contracts** tab → locate the contract.
+2. Click **Edit**.
+3. Click **Email Contract** (in the edit page header).
+4. Fill in the email form:
+   - **To** — select recipients from the Project Directory (must be in directory to receive emails)
+   - **Cc** — additional directory contacts for carbon copy
+   - **Private** — check to restrict viewing to admins and email recipients only
+   - **Subject** — email subject line
+   - **Message** — instructions or context for recipients
+5. Click **Send**.
 
-### Create a Commitment Potential Change Order from a Change Event
-- Require Change Events tool enabled + Commitments configured for 2-tier workflows when mapping to CPCO behavior.
-- Support creating before or after RFQ response; clarify that late-stage RFQ workflows can auto-populate CPCO SOV amounts.
-- Preserve permissions model for Admin and eligible Standard users based on private/setting constraints.
+### What Recipients Receive
+- An email with:
+  - A **View Online** link (requires appropriate project access permissions).
+  - A **Download PDF** link.
+- Recipients must be added to the Project Directory.
 
-### Determine the Order in Which Change Orders Were Approved
-- Preserve guidance that approved change orders may need rollback in reverse approval order before editing/deleting older items.
-- Approval-order visibility should be easy to audit with status + approval date context.
+### Implementation Notes (SiteCommand)
+- "Email Contract" button in the edit page header (`EditCommitmentClient.tsx`).
+- Opens `EmailContractModal` — recipients selected from project directory contacts with emails.
+- API: `POST /api/projects/[id]/commitments/[commitmentId]/email` — requires Standard or Admin tool permission.
+- Email function: `sendCommitmentEmail()` in `/lib/email.ts` using Resend.
+- CC recipients passed directly to Resend's `cc` field.
+- Private flag shown in email footer note when enabled.
 
-### Forward a Change Order to a Project User by Email
-- Change orders should be forwardable via built-in email workflow to project directory users with valid email addresses.
-- Keep support for notifying designated reviewers that a response is required.
-- Preserve distinction between forwarding a Commitment CO vs Prime CO while reusing common messaging patterns.
+## Enable Financial Markup on a Commitment
 
-## Submittals Tutorials Alignment Notes (Added April 17, 2026)
+### Required Permissions
+- **Admin** level on the Commitments tool.
 
-### Operational Coverage Added
-- Added lifecycle-compatible API actions for **Duplicate**, **Create Revision**, **Close**, **Distribute**, and **Change Ball in Court** on submittals.
-- Added persistence for extended submittal fields already present in the create flow:
-  - approver name
-  - owner’s manual
-  - package notes
-  - confirmed/actual delivery dates
-  - workflow steps
-  - related items
-- Added soft-delete semantics for submittals (`is_deleted`, `deleted_at`, `deleted_by`) and filtered deleted records from default list/detail views.
+### Prerequisites
+- A Purchase Order or Subcontract must exist.
+- Financial Markup must be **enabled at the project level** first (Commitments Settings → Financial Markup section).
 
-### Workflow/Best-Practice Intent
-- Maintains separate save and notify paths on create.
-- Supports revision lineage from duplicate/revision/distribute actions.
-- Restricts Ball in Court reassignment to Draft/Open statuses.
-- Captures close/distribute metadata for auditability.
+### Workflow
+1. Enable Financial Markup at the project level: Commitments tool → **Configure Settings** (gear icon) → **Financial Markup** → check **Enable Financial Markup on Commitment Change Orders** → **Save**.
+2. Open the commitment (Commitments → Contracts tab → click contract number).
+3. Click **Edit**.
+4. In the **General Information** section, check **Enable Financial Markups on this commitment**.
+5. Click **Save**.
 
-### Next Phase (if requested)
-- Add reusable workflow templates and template-application UI.
-- Add restore-from-recycle-bin flow for deleted submittals.
-- Add typed related-item linking (drawings/docs/rfis) beyond generic links.
+### Key Limitation
+- Financial markup can only be applied to **Commitment Change Orders (CCOs)** — not to the original SOV.
+- Once markup is applied to a change order, that change order **cannot be added to a subcontractor invoice**.
+
+### Implementation Notes (SiteCommand)
+- Project-level toggle: `enable_financial_markup` column in `commitment_settings`, managed in `CommitmentSettingsClient.tsx`.
+- Per-commitment toggle: `financial_markup_enabled` column on `commitments` table, exposed in `EditCommitmentClient.tsx` and `NewCommitmentClient.tsx`.
+- The per-commitment checkbox is only shown/enabled when the project-level setting is on; otherwise, a link to Commitments Settings is shown.
+- Migration: `supabase/migrations/092_commitments_extended_fields.sql` (commitment column) and `093_commitment_settings_defaults.sql` (settings column already existed in 092).
+- API PATCH: `financial_markup_enabled` is an allowed field in `/api/projects/[id]/commitments/[commitmentId]/route.ts`.
+
+## Enable or Disable the SSOV Tab on the Commitments Tool
+
+### Overview
+The Subcontractor SOV (SSOV) tab lets a downstream contractor provide a detailed cost breakdown for each SOV line item before invoicing. It can be toggled at both the **project level** (as a default) and **per individual commitment**.
+
+### Required Permissions
+- **Admin** level on the Commitments tool.
+
+### Key Constraints
+- **Amount Based accounting method only** — the SSOV tab is NOT supported with Unit/Quantity Based accounting.
+- If **Enable Always Editable Schedule of Values** is active, additional workflow limitations apply.
+- SSOV detail does not sync with ERP integrations; only the general SOV does.
+
+### Project-Level Workflow (Default Setting)
+1. Open the Commitments tool → **Configure Settings** (gear icon).
+2. Navigate to the **Default Contract Settings** section.
+3. Check or uncheck **Enable Subcontractor SOV by Default**.
+4. Click **Save / Update**.
+
+Effect: all new commitments created after saving will have the SSOV tab enabled (if Amount Based accounting method is selected).
+
+### Per-Commitment Workflow
+1. Open the commitment → **Edit**.
+2. In the **Subcontractor SOV** section, check or uncheck **Enable Subcontractor SOV**.
+3. **Save**.
+
+### Implementation Notes (SiteCommand)
+- Project-level default: `enable_ssov_by_default` column in `commitment_settings` (migration `093_commitment_settings_defaults.sql`).
+- Settings UI: `CommitmentSettingsClient.tsx` → **Default Contract Settings** section.
+- New commitment: `NewCommitmentClient.tsx` fetches `commitment-settings` on mount and pre-checks `ssovEnabled` if `enable_ssov_by_default` is true; sends `ssov_enabled` in the POST body.
+- Edit commitment: `EditCommitmentClient.tsx` → **Subcontractor SOV** section toggle.
+- The SSOV toggle is hidden/disabled when the commitment uses Unit/Quantity Based accounting.
+
+## Export a Commitment (Individual)
+
+### Required Permissions
+- **Read Only** or higher on the Commitments tool.
+
+### Workflow
+1. Open the commitment detail page.
+2. Click **Export** button in the page header.
+3. Choose format:
+   - **Export as PDF** — prints the commitment summary + SOV via browser print dialog.
+   - **Export SOV as CSV** — downloads a CSV of the Schedule of Values line items.
+
+### Implementation Notes (SiteCommand)
+- Export dropdown button in `CommitmentDetailClient.tsx` header between Delete and Edit.
+- `exportCommitmentPDF()` builds an HTML document with commitment metadata and SOV table, renders in a hidden iframe, and triggers `window.print()`.
+- `exportSovCSV()` generates a CSV of non-group-header SOV lines; columns adapt to accounting method (Amount Based vs Unit/Quantity Based).
+
+## Export a Commitments List
+
+### Required Permissions
+- **Read Only** or higher on the Commitments tool.
+
+### Workflow
+1. Open the Commitments tool → **Contracts** tab.
+2. Apply any desired filters (the export reflects visible rows).
+3. Click **Export** dropdown in the top-right actions.
+4. Choose **Export as CSV** or **Export as PDF**.
+
+### Implementation Notes (SiteCommand)
+- Export dropdown in `CommitmentsClient.tsx` top-right actions bar.
+- `exportCSV()` exports all currently visible items (post-filter/sort).
+- `exportPDF()` builds an HTML table and prints via hidden iframe.
+
+## Import a Subcontractor Schedule of Values from a CSV
+
+### Required Permissions
+- Admin on Commitments, OR Invoice Contact with Read Only or higher.
+
+### Prerequisites
+- Contract must use Amount Based accounting.
+- SSOV tab must be enabled on the commitment.
+- SSOV status must be Draft or Revise & Resubmit.
+
+### Workflow
+1. Open the commitment → **Edit** → **Subcontractor SOV** tab (or navigate to the SSOV edit page).
+2. Click **Import CSV** at the bottom of the table.
+3. In the modal:
+   - Optionally download the **template CSV**.
+   - Select delimiter (Comma or Semicolon).
+   - Choose a CSV file.
+   - Click **Import**.
+4. The CSV is parsed and lines are loaded into the table for review before saving.
+
+### CSV Required Columns
+- **SOV Position Number** — maps the detail line to the parent SOV line by position.
+- **Subcontractor SOV Amount** — the dollar amount for the detail line.
+
+### Optional Columns
+- **Budget Code**
+- **Description**
+
+### Implementation Notes (SiteCommand)
+- Import CSV button in `SsovEditClient.tsx` at the bottom of the SSOV table (visible when not read-only).
+- `downloadTemplate()` creates and downloads a sample CSV template.
+- `parseImportCSV()` parses the file respecting the chosen delimiter, validates required columns, and returns `SsovLine[]` or an error string.
+- Success banner shown after import; imported lines are in edit state (not yet saved) so the user can review before clicking Save.
+
+## Manage Rows and Columns in the Commitments Tool
+
+### Overview
+Users can customize the Commitments table: show/hide columns, change row height, sort by any column, and filter by type/status/executed.
+
+### Column Management
+- Click **Table Settings** (top-right of the table toolbar) to open the column panel.
+- Toggle individual columns on/off. Mandatory columns (#, Contract Company) cannot be hidden.
+- **Show All** reveals all columns; **Reset** hides all optional columns.
+
+### Row Height
+- In **Table Settings**, choose Small, Medium (default), or Large row height.
+
+### Sorting
+- Click any column header to sort ascending; click again for descending; click a third time to clear.
+- Sort indicator (↑ / ↓) appears on the active sort column.
+
+### Filtering
+- Click **Filters** button to open the filter panel.
+- Filter by: Type (Subcontract / Purchase Order), Status (Draft / Approved / Void / Terminated), Executed (Yes / No).
+- Active filter count badge shown on the Filters button.
+- **Clear all** removes all active filters.
+
+### Implementation Notes (SiteCommand)
+- All state in `CommitmentsClient.tsx`: `hiddenCols` (Set<string>), `sortConfig`, `rowHeight`, `tableSettingsOpen`, `showFilterPanel`, `filterType`, `filterStatus`, `filterExecuted`.
+- `ALL_COLS` defines all columns with `mandatory` flag; `COLS` is filtered by `hiddenCols`.
+- `applySort()` sorts items client-side by any column key, including computed `revised_contract_amount`.
+- `visibleItems` applies both search and filter predicates, then `applySort`.
+- Row height classes applied to `<td>` elements: `py-1` / `py-3` / `py-5`.

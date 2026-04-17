@@ -24,15 +24,7 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(
-    data || {
-      project_id: projectId,
-      number_of_change_order_tiers: 1,
-      allow_standard_users_create_ccos: false,
-      allow_standard_users_create_pcos: false,
-      enable_field_initiated_change_orders: false,
-      enable_always_editable_sov: false,
-      enable_financial_markup: false,
-    }
+    data || { project_id: projectId, enable_always_editable_sov: false, enable_ssov_by_default: false, enable_financial_markup: false }
   );
 }
 
@@ -50,13 +42,7 @@ export async function PUT(
   const supabase = getSupabase();
   const body = await req.json();
 
-  const tiers = Math.min(3, Math.max(1, Number(body.number_of_change_order_tiers) || 1));
-  const allowStandardUsersCreateCcos = tiers === 1 ? Boolean(body.allow_standard_users_create_ccos) : false;
-  const allowStandardUsersCreatePcos = tiers > 1 ? Boolean(body.allow_standard_users_create_pcos) : false;
-  const enableFieldInitiated =
-    tiers > 1 && allowStandardUsersCreatePcos ? Boolean(body.enable_field_initiated_change_orders) : false;
-
-  const payload = {
+  const payload: Record<string, unknown> = {
     project_id: projectId,
     number_of_change_order_tiers: tiers,
     allow_standard_users_create_ccos: allowStandardUsersCreateCcos,
@@ -66,6 +52,13 @@ export async function PUT(
     enable_financial_markup: !!body.enable_financial_markup,
     updated_by: session.id,
   };
+
+  if ("enable_ssov_by_default" in body) {
+    payload.enable_ssov_by_default = !!body.enable_ssov_by_default;
+  }
+  if ("enable_financial_markup" in body) {
+    payload.enable_financial_markup = !!body.enable_financial_markup;
+  }
 
   const { data, error } = await supabase
     .from("commitment_settings")
