@@ -80,7 +80,7 @@ const WORKFLOWS: WorkflowCard[] = [
       "Use Bulk Actions from Change Events to add selected line items into an unapproved client contract change order (PCO equivalent).",
     steps: [
       "Select one or more change event line items.",
-      "Open Bulk Actions > Add to Unapproved Client Contract CO.",
+      "Open Bulk Actions > Add to Unapproved Prime PCO.",
       "Choose a matching unapproved PCO from the submenu.",
       "Review the target record and finish required change-order details.",
     ],
@@ -115,7 +115,7 @@ const WORKFLOWS: WorkflowCard[] = [
       "Use Bulk Actions to add selected line items to an unapproved client/prime contract change order (prime PCO equivalent).",
     steps: [
       "Select one or more change event line items.",
-      "Open Bulk Actions > Add to Unapproved Client Contract CO.",
+      "Open Bulk Actions > Add to Unapproved Prime PCO.",
       "Choose the unapproved PCO to receive the selected line items.",
       "Finalize the PCO details and approval routing on the change-order record.",
     ],
@@ -139,6 +139,60 @@ const WORKFLOWS: WorkflowCard[] = [
     siteCommandParity: "Supported",
     ctaPath: "/projects/:projectId/change-events",
     ctaLabel: "Open Change Events",
+  },
+  {
+    title: "Budget Changes + Owner Invoices",
+    summary:
+      "Use budget changes when a financial adjustment does not require a prime contract change order, then optionally add approved changes to the latest owner invoice.",
+    steps: [
+      "Create and review budget changes in the Budget tool.",
+      "Use Financial Impact workflows to keep change events linked when needed.",
+      "After approval, mark the budget changes that should flow to the owner invoice.",
+      "Update billable values from grouped budget-change lines on the owner invoice.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/process-guides/about-budget-changes-on-owner-invoices/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "Best fit for GMP/allowance-contingency scenarios where the owner needs visibility without a full PCCO for each adjustment.",
+    ctaPath: "/projects/:projectId/budget",
+    ctaLabel: "Open Budget",
+  },
+  {
+    title: "Budget + Forecast Snapshots",
+    summary:
+      "Capture point-in-time budget and forecast states for variance analysis, export, and historical comparisons.",
+    steps: [
+      "Create a snapshot from the project budget workflow.",
+      "View and compare snapshot values against the current budget state.",
+      "Analyze variance by key financial columns.",
+      "Export snapshots and snapshot lists for distribution or archive.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/process-guides/budget-and-forecast-snapshots-user-guide/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "Use snapshots for review gates (monthly close, forecast lock, owner update) so change discussions are based on a stable baseline.",
+    ctaPath: "/projects/:projectId/budget",
+    ctaLabel: "Open Budget",
+  },
+  {
+    title: "Company WBS Setup",
+    summary:
+      "Align company-level cost structure with custom segments, segment items, and budget code structure settings before project teams begin cost tracking.",
+    steps: [
+      "Define custom segments and segment items for your company standard.",
+      "Configure default cost code and cost type segments (including units of measure).",
+      "Enable optional sub jobs and budget code structure controls.",
+      "Roll out project-level usage once segment governance is stable.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/process-guides/company-administration-work-breakdown-structure-guide/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "WBS governance lives at the company admin level; project financial accuracy depends on this setup.",
+    ctaPath: "/company",
+    ctaLabel: "Open Company Admin",
   },
 ];
 

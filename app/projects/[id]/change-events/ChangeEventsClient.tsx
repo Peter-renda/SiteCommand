@@ -756,7 +756,7 @@ export default function ChangeEventsClient({
 
             const actions: Action[] = [
               { label: "Add to Unapproved Commitment", type: "commitment-submenu", navSuffix: "", unapprovedOnly: true, disabled: selectedHasCostAssociation },
-              { label: "Add to Unapproved Client Contract CO", type: "prime-submenu" },
+              { label: "Add to Unapproved Prime PCO", type: "prime-submenu" },
               { label: "Create Commitment CO", type: "commitment-submenu", navSuffix: "?action=co" },
               { label: "Create Client Contract CO", type: "prime-action" },
               { label: "Create Purchase Order Contract", type: "new-commitment", commitmentType: "purchase_order" },
