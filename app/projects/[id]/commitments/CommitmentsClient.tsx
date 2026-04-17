@@ -916,6 +916,14 @@ export default function CommitmentsClient({
               )}
             </div>
 
+            {/* Settings link */}
+            <a
+              href={`/projects/${projectId}/commitments/settings`}
+              className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Settings
+            </a>
+
             {/* Create dropdown */}
             <div ref={createRef} className="relative">
               <button

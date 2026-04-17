@@ -1,36 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
-import { canEditSov } from "@/lib/commitment-gates";
+import { canEditSsov } from "@/lib/commitment-gates";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string; commitmentId: string; sovId: string }> }
+  { params }: { params: Promise<{ id: string; commitmentId: string; ssovId: string }> }
 ) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id: projectId, commitmentId, sovId } = await params;
+  const { id: projectId, commitmentId, ssovId } = await params;
   const supabase = getSupabase();
 
-  const gate = await canEditSov(projectId, commitmentId);
+  const gate = await canEditSsov(projectId, commitmentId);
   if (!gate.allowed) return NextResponse.json({ error: gate.reason }, { status: 409 });
 
   const body = await req.json();
-
-  const allowed = [
-    "is_group_header",
-    "group_name",
-    "change_event_line_item",
-    "budget_code",
-    "description",
-    "qty",
-    "uom",
-    "unit_cost",
-    "amount",
-    "billed_to_date",
-    "sort_order",
-  ];
+  const allowed = ["sov_item_id", "budget_code", "description", "amount", "sort_order"];
 
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
@@ -38,9 +25,9 @@ export async function PATCH(
   }
 
   const { data, error } = await supabase
-    .from("commitment_sov_items")
+    .from("commitment_ssov_items")
     .update(updates)
-    .eq("id", sovId)
+    .eq("id", ssovId)
     .eq("commitment_id", commitmentId)
     .eq("project_id", projectId)
     .select()
@@ -52,21 +39,21 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string; commitmentId: string; sovId: string }> }
+  { params }: { params: Promise<{ id: string; commitmentId: string; ssovId: string }> }
 ) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id: projectId, commitmentId, sovId } = await params;
+  const { id: projectId, commitmentId, ssovId } = await params;
   const supabase = getSupabase();
 
-  const gate = await canEditSov(projectId, commitmentId);
+  const gate = await canEditSsov(projectId, commitmentId);
   if (!gate.allowed) return NextResponse.json({ error: gate.reason }, { status: 409 });
 
   const { error } = await supabase
-    .from("commitment_sov_items")
+    .from("commitment_ssov_items")
     .delete()
-    .eq("id", sovId)
+    .eq("id", ssovId)
     .eq("commitment_id", commitmentId)
     .eq("project_id", projectId);
 

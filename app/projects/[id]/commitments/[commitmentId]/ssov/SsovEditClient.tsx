@@ -1,0 +1,455 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import ProjectNav from "@/components/ProjectNav";
+
+type Commitment = {
+  id: string;
+  number: number;
+  title: string;
+  type: string;
+  sov_accounting_method: string;
+  ssov_enabled: boolean;
+  ssov_status: string;
+  original_contract_amount: number;
+  subcontractor_contact: string;
+};
+
+type SovItem = {
+  id: string;
+  budget_code: string;
+  description: string;
+  amount: number;
+  qty: number;
+  unit_cost: number;
+  is_group_header: boolean;
+};
+
+type SsovLine = {
+  _key: string;
+  dbId?: string;
+  sov_item_id: string;
+  budget_code: string;
+  description: string;
+  amount: string;
+  deleted?: boolean;
+};
+
+function fmt(n: number): string {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function numVal(s: string): number {
+  const n = parseFloat(s.replace(/[^0-9.-]/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+function uid(): string {
+  return Math.random().toString(36).slice(2);
+}
+
+export default function SsovEditClient({
+  projectId,
+  commitmentId,
+  username,
+}: {
+  projectId: string;
+  commitmentId: string;
+  role: string;
+  username: string;
+}) {
+  const [commitment, setCommitment] = useState<Commitment | null>(null);
+  const [sovItems, setSovItems] = useState<SovItem[]>([]);
+  const [lines, setLines] = useState<SsovLine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string>("");
+  const removed = useState<string[]>([])[0];
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/projects/${projectId}/commitments/${commitmentId}`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/commitments/${commitmentId}/sov`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/commitments/${commitmentId}/ssov`).then((r) => r.json()),
+    ]).then(([c, sov, ssov]) => {
+      setCommitment(c);
+      setSovItems(Array.isArray(sov) ? sov : []);
+      setLines(
+        Array.isArray(ssov)
+          ? ssov.map((i: { id: string; sov_item_id: string | null; budget_code: string; description: string; amount: number }) => ({
+              _key: uid(),
+              dbId: i.id,
+              sov_item_id: i.sov_item_id ?? "",
+              budget_code: i.budget_code,
+              description: i.description,
+              amount: String(i.amount ?? ""),
+            }))
+          : []
+      );
+      setLoading(false);
+    });
+  }, [projectId, commitmentId]);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/";
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-sm text-gray-400">Loading…</p>
+      </div>
+    );
+  }
+  if (!commitment) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-sm text-gray-500">Commitment not found.</p>
+      </div>
+    );
+  }
+
+  if (!commitment.ssov_enabled) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-8">
+        <div className="max-w-md text-center">
+          <p className="text-sm text-gray-700 mb-2">Subcontractor SOV is not enabled on this commitment.</p>
+          <a
+            href={`/projects/${projectId}/commitments/${commitmentId}`}
+            className="text-sm text-orange-600 hover:underline"
+          >
+            ← Back to commitment
+          </a>
+        </div>
+      </div>
+    );
+  }
+  if (commitment.sov_accounting_method !== "amount") {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-8">
+        <div className="max-w-md text-center">
+          <p className="text-sm text-gray-700 mb-2">
+            The Subcontractor SOV tab is only supported by the Amount Based accounting method.
+          </p>
+          <a
+            href={`/projects/${projectId}/commitments/${commitmentId}`}
+            className="text-sm text-orange-600 hover:underline"
+          >
+            ← Back to commitment
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const status = commitment.ssov_status || "draft";
+  const readOnly = status !== "draft" && status !== "revise_resubmit";
+
+  const activeLines = lines.filter((l) => !l.deleted);
+  const allocated = activeLines.reduce((s, l) => s + numVal(l.amount), 0);
+  const remaining = commitment.original_contract_amount - allocated;
+  const canSubmit = Math.round(remaining * 100) === 0 && activeLines.length > 0;
+
+  function addLine() {
+    setLines((prev) => [...prev, { _key: uid(), sov_item_id: "", budget_code: "", description: "", amount: "" }]);
+  }
+
+  function updateLine(key: string, field: keyof SsovLine, value: string) {
+    setLines((prev) =>
+      prev.map((l) => {
+        if (l._key !== key) return l;
+        const next = { ...l, [field]: value };
+        // When selecting a parent SOV line, pre-fill budget code / description
+        if (field === "sov_item_id" && value) {
+          const parent = sovItems.find((s) => s.id === value);
+          if (parent) {
+            next.budget_code = parent.budget_code;
+            next.description = parent.description;
+          }
+        }
+        return next;
+      })
+    );
+  }
+
+  function removeLine(key: string) {
+    setLines((prev) => {
+      const line = prev.find((l) => l._key === key);
+      if (line?.dbId) removed.push(line.dbId);
+      return prev.filter((l) => l._key !== key);
+    });
+  }
+
+  async function saveDraft() {
+    setSaving(true);
+    setError("");
+    try {
+      await Promise.all(
+        removed.map((id) =>
+          fetch(`/api/projects/${projectId}/commitments/${commitmentId}/ssov/${id}`, { method: "DELETE" })
+        )
+      );
+      removed.length = 0;
+
+      await Promise.all(
+        activeLines.map((line, idx) => {
+          const body = JSON.stringify({
+            sov_item_id: line.sov_item_id || null,
+            budget_code: line.budget_code,
+            description: line.description,
+            amount: numVal(line.amount),
+            sort_order: idx,
+          });
+          if (line.dbId) {
+            return fetch(`/api/projects/${projectId}/commitments/${commitmentId}/ssov/${line.dbId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body,
+            });
+          }
+          return fetch(`/api/projects/${projectId}/commitments/${commitmentId}/ssov`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+          });
+        })
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function submit() {
+    await saveDraft();
+    const res = await fetch(
+      `/api/projects/${projectId}/commitments/${commitmentId}/ssov/submit`,
+      { method: "POST" }
+    );
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({ error: "Submit failed" }));
+      setError(msg || "Submit failed");
+      return;
+    }
+    window.location.href = `/projects/${projectId}/commitments/${commitmentId}`;
+  }
+
+  const nonHeaderSov = sovItems.filter((s) => !s.is_group_header);
+
+  return (
+    <div className="min-h-screen bg-white">
+      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
+        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600">
+          SiteCommand
+        </a>
+        <div className="flex items-center gap-5">
+          <span className="text-sm text-gray-400">{username}</span>
+          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900">
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <ProjectNav projectId={projectId} />
+
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-8 py-3 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3">
+          <a
+            href={`/projects/${projectId}/commitments/${commitmentId}`}
+            className="text-sm text-gray-400 hover:text-gray-700"
+          >
+            ← #{commitment.number}
+          </a>
+          <span className="text-gray-200">/</span>
+          <h1 className="text-sm font-semibold text-gray-900">Subcontractor SOV</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/projects/${projectId}/commitments/${commitmentId}`}
+            className="px-4 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
+          >
+            Cancel
+          </a>
+          {!readOnly && (
+            <>
+              <button
+                onClick={saveDraft}
+                disabled={saving}
+                className="px-4 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60"
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={submit}
+                disabled={saving || !canSubmit}
+                title={!canSubmit ? "Submit is disabled until Remaining to Allocate is $0.00" : undefined}
+                className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 disabled:opacity-60"
+              >
+                Submit
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-8 py-8">
+        {readOnly && (
+          <div className="mb-4 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded px-3 py-2">
+            This Subcontractor SOV is {status === "under_review" ? "Under Review" : status}. It can't be
+            edited until it is returned to Revise &amp; Resubmit.
+          </div>
+        )}
+        {error && (
+          <div className="mb-4 text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+            <p className="text-xs font-medium text-gray-500 mb-1">Committed Amount</p>
+            <p className="text-base font-semibold text-gray-900 tabular-nums">
+              ${fmt(commitment.original_contract_amount)}
+            </p>
+          </div>
+          <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+            <p className="text-xs font-medium text-gray-500 mb-1">Allocated</p>
+            <p className="text-base font-semibold text-gray-900 tabular-nums">${fmt(allocated)}</p>
+          </div>
+          <div
+            className={`border rounded-lg p-4 ${
+              Math.round(remaining * 100) === 0
+                ? "bg-green-50 border-green-100"
+                : "bg-amber-50 border-amber-100"
+            }`}
+          >
+            <p className="text-xs font-medium text-gray-500 mb-1">Remaining to Allocate</p>
+            <p className="text-base font-semibold text-gray-900 tabular-nums">${fmt(remaining)}</p>
+          </div>
+        </div>
+
+        <div className="border border-gray-200 rounded overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-3 py-2 text-left font-medium text-gray-500 w-10">#</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-500">Parent SOV Line</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-500">Budget Code</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-500">Description</th>
+                <th className="px-3 py-2 text-right font-medium text-gray-500">Amount</th>
+                {!readOnly && <th className="px-3 py-2 w-8" />}
+              </tr>
+            </thead>
+            <tbody>
+              {activeLines.length === 0 ? (
+                <tr>
+                  <td colSpan={readOnly ? 5 : 6} className="py-12 text-center">
+                    <p className="text-sm text-gray-400 mb-3">No detail lines yet</p>
+                    {!readOnly && (
+                      <button
+                        onClick={addLine}
+                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600"
+                      >
+                        Add Detail Line
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                activeLines.map((line, idx) => (
+                  <tr key={line._key} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 group">
+                    <td className="px-3 py-2 text-gray-400">{idx + 1}</td>
+                    <td className="px-3 py-2">
+                      {readOnly ? (
+                        <span className="text-gray-700">
+                          {nonHeaderSov.find((s) => s.id === line.sov_item_id)?.description || "—"}
+                        </span>
+                      ) : (
+                        <select
+                          value={line.sov_item_id}
+                          onChange={(e) => updateLine(line._key, "sov_item_id", e.target.value)}
+                          className="w-full min-w-[180px] border border-gray-200 rounded px-1.5 py-1 bg-white"
+                        >
+                          <option value="">—</option>
+                          {nonHeaderSov.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.budget_code} — {s.description || "Untitled"}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {readOnly ? (
+                        <span className="text-gray-700">{line.budget_code || "—"}</span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={line.budget_code}
+                          onChange={(e) => updateLine(line._key, "budget_code", e.target.value)}
+                          className="w-full bg-transparent focus:outline-none"
+                        />
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {readOnly ? (
+                        <span className="text-gray-700">{line.description || "—"}</span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={line.description}
+                          onChange={(e) => updateLine(line._key, "description", e.target.value)}
+                          className="w-full bg-transparent focus:outline-none"
+                        />
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {readOnly ? (
+                        <span className="text-gray-900">${fmt(numVal(line.amount))}</span>
+                      ) : (
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={line.amount}
+                          onChange={(e) => updateLine(line._key, "amount", e.target.value)}
+                          className="w-24 text-right bg-transparent focus:outline-none"
+                        />
+                      )}
+                    </td>
+                    {!readOnly && (
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => removeLine(line._key)}
+                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500"
+                        >
+                          ✕
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+              <tr className="bg-gray-50 border-t border-gray-200 font-semibold">
+                <td colSpan={readOnly ? 4 : 4} className="px-3 py-2 text-right text-gray-700">
+                  Allocated
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-gray-900">${fmt(allocated)}</td>
+                {!readOnly && <td />}
+              </tr>
+            </tbody>
+          </table>
+          {!readOnly && activeLines.length > 0 && (
+            <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-200">
+              <button
+                onClick={addLine}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded hover:bg-orange-600"
+              >
+                Add Detail Line
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

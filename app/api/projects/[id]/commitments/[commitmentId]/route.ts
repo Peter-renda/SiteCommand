@@ -52,7 +52,7 @@ export async function PATCH(
     "signed_po_received_date",
     "is_private",
     "sov_view_allowed",
-    "ssov_status",
+    "ssov_enabled",
     "original_contract_amount",
     "approved_change_orders",
     "pending_change_orders",
@@ -69,10 +69,31 @@ export async function PATCH(
     "sort_order",
     "deleted_at",
   ];
+  // ssov_status is intentionally excluded — transitions go through the
+  // dedicated /ssov/notify, /ssov/submit and /ssov/revise endpoints.
 
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
+  }
+
+  // When the SSOV tab is toggled, keep ssov_status consistent with it.
+  if ("ssov_enabled" in updates) {
+    const { data: current } = await supabase
+      .from("commitments")
+      .select("ssov_enabled, ssov_status")
+      .eq("id", commitmentId)
+      .eq("project_id", projectId)
+      .single();
+
+    if (updates.ssov_enabled === true && current && !current.ssov_enabled) {
+      updates.ssov_status = "draft";
+    }
+    if (updates.ssov_enabled === false) {
+      updates.ssov_status = "";
+      updates.ssov_notified_at = null;
+      updates.ssov_submitted_at = null;
+    }
   }
 
   const { data, error } = await supabase
