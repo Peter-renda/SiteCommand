@@ -8,6 +8,8 @@ type WorkflowCard = {
   title: string;
   summary: string;
   steps: string[];
+  procoreManualUrl?: string;
+  siteCommandParity: "Supported" | "Partially Supported";
   note?: string;
   ctaPath: string;
   ctaLabel: string;
@@ -55,14 +57,73 @@ const WORKFLOWS: WorkflowCard[] = [
     ctaLabel: "Go to RFIs",
   },
   {
-    title: "Create a Client Contract Change Order from a Change Event",
+    title: "Create a Funding Change Order from a Change Event",
     summary:
-      "From Change Events, use Bulk Actions to launch a client contract change order flow.",
+      "SiteCommand does not currently have a separate Funding tool. Use the client contract change-order workflow as the equivalent financial path.",
+    steps: [
+      "Navigate to Change Events and select one or more line items.",
+      "Use Bulk Actions > Create Client Contract CO.",
+      "Select the contract and complete the change-order form fields.",
+      "Track approvals and updates in the change order record.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-events-project/tutorials/create-a-funding-change-order-from-a-change-event/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "Terminology mapping: Procore's Funding CO flow maps to SiteCommand's Client Contract CO flow.",
+    ctaPath: "/projects/:projectId/change-events",
+    ctaLabel: "Open Change Events",
+  },
+  {
+    title: "Create a Potential Change Order for a Client Contract from a Change Event",
+    summary:
+      "Use Bulk Actions from Change Events to add selected line items into an unapproved client contract change order (PCO equivalent).",
+    steps: [
+      "Select one or more change event line items.",
+      "Open Bulk Actions > Add to Unapproved Client Contract CO.",
+      "Choose a matching unapproved PCO from the submenu.",
+      "Review the target record and finish required change-order details.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-events-project/tutorials/create-a-potential-change-order-for-a-client-contract-from-a-change-event/",
+    siteCommandParity: "Supported",
+    note:
+      "If you need a brand-new record first, create a new Client Contract CO and leave it unapproved while drafting.",
+    ctaPath: "/projects/:projectId/change-events",
+    ctaLabel: "Open Change Events",
+  },
+  {
+    title: "Create a Prime Contract Change Order from a Change Event",
+    summary:
+      "From Change Events, use Bulk Actions to launch a new client/prime contract change order with selected line items.",
     steps: [
       "Select one or more change event line items.",
       "Open Bulk Actions > Create Client Contract CO.",
       "Pick the client contract and complete change order fields.",
     ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-events-project/tutorials/create-a-prime-contract-change-order-from-a-change-event/",
+    siteCommandParity: "Supported",
+    note:
+      "SiteCommand uses 'Client Contract CO' language where Procore documentation uses 'Prime Contract CO'.",
+    ctaPath: "/projects/:projectId/change-events",
+    ctaLabel: "Open Change Events",
+  },
+  {
+    title: "Create a Prime Potential Change Order from a Change Event",
+    summary:
+      "Use Bulk Actions to add selected line items to an unapproved client/prime contract change order (prime PCO equivalent).",
+    steps: [
+      "Select one or more change event line items.",
+      "Open Bulk Actions > Add to Unapproved Client Contract CO.",
+      "Choose the unapproved PCO to receive the selected line items.",
+      "Finalize the PCO details and approval routing on the change-order record.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-events-project/tutorials/create-a-prime-potential-change-order-from-a-change-event/",
+    siteCommandParity: "Supported",
+    note:
+      "Only unapproved client contract change orders appear in this submenu, which aligns with potential-change-order behavior.",
     ctaPath: "/projects/:projectId/change-events",
     ctaLabel: "Open Change Events",
   },
@@ -75,6 +136,7 @@ const WORKFLOWS: WorkflowCard[] = [
       "Open Bulk Actions > Create Commitment CO.",
       "Pick the commitment and complete change order details.",
     ],
+    siteCommandParity: "Supported",
     ctaPath: "/projects/:projectId/change-events",
     ctaLabel: "Open Change Events",
   },
@@ -116,12 +178,36 @@ export default async function ChangeEventWorkflowsPage({
               className="rounded-lg border border-gray-200 bg-white p-5"
             >
               <h2 className="text-base font-semibold text-gray-900">{workflow.title}</h2>
+              <div className="mt-2">
+                <span
+                  className={`inline-flex rounded px-2 py-0.5 text-[11px] font-medium ${
+                    workflow.siteCommandParity === "Supported"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-amber-50 text-amber-800"
+                  }`}
+                >
+                  {workflow.siteCommandParity}
+                </span>
+              </div>
               <p className="mt-1 text-sm text-gray-600">{workflow.summary}</p>
               <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-gray-700">
                 {workflow.steps.map((step) => (
                   <li key={step}>{step}</li>
                 ))}
               </ol>
+              {workflow.procoreManualUrl && (
+                <p className="mt-3 text-xs text-gray-500">
+                  Reference manual:{" "}
+                  <a
+                    href={workflow.procoreManualUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline hover:text-gray-700"
+                  >
+                    Procore tutorial
+                  </a>
+                </p>
+              )}
               {workflow.note && (
                 <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                   {workflow.note}
