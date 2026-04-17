@@ -526,10 +526,13 @@ export default function ChangeEventDetailClient({
                     onClick={() => setQuickActionsOpen((v) => !v)}
                     className={`rounded border px-3 py-1 text-xs ${hasSelection ? "border-gray-300 text-gray-700 hover:bg-gray-50" : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"}`}
                   >
-                    Quick Actions {selectedLineItemIds.size} selected <ChevronDown className="inline h-3 w-3" />
+                    Bulk Actions {selectedLineItemIds.size} selected <ChevronDown className="inline h-3 w-3" />
                   </button>
                   {quickActionsOpen && hasSelection && (
                     <div className="absolute left-0 z-20 mt-1 w-72 rounded border border-gray-200 bg-white p-2 shadow-lg text-xs space-y-2">
+                      <p className="px-2 text-[11px] text-gray-500">
+                        Add selected line items to unapproved commitments or unapproved prime PCOs.
+                      </p>
                       <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/new?type=purchase_order&eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Purchase Order Contract</button>
                       <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/new?type=subcontract&eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Subcontract</button>
                       <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/change-events/send-rfqs?eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Send RFQs</button>
@@ -539,6 +542,7 @@ export default function ChangeEventDetailClient({
                         {allCommitments.filter((c) => String(c.status ?? "").trim().toLowerCase() !== "approved").slice(0, 6).map((c) => (
                           <button key={c.id} onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/${c.id}/edit?eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">{String(c.number).padStart(3, "0")}: {c.title}</button>
                         ))}
+                        <p className="px-2 pt-1 text-[11px] text-gray-400">Approved commitments are excluded.</p>
                       </div>
                       <div className="border-t border-gray-100 pt-2">
                         <p className="px-2 pb-1 text-[11px] text-gray-500">Add to Unapproved Prime PCO</p>
@@ -559,6 +563,7 @@ export default function ChangeEventDetailClient({
                             PCO #{c.number}: {c.title || c.contract_name || "Untitled"}
                           </button>
                         ))}
+                        <p className="px-2 pt-1 text-[11px] text-gray-400">Approved prime PCOs are excluded.</p>
                       </div>
                     </div>
                   )}

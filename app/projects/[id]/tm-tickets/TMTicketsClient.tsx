@@ -102,6 +102,15 @@ export default function TMTicketsClient({ projectId, username }: { projectId: st
                   ? "No T&M Tickets have been created yet"
                   : "Recycle Bin is empty"}
               </p>
+              {activeTab === "all_tickets" && (
+                <div className="mt-6 rounded border border-orange-100 bg-orange-50 px-4 py-3 text-left text-sm text-gray-700 max-w-xl">
+                  <p className="font-semibold text-gray-900">Bulk Actions workflow</p>
+                  <p className="mt-1">
+                    Select one or more T&amp;M tickets and use <span className="font-medium">Bulk Actions</span> to either
+                    <span className="font-medium"> Add to an Existing Change Event</span> or <span className="font-medium">Create Change Event</span>.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

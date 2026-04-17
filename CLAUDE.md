@@ -122,3 +122,33 @@ Notes:
   - Users must use the modernized Change Events experience.
 - Reporting impact should be called out: budget modifications and budget changes appear differently across snapshots, enhanced reporting, company/project reports, and analytics.
 - During migration, only legacy budget modifications already linked to change event line items keep those associations; new associations are not created automatically.
+
+## Change Events + T&M Tickets – Manual-Specific Workflow Alignment
+
+### Add a Change Event Line Item to an Unapproved Commitment
+- Bulk action name should read **Add to Unapproved Commitment**.
+- Users can select line items across multiple change events before running the bulk action.
+- Only unapproved commitments are valid targets.
+- Do not allow this action when:
+  - The commitment status is **Approved**.
+  - Invoices already exist on the commitment.
+- Expected result: selected change event line items create additional SOV lines on the chosen commitment.
+- Permissions baseline:
+  - **Admin** on Change Events.
+  - **Admin** on Commitments.
+
+### Add a Change Event Line Item to an Unapproved Prime PCO
+- Bulk action name should read **Add to Unapproved Prime PCO**.
+- Users can select line items from multiple change events.
+- Only prime PCOs that are **not Approved** are valid targets.
+- Expected result: selected change event line items are added to the prime PCO SOV.
+- Permissions baseline:
+  - **Admin** on Change Events.
+  - **Admin** on Prime Contracts.
+
+### Add a T&M Ticket to a Change Event
+- In the T&M Tickets tool, support bulk actions for:
+  - **Add to an Existing Change Event**
+  - **Create Change Event**
+- When linked, T&M ticket line items transfer to the change event.
+- T&M ticket references/attachments should be represented in the change event description context.
