@@ -28,6 +28,7 @@ const WORKFLOWS: WorkflowCard[] = [
     ],
     note:
       "When available, include ticket links and attachment references in the Change Event description so teams can trace source backup.",
+    siteCommandParity: "Supported",
     ctaPath: "/projects/:projectId/tm-tickets",
     ctaLabel: "Use T&M Bulk Actions",
   },
@@ -40,6 +41,7 @@ const WORKFLOWS: WorkflowCard[] = [
       "Choose More Actions (⋮) > Create Change Event.",
       "Review the new event details and add any financial impact line items.",
     ],
+    siteCommandParity: "Partially Supported",
     ctaPath: "/solutions/quality-and-safety",
     ctaLabel: "Open Observation Guidance",
   },
@@ -52,6 +54,7 @@ const WORKFLOWS: WorkflowCard[] = [
       "Click + Create Change Event.",
       "Confirm title, origin, and description, then save the event.",
     ],
+    siteCommandParity: "Supported",
     note: "The action appears in RFI view mode (not edit mode).",
     ctaPath: "/projects/:projectId/rfis",
     ctaLabel: "Go to RFIs",
@@ -139,6 +142,173 @@ const WORKFLOWS: WorkflowCard[] = [
     siteCommandParity: "Supported",
     ctaPath: "/projects/:projectId/change-events",
     ctaLabel: "Open Change Events",
+  },
+  {
+    title: "Add a Change Event Line Item to an Unapproved Commitment CO",
+    summary:
+      "From Change Events, move selected line items directly into an existing unapproved commitment change order.",
+    steps: [
+      "Select one or more change event line items (across one or more change events).",
+      "Open Bulk Actions > Add to Unapproved Commitment CO.",
+      "Choose an unapproved CCO from the submenu.",
+      "Review the updated CCO schedule of values and complete approval workflow.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-events-project/tutorials/add-a-change-event-line-item-to-an-unapproved-commitment-co/",
+    siteCommandParity: "Supported",
+    note:
+      "Selected cost ROM values are appended as Schedule of Values lines and linked source change event metadata is preserved.",
+    ctaPath: "/projects/:projectId/change-events",
+    ctaLabel: "Open Change Events",
+  },
+  {
+    title: "Create a Commitment Potential Change Order from a Change Event",
+    summary:
+      "Use Bulk Actions to add selected line items into an unapproved commitment-side potential change order.",
+    steps: [
+      "Select one or more change event line items in Change Events.",
+      "Open Bulk Actions > Add to Unapproved Commitment.",
+      "Pick the target unapproved commitment record.",
+      "Continue drafting and convert to downstream change-order stages based on your tier settings.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-events-project/tutorials/create-a-commitment-potential-change-order-from-a-change-event/",
+    siteCommandParity: "Supported",
+    note:
+      "For two-tier workflows, this maps to CE > CPCO > CCO. RFQ timing can affect populated amounts.",
+    ctaPath: "/projects/:projectId/change-events",
+    ctaLabel: "Open Change Events",
+  },
+  {
+    title: "Bulk Create Commitment Change Orders from a Change Event",
+    summary:
+      "Create vendor-specific commitment change order records from selected change event line items.",
+    steps: [
+      "Select line items from one or multiple change events.",
+      "Use Bulk Actions to create commitment-side records by commitment target.",
+      "Open each generated CCO/CPCO and validate amounts, SOV, and reviewer assignment.",
+      "Advance status through your project's approval sequence.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-events-project/tutorials/bulk-create-commitment-change-orders-from-a-change-event/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "SiteCommand supports multi-select creation flows, but does not yet mirror Procore's vendor-grouped bulk-create confirmation screen one-to-one.",
+    ctaPath: "/projects/:projectId/change-events",
+    ctaLabel: "Open Change Events",
+  },
+  {
+    title: "Create a Commitment Change Order (CCO)",
+    summary:
+      "Create commitment change orders from the commitment workflow and complete required financial fields before routing.",
+    steps: [
+      "Open the target commitment and start a new change order.",
+      "Fill general fields, schedule of values, amount, and reviewer assignment.",
+      "Save as draft or move to pending review when ready for response.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/commitments-project/tutorials/create-a-commitment-change-order-cco/",
+    siteCommandParity: "Supported",
+    ctaPath: "/projects/:projectId/commitments",
+    ctaLabel: "Open Commitments",
+  },
+  {
+    title: "Add Financial Markup to CCOs",
+    summary:
+      "Configure financial markup rules on commitment change orders where project settings allow markup.",
+    steps: [
+      "Open a commitment with markup enabled.",
+      "Create or edit a CCO and add markup rules.",
+      "Review horizontal/vertical markup impact before finalizing.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/commitments-project/tutorials/add-financial-markup-to-ccos/",
+    siteCommandParity: "Supported",
+    note:
+      "After markup is applied, that CCO should not be used on subcontractor invoices.",
+    ctaPath: "/projects/:projectId/commitments/settings",
+    ctaLabel: "Open Commitment Settings",
+  },
+  {
+    title: "Approve or Reject Commitment Change Orders",
+    summary:
+      "Designated reviewers can approve or reject CCOs that are in a pending review status.",
+    steps: [
+      "Open the CCO assigned to you as designated reviewer.",
+      "Review details and choose Approve or Reject.",
+      "Confirm reviewer and review date are captured.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-orders-project/tutorials/approve-or-reject-commitment-change-orders/",
+    siteCommandParity: "Supported",
+    ctaPath: "/projects/:projectId/change-orders",
+    ctaLabel: "Open Change Orders",
+  },
+  {
+    title: "Complete a CCO with DocuSign",
+    summary:
+      "Route CCO signatures through DocuSign when contract and integration settings are enabled.",
+    steps: [
+      "Ensure DocuSign integration is enabled and signer data is configured.",
+      "Open the commitment/CCO and start the DocuSign completion flow.",
+      "Prepare recipients and send envelope for signature.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/commitments-project/tutorials/complete-a-commitment-change-order-cco-with-docusign/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "SiteCommand supports DocuSign enablement and contract-level completion flows; envelope setup details may vary from Procore's native UI.",
+    ctaPath: "/projects/:projectId/commitments",
+    ctaLabel: "Open Commitments",
+  },
+  {
+    title: "Add a Related Item to a Commitment Change Order",
+    summary:
+      "Link supporting project objects to improve auditability and context on a commitment change order.",
+    steps: [
+      "Open the change order detail record.",
+      "Use related-item linking to connect upstream/downstream records.",
+      "Save and validate related references before routing approvals.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-orders-project/tutorials/add-a-related-item-to-a-commitment-change-order/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "Related Items parity is currently strongest in Change Events; commitment CO-specific related-item controls are planned for expanded alignment.",
+    ctaPath: "/projects/:projectId/change-orders",
+    ctaLabel: "Open Change Orders",
+  },
+  {
+    title: "Determine the Order in Which Change Orders Were Approved",
+    summary:
+      "Use approval status and timestamps to identify the most recently approved change orders when backtracking changes.",
+    steps: [
+      "Open the parent contract/commitment and review approved change orders.",
+      "Sort by status/date to identify the most recently approved sequence.",
+      "If a prior approved CO needs edits, roll statuses back in reverse approval order.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-orders-project/tutorials/determine-the-order-in-which-change-orders-were-approved/",
+    siteCommandParity: "Supported",
+    ctaPath: "/projects/:projectId/change-orders",
+    ctaLabel: "Open Change Orders",
+  },
+  {
+    title: "Forward a Change Order to a Project User by Email",
+    summary:
+      "Notify reviewers and stakeholders by forwarding commitment or prime change orders through project email workflows.",
+    steps: [
+      "Open the change order to distribute.",
+      "Use the forward/email action to choose recipients from the project directory.",
+      "Send with context about required review or action.",
+    ],
+    procoreManualUrl:
+      "https://v2.support.procore.com/product-manuals/change-orders-project/tutorials/forward-a-change-order-to-a-project-user-by-email/",
+    siteCommandParity: "Partially Supported",
+    note:
+      "Prime CO forwarding has dedicated UI. Commitment CO email-forwarding parity remains in-progress.",
+    ctaPath: "/projects/:projectId/change-orders",
+    ctaLabel: "Open Change Orders",
   },
   {
     title: "Budget Changes + Owner Invoices",
