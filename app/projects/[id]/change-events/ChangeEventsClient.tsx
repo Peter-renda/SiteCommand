@@ -522,6 +522,12 @@ export default function ChangeEventsClient({
               <Plus className="w-3.5 h-3.5" /> Create
             </button>
           )}
+          <button
+            onClick={() => router.push(`/projects/${projectId}/change-events/workflows`)}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors font-medium"
+          >
+            Workflow Guides
+          </button>
         </div>
       </div>
 
@@ -750,9 +756,9 @@ export default function ChangeEventsClient({
 
             const actions: Action[] = [
               { label: "Add to Unapproved Commitment", type: "commitment-submenu", navSuffix: "", unapprovedOnly: true, disabled: selectedHasCostAssociation },
-              { label: "Add to Unapproved Prime PCO", type: "prime-submenu" },
+              { label: "Add to Unapproved Client Contract CO", type: "prime-submenu" },
               { label: "Create Commitment CO", type: "commitment-submenu", navSuffix: "?action=co" },
-              { label: "Create Prime PCO", type: "prime-action" },
+              { label: "Create Client Contract CO", type: "prime-action" },
               { label: "Create Purchase Order Contract", type: "new-commitment", commitmentType: "purchase_order" },
               { label: "Create Subcontract", type: "new-commitment", commitmentType: "subcontract" },
               { label: "Send RFQs", type: "rfq" },
