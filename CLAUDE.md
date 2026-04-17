@@ -152,3 +152,33 @@ Notes:
   - **Create Change Event**
 - When linked, T&M ticket line items transfer to the change event.
 - T&M ticket references/attachments should be represented in the change event description context.
+
+## 360 Reporting – Workflow Alignment Notes
+
+### Export a Report
+- Support export formats directly from report output:
+  - **CSV**
+  - **XLSX**
+  - **PDF**
+- Export actions should use the currently visible report state (filters, date range, calculated columns, grouping context when applicable).
+- Clearly communicate row-limit constraints in the UI for heavy datasets when required.
+
+### Get a Custom 360 Report from Assist
+- Provide an **Assist** entry point in Reporting for users to describe desired outcomes in plain language.
+- Assist should recommend a starting report/template and allow immediate creation from that recommendation.
+- Keep the Assist flow lightweight: prompt → recommendation → create report draft.
+
+### Promote a Project Report to Company Level
+- Project reports can be promoted for reuse at the company level by authorized users.
+- Promotion should be explicit and auditable in UI state (timestamp and actor).
+- After promotion, report should be treated as a reusable company template while the project copy remains traceable.
+
+### Share a Report
+- Sharing should be report-specific and separate from dashboard sharing.
+- Allow selecting target audiences (internal groups and, when allowed, external collaborators).
+- Save share recipients with the report and reflect shared state in report management views.
+
+### Edit / Distribute / Delete Lifecycle Expectations
+- **Edit**: users can update report metadata post-creation without losing calculation configuration.
+- **Distribute Snapshot**: users can send static report snapshots to recipients with format + schedule options.
+- **Delete**: destructive action must require confirmation and clearly state irreversibility.
