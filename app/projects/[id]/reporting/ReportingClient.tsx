@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -22,6 +22,28 @@ type SavedReport = {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  sharedWith: string[];
+  sourceReportId?: string;
+};
+
+type DashboardVisual = {
+  id: string;
+  reportId: string;
+  reportName: string;
+  title: string;
+  metricLabel: string;
+  metricValue: string;
+};
+
+type SavedDashboard = {
+  id: string;
+  name: string;
+  visualIds: string[];
+  isPublished: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  sharedWith: string[];
 };
 
 // ─── Report definitions ───────────────────────────────────────────────────────
@@ -233,6 +255,7 @@ const REPORT_TYPES: ReportDef[] = [
 ];
 
 const GROUPS = Array.from(new Set(REPORT_TYPES.map((r) => r.group)));
+const VIEWER_OPTIONS = ["Company Admins", "Project Managers", "Field Team", "Executives"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -268,6 +291,17 @@ function downloadCSV(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
+function makeVisualFromReport(report: SavedReport): DashboardVisual {
+  return {
+    id: `visual-${report.id}`,
+    reportId: report.id,
+    reportName: report.name,
+    title: `${report.name} · Snapshot`,
+    metricLabel: "Last Updated",
+    metricValue: fmtDate(report.updatedAt),
+  };
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function TypeBadge({ group }: { group: string }) {
@@ -286,12 +320,16 @@ function SavedTypeBadge({ label }: { label: string }) {
   );
 }
 
-function KebabMenu({ onRun, onDelete }: { onRun: () => void; onDelete?: () => void }) {
+function RowMenu({ actions }: { actions: { label: string; onClick: () => void; danger?: boolean }[] }) {
   const [open, setOpen] = useState(false);
+
   return (
     <div className="relative">
       <button
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
         className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -303,21 +341,19 @@ function KebabMenu({ onRun, onDelete }: { onRun: () => void; onDelete?: () => vo
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[120px]">
-            <button
-              onClick={() => { setOpen(false); onRun(); }}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              Run Report
-            </button>
-            {onDelete && (
+          <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+            {actions.map((action) => (
               <button
-                onClick={() => { setOpen(false); onDelete(); }}
-                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                key={action.label}
+                onClick={() => {
+                  setOpen(false);
+                  action.onClick();
+                }}
+                className={`w-full text-left px-4 py-2 text-sm ${action.danger ? "text-red-600 hover:bg-red-50" : "text-gray-700 hover:bg-gray-50"}`}
               >
-                Delete
+                {action.label}
               </button>
-            )}
+            ))}
           </div>
         </>
       )}
@@ -347,7 +383,10 @@ function SectionHeader({
         >
           <svg
             className={`w-4 h-4 text-gray-500 transition-transform ${open ? "" : "-rotate-90"}`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
@@ -356,6 +395,19 @@ function SectionHeader({
       </div>
       {subtitle && <p className="text-xs text-gray-400 mt-0.5 ml-6">{subtitle}</p>}
     </div>
+  );
+}
+
+function TabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+        active ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -394,7 +446,11 @@ function RunReportModal({
     const data = await res.json();
     setLoading(false);
     setRan(true);
-    if (!res.ok) { setError(data.error || "Failed to run report"); setRows([]); return; }
+    if (!res.ok) {
+      setError(data.error || "Failed to run report");
+      setRows([]);
+      return;
+    }
     setRows(Array.isArray(data) ? data : []);
   }
 
@@ -408,10 +464,7 @@ function RunReportModal({
     if (rows.length === 0) return;
     const headerCells = reportDef.columns.map((c) => `<th>${c.label}</th>`).join("");
     const bodyRows = rows
-      .map(
-        (row) =>
-          `<tr>${reportDef.columns.map((c) => `<td>${formatCell(c.key, row[c.key])}</td>`).join("")}</tr>`
-      )
+      .map((row) => `<tr>${reportDef.columns.map((c) => `<td>${formatCell(c.key, row[c.key])}</td>`).join("")}</tr>`)
       .join("");
     const html = `<!DOCTYPE html><html><head><title>${reportName}</title><style>
       body{font-family:sans-serif;font-size:11px;margin:24px}
@@ -444,6 +497,7 @@ function RunReportModal({
       createdBy: "Me",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      sharedWith: [],
     };
     onSave(saved);
     onClose();
@@ -452,7 +506,6 @@ function RunReportModal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8">
       <div className="bg-white rounded-xl w-full max-w-4xl shadow-xl flex flex-col max-h-[90vh]">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
             <input
@@ -461,7 +514,9 @@ function RunReportModal({
               className="text-sm font-semibold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-gray-900 focus:outline-none px-0.5 w-64"
               placeholder="Report name..."
             />
-            <p className="text-xs text-gray-400 mt-0.5">{reportDef.group} · {reportDef.description}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {reportDef.group} · {reportDef.description}
+            </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors ml-4 shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -470,7 +525,6 @@ function RunReportModal({
           </button>
         </div>
 
-        {/* Controls */}
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 shrink-0">
           <div className="flex flex-wrap items-end gap-3">
             {reportDef.hasDateRange && (
@@ -478,14 +532,18 @@ function RunReportModal({
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
                   <input
-                    type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
                     className="px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
                   <input
-                    type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
                     className="px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
                   />
                 </div>
@@ -523,7 +581,6 @@ function RunReportModal({
           </div>
         </div>
 
-        {/* Results */}
         <div className="overflow-auto flex-1">
           {error && <p className="text-sm text-red-600 px-6 py-4">{error}</p>}
           {ran && !error && rows.length === 0 && (
@@ -534,13 +591,18 @@ function RunReportModal({
           {ran && !error && rows.length > 0 && (
             <>
               <div className="px-6 py-2.5 border-b border-gray-100 bg-white sticky top-0">
-                <p className="text-xs text-gray-500">{rows.length} {rows.length === 1 ? "record" : "records"}</p>
+                <p className="text-xs text-gray-500">
+                  {rows.length} {rows.length === 1 ? "record" : "records"}
+                </p>
               </div>
               <table className="w-full text-sm">
                 <thead className="sticky top-9">
                   <tr className="bg-gray-50 border-b border-gray-100">
                     {reportDef.columns.map((col) => (
-                      <th key={col.key} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                      <th
+                        key={col.key}
+                        className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap"
+                      >
                         {col.label}
                       </th>
                     ))}
@@ -566,9 +628,149 @@ function RunReportModal({
           )}
           {!ran && (
             <div className="py-16 text-center">
-              <p className="text-sm text-gray-400">Configure the filters above and click <span className="font-medium text-gray-600">Run Report</span> to view results.</p>
+              <p className="text-sm text-gray-400">
+                Configure the filters above and click <span className="font-medium text-gray-600">Run Report</span> to view results.
+              </p>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareDashboardModal({
+  dashboard,
+  onClose,
+  onShare,
+}: {
+  dashboard: SavedDashboard;
+  onClose: () => void;
+  onShare: (viewerGroups: string[]) => void;
+}) {
+  const [selected, setSelected] = useState<string[]>(dashboard.sharedWith);
+
+  function toggle(group: string) {
+    setSelected((prev) => (prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]));
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+        <h2 className="text-base font-semibold text-gray-900">Share Dashboard</h2>
+        <p className="text-xs text-gray-500 mt-1">
+          Dashboards must be published before users with Standard or Read Only access can view them.
+        </p>
+
+        <div className="mt-4 p-3 rounded-md border border-amber-200 bg-amber-50 text-xs text-amber-900">
+          <p className="font-medium">{dashboard.isPublished ? "Published" : "Not published"}</p>
+          <p className="mt-1">
+            {dashboard.isPublished
+              ? "This dashboard is ready to share. Viewers can open it in Shared Dashboards."
+              : "Publish this dashboard first, then share it with project users or distribution groups."}
+          </p>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {VIEWER_OPTIONS.map((group) => (
+            <label key={group} className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={selected.includes(group)} onChange={() => toggle(group)} className="rounded" />
+              {group}
+            </label>
+          ))}
+        </div>
+
+        <div className="flex gap-2 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            disabled={!dashboard.isPublished}
+            onClick={() => {
+              onShare(selected);
+              onClose();
+            }}
+            className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40"
+          >
+            Share Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateDashboardModal({
+  visuals,
+  onClose,
+  onCreate,
+}: {
+  visuals: DashboardVisual[];
+  onClose: () => void;
+  onCreate: (payload: { name: string; visualIds: string[] }) => void;
+}) {
+  const [name, setName] = useState("Project Dashboard");
+  const [selectedVisuals, setSelectedVisuals] = useState<string[]>([]);
+
+  function toggleVisual(id: string) {
+    setSelectedVisuals((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6">
+        <h2 className="text-base font-semibold text-gray-900">Create Dashboard</h2>
+        <p className="text-xs text-gray-500 mt-1">Select visuals from your report library and save your dashboard.</p>
+
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-gray-700 mb-1">Dashboard Title</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+          />
+        </div>
+
+        <div className="mt-4 border border-gray-200 rounded-lg max-h-80 overflow-auto">
+          {visuals.length === 0 ? (
+            <div className="p-6 text-center text-sm text-gray-400">Save at least one report to build your visual library.</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {visuals.map((visual) => (
+                <label key={visual.id} className="flex items-start gap-3 p-3 hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedVisuals.includes(visual.id)}
+                    onChange={() => toggleVisual(visual.id)}
+                    className="mt-0.5 rounded"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{visual.title}</p>
+                    <p className="text-xs text-gray-500">Source report: {visual.reportName}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            disabled={selectedVisuals.length === 0 || !name.trim()}
+            onClick={() => onCreate({ name: name.trim(), visualIds: selectedVisuals })}
+            className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40"
+          >
+            Save Dashboard
+          </button>
         </div>
       </div>
     </div>
@@ -578,28 +780,37 @@ function RunReportModal({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ReportingClient({ projectId }: { projectId: string }) {
+  const [activeTab, setActiveTab] = useState<"reports" | "dashboards">("reports");
   const [search, setSearch] = useState("");
   const [myReports, setMyReports] = useState<SavedReport[]>([]);
   const [myReportsOpen, setMyReportsOpen] = useState(true);
   const [templatesOpen, setTemplatesOpen] = useState(true);
 
-  // Modal state
+  const [dashboards, setDashboards] = useState<SavedDashboard[]>([]);
+  const [showCreateDashboardModal, setShowCreateDashboardModal] = useState(false);
+  const [shareDashboardId, setShareDashboardId] = useState<string | null>(null);
+
   const [activeReport, setActiveReport] = useState<ReportDef | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createType, setCreateType] = useState("");
+
+  const visualLibrary = useMemo(() => myReports.map(makeVisualFromReport), [myReports]);
 
   function openTemplate(def: ReportDef) {
     setActiveReport(def);
   }
 
   function openFromSaved(saved: SavedReport) {
-    const def = REPORT_TYPES.find((r) => {
-      const expectedType = r.group === "Daily Log" ? "Daily Log Report" : "Single Tool Report";
-      return expectedType === saved.reportType && r.label === saved.name.split(" - ")[0];
-    }) ?? REPORT_TYPES.find((r) => {
-      const expectedType = r.group === "Daily Log" ? "Daily Log Report" : "Single Tool Report";
-      return expectedType === saved.reportType;
-    });
+    const def =
+      REPORT_TYPES.find((r) => {
+        const expectedType = r.group === "Daily Log" ? "Daily Log Report" : "Single Tool Report";
+        return expectedType === saved.reportType && r.label === saved.name.split(" - ")[0];
+      }) ??
+      REPORT_TYPES.find((r) => {
+        const expectedType = r.group === "Daily Log" ? "Daily Log Report" : "Single Tool Report";
+        return expectedType === saved.reportType;
+      });
+
     if (def) setActiveReport(def);
   }
 
@@ -611,15 +822,52 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
     setMyReports((prev) => prev.filter((r) => r.id !== id));
   }
 
-  // Filter templates by search
+  function cloneReport(report: SavedReport) {
+    const now = new Date().toISOString();
+    const clone: SavedReport = {
+      ...report,
+      id: crypto.randomUUID(),
+      name: `Copy of ${report.name}`,
+      createdBy: "Me",
+      createdAt: now,
+      updatedAt: now,
+      sourceReportId: report.id,
+      sharedWith: [],
+    };
+    setMyReports((prev) => [clone, ...prev]);
+  }
+
+  function createDashboard(payload: { name: string; visualIds: string[] }) {
+    const now = new Date().toISOString();
+    const dashboard: SavedDashboard = {
+      id: crypto.randomUUID(),
+      name: payload.name,
+      visualIds: payload.visualIds,
+      isPublished: false,
+      createdBy: "Me",
+      createdAt: now,
+      updatedAt: now,
+      sharedWith: [],
+    };
+    setDashboards((prev) => [dashboard, ...prev]);
+    setShowCreateDashboardModal(false);
+  }
+
+  function updateDashboard(id: string, patch: Partial<SavedDashboard>) {
+    setDashboards((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, ...patch, updatedAt: new Date().toISOString() } : d))
+    );
+  }
+
+  function deleteDashboard(id: string) {
+    setDashboards((prev) => prev.filter((d) => d.id !== id));
+  }
+
   const filteredTemplates = useMemo(() => {
     const q = search.toLowerCase();
     if (!q) return REPORT_TYPES;
     return REPORT_TYPES.filter(
-      (r) =>
-        r.label.toLowerCase().includes(q) ||
-        r.group.toLowerCase().includes(q) ||
-        r.description.toLowerCase().includes(q)
+      (r) => r.label.toLowerCase().includes(q) || r.group.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
     );
   }, [search]);
 
@@ -627,14 +875,10 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
     const q = search.toLowerCase();
     if (!q) return myReports;
     return myReports.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.reportType.toLowerCase().includes(q) ||
-        r.description.toLowerCase().includes(q)
+      (r) => r.name.toLowerCase().includes(q) || r.reportType.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
     );
   }, [search, myReports]);
 
-  // Group templates by their group label
   const groupedTemplates = useMemo(() => {
     return GROUPS.map((g) => ({
       group: g,
@@ -642,93 +886,238 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
     })).filter((g) => g.items.length > 0);
   }, [filteredTemplates]);
 
+  const filteredDashboards = useMemo(() => {
+    const q = search.toLowerCase();
+    if (!q) return dashboards;
+    return dashboards.filter((d) => d.name.toLowerCase().includes(q) || d.sharedWith.join(" ").toLowerCase().includes(q));
+  }, [dashboards, search]);
+
+  const sharingDashboard = shareDashboardId ? dashboards.find((d) => d.id === shareDashboardId) ?? null : null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <ProjectNav projectId={projectId} />
 
       <main className="max-w-7xl mx-auto px-6 py-6">
-        {/* Page header */}
         <div className="flex items-start justify-between mb-5">
           <div>
-            <p className="text-xs text-gray-400">
-              Choose to produce a Report from a single tool.
-            </p>
+            <p className="text-xs text-gray-400">Project 360 Reporting</p>
+            <p className="text-xs text-gray-500 mt-1">Create reports, clone reports, then build and share dashboards from your visual library.</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors shrink-0"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Create Report
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <TabButton active={activeTab === "reports"} label="Reports" onClick={() => setActiveTab("reports")} />
+            <TabButton active={activeTab === "dashboards"} label="Dashboards" onClick={() => setActiveTab("dashboards")} />
+            {activeTab === "reports" ? (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Create Report
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowCreateDashboardModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Create Dashboard
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Search */}
         <div className="relative mb-6 max-w-xs">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
           </svg>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search"
+            placeholder={activeTab === "reports" ? "Search reports/templates" : "Search dashboards"}
             className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-gray-900"
           />
         </div>
 
-        {/* ── My Reports Section ──────────────────────────────────────── */}
-        <div className="mb-6">
-          <SectionHeader
-            title="My Reports"
-            count={filteredMyReports.length}
-            subtitle="Reports you've run and saved. These are only viewable to you."
-            open={myReportsOpen}
-            onToggle={() => setMyReportsOpen((v) => !v)}
-          />
+        {activeTab === "reports" && (
+          <>
+            <div className="mb-6">
+              <SectionHeader
+                title="My Reports"
+                count={filteredMyReports.length}
+                subtitle="Created reports and cloned copies. Users with Standard or higher permissions can clone shared reports."
+                open={myReportsOpen}
+                onToggle={() => setMyReportsOpen((v) => !v)}
+              />
 
-          {myReportsOpen && (
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mt-3">
-              {filteredMyReports.length === 0 ? (
-                <div className="py-10 text-center">
-                  <p className="text-sm text-gray-400">
-                    {search ? "No saved reports match your search." : "No saved reports yet. Run a template and click \u201cSave Report\u201d."}
-                  </p>
+              {myReportsOpen && (
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mt-3">
+                  {filteredMyReports.length === 0 ? (
+                    <div className="py-10 text-center">
+                      <p className="text-sm text-gray-400">
+                        {search ? "No saved reports match your search." : "No saved reports yet. Run a template and click “Save Report”."}
+                      </p>
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-64">Report Name</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-44">Report Type</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Description</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-32">Created By</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-28">Date Created</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-28">Last Modified</th>
+                          <th className="w-10" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredMyReports.map((r) => (
+                          <tr key={r.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openFromSaved(r)}>
+                            <td className="px-4 py-3 font-medium text-gray-900">{r.name}</td>
+                            <td className="px-4 py-3">
+                              <SavedTypeBadge label={r.reportType} />
+                            </td>
+                            <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">{r.description}</td>
+                            <td className="px-4 py-3 text-gray-600">{r.createdBy}</td>
+                            <td className="px-4 py-3 text-gray-500">{fmtDate(r.createdAt)}</td>
+                            <td className="px-4 py-3 text-gray-500">{fmtDate(r.updatedAt)}</td>
+                            <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                              <RowMenu
+                                actions={[
+                                  { label: "Run Report", onClick: () => openFromSaved(r) },
+                                  { label: "Clone Report", onClick: () => cloneReport(r) },
+                                  { label: "Delete", onClick: () => deleteReport(r.id), danger: true },
+                                ]}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
+              )}
+            </div>
+
+            <div>
+              <SectionHeader
+                title="Popular Templates"
+                count={filteredTemplates.length}
+                subtitle="Choose a template to produce a report from a single project tool. Data is relative to this project."
+                open={templatesOpen}
+                onToggle={() => setTemplatesOpen((v) => !v)}
+              />
+
+              {templatesOpen && (
+                <div className="space-y-4 mt-3">
+                  {groupedTemplates.map(({ group, items }) => (
+                    <div key={group}>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 px-1">{group}</p>
+                      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-100">
+                              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-64">Report Name</th>
+                              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-44">Report Type</th>
+                              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Description</th>
+                              <th className="w-10" />
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {items.map((r) => (
+                              <tr key={r.value} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openTemplate(r)}>
+                                <td className="px-4 py-3 font-medium text-gray-900">{r.label}</td>
+                                <td className="px-4 py-3">
+                                  <TypeBadge group={r.group} />
+                                </td>
+                                <td className="px-4 py-3 text-xs text-gray-500 max-w-sm">{r.description}</td>
+                                <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                                  <RowMenu actions={[{ label: "Run Report", onClick: () => openTemplate(r) }]} />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                  {groupedTemplates.length === 0 && (
+                    <div className="bg-white border border-gray-200 rounded-lg py-10 text-center">
+                      <p className="text-sm text-gray-400">No templates match your search.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {activeTab === "dashboards" && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-900">
+              Dashboards are built from visuals created from your custom reports. Publish a dashboard before sharing it with Standard or Read Only users.
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              {filteredDashboards.length === 0 ? (
+                <div className="py-12 text-center text-sm text-gray-400">No dashboards yet. Click “Create Dashboard” to start.</div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100">
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-64">Report Name</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-44">Report Type</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Description</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-32">Created By</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-28">Date Created</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-28">Last Modified</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Dashboard</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Visuals</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Status</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Shared With</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Updated</th>
                       <th className="w-10" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredMyReports.map((r) => (
-                      <tr
-                        key={r.id}
-                        className="hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => openFromSaved(r)}
-                      >
-                        <td className="px-4 py-3 font-medium text-gray-900">{r.name}</td>
+                    {filteredDashboards.map((dashboard) => (
+                      <tr key={dashboard.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
-                          <SavedTypeBadge label={r.reportType} />
+                          <p className="font-medium text-gray-900">{dashboard.name}</p>
+                          <p className="text-xs text-gray-500">Created by {dashboard.createdBy}</p>
                         </td>
-                        <td className="px-4 py-3 text-gray-400 text-xs max-w-xs truncate">--</td>
-                        <td className="px-4 py-3 text-gray-600">{r.createdBy}</td>
-                        <td className="px-4 py-3 text-gray-500">{fmtDate(r.createdAt)}</td>
-                        <td className="px-4 py-3 text-gray-500">{fmtDate(r.updatedAt)}</td>
-                        <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
-                          <KebabMenu
-                            onRun={() => openFromSaved(r)}
-                            onDelete={() => deleteReport(r.id)}
+                        <td className="px-4 py-3 text-gray-600">{dashboard.visualIds.length}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 text-xs rounded border ${
+                              dashboard.isPublished
+                                ? "border-emerald-200 text-emerald-700 bg-emerald-50"
+                                : "border-gray-200 text-gray-600 bg-gray-50"
+                            }`}
+                          >
+                            {dashboard.isPublished ? "Published" : "Draft"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600">
+                          {dashboard.sharedWith.length === 0 ? "Not shared" : dashboard.sharedWith.join(", ")}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">{fmtDate(dashboard.updatedAt)}</td>
+                        <td className="px-2 py-3">
+                          <RowMenu
+                            actions={[
+                              {
+                                label: dashboard.isPublished ? "Unpublish" : "Publish",
+                                onClick: () => updateDashboard(dashboard.id, { isPublished: !dashboard.isPublished }),
+                              },
+                              { label: "Share", onClick: () => setShareDashboardId(dashboard.id) },
+                              { label: "Delete", onClick: () => deleteDashboard(dashboard.id), danger: true },
+                            ]}
                           />
                         </td>
                       </tr>
@@ -737,65 +1126,38 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                 </table>
               )}
             </div>
-          )}
-        </div>
 
-        {/* ── Popular Templates Section ───────────────────────────────── */}
-        <div>
-          <SectionHeader
-            title="Popular Templates"
-            count={filteredTemplates.length}
-            subtitle="Choose a template to produce a report from a single project tool. Data is relative to this project."
-            open={templatesOpen}
-            onToggle={() => setTemplatesOpen((v) => !v)}
-          />
-
-          {templatesOpen && (
-            <div className="space-y-4 mt-3">
-              {groupedTemplates.map(({ group, items }) => (
-                <div key={group}>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 px-1">{group}</p>
-                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-100">
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-64">Report Name</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-44">Report Type</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Description</th>
-                          <th className="w-10" />
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {items.map((r) => (
-                          <tr
-                            key={r.value}
-                            className="hover:bg-gray-50 transition-colors cursor-pointer"
-                            onClick={() => openTemplate(r)}
-                          >
-                            <td className="px-4 py-3 font-medium text-gray-900">{r.label}</td>
-                            <td className="px-4 py-3"><TypeBadge group={r.group} /></td>
-                            <td className="px-4 py-3 text-xs text-gray-500 max-w-sm">{r.description}</td>
-                            <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
-                              <KebabMenu onRun={() => openTemplate(r)} />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-              {groupedTemplates.length === 0 && (
-                <div className="bg-white border border-gray-200 rounded-lg py-10 text-center">
-                  <p className="text-sm text-gray-400">No templates match your search.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            {filteredDashboards.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredDashboards.map((dashboard) => {
+                  const visuals = visualLibrary.filter((v) => dashboard.visualIds.includes(v.id));
+                  return (
+                    <div key={`${dashboard.id}-preview`} className="bg-white border border-gray-200 rounded-lg p-4">
+                      <p className="text-sm font-semibold text-gray-900">{dashboard.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Dashboard preview</p>
+                      <div className="mt-3 space-y-2">
+                        {visuals.length === 0 ? (
+                          <p className="text-xs text-gray-400">No visuals selected.</p>
+                        ) : (
+                          visuals.map((visual) => (
+                            <div key={visual.id} className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
+                              <p className="text-xs font-medium text-gray-700">{visual.title}</p>
+                              <p className="text-[11px] text-gray-500 mt-0.5">
+                                {visual.metricLabel}: {visual.metricValue}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
-      {/* Run Report Modal */}
       {activeReport && (
         <RunReportModal
           reportDef={activeReport}
@@ -805,7 +1167,6 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
         />
       )}
 
-      {/* Create Report Modal — pick a template */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
@@ -822,7 +1183,9 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                 {GROUPS.map((group) => (
                   <optgroup key={group} label={group}>
                     {REPORT_TYPES.filter((r) => r.group === group).map((r) => (
-                      <option key={r.value} value={r.value}>{r.label}</option>
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
                     ))}
                   </optgroup>
                 ))}
@@ -830,7 +1193,10 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => { setShowCreateModal(false); setCreateType(""); }}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setCreateType("");
+                }}
                 className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
               >
                 Cancel
@@ -839,7 +1205,11 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
                 disabled={!createType}
                 onClick={() => {
                   const def = REPORT_TYPES.find((r) => r.value === createType);
-                  if (def) { setShowCreateModal(false); setCreateType(""); setActiveReport(def); }
+                  if (def) {
+                    setShowCreateModal(false);
+                    setCreateType("");
+                    setActiveReport(def);
+                  }
                 }}
                 className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40"
               >
@@ -848,6 +1218,22 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
             </div>
           </div>
         </div>
+      )}
+
+      {showCreateDashboardModal && (
+        <CreateDashboardModal
+          visuals={visualLibrary}
+          onClose={() => setShowCreateDashboardModal(false)}
+          onCreate={createDashboard}
+        />
+      )}
+
+      {sharingDashboard && (
+        <ShareDashboardModal
+          dashboard={sharingDashboard}
+          onClose={() => setShareDashboardId(null)}
+          onShare={(viewerGroups) => updateDashboard(sharingDashboard.id, { sharedWith: viewerGroups })}
+        />
       )}
     </div>
   );
