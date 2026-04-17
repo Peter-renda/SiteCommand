@@ -22,6 +22,7 @@ type ChangeOrder = {
   is_locked: boolean;
   executed: boolean;
   prime_contract_change_order: string | null;
+  approved_at?: string | null;
   type?: "prime" | "commitment";
 };
 
@@ -64,6 +65,8 @@ export default function ChangeOrdersClient({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [exportPccoOpen, setExportPccoOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<"number" | "amount" | "date_initiated" | "approved_at">("number");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const exportRef = useRef<HTMLDivElement>(null);
 
   // Filter state
@@ -131,7 +134,27 @@ export default function ChangeOrdersClient({
     return true;
   });
 
-  const total = filtered.reduce((s, o) => s + (o.amount ?? 0), 0);
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortKey === "amount") {
+      return sortDir === "asc" ? (a.amount ?? 0) - (b.amount ?? 0) : (b.amount ?? 0) - (a.amount ?? 0);
+    }
+    if (sortKey === "date_initiated" || sortKey === "approved_at") {
+      const aTime = a[sortKey] ? new Date(String(a[sortKey])).getTime() : 0;
+      const bTime = b[sortKey] ? new Date(String(b[sortKey])).getTime() : 0;
+      return sortDir === "asc" ? aTime - bTime : bTime - aTime;
+    }
+    const aNum = parseInt(a.number, 10) || 0;
+    const bNum = parseInt(b.number, 10) || 0;
+    return sortDir === "asc" ? aNum - bNum : bNum - aNum;
+  });
+
+  const approvedOrderMap = new Map<string, number>();
+  sorted
+    .filter((o) => String(o.status || "").trim().toLowerCase() === "approved" && !!o.approved_at)
+    .sort((a, b) => new Date(String(a.approved_at)).getTime() - new Date(String(b.approved_at)).getTime())
+    .forEach((o, idx) => approvedOrderMap.set(o.id, idx + 1));
+
+  const total = sorted.reduce((s, o) => s + (o.amount ?? 0), 0);
   const pendingReviewStatuses = new Set([
     "Pending - In Review",
     "Pending - Revised",
@@ -188,6 +211,98 @@ export default function ChangeOrdersClient({
 
   const activeFilterCount = filterStatus.length + filterExecuted.length + filterSigner.length;
 
+  function toggleSort(key: "number" | "amount" | "date_initiated" | "approved_at") {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDir(key === "number" ? "desc" : "asc");
+  }
+
+  function exportListAsCsv() {
+    const headers = [
+      "Number",
+      "Revision",
+      "Title",
+      "Status",
+      "Executed",
+      "Amount",
+      "Date Initiated",
+      "Due Date",
+      "Review Date",
+      "Approved On",
+      "Approval Order",
+      "Designated Reviewer",
+      "PCO",
+    ];
+    const rows = sorted.map((o) => [
+      o.number,
+      String(o.revision ?? 0),
+      o.title ?? "",
+      o.status ?? "",
+      o.executed ? "Yes" : "No",
+      String(o.amount ?? 0),
+      o.date_initiated ?? "",
+      o.due_date ?? "",
+      o.review_date ?? "",
+      o.approved_at ?? "",
+      approvedOrderMap.get(o.id) ? String(approvedOrderMap.get(o.id)) : "",
+      getContactNameByEmail(o.designated_reviewer),
+      o.prime_contract_change_order && o.prime_contract_change_order !== "none" ? o.prime_contract_change_order : "",
+    ]);
+    const csvBody = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csvBody], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${activeTab}-change-orders.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setExportPccoOpen(false);
+  }
+
+  function exportListAsPdf() {
+    const title = activeTab === "prime" ? "Prime Contract Change Orders" : "Commitment Change Orders";
+    const rowsHtml = sorted
+      .map(
+        (o) => `<tr>
+        <td>${o.number}</td>
+        <td>${o.revision}</td>
+        <td>${o.title || ""}</td>
+        <td>${o.status}</td>
+        <td>${o.executed ? "Yes" : "No"}</td>
+        <td style="text-align:right">${fmt(o.amount ?? 0)}</td>
+        <td>${fmtDate(o.approved_at ?? null)}</td>
+        <td>${approvedOrderMap.get(o.id) ?? ""}</td>
+      </tr>`
+      )
+      .join("");
+    const win = window.open("", "_blank", "width=1200,height=800");
+    if (!win) return;
+    win.document.write(`
+      <html><head><title>${title}</title><style>
+        body{font-family:Arial,sans-serif;padding:24px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #ddd;padding:6px;vertical-align:top}
+        th{background:#f7f7f7;text-align:left}
+      </style></head><body>
+      <h2>${title}</h2>
+      <p>Total records: ${sorted.length} • Total amount: ${fmt(total)}</p>
+      <table>
+        <thead><tr><th>#</th><th>Rev</th><th>Title</th><th>Status</th><th>Executed</th><th>Amount</th><th>Approved On</th><th>Approval Order</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      </body></html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+    setExportPccoOpen(false);
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <ProjectNav projectId={projectId} />
@@ -195,7 +310,10 @@ export default function ChangeOrdersClient({
       {/* Page header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white shrink-0">
         <h1 className="text-sm font-semibold text-gray-900">Change Orders</h1>
-        <button className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors">
+        <button
+          onClick={exportListAsCsv}
+          className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
+        >
           Export CO Log
         </button>
       </div>
@@ -229,8 +347,8 @@ export default function ChangeOrdersClient({
           </button>
           {exportPccoOpen && (
             <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 w-40 py-1">
-              <button className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50" onClick={() => setExportPccoOpen(false)}>Export as PDF</button>
-              <button className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50" onClick={() => setExportPccoOpen(false)}>Export as CSV</button>
+              <button className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50" onClick={exportListAsPdf}>Export as PDF</button>
+              <button className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50" onClick={exportListAsCsv}>Export as CSV</button>
             </div>
           )}
         </div>
@@ -435,10 +553,12 @@ export default function ChangeOrdersClient({
                 <tr className="border-b border-t border-gray-200 bg-white">
                   <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
                     <div className="flex items-center gap-1">
-                      Number
-                      <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                      </svg>
+                      <button onClick={() => toggleSort("number")} className="inline-flex items-center gap-1 hover:text-gray-900">
+                        Number
+                        <svg className={`w-3 h-3 text-gray-400 transition-transform ${sortKey === "number" && sortDir === "asc" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
                     </div>
                   </th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-600">Revision</th>
@@ -446,8 +566,18 @@ export default function ChangeOrdersClient({
                   <th className="px-3 py-2.5 text-left font-medium text-gray-600">Status</th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-600">Executed</th>
                   <th className="px-3 py-2.5 w-8" />
-                  <th className="px-3 py-2.5 text-right font-medium text-gray-600">Amount</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-gray-600">
+                    <button onClick={() => toggleSort("amount")} className="inline-flex items-center gap-1 hover:text-gray-900">
+                      Amount
+                    </button>
+                  </th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">Date Initiated</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">
+                    <button onClick={() => toggleSort("approved_at")} className="inline-flex items-center gap-1 hover:text-gray-900">
+                      Approved On
+                    </button>
+                  </th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">Approval Order</th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">Due Date</th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">Review Date</th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-600 whitespace-nowrap">Designated Reviewer</th>
@@ -458,12 +588,12 @@ export default function ChangeOrdersClient({
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="text-center py-20 text-gray-400">
+                    <td colSpan={15} className="text-center py-20 text-gray-400">
                       No change orders found.
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((order) => (
+                  sorted.map((order) => (
                     <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                       <td className="px-3 py-2">
                         <button
@@ -504,6 +634,8 @@ export default function ChangeOrdersClient({
                       </td>
                       <td className="px-3 py-2 text-right text-gray-700 whitespace-nowrap">{fmt(order.amount)}</td>
                       <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.date_initiated)}</td>
+                      <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.approved_at ?? null) || <span className="text-gray-400">—</span>}</td>
+                      <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{approvedOrderMap.get(order.id) ?? <span className="text-gray-400">—</span>}</td>
                       <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.due_date)}</td>
                       <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(order.review_date)}</td>
                       <td className="px-3 py-2 text-gray-700">
@@ -518,8 +650,7 @@ export default function ChangeOrdersClient({
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
-                          {activeTab === "commitment" &&
-                            pendingReviewStatuses.has(order.status) &&
+                          {pendingReviewStatuses.has(order.status) &&
                             !!order.designated_reviewer &&
                             order.designated_reviewer.trim().toLowerCase() === username.trim().toLowerCase() && (
                               <>
@@ -562,7 +693,7 @@ export default function ChangeOrdersClient({
                     <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900 whitespace-nowrap">
                       {fmt(total)}
                     </td>
-                    <td colSpan={6} />
+                    <td colSpan={8} />
                   </tr>
                 </tfoot>
               )}
