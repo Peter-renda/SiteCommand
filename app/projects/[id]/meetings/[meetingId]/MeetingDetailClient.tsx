@@ -282,6 +282,7 @@ export default function MeetingDetailClient({
   const [directory, setDirectory] = useState<DirContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("details");
+  const [creatingChangeEvent, setCreatingChangeEvent] = useState(false);
 
   // Section collapse state
   const [infoExpanded, setInfoExpanded] = useState(true);
@@ -421,6 +422,25 @@ export default function MeetingDetailClient({
     autosave({ notes: v });
   }
 
+  async function handleCreateChangeEvent() {
+    if (creatingChangeEvent) return;
+    setCreatingChangeEvent(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/meetings/${meetingId}/create-change-event`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.id) {
+        throw new Error(typeof data?.error === "string" ? data.error : "Unable to create a change event from this meeting.");
+      }
+      window.location.href = `/projects/${projectId}/change-events/${data.id}`;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to create a change event from this meeting.";
+      window.alert(message);
+      setCreatingChangeEvent(false);
+    }
+  }
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
@@ -497,6 +517,13 @@ export default function MeetingDetailClient({
               style={{ backgroundColor: "#d4500a" }}
             >
               Convert to Minutes
+            </button>
+            <button
+              onClick={handleCreateChangeEvent}
+              disabled={creatingChangeEvent}
+              className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors bg-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {creatingChangeEvent ? "Creating..." : "Create Change Event"}
             </button>
             <button className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors bg-white">
               Export
