@@ -412,3 +412,100 @@ Effect: all new commitments created after saving will have the SSOV tab enabled 
 - New commitment: `NewCommitmentClient.tsx` fetches `commitment-settings` on mount and pre-checks `ssovEnabled` if `enable_ssov_by_default` is true; sends `ssov_enabled` in the POST body.
 - Edit commitment: `EditCommitmentClient.tsx` → **Subcontractor SOV** section toggle.
 - The SSOV toggle is hidden/disabled when the commitment uses Unit/Quantity Based accounting.
+
+## Export a Commitment (Individual)
+
+### Required Permissions
+- **Read Only** or higher on the Commitments tool.
+
+### Workflow
+1. Open the commitment detail page.
+2. Click **Export** button in the page header.
+3. Choose format:
+   - **Export as PDF** — prints the commitment summary + SOV via browser print dialog.
+   - **Export SOV as CSV** — downloads a CSV of the Schedule of Values line items.
+
+### Implementation Notes (SiteCommand)
+- Export dropdown button in `CommitmentDetailClient.tsx` header between Delete and Edit.
+- `exportCommitmentPDF()` builds an HTML document with commitment metadata and SOV table, renders in a hidden iframe, and triggers `window.print()`.
+- `exportSovCSV()` generates a CSV of non-group-header SOV lines; columns adapt to accounting method (Amount Based vs Unit/Quantity Based).
+
+## Export a Commitments List
+
+### Required Permissions
+- **Read Only** or higher on the Commitments tool.
+
+### Workflow
+1. Open the Commitments tool → **Contracts** tab.
+2. Apply any desired filters (the export reflects visible rows).
+3. Click **Export** dropdown in the top-right actions.
+4. Choose **Export as CSV** or **Export as PDF**.
+
+### Implementation Notes (SiteCommand)
+- Export dropdown in `CommitmentsClient.tsx` top-right actions bar.
+- `exportCSV()` exports all currently visible items (post-filter/sort).
+- `exportPDF()` builds an HTML table and prints via hidden iframe.
+
+## Import a Subcontractor Schedule of Values from a CSV
+
+### Required Permissions
+- Admin on Commitments, OR Invoice Contact with Read Only or higher.
+
+### Prerequisites
+- Contract must use Amount Based accounting.
+- SSOV tab must be enabled on the commitment.
+- SSOV status must be Draft or Revise & Resubmit.
+
+### Workflow
+1. Open the commitment → **Edit** → **Subcontractor SOV** tab (or navigate to the SSOV edit page).
+2. Click **Import CSV** at the bottom of the table.
+3. In the modal:
+   - Optionally download the **template CSV**.
+   - Select delimiter (Comma or Semicolon).
+   - Choose a CSV file.
+   - Click **Import**.
+4. The CSV is parsed and lines are loaded into the table for review before saving.
+
+### CSV Required Columns
+- **SOV Position Number** — maps the detail line to the parent SOV line by position.
+- **Subcontractor SOV Amount** — the dollar amount for the detail line.
+
+### Optional Columns
+- **Budget Code**
+- **Description**
+
+### Implementation Notes (SiteCommand)
+- Import CSV button in `SsovEditClient.tsx` at the bottom of the SSOV table (visible when not read-only).
+- `downloadTemplate()` creates and downloads a sample CSV template.
+- `parseImportCSV()` parses the file respecting the chosen delimiter, validates required columns, and returns `SsovLine[]` or an error string.
+- Success banner shown after import; imported lines are in edit state (not yet saved) so the user can review before clicking Save.
+
+## Manage Rows and Columns in the Commitments Tool
+
+### Overview
+Users can customize the Commitments table: show/hide columns, change row height, sort by any column, and filter by type/status/executed.
+
+### Column Management
+- Click **Table Settings** (top-right of the table toolbar) to open the column panel.
+- Toggle individual columns on/off. Mandatory columns (#, Contract Company) cannot be hidden.
+- **Show All** reveals all columns; **Reset** hides all optional columns.
+
+### Row Height
+- In **Table Settings**, choose Small, Medium (default), or Large row height.
+
+### Sorting
+- Click any column header to sort ascending; click again for descending; click a third time to clear.
+- Sort indicator (↑ / ↓) appears on the active sort column.
+
+### Filtering
+- Click **Filters** button to open the filter panel.
+- Filter by: Type (Subcontract / Purchase Order), Status (Draft / Approved / Void / Terminated), Executed (Yes / No).
+- Active filter count badge shown on the Filters button.
+- **Clear all** removes all active filters.
+
+### Implementation Notes (SiteCommand)
+- All state in `CommitmentsClient.tsx`: `hiddenCols` (Set<string>), `sortConfig`, `rowHeight`, `tableSettingsOpen`, `showFilterPanel`, `filterType`, `filterStatus`, `filterExecuted`.
+- `ALL_COLS` defines all columns with `mandatory` flag; `COLS` is filtered by `hiddenCols`.
+- `applySort()` sorts items client-side by any column key, including computed `revised_contract_amount`.
+- `visibleItems` applies both search and filter predicates, then `applySort`.
+- Row height classes applied to `<td>` elements: `py-1` / `py-3` / `py-5`.
