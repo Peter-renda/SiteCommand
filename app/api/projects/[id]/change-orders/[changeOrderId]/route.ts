@@ -38,7 +38,7 @@ export async function PATCH(
 
   const { data: initialExisting, error: existingError } = await supabase
     .from("change_orders")
-    .select("id, type, erp_status")
+    .select("id, type, erp_status, status")
     .eq("id", changeOrderId)
     .eq("project_id", projectId)
     .is("deleted_at", null)
@@ -51,7 +51,7 @@ export async function PATCH(
     if (/erp_status/i.test(existingError.message || "")) {
       const { data: fallback, error: fallbackError } = await supabase
         .from("change_orders")
-        .select("id, type")
+        .select("id, type, status")
         .eq("id", changeOrderId)
         .eq("project_id", projectId)
         .is("deleted_at", null)
@@ -80,6 +80,20 @@ export async function PATCH(
       { error: "This commitment change order is synced to ERP and cannot be edited." },
       { status: 400 }
     );
+  }
+
+  const normalizedExistingStatus = String(existing.status || "").trim().toLowerCase();
+  const hasStatusUpdate = typeof body.status === "string";
+  const normalizedRequestedStatus = hasStatusUpdate
+    ? String(body.status || "").trim().toLowerCase()
+    : "";
+
+  if (hasStatusUpdate) {
+    if (normalizedRequestedStatus === "approved" && normalizedExistingStatus !== "approved") {
+      body.approved_at = new Date().toISOString();
+    } else if (normalizedRequestedStatus !== "approved" && normalizedExistingStatus === "approved") {
+      body.approved_at = null;
+    }
   }
 
   const { data, error } = await supabase

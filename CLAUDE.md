@@ -259,6 +259,61 @@ Notes:
   2. Select dataset/report definition.
   3. Configure axes/measures (or columns for tabular reports).
 
+## Change Orders + Financials Workflow Notes (Added April 17, 2026)
+
+### Enable the Change Orders Tool
+- Keep Change Orders as a configurable, project-level active tool.
+- Admin workflow expectation:
+  1. Open project **Admin**.
+  2. Open **Active Tools**.
+  3. Enable **Change Orders**.
+  4. Save/update tool settings.
+- Permission baseline: project Admin-level users manage tool activation.
+
+### Enable Labor Productivity Cost Features
+- In project Admin advanced settings, expose a toggle equivalent to **Labor Productivity for Budget, Change Events, and Change Orders**.
+- This setting should be treated as a project-financials capability flag that influences Budget, Change Events, and Change Orders experiences together.
+
+### View Change Orders
+- Change Orders should remain a centralized viewing tool for both:
+  - Prime Contract Change Orders (PCCOs)
+  - Commitment Change Orders (CCOs)
+- Keep separate tabs for Prime Contracts and Commitments.
+- Change order creation should continue to happen from the parent financial contract workflows, not from the viewing list itself.
+
+### Export a Single Change Order
+- Support exporting an individual change order directly to **PDF** from its detail page.
+- Support quick PDF export from list context where possible.
+- Export should preserve key contract/accounting context (including budget code/SOV line data when present).
+
+### Export a List of Change Orders (CSV/PDF)
+- Support both **CSV** and **PDF** list exports from the Change Orders list UI.
+- Exports should apply:
+  - active tab scope (Prime vs Commitment),
+  - current filters,
+  - current sort order.
+
+### Approve or Reject Change Orders (Reviewer Flow)
+- A change order may have exactly one **Designated Reviewer**.
+- Reviewer action eligibility:
+  - User must be the designated reviewer.
+  - Status must be a pending review state (for example, **Pending - In Review** or **Pending - Revised**).
+- On Approve/Reject response:
+  - update status,
+  - set reviewer identity,
+  - stamp review date,
+  - persist reviewer response history context.
+
+### Determine Approval Order
+- Track an explicit **approved timestamp** on each change order.
+- Surface approval chronology in the log so teams can identify the most recently approved item first.
+- If an approved item needs to be edited/deleted, enforce or guide reverse-order unapproval behavior (latest approved first).
+
+### Create Budget Codes in Financial Tools
+- Continue supporting budget-code creation inline from financial line item/SOV entry flows.
+- Support segmented budget-code composition from project WBS segments.
+- Allow default concatenated description and optional custom description when creating a new code.
+
 ## Budget Tutorials Alignment Notes (Added April 17, 2026 - Round 2)
 
 ### Add the Columns for Job Cost Transaction Syncing to a Budget View for ERP Integrations

@@ -383,6 +383,35 @@ export default function ChangeOrderDetailClient({
   const inputsDisabled = isCommitment && !isEditing;
   const dateCreatedDisplay = co.date_initiated ? fmtDateTime(co.date_initiated) : "—";
 
+  function exportCurrentChangeOrderPdf() {
+    const heading = `${isCommitment ? "Commitment Change Order" : "Potential Change Order"} #${co.number}`;
+    const win = window.open("", "_blank", "width=1000,height=800");
+    if (!win) return;
+    win.document.write(`
+      <html><head><title>${heading}</title><style>
+      body{font-family:Arial,sans-serif;padding:24px;color:#111}
+      h1{font-size:20px;margin-bottom:12px}
+      .grid{display:grid;grid-template-columns:220px 1fr;gap:6px 12px;font-size:12px}
+      .label{color:#666}
+      </style></head><body>
+      <h1>${heading}</h1>
+      <div class="grid">
+        <div class="label">Status</div><div>${status}</div>
+        <div class="label">Title</div><div>${title || "—"}</div>
+        <div class="label">Amount</div><div>$${Number(amount || 0).toFixed(2)}</div>
+        <div class="label">Contract</div><div>${co.contract_name || "—"}</div>
+        <div class="label">Designated Reviewer</div><div>${designatedReviewer || "—"}</div>
+        <div class="label">Review Date</div><div>${reviewDate || "—"}</div>
+        <div class="label">Due Date</div><div>${dueDate || "—"}</div>
+        <div class="label">Description</div><div>${(description || "—").replaceAll("\n", "<br/>")}</div>
+      </div>
+      </body></html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
   function resetFormFromCurrentCo() {
     setRevision(String(co.revision ?? 0));
     setTitle(co.title ?? "");
@@ -464,6 +493,12 @@ export default function ChangeOrderDetailClient({
             {isCommitment ? "Commitment Change Order" : "Potential Change Order"} #{co.number}
           </h1>
           <div className="flex items-center gap-2">
+            <button
+              onClick={exportCurrentChangeOrderPdf}
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+            >
+              Export PDF
+            </button>
             {isCommitment && (
               <>
                 {!isEditing ? (
@@ -489,7 +524,7 @@ export default function ChangeOrderDetailClient({
               </>
             )}
             {/* Reviewer actions shown when current user is the designated reviewer and status is pending */}
-            {isCommitment && isReviewer && pendingReview && (
+            {isReviewer && pendingReview && (
               <>
               <span className="text-xs text-amber-600 font-medium">
                 Awaiting your review as {contactName(designatedReviewer, directoryContacts)}
