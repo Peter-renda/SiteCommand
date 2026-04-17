@@ -375,6 +375,7 @@ export function initDb() {
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
       cost_code TEXT NOT NULL DEFAULT '',
+      cost_type TEXT NOT NULL DEFAULT '',
       description TEXT NOT NULL DEFAULT '',
       original_budget_amount REAL NOT NULL DEFAULT 0,
       budget_modifications REAL NOT NULL DEFAULT 0,
@@ -382,13 +383,43 @@ export function initDb() {
       pending_budget_changes REAL NOT NULL DEFAULT 0,
       committed_costs REAL NOT NULL DEFAULT 0,
       direct_costs REAL NOT NULL DEFAULT 0,
+      erp_job_to_date_costs REAL NOT NULL DEFAULT 0,
+      cost_rom REAL NOT NULL DEFAULT 0,
+      cost_rfq REAL NOT NULL DEFAULT 0,
+      non_commitment_cost REAL NOT NULL DEFAULT 0,
       pending_cost_changes REAL NOT NULL DEFAULT 0,
       forecast_to_complete REAL NOT NULL DEFAULT 0,
+      budgeted_quantity REAL NOT NULL DEFAULT 0,
+      budgeted_uom TEXT NOT NULL DEFAULT '',
+      installed_quantity REAL NOT NULL DEFAULT 0,
+      actual_labor_hours REAL NOT NULL DEFAULT 0,
+      actual_labor_cost REAL NOT NULL DEFAULT 0,
+      is_gst INTEGER NOT NULL DEFAULT 0,
+      is_partial INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (project_id) REFERENCES projects (id)
     );
   `);
+  const budgetLineItemsColumns = db.prepare("PRAGMA table_info(budget_line_items)").all() as Array<{ name: string }>;
+  const existingBudgetColumns = new Set(budgetLineItemsColumns.map((column) => column.name));
+  const ensureBudgetColumn = (name: string, definition: string) => {
+    if (!existingBudgetColumns.has(name)) {
+      db.exec(`ALTER TABLE budget_line_items ADD COLUMN ${name} ${definition}`);
+    }
+  };
+  ensureBudgetColumn("cost_type", "TEXT NOT NULL DEFAULT ''");
+  ensureBudgetColumn("erp_job_to_date_costs", "REAL NOT NULL DEFAULT 0");
+  ensureBudgetColumn("cost_rom", "REAL NOT NULL DEFAULT 0");
+  ensureBudgetColumn("cost_rfq", "REAL NOT NULL DEFAULT 0");
+  ensureBudgetColumn("non_commitment_cost", "REAL NOT NULL DEFAULT 0");
+  ensureBudgetColumn("budgeted_quantity", "REAL NOT NULL DEFAULT 0");
+  ensureBudgetColumn("budgeted_uom", "TEXT NOT NULL DEFAULT ''");
+  ensureBudgetColumn("installed_quantity", "REAL NOT NULL DEFAULT 0");
+  ensureBudgetColumn("actual_labor_hours", "REAL NOT NULL DEFAULT 0");
+  ensureBudgetColumn("actual_labor_cost", "REAL NOT NULL DEFAULT 0");
+  ensureBudgetColumn("is_gst", "INTEGER NOT NULL DEFAULT 0");
+  ensureBudgetColumn("is_partial", "INTEGER NOT NULL DEFAULT 0");
   // Create default admin user if not exists
   const adminEmail = "ptrenda1@gmail.com";
   const existingAdmin = db.prepare("SELECT * FROM users WHERE email = ?").get(adminEmail);

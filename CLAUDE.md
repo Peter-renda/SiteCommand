@@ -258,6 +258,39 @@ Notes:
   1. Select visual type.
   2. Select dataset/report definition.
   3. Configure axes/measures (or columns for tabular reports).
+
+## Budget View Configuration Alignment (Added April 17, 2026)
+
+### Add a Real-Time Labor Productivity Budget View
+- Budget workflows should support a labor-productivity-focused layout that combines:
+  - Budgeted production quantities
+  - Installed quantities
+  - Actual labor hours and labor cost
+- The Budget UI should expose labor productivity metrics (for example units/hour and cost/hour) using live project entries.
+- Messaging should reflect that this view is intended to reduce manual waiting/entry for labor cost visibility.
+
+### Add Budgeted Production Quantities to a Project's Budget
+- Include a dedicated Production Quantities experience at the project budget level.
+- Line items should support:
+  - Budgeted quantity
+  - UOM
+  - Installed quantity
+- Require Budget admin-level access in role/permission mapping for editing production quantity entries.
+
+### Add Cost ROM, RFQ, and Non-Commitment Cost Source Columns
+- Budget views should allow Change Event source columns for:
+  - Cost ROM
+  - Cost RFQ
+  - Non-Commitment Cost (NCC)
+- Keep these values visible as distinct source data from standard budget amounts.
+- Preserve workflow clarity that these columns are intended for Change Event financial impact tracking before/without commitment linkage.
+
+### Add the ERP Direct Costs Column to a Budget View
+- Budget views should support ERP-specific job cost source data:
+  - ERP Job to Date Costs (source)
+  - ERP Direct Costs (calculated from direct cost + ERP job cost source)
+- Surface this as budget-view configuration behavior for ERP-integrated projects.
+- Keep UI language clear that ERP-based columns are integration-driven and may be unavailable when ERP configuration is not enabled.
   4. Configure sort direction and optional advanced options.
 - Advanced options should include as applicable:
   - Display units
