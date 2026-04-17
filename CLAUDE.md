@@ -63,11 +63,12 @@ Role-to-tool mapping for SiteCommand:
 - Commitment must be in **Draft**, unless **Enable Always Editable Schedule of Values** is turned on
 - Steps: open the commitment → **Edit** → **Schedule of Values** → **Add Line**
 - Required fields depend on accounting method:
-  - **Amount Based**: line number, budget code, description, amount (billed and remaining balance auto-calculate)
-  - **Unit/Quantity Based**: quantity, unit of measure, unit cost (total amount auto-calculates)
-- Tax codes may be applied per line
+  - **Amount Based**: budget code, description, amount
+  - **Unit/Quantity Based**: budget code, description, quantity, UOM, unit cost (amount auto-calculates from qty × unit cost)
+- For both methods: line number (**#**) is auto-generated sequentially, **Billed to Date** auto-calculates, and **Amount Remaining** is entered manually (unbilled amount)
+- Optional per line: Change Event Line Item (if change events are enabled), Tax Code (if tax codes feature is enabled)
 - **Save** or **Save & Email** (notifies the invoice contact)
-- Line numbers are generated sequentially
+- ERP integrations may add their own prerequisites and limitations
 
 ### Subcontractor SOV (SSOV) – Add to a Commitment
 Lets a downstream contractor provide a detailed cost breakdown for each commitment line item, so the general SOV and the subcontractor's detail line up before invoicing.
@@ -80,14 +81,15 @@ Prerequisites:
 Who can add SSOV line items:
 - **Admin** on Commitments – on any contract
 - **Invoice Contact** with Read Only or higher – on their assigned contract
-- **Standard** or **Read Only** – only if the contract is not marked private and granular permissions are enabled
+- **Read Only** or **Standard** on a **non-private** contract – if the **Create Purchase Order Contract** or **Create Work Order Contract** granular permission is enabled
+- **Standard** on a **private** contract – only if the user is both the Invoice Contact and a Private member, and the contract has **Allow Users to See SOV Items** checked
 
 Workflow:
 1. Admin creates/updates the general SOV on the commitment
-2. Admin clicks **Send SSOV Notification** to alert the invoice contact
-3. Invoice contact clicks **Edit** and adds detail lines until **Remaining to Allocate** is $0 (full committed amount allocated)
-4. Invoice contact clicks **Submit**; status moves to **Under Review**
+2. Admin clicks **Send SSOV Notification** to alert the invoice contact (an invoice contact must be assigned first; otherwise add one before sending)
+3. Invoice contact clicks **Edit** and adds detail lines until **Remaining to Allocate** is $0 — **Submit** stays disabled until the full committed amount is allocated
+4. Invoice contact clicks **Submit**; status moves to **Under Review** (editing is blocked again unless returned to **Revise & Resubmit**)
 
 Notes:
-- Detail line items carry over to the invoice
+- Detail line items carry over to the invoice; only the detail lines carry over, not the general SOV lines
 - SSOV detail does **not** sync with integrated ERP systems — only the general SOV does
