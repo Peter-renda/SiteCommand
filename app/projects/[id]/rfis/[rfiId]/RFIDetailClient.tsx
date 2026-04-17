@@ -33,6 +33,8 @@ type RFI = {
   created_by: string | null;
   created_at: string;
   ball_in_court_id: string | null;
+  official_response_id: string | null;
+  related_items: { id: string; type: string; label: string; href?: string | null }[];
 };
 
 type RFIResponse = {
@@ -124,6 +126,11 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [processingAction, setProcessingAction] = useState<"email" | "delete" | null>(null);
+  const [savingOfficialResponseId, setSavingOfficialResponseId] = useState<string | null>(null);
+  const [deletingResponseId, setDeletingResponseId] = useState<string | null>(null);
+  const [relatedItemType, setRelatedItemType] = useState("change_event");
+  const [relatedItemLabel, setRelatedItemLabel] = useState("");
+  const [relatedItemHref, setRelatedItemHref] = useState("");
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -320,7 +327,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     );
   }
 
-  const relatedItemsCount = 0;
+  const relatedItemsCount = (rfi.related_items ?? []).length;
   const emailsCount = 0;
   const historyCount = history.length;
 
@@ -449,9 +456,88 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       </div>
 
       <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
-        {(activeTab === "related" || activeTab === "emails") && (
+        {activeTab === "emails" && (
           <div className="bg-white border border-gray-200 rounded-lg px-6 py-12 text-center">
-            <p className="text-sm text-gray-400">No content yet.</p>
+            <p className="text-sm text-gray-400">Email activity feed is coming soon.</p>
+          </div>
+        )}
+
+        {activeTab === "related" && (
+          <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-5">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Related Items</h2>
+              <p className="text-xs text-gray-500 mt-1">Link change events, correspondence, instructions, and other items to this RFI.</p>
+            </div>
+
+            {(rfi.related_items ?? []).length === 0 ? (
+              <p className="text-sm text-gray-400">No related items yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {(rfi.related_items ?? []).map((item) => (
+                  <li key={item.id} className="flex items-center justify-between border border-gray-100 rounded-md px-3 py-2">
+                    <div>
+                      <p className="text-sm text-gray-900">{item.label}</p>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">{item.type.replaceAll("_", " ")}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {item.href ? (
+                        <a href={item.href} className="text-xs text-blue-600 hover:text-blue-800">Open</a>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!rfi) return;
+                          const next = (rfi.related_items ?? []).filter((x) => x.id !== item.id);
+                          const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ related_items: next }),
+                          });
+                          if (res.ok) setRfi(await res.json());
+                        }}
+                        className="text-xs text-red-600 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-3 border-t border-gray-100">
+              <select value={relatedItemType} onChange={(e) => setRelatedItemType(e.target.value)} className="px-3 py-2 border border-gray-200 rounded text-sm">
+                <option value="change_event">Change Event</option>
+                <option value="potential_change_order">Potential Change Order</option>
+                <option value="instruction">Instruction</option>
+                <option value="correspondence">Correspondence</option>
+                <option value="drawing">Drawing</option>
+              </select>
+              <input value={relatedItemLabel} onChange={(e) => setRelatedItemLabel(e.target.value)} placeholder="Item label" className="px-3 py-2 border border-gray-200 rounded text-sm" />
+              <input value={relatedItemHref} onChange={(e) => setRelatedItemHref(e.target.value)} placeholder="Optional link URL" className="px-3 py-2 border border-gray-200 rounded text-sm md:col-span-2" />
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!rfi || !relatedItemLabel.trim()) return;
+                  const nextItem = { id: `${Date.now()}`, type: relatedItemType, label: relatedItemLabel.trim(), href: relatedItemHref.trim() || null };
+                  const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ related_items: [...(rfi.related_items ?? []), nextItem] }),
+                  });
+                  if (res.ok) {
+                    setRfi(await res.json());
+                    setRelatedItemLabel("");
+                    setRelatedItemHref("");
+                  }
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700"
+              >
+                Add Related Item
+              </button>
+            </div>
           </div>
         )}
 
@@ -612,7 +698,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                     >
                       {/* Author + date */}
                       <div>
-                        <p className="text-sm font-semibold text-gray-900 leading-snug">{resp.created_by_name || "—"}</p>
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">{resp.created_by_name || "—"}{rfi.official_response_id === resp.id ? <span className="ml-2 text-[10px] uppercase tracking-wide text-green-700 bg-green-100 px-1.5 py-0.5 rounded">Official</span> : null}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(resp.created_at)}</p>
                       </div>
 
@@ -634,12 +720,30 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                       {/* Mark Official */}
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Mark Official</p>
-                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-gray-900 cursor-pointer" />
+                        <input type="checkbox" checked={rfi.official_response_id === resp.id} onChange={async (e) => {
+                          setSavingOfficialResponseId(resp.id);
+                          const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ official_response_id: e.target.checked ? resp.id : null }),
+                          });
+                          if (res.ok) setRfi(await res.json());
+                          setSavingOfficialResponseId(null);
+                        }} disabled={savingOfficialResponseId === resp.id} className="w-4 h-4 rounded border-gray-300 text-gray-900 cursor-pointer" />
                       </div>
 
                       {/* Delete */}
                       <div className="flex justify-center pt-0.5">
-                        <button className="text-gray-300 hover:text-red-500 transition-colors" title="Delete response">
+                        <button onClick={async () => {
+                          if (!window.confirm("Delete this response?")) return;
+                          setDeletingResponseId(resp.id);
+                          const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${resp.id}`, { method: "DELETE" });
+                          if (res.ok) {
+                            setResponses((prev) => prev.filter((r) => r.id !== resp.id));
+                            if (rfi.official_response_id === resp.id) setRfi({ ...rfi, official_response_id: null });
+                          }
+                          setDeletingResponseId(null);
+                        }} disabled={deletingResponseId === resp.id} className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-40" title="Delete response">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>

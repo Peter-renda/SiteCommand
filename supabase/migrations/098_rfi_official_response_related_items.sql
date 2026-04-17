@@ -1,0 +1,3 @@
+ALTER TABLE rfis
+  ADD COLUMN IF NOT EXISTS official_response_id UUID REFERENCES rfi_responses(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS related_items JSONB DEFAULT '[]';

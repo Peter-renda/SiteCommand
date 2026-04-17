@@ -129,3 +129,73 @@
 - Bulk Apply Workflow currently uses prompt-based input for first-step person and does not yet include template selection UI.
 - Bulk Edit UI currently includes a narrow prompt-driven control (manager update) and should be expanded to full parity field coverage.
 - Upload-and-submit and approver/reviewer response UX still uses simple prompt-based interactions in detail views; full modal parity remains recommended.
+
+---
+
+# RFI + Admin + Drawing Alignment Pass (April 17, 2026)
+
+## Requested tutorial set (from provided URLs)
+- Add a Multi-Tiered Location to an Item
+- Add a Related Item to an RFI
+- Add Assignees to an RFI as an Assignee on an RFI
+- Apply Configurable Fieldsets to Projects
+- Bulk Edit RFIs
+- Choose an Official Response for an RFI
+- Close an RFI
+- Configure a Prefix and Starting Number for RFIs
+- Configure Advanced Settings (RFIs)
+- Copy a Configurable Fieldset
+- Create a Change Event from an RFI
+- Create a Correspondence Item from an RFI
+- Create a Potential Change Order from an RFI
+- Create an Instruction from an RFI
+- Create an RFI
+- Create and View an RFI Report
+- Create Custom Sections
+- Create New Configurable Fieldsets
+- Create New Custom Fields
+- Create or Link RFIs on a Drawing
+- Create/Edit/Delete Saved Views for RFIs
+- Customize Column Display in RFIs
+- Delete a Response to an RFI
+- Delete an RFI
+- Delete Configurable Fieldsets
+
+## Access note
+- Direct fetch attempts to `v2.support.procore.com` were blocked in this environment (`403 Forbidden` at tunnel layer), so this pass used the tutorial topics/titles from the provided links and aligned SiteCommand functionality to those workflows where feasible.
+
+## Implemented in this pass
+- Added **official response support** for RFIs:
+  - new `rfis.official_response_id` field
+  - detail-page “Mark Official” checkbox now persists selection
+  - official response badge displayed in response list
+- Added **related items support** for RFIs:
+  - new `rfis.related_items` JSONB field
+  - RFI detail “Related Items” tab now supports add/remove and optional links
+- Added **delete response** flow for RFIs:
+  - new DELETE API for `rfi_responses`
+  - permission check: response creator or RFI creator can delete
+  - clears official response if deleted response was official
+- Added **bulk edit RFIs** flow:
+  - new bulk API endpoint for RFIs (`status`, `due_date`, optional assignees)
+  - list-page multi-select + bulk controls to apply updates
+- Extended RFI PATCH logic/history support for:
+  - `official_response_id`
+  - `related_items`
+
+## Existing alignment already present in product
+- Create RFI flow (draft/open)
+- Close/Reopen RFI action
+- Create Change Event from RFI shortcut
+- Delete RFI action
+- RFI report/export support via PDF export
+- Column display customization in list view
+
+## Remaining parity gaps / recommended next steps
+- RFI prefix + starting number configuration (currently auto-increment only).
+- Advanced settings for RFIs (tool-level project/company settings UI + persistence).
+- Saved views management for RFIs (named filters/views, default view).
+- Drawing-level link/create RFI workflow in Drawings tool.
+- First-class “Create Correspondence/Instruction/Potential Change Order” one-click actions from RFI with deep integration.
+- Admin company features for configurable fieldsets/custom fields/custom sections and fieldset application/copy/delete are not covered by this RFI-focused pass.
+- Multi-tiered location picker integration is not yet implemented in RFI forms.
