@@ -844,3 +844,108 @@ Users can customize the Commitments table: show/hide columns, change row height,
 - `applySort()` sorts items client-side by any column key, including computed `revised_contract_amount`.
 - `visibleItems` applies both search and filter predicates, then `applySort`.
 - Row height classes applied to `<td>` elements: `py-1` / `py-3` / `py-5`.
+
+## Search for and Apply Filters to the Commitments Tool
+
+### Required Permissions
+- **Read Only** or higher on the Commitments tool.
+
+### Workflow
+
+*Searching:*
+1. Open the Commitments tool → Contracts tab.
+2. Type in the Search field to filter by contract number, company, or title.
+
+*Filtering:*
+1. Click **Filters** to open the filter panel.
+2. Apply filters:
+   - **Contract Company** — text search to narrow by company name.
+   - **Type** — Subcontract or Purchase Order.
+   - **Status** — Draft, Approved, Processing, Submitted, Out For Bid, Out For Signature, Complete, Void, Terminated.
+   - **Executed** — Yes, No, or Any.
+3. Remove individual filters or click **Clear all** to reset.
+
+### Implementation Notes (SiteCommand)
+- Filter panel in `CommitmentsClient.tsx`: `filterCompany` (text), `filterType`, `filterStatus`, `filterExecuted`.
+- Active filter count badge shown on the Filters button.
+- `visibleItems` applies all four filter predicates plus search, then sort.
+
+## View a Purchase Order
+
+### Required Permissions
+- **Non-Private POs**: Read Only or higher on Commitments.
+- **Private POs**: Admin, or Read Only/Standard + membership on the Private list, or the "View Private Purchase Order Contract" granular permission.
+
+### Workflow
+1. Open the Commitments tool → Contracts tab.
+2. Locate the purchase order and click its number to open the detail page.
+3. Navigate tabs: General, Change Orders, Invoices, Payments Issued, Related Items, Emails, Change History, Financial Markup.
+
+### Available Tabs
+| Tab | Content |
+|-----|---------|
+| General | Contract details, SOV, financial summary, contract dates, privacy settings, additional information |
+| Change Orders | Approved/pending change orders (placeholder — coming soon) |
+| Invoices | Subcontractor invoices (placeholder) |
+| Payments Issued | Payment records (placeholder) |
+| Related Items | Linked documents (placeholder) |
+| Emails | Communication history (placeholder) |
+| Change History | Audit log of all field modifications (Admin only) |
+| Financial Markup | Markup rules on change orders (requires project-level setting) |
+
+### Implementation Notes (SiteCommand)
+- `DetailTab` type in `CommitmentDetailClient.tsx` covers all tabs.
+- Placeholder tabs show a "coming soon" empty state.
+- Change History tab loads lazily on first click via `/api/projects/[id]/commitments/[commitmentId]/history`.
+
+## View a Subcontract
+
+### Required Permissions
+- **Non-Private**: Read Only or higher on Commitments.
+- **Private**: Admin, or Read Only/Standard + Private list membership, or "View Private Work Order Contract" granular permission.
+
+### Workflow
+1. Open the Commitments tool → Contracts tab.
+2. Click the subcontract number to open the detail page.
+3. Navigate tabs: same set as Purchase Order (General, Change Orders, Invoices, Payments Issued, Related Items, Emails, Change History, Financial Markup).
+
+### Implementation Notes (SiteCommand)
+- Same tab structure as PO in `CommitmentDetailClient.tsx`.
+- Subcontract-specific fields (start date, estimated/actual completion, signed contract received, inclusions, exclusions) shown in the General and Additional Information sections.
+
+## View Inclusions/Exclusions on a Subcontract
+
+### Required Permissions
+- **Non-Private**: Read Only or higher on Commitments.
+- **Private**: Admin, or Read Only/Standard + Private list membership.
+
+### Workflow
+1. Open the Commitments tool → Contracts tab → click the subcontract.
+2. Scroll to the **Additional Information** section.
+3. View the **Inclusions — Scope of Work** and **Exclusions** fields.
+
+### Implementation Notes (SiteCommand)
+- Inclusions and Exclusions are rendered as rich-text HTML in the **Additional Information** section of `CommitmentDetailClient.tsx` for subcontracts.
+- They were moved from the General Information section to Additional Information to align with Procore's layout.
+- Both fields are only shown when non-empty.
+
+## View the Change History of a Commitment
+
+### Required Permissions
+- **Admin** level on the Commitments tool.
+
+### Workflow
+1. Open the Commitments tool → Contracts tab → click the commitment.
+2. Click the **Change History** tab.
+3. Review the audit log — each row shows: what was changed, previous value, new value, who changed it, and when.
+
+### Key Notes
+- Change history entries are never deleted.
+- Rich-text fields (description, inclusions, exclusions) record only "Updated" without showing full HTML content.
+
+### Implementation Notes (SiteCommand)
+- Database: `commitment_change_history` table (migration `094_commitment_change_history.sql`).
+- API: `GET /api/projects/[id]/commitments/[commitmentId]/history` — requires Admin tool permission.
+- Changes recorded in `PATCH /api/projects/[id]/commitments/[commitmentId]` by comparing old vs new values for all tracked fields.
+- Tracked fields include: status, executed, contract_company, title, default_retainage, amounts, ssov_enabled, is_private, sov_accounting_method, financial_markup_enabled, dates, inclusions, exclusions, description.
+- Change History tab in `CommitmentDetailClient.tsx` fetches lazily on first tab click.

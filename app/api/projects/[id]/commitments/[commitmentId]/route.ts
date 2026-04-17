@@ -27,6 +27,47 @@ export async function GET(
   return NextResponse.json(data);
 }
 
+const TRACKED_FIELDS = [
+  "contract_company", "title", "status", "executed", "default_retainage",
+  "original_contract_amount", "approved_change_orders", "pending_change_orders", "draft_amount",
+  "ssov_enabled", "is_private", "sov_view_allowed", "sov_accounting_method",
+  "financial_markup_enabled", "erp_status",
+  "start_date", "estimated_completion", "actual_completion", "signed_contract_received",
+  "contract_date", "delivery_date", "signed_po_received_date", "issued_on_date",
+  "inclusions", "exclusions", "description",
+];
+
+const RICH_TEXT_FIELDS = new Set(["description", "inclusions", "exclusions", "exhibit_a_scope"]);
+
+const FIELD_LABELS: Record<string, string> = {
+  contract_company: "Contract Company",
+  title: "Title",
+  status: "Status",
+  executed: "Executed",
+  default_retainage: "Default Retainage",
+  original_contract_amount: "Original Contract Amount",
+  approved_change_orders: "Approved Change Orders",
+  pending_change_orders: "Pending Change Orders",
+  draft_amount: "Draft Amount",
+  ssov_enabled: "Subcontractor SOV",
+  is_private: "Private",
+  sov_view_allowed: "Allow Non-Admin SOV View",
+  sov_accounting_method: "Accounting Method",
+  financial_markup_enabled: "Financial Markup",
+  erp_status: "ERP Status",
+  start_date: "Start Date",
+  estimated_completion: "Estimated Completion",
+  actual_completion: "Actual Completion",
+  signed_contract_received: "Signed Contract Received",
+  contract_date: "Contract Date",
+  delivery_date: "Delivery Date",
+  signed_po_received_date: "Signed PO Received",
+  issued_on_date: "Issued On",
+  inclusions: "Inclusions",
+  exclusions: "Exclusions",
+  description: "Description",
+};
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; commitmentId: string }> }
@@ -98,16 +139,32 @@ export async function PATCH(
     if (key in body) updates[key] = body[key];
   }
 
-  // When the SSOV tab is toggled, keep ssov_status consistent with it.
-  if ("ssov_enabled" in updates) {
-    const { data: current } = await supabase
+  // Fetch current state for change history comparison (skip for restore/sort-only updates)
+  let currentCommitment: Record<string, unknown> | null = null;
+  const isRestoringDelete = "deleted_at" in updates && updates.deleted_at === null;
+  if (!isRestoringDelete) {
+    const { data: curr } = await supabase
       .from("commitments")
-      .select("ssov_enabled, ssov_status")
+      .select("*")
       .eq("id", commitmentId)
       .eq("project_id", projectId)
       .single();
+    currentCommitment = curr as Record<string, unknown> | null;
+  }
 
-    if (updates.ssov_enabled === true && current && !current.ssov_enabled) {
+  // When the SSOV tab is toggled, keep ssov_status consistent with it.
+  if ("ssov_enabled" in updates) {
+    if (!currentCommitment) {
+      const { data: curr } = await supabase
+        .from("commitments")
+        .select("ssov_enabled, ssov_status")
+        .eq("id", commitmentId)
+        .eq("project_id", projectId)
+        .single();
+      currentCommitment = curr as Record<string, unknown> | null;
+    }
+
+    if (updates.ssov_enabled === true && currentCommitment && !currentCommitment.ssov_enabled) {
       updates.ssov_status = "draft";
     }
     if (updates.ssov_enabled === false) {
@@ -126,6 +183,44 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Record change history
+  if (currentCommitment && !("deleted_at" in updates)) {
+    const historyEntries: {
+      commitment_id: string;
+      project_id: string;
+      changed_by: string;
+      changed_by_name: string;
+      action: string;
+      field_name: string;
+      from_value: string | null;
+      to_value: string | null;
+    }[] = [];
+
+    for (const field of TRACKED_FIELDS) {
+      if (!(field in updates)) continue;
+      const oldVal = currentCommitment[field];
+      const newVal = updates[field];
+      if (String(oldVal ?? "") === String(newVal ?? "")) continue;
+
+      const isRich = RICH_TEXT_FIELDS.has(field);
+      historyEntries.push({
+        commitment_id: commitmentId,
+        project_id: projectId,
+        changed_by: session.id,
+        changed_by_name: session.username,
+        action: `Updated ${FIELD_LABELS[field] ?? field}`,
+        field_name: field,
+        from_value: isRich ? null : String(oldVal ?? ""),
+        to_value: isRich ? null : String(newVal ?? ""),
+      });
+    }
+
+    if (historyEntries.length > 0) {
+      await supabase.from("commitment_change_history").insert(historyEntries);
+    }
+  }
+
   return NextResponse.json(data);
 }
 

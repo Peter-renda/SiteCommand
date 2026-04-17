@@ -570,6 +570,7 @@ export default function CommitmentsClient({
   const [filterType, setFilterType] = useState<"" | "subcontract" | "purchase_order">("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterExecuted, setFilterExecuted] = useState<"" | "yes" | "no">("");
+  const [filterCompany, setFilterCompany] = useState("");
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -726,6 +727,7 @@ export default function CommitmentsClient({
           if (filterStatus && item.status !== filterStatus) return false;
           if (filterExecuted === "yes" && !item.executed) return false;
           if (filterExecuted === "no" && item.executed) return false;
+          if (filterCompany && !item.contract_company.toLowerCase().includes(filterCompany.toLowerCase())) return false;
           return true;
         })
       : deletedItems.filter(matchesSearch)
@@ -1080,7 +1082,7 @@ export default function CommitmentsClient({
             <button
               onClick={() => setShowFilterPanel((o) => !o)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-md transition-colors ${
-                showFilterPanel || filterType || filterStatus || filterExecuted
+                showFilterPanel || filterType || filterStatus || filterExecuted || filterCompany
                   ? "border-orange-400 text-orange-600 bg-orange-50"
                   : "text-gray-600 border-gray-200 bg-white hover:bg-gray-50"
               }`}
@@ -1099,9 +1101,9 @@ export default function CommitmentsClient({
                 />
               </svg>
               Filters
-              {(filterType || filterStatus || filterExecuted) && (
+              {(filterType || filterStatus || filterExecuted || filterCompany) && (
                 <span className="ml-0.5 w-4 h-4 rounded-full bg-orange-500 text-white text-[10px] flex items-center justify-center font-medium">
-                  {[filterType, filterStatus, filterExecuted].filter(Boolean).length}
+                  {[filterType, filterStatus, filterExecuted, filterCompany].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -1191,6 +1193,16 @@ export default function CommitmentsClient({
         {showFilterPanel && (
           <div className="mb-4 p-3 bg-white border border-gray-200 rounded-lg flex flex-wrap items-end gap-4">
             <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Contract Company</label>
+              <input
+                type="text"
+                value={filterCompany}
+                onChange={(e) => setFilterCompany(e.target.value)}
+                placeholder="Filter by company…"
+                className="text-sm border border-gray-200 rounded px-2 py-1.5 w-44 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              />
+            </div>
+            <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
               <select
                 value={filterType}
@@ -1212,6 +1224,11 @@ export default function CommitmentsClient({
                 <option value="">All Statuses</option>
                 <option value="draft">Draft</option>
                 <option value="approved">Approved</option>
+                <option value="processing">Processing</option>
+                <option value="submitted">Submitted</option>
+                <option value="out_for_bid">Out For Bid</option>
+                <option value="out_for_signature">Out For Signature</option>
+                <option value="complete">Complete</option>
                 <option value="void">Void</option>
                 <option value="terminated">Terminated</option>
               </select>
@@ -1228,9 +1245,9 @@ export default function CommitmentsClient({
                 <option value="no">No</option>
               </select>
             </div>
-            {(filterType || filterStatus || filterExecuted) && (
+            {(filterType || filterStatus || filterExecuted || filterCompany) && (
               <button
-                onClick={() => { setFilterType(""); setFilterStatus(""); setFilterExecuted(""); }}
+                onClick={() => { setFilterType(""); setFilterStatus(""); setFilterExecuted(""); setFilterCompany(""); }}
                 className="text-xs text-gray-400 hover:text-gray-700 pb-1.5"
               >
                 Clear all
