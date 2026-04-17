@@ -110,6 +110,9 @@ export default function TMTicketsClient({ projectId, username }: { projectId: st
                     <span className="font-medium">Create Change Event</span> to generate a new change event from the selected tickets.
                   </p>
                   <p className="mt-1">
+                    You can also use <span className="font-medium">Bulk Actions</span> &gt; <span className="font-medium">Add to an Existing Change Event</span> to append ticket details to an in-flight change event.
+                  </p>
+                  <p className="mt-1">
                     Include ticket links and attachments in the change event description so reviewers can trace supporting backup.
                   </p>
                   <a

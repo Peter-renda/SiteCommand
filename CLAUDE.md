@@ -257,3 +257,55 @@ Notes:
   - Be independent snapshots from the source report.
   - Append `-Copy` to the report name.
   - Preserve share-safe visibility semantics (copy only reveals data user can access).
+
+## Procore Process-Guide Alignment Notes (Added April 17, 2026)
+
+### Sources Reviewed
+- https://v2.support.procore.com/process-guides/about-budget-changes/
+- https://v2.support.procore.com/process-guides/about-budget-changes-on-owner-invoices/
+- https://v2.support.procore.com/process-guides/budget-and-forecast-snapshots-user-guide/
+- https://v2.support.procore.com/process-guides/company-administration-work-breakdown-structure-guide/
+
+### Budget Changes + Change Events
+- Keep language aligned to modern **Budget Changes** (not legacy Budget Modifications) for net-new workflows.
+- Keep **Budget ROM** framing explicit across three scopes:
+  - In Scope
+  - Out of Scope
+  - TBD Scope
+- Keep ROM source guidance visible in UX copy and workflow docs:
+  - Latest Cost
+  - Latest Price
+  - None
+- Preserve messaging that Budget Changes can auto-create linked Change Events and can also be handled through Financial Impact workflows.
+
+### Budget Changes on Owner Invoices
+- Reflect that not every financial adjustment must use a Prime Contract Change Order (PCCO), especially in GMP/allowance-contingency scenarios.
+- Keep support for adding approved budget changes to the latest owner invoice and grouping those lines for billing review.
+- Keep owner-invoice workflow references in change-management guidance to reduce CO-overuse.
+
+### Budget + Forecast Snapshots
+- Treat snapshots as point-in-time financial baselines for variance analysis.
+- Maintain user guidance for snapshot lifecycle actions:
+  - Create snapshot
+  - View snapshot
+  - Configure/apply budget view context
+  - Analyze variance
+  - Export snapshot / export snapshot list
+- Position snapshots as monthly-close and executive reporting controls.
+
+### WBS (Company Administration)
+- Treat WBS as a company-governed setup sequence before project-level execution:
+  1. Define custom segments.
+  2. Define segment items.
+  3. Configure default cost code and cost type segments (including UOM where needed).
+  4. Enable optional sub jobs.
+  5. Set budget code structure and project edit controls.
+- Keep project-level financial workflows dependent on stable company-level WBS governance.
+
+### 360 Reporting Alignment Checklist
+- Ensure report exports support **CSV, XLSX, and PDF** from current visible report state.
+- Keep Assist flow lightweight: prompt -> recommendation -> create draft.
+- Keep promotion audit metadata explicit (promoted timestamp + actor).
+- Keep sharing model report-specific and distinct from dashboard sharing.
+- Keep Add Visual threshold behavior explicit for large datasets (2,500+ row constraint messaging).
+- Keep dashboard publish-before-share behavior explicit.
