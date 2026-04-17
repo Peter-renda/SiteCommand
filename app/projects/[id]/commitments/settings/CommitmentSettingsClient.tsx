@@ -38,6 +38,11 @@ export default function CommitmentSettingsClient({
   username: string;
 }) {
   const [alwaysEditable, setAlwaysEditable] = useState(false);
+  const [changeOrderTiers, setChangeOrderTiers] = useState(1);
+  const [allowStandardUsersCreateCcos, setAllowStandardUsersCreateCcos] = useState(false);
+  const [allowStandardUsersCreatePcos, setAllowStandardUsersCreatePcos] = useState(false);
+  const [enableFieldInitiatedCos, setEnableFieldInitiatedCos] = useState(false);
+  const [enableFinancialMarkup, setEnableFinancialMarkup] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string>("");
@@ -52,6 +57,11 @@ export default function CommitmentSettingsClient({
       .then((r) => r.json())
       .then((data) => {
         setAlwaysEditable(!!data?.enable_always_editable_sov);
+        setChangeOrderTiers(Number(data?.number_of_change_order_tiers) || 1);
+        setAllowStandardUsersCreateCcos(!!data?.allow_standard_users_create_ccos);
+        setAllowStandardUsersCreatePcos(!!data?.allow_standard_users_create_pcos);
+        setEnableFieldInitiatedCos(!!data?.enable_field_initiated_change_orders);
+        setEnableFinancialMarkup(!!data?.enable_financial_markup);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -76,7 +86,14 @@ export default function CommitmentSettingsClient({
       const res = await fetch(`/api/projects/${projectId}/commitment-settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enable_always_editable_sov: alwaysEditable }),
+        body: JSON.stringify({
+          number_of_change_order_tiers: changeOrderTiers,
+          allow_standard_users_create_ccos: allowStandardUsersCreateCcos,
+          allow_standard_users_create_pcos: allowStandardUsersCreatePcos,
+          enable_field_initiated_change_orders: enableFieldInitiatedCos,
+          enable_always_editable_sov: alwaysEditable,
+          enable_financial_markup: enableFinancialMarkup,
+        }),
       });
       if (res.ok) setSavedAt(new Date().toLocaleTimeString());
     } finally {
@@ -158,6 +175,84 @@ export default function CommitmentSettingsClient({
 
       <div className="max-w-3xl mx-auto px-8 py-8">
         <div className="py-6 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Contract Configuration</h2>
+          <div className="space-y-4">
+            <label className="block text-sm text-gray-700">
+              <span className="font-medium">Number of Commitment Change Order Tiers</span>
+              <select
+                value={changeOrderTiers}
+                onChange={(e) => {
+                  const next = Number(e.target.value) || 1;
+                  setChangeOrderTiers(next);
+                  if (next === 1) {
+                    setAllowStandardUsersCreatePcos(false);
+                    setEnableFieldInitiatedCos(false);
+                  } else {
+                    setAllowStandardUsersCreateCcos(false);
+                  }
+                }}
+                className="mt-1 block w-56 border border-gray-300 rounded px-2 py-1.5 text-sm"
+              >
+                <option value={1}>1 Tier</option>
+                <option value={2}>2 Tier</option>
+                <option value={3}>3 Tier</option>
+              </select>
+              <span className="block text-xs text-gray-500 mt-1">
+                Set this before creating change orders. 1-tier supports direct CCOs. 2- and 3-tier workflows require potential change orders.
+              </span>
+            </label>
+
+            {changeOrderTiers === 1 ? (
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowStandardUsersCreateCcos}
+                  onChange={(e) => setAllowStandardUsersCreateCcos(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
+                />
+                <span className="text-sm text-gray-700">
+                  Allow Standard Level Users to Create CCOs
+                </span>
+              </label>
+            ) : (
+              <>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowStandardUsersCreatePcos}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setAllowStandardUsersCreatePcos(checked);
+                      if (!checked) setEnableFieldInitiatedCos(false);
+                    }}
+                    className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Allow Standard Level Users to Create PCOs
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enableFieldInitiatedCos}
+                    disabled={!allowStandardUsersCreatePcos}
+                    onChange={(e) => setEnableFieldInitiatedCos(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900 disabled:opacity-50"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Enable Field-Initiated Change Orders
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      Lets collaborators submit commitment change requests without direct access to the Change Events tool.
+                    </span>
+                  </span>
+                </label>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="py-6 border-b border-gray-200">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Schedule of Values</h2>
           <label className="flex items-start gap-2 cursor-pointer">
             <input
@@ -186,9 +281,9 @@ export default function CommitmentSettingsClient({
             <label className="flex items-start gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={false}
-                readOnly
-                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900 opacity-50"
+                checked={enableFinancialMarkup}
+                onChange={(e) => setEnableFinancialMarkup(e.target.checked)}
+                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
               />
               <span className="text-sm text-gray-700">
                 Enable Financial Markup on Commitment Change Orders
@@ -198,7 +293,7 @@ export default function CommitmentSettingsClient({
               </span>
             </label>
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-              Financial Markup is toggled per commitment when creating or editing a commitment. This section documents the feature prerequisites.
+              Enable this setting to allow financial markup on commitment change orders. Individual commitments can still opt-in/out during contract setup.
             </p>
           </div>
         </div>
