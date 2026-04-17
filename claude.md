@@ -129,3 +129,56 @@
 - Bulk Apply Workflow currently uses prompt-based input for first-step person and does not yet include template selection UI.
 - Bulk Edit UI currently includes a narrow prompt-driven control (manager update) and should be expanded to full parity field coverage.
 - Upload-and-submit and approver/reviewer response UX still uses simple prompt-based interactions in detail views; full modal parity remains recommended.
+
+---
+
+# Submittal Package Alignment Pass – Package Tutorials (April 17, 2026)
+
+## Tutorials reviewed in this pass
+- Add an Existing Submittal to a Submittal Package
+- Add Related Items to a Submittal
+- Bulk Edit Submittals in a Package
+- Bulk Review Submittals in a Package
+- Create a New Submittal in a Submittal Package
+- Create a Submittal Package
+- Delete a Submittal Package
+- Distribute the Submittals in a Package
+
+## Changes added in SiteCommand
+- Added Submittal Packages detail API endpoints:
+  - `GET /api/projects/:id/submittal-packages/:packageId` (returns package + packaged submittals)
+  - `PATCH /api/projects/:id/submittal-packages/:packageId` (editable package metadata)
+  - `DELETE /api/projects/:id/submittal-packages/:packageId` (package delete; submittals become unpackaged)
+- Added package action endpoint:
+  - `POST /api/projects/:id/submittal-packages/:packageId/actions`
+  - Supports:
+    - `add_existing`
+    - `remove_items`
+    - `bulk_edit`
+    - `mass_review`
+    - `distribute`
+- Enhanced package list API (`GET /api/projects/:id/submittal-packages`) to return:
+  - `submittal_count`
+  - `distributed_count`
+- Added package detail page UI:
+  - Route: `/projects/:id/submittal-packages/:packageId`
+  - Core operations surfaced:
+    - Add Existing Submittal
+    - Create Submittal in Package
+    - Bulk Edit selected submittals
+    - Mass Review selected submittals (Ball-in-Court constrained)
+    - Distribute selected submittals
+    - Remove selected submittals from package
+    - Delete package
+- Updated Submittals log UI with a new **Packages** tab and package table:
+  - package number/title
+  - spec section
+  - submittal counts
+  - distributed progress
+  - direct navigation to package detail screen
+
+## Parity notes / known limitations
+- Package actions currently use prompt-driven inputs for some flows (bulk edit fields, mass review responder ID), which should be replaced with full-form modals for production parity.
+- Related item support remains on submittal records (`related_items` payload), but package-level related item linking is not yet exposed in dedicated package UI.
+- Package-level attachment upload exists on the new-package form; attachment persistence/editing in the package detail page is not yet fully wired.
+- “Send submittals in package for review” wizard-level parity is partially represented through mass-review and distribute actions but not yet implemented as a guided multi-step package workflow.
