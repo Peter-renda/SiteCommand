@@ -139,18 +139,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     end_date,
     curve,
     sort_order,
+    is_partial_line_item,
+    is_gst_line_item,
   } = body;
 
-  if (!cost_code?.trim() && !description?.trim()) {
-    return NextResponse.json({ error: "Cost code or description is required" }, { status: 400 });
+  if (!cost_code?.trim()) {
+    return NextResponse.json({ error: "Cost code is required" }, { status: 400 });
+  }
+
+  if (!cost_type?.trim()) {
+    return NextResponse.json({ error: "Cost type is required" }, { status: 400 });
+  }
+
+  const normalizedCode = String(cost_code || "").trim();
+  const normalizedType = String(cost_type || "").trim();
+
+  const { data: existing, error: existingError } = await supabase
+    .from("budget_line_items")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("cost_code", normalizedCode)
+    .eq("cost_type", normalizedType)
+    .limit(1);
+
+  if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 });
+  if ((existing || []).length > 0) {
+    return NextResponse.json(
+      { error: "A budget line item already exists for this Cost Code and Cost Type." },
+      { status: 409 }
+    );
   }
 
   const { data, error } = await supabase
     .from("budget_line_items")
     .insert({
       project_id: projectId,
-      cost_code: cost_code || "",
-      cost_type: cost_type || "",
+      cost_code: normalizedCode,
+      cost_type: normalizedType,
       description: description || "",
       manual_calculation: manual_calculation ?? false,
       unit_qty: unit_qty ?? 0,
@@ -168,6 +193,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       end_date: end_date || null,
       curve: curve || "",
       sort_order: sort_order ?? 0,
+      is_partial_line_item: Boolean(is_partial_line_item),
+      is_gst_line_item: Boolean(is_gst_line_item),
     })
     .select()
     .single();

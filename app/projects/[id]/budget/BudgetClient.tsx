@@ -30,6 +30,8 @@ type BudgetLineItem = {
   start_date: string | null;
   end_date: string | null;
   curve: string;
+  is_partial_line_item?: boolean;
+  is_gst_line_item?: boolean;
   sort_order: number;
   created_at: string;
 };
@@ -355,6 +357,7 @@ function exportPDF(items: BudgetLineItem[], forecastEdits: Record<string, Foreca
 
 type LineItemFormData = {
   cost_code: string;
+  cost_type: string;
   description: string;
   original_budget_amount: string;
   budget_modifications: string;
@@ -364,10 +367,13 @@ type LineItemFormData = {
   job_to_date_costs: string;
   commitments_invoiced: string;
   pending_cost_changes: string;
+  is_partial_line_item: boolean;
+  is_gst_line_item: boolean;
 };
 
 const emptyForm: LineItemFormData = {
   cost_code: "",
+  cost_type: "",
   description: "",
   original_budget_amount: "",
   budget_modifications: "",
@@ -377,6 +383,8 @@ const emptyForm: LineItemFormData = {
   job_to_date_costs: "",
   commitments_invoiced: "",
   pending_cost_changes: "",
+  is_partial_line_item: false,
+  is_gst_line_item: false,
 };
 
 function numVal(s: string): number {
@@ -458,11 +466,13 @@ function MoneyInput({
 
 function LineItemModal({
   initial,
+  defaults,
   lockOriginalBudgetAmount = false,
   onConfirm,
   onCancel,
 }: {
   initial?: BudgetLineItem;
+  defaults?: Partial<LineItemFormData>;
   lockOriginalBudgetAmount?: boolean;
   onConfirm: (data: LineItemFormData) => void;
   onCancel: () => void;
@@ -471,6 +481,7 @@ function LineItemModal({
     initial
       ? {
           cost_code: initial.cost_code,
+          cost_type: initial.cost_type,
           description: initial.description,
           original_budget_amount: initial.original_budget_amount !== 0 ? String(initial.original_budget_amount) : "",
           budget_modifications: initial.budget_modifications !== 0 ? String(initial.budget_modifications) : "",
@@ -480,8 +491,10 @@ function LineItemModal({
           job_to_date_costs: initial.job_to_date_costs !== 0 ? String(initial.job_to_date_costs) : "",
           commitments_invoiced: initial.commitments_invoiced !== 0 ? String(initial.commitments_invoiced) : "",
           pending_cost_changes: initial.pending_cost_changes !== 0 ? String(initial.pending_cost_changes) : "",
+          is_partial_line_item: Boolean(initial.is_partial_line_item),
+          is_gst_line_item: Boolean(initial.is_gst_line_item),
         }
-      : emptyForm
+      : { ...emptyForm, ...defaults }
   );
 
   const ref = useRef<HTMLDivElement>(null);
@@ -494,13 +507,13 @@ function LineItemModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onCancel]);
 
-  function set(key: keyof LineItemFormData, val: string) {
+  function set(key: keyof LineItemFormData, val: string | boolean) {
     setForm((f) => ({ ...f, [key]: val }));
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.cost_code.trim() && !form.description.trim()) return;
+    if (!form.cost_code.trim() || !form.cost_type.trim()) return;
     onConfirm(form);
   }
 
@@ -528,6 +541,17 @@ function LineItemModal({
                 className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </Field>
+            <Field label="Cost Type">
+              <input
+                type="text"
+                value={form.cost_type}
+                onChange={(e) => set("cost_type", e.target.value)}
+                placeholder="e.g. Labor or Other"
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <Field label="Description">
               <input
                 type="text"
@@ -539,17 +563,53 @@ function LineItemModal({
             </Field>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <label className="flex items-start gap-2 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.is_partial_line_item}
+                onChange={(e) => set("is_partial_line_item", e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block font-medium text-gray-700">Partial budget line item</span>
+                Adds an unbudgeted line item with $0 original amount for missing budget code combinations.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.is_gst_line_item}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setForm((prev) => ({
+                    ...prev,
+                    is_gst_line_item: checked,
+                    cost_type: checked ? "Other" : prev.cost_type,
+                  }));
+                }}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block font-medium text-gray-700">GST line item</span>
+                Marks this line for GST tracking and defaults cost type to &quot;Other&quot;.
+              </span>
+            </label>
+          </div>
+
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Budget</p>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Original Budget Amount">
               <MoneyInput
                 value={form.original_budget_amount}
                 onChange={(v) => set("original_budget_amount", v)}
-                disabled={lockOriginalBudgetAmount}
+                disabled={lockOriginalBudgetAmount || form.is_partial_line_item}
               />
-              {lockOriginalBudgetAmount && (
+              {(lockOriginalBudgetAmount || form.is_partial_line_item) && (
                 <p className="mt-1 text-[11px] text-gray-500">
-                  Original Budget Amount is locked for this budget.
+                  {form.is_partial_line_item
+                    ? "Partial budget line items are created with a $0 Original Budget Amount."
+                    : "Original Budget Amount is locked for this budget."}
                 </p>
               )}
             </Field>
@@ -976,6 +1036,7 @@ export default function BudgetClient({
 
   // Modal state
   const [showLineItemModal, setShowLineItemModal] = useState(false);
+  const [lineItemDefaults, setLineItemDefaults] = useState<Partial<LineItemFormData> | undefined>(undefined);
   const [editingItem, setEditingItem] = useState<BudgetLineItem | null>(null);
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
   const [showBudgetChangeModal, setShowBudgetChangeModal] = useState(false);
@@ -1076,8 +1137,9 @@ export default function BudgetClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cost_code: data.cost_code,
+        cost_type: data.cost_type,
         description: data.description,
-        original_budget_amount: numVal(data.original_budget_amount),
+        original_budget_amount: data.is_partial_line_item ? 0 : numVal(data.original_budget_amount),
         budget_modifications: numVal(data.budget_modifications),
         approved_cos: numVal(data.approved_cos),
         pending_budget_changes: numVal(data.pending_budget_changes),
@@ -1085,14 +1147,20 @@ export default function BudgetClient({
         job_to_date_costs: numVal(data.job_to_date_costs),
         commitments_invoiced: numVal(data.commitments_invoiced),
         pending_cost_changes: numVal(data.pending_cost_changes),
+        is_partial_line_item: data.is_partial_line_item,
+        is_gst_line_item: data.is_gst_line_item,
         sort_order: items.length,
       }),
     });
     if (res.ok) {
       const newItem: BudgetLineItem = await res.json();
       setItems((prev) => [...prev, newItem]);
+      setLineItemDefaults(undefined);
+      setShowLineItemModal(false);
+      return;
     }
-    setShowLineItemModal(false);
+    const payload = await res.json().catch(() => null);
+    window.alert(payload?.error || "Unable to create budget line item.");
   }
 
   async function handleEditLineItem(data: LineItemFormData) {
@@ -1102,8 +1170,11 @@ export default function BudgetClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cost_code: data.cost_code,
+        cost_type: data.cost_type,
         description: data.description,
-        original_budget_amount: isBudgetLocked
+        original_budget_amount: data.is_partial_line_item
+          ? 0
+          : isBudgetLocked
           ? editingItem.original_budget_amount
           : numVal(data.original_budget_amount),
         budget_modifications: numVal(data.budget_modifications),
@@ -1113,13 +1184,18 @@ export default function BudgetClient({
         job_to_date_costs: numVal(data.job_to_date_costs),
         commitments_invoiced: numVal(data.commitments_invoiced),
         pending_cost_changes: numVal(data.pending_cost_changes),
+        is_partial_line_item: data.is_partial_line_item,
+        is_gst_line_item: data.is_gst_line_item,
       }),
     });
     if (res.ok) {
       const updated: BudgetLineItem = await res.json();
       setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      setEditingItem(null);
+      return;
     }
-    setEditingItem(null);
+    const payload = await res.json().catch(() => null);
+    window.alert(payload?.error || "Unable to update budget line item.");
   }
 
   async function handleLockBudget() {
@@ -1210,6 +1286,7 @@ export default function BudgetClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cost_code: targetItem.cost_code,
+        cost_type: targetItem.cost_type,
         description: targetItem.description,
         original_budget_amount: targetItem.original_budget_amount,
         budget_modifications: targetItem.budget_modifications,
@@ -1219,6 +1296,8 @@ export default function BudgetClient({
         job_to_date_costs: targetItem.job_to_date_costs,
         commitments_invoiced: targetItem.commitments_invoiced,
         pending_cost_changes: targetItem.pending_cost_changes,
+        is_partial_line_item: targetItem.is_partial_line_item ?? false,
+        is_gst_line_item: targetItem.is_gst_line_item ?? false,
       }),
     });
     if (res.ok) {
@@ -1248,6 +1327,7 @@ export default function BudgetClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cost_code: item.cost_code,
+          cost_type: item.cost_type,
           description: item.description,
           original_budget_amount: item.original_budget_amount,
           budget_modifications: item.budget_modifications + delta,
@@ -1257,6 +1337,8 @@ export default function BudgetClient({
           job_to_date_costs: item.job_to_date_costs,
           commitments_invoiced: item.commitments_invoiced,
           pending_cost_changes: item.pending_cost_changes,
+          is_partial_line_item: item.is_partial_line_item ?? false,
+          is_gst_line_item: item.is_gst_line_item ?? false,
         }),
       });
       if (res.ok) {
@@ -1383,10 +1465,10 @@ export default function BudgetClient({
             curve: readString(row.Curve ?? row.curve),
           };
         })
-        .filter((row) => row.cost_code || row.description);
+        .filter((row) => row.cost_code && row.cost_type);
 
       if (importedItems.length === 0) {
-        window.alert("No valid budget rows found. Include at least a Cost Code or Description per row.");
+        window.alert("No valid budget rows found. Include both Cost Code and Cost Type for each row.");
         return;
       }
 
@@ -1629,8 +1711,27 @@ export default function BudgetClient({
       case "description":
         return (
           <div>
-            <p className="text-xs font-medium text-gray-500">{item!.cost_code}</p>
-            <p className="text-xs text-blue-600">{item!.description}</p>
+            <p className="text-xs font-medium text-gray-500">
+              {item!.cost_code}
+              {item!.cost_type ? ` · ${item!.cost_type}` : ""}
+            </p>
+            <p className="text-xs text-blue-600 flex items-center gap-1.5">
+              <span>{item!.description || "No description"}</span>
+              {item!.is_partial_line_item && (
+                <span
+                  className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-[10px] font-semibold text-amber-700"
+                  title="Partial budget line item"
+                  aria-label="Partial budget line item"
+                >
+                  ?
+                </span>
+              )}
+              {item!.is_gst_line_item && (
+                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                  GST
+                </span>
+              )}
+            </p>
           </div>
         );
       case "original_budget_amount": return <span className="text-blue-600">{fmt(item!.original_budget_amount)}</span>;
@@ -1959,10 +2060,28 @@ export default function BudgetClient({
                 {showCreateMenu && (
                   <div className="absolute left-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
                     <button
-                      onClick={() => { setShowLineItemModal(true); setShowCreateMenu(false); }}
+                      onClick={() => {
+                        setLineItemDefaults(undefined);
+                        setShowLineItemModal(true);
+                        setShowCreateMenu(false);
+                      }}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Budget Line Item
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLineItemDefaults({
+                          is_gst_line_item: true,
+                          cost_type: "Other",
+                          description: "GST",
+                        });
+                        setShowLineItemModal(true);
+                        setShowCreateMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      GST Budget Line Item
                     </button>
                     <button
                       onClick={() => { setShowBudgetModificationModal(true); setShowCreateMenu(false); }}
@@ -3062,7 +3181,10 @@ export default function BudgetClient({
           {!isBudgetLocked && (activeTab === "budget" || activeTab === "budget_details") && (
           <aside className="bg-white border border-gray-100 rounded-xl p-4 space-y-2">
             <button
-              onClick={() => setShowLineItemModal(true)}
+              onClick={() => {
+                setLineItemDefaults(undefined);
+                setShowLineItemModal(true);
+              }}
               className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
             >
               + Create Budget Line Item
@@ -3213,7 +3335,14 @@ export default function BudgetClient({
 
       {/* Modals */}
       {showLineItemModal && (
-        <LineItemModal onConfirm={handleAddLineItem} onCancel={() => setShowLineItemModal(false)} />
+        <LineItemModal
+          defaults={lineItemDefaults}
+          onConfirm={handleAddLineItem}
+          onCancel={() => {
+            setShowLineItemModal(false);
+            setLineItemDefaults(undefined);
+          }}
+        />
       )}
       {editingItem && (
         <LineItemModal

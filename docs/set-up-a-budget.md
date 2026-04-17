@@ -9,6 +9,33 @@ There are two ways to add data in the project’s **Budget** tool:
 
 Click **Create Budget Line Item**, enter the line item details, and repeat until all budget data has been entered.
 
+### Required manual-entry fields
+
+- **Cost Code** (required)
+- **Cost Type** (required)
+
+> Note: SiteCommand treats **Cost Code + Cost Type** as a unique budget-code combination and blocks duplicates.
+
+### GST line items
+
+If you need to track GST as its own budget line:
+
+1. Open the **Create** menu.
+2. Click **GST Budget Line Item**.
+3. Enter your dedicated GST cost code.
+4. Confirm **Cost Type** is set to **Other** (or your custom tax type).
+5. Save.
+
+GST line items are tagged in the Budget table for easier review and reporting.
+
+### Partial (unbudgeted) line items
+
+Use **Create Budget Line Item** and enable **Partial budget line item** when a missing budget code combination appears after project work has started.
+
+- Partial line items are created with **$0 Original Budget Amount**.
+- They are marked with a **?** indicator in the table.
+- You can move funds to/from them using budget changes/modifications.
+
 ## Option 2: Import budget line items with the template
 
 1. Download the Excel import template.
@@ -29,7 +56,7 @@ Before adding line items, keep the following in mind:
 
 Enter values for **Cost Code** and **Cost Type**. For details on these dropdown options, see the **Importer Data Fields** tab.
 
-For the **Description** column, leave it blank. Procore automatically creates a description after import.
+For the **Description** column, leave it blank or provide one if your team uses descriptive labels.
 
 For **Manual Calculation**, choose:
 
@@ -87,6 +114,15 @@ Use the dropdown options at the top of the budget to:
 - Open available budget snapshots.
 - Change grouping and filters.
 - Add comparison columns to analyze variance.
+
+### Job to Date Costs visibility
+
+The budget view includes:
+
+- **Job to Date Costs** (source column)
+- **Direct Costs** (calculated from Job to Date Costs and Commitments Invoiced)
+
+Use these together when reviewing non-ERP project cost progress and variance trends.
 
 A budget snapshot captures a frozen view of the budget at a point in time so you can review and analyze changes later.
 

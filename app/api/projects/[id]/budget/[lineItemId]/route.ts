@@ -15,6 +15,7 @@ export async function PATCH(
 
   const allowed = [
     "cost_code",
+    "cost_type",
     "description",
     "original_budget_amount",
     "budget_modifications",
@@ -25,11 +26,40 @@ export async function PATCH(
     "commitments_invoiced",
     "pending_cost_changes",
     "sort_order",
+    "is_partial_line_item",
+    "is_gst_line_item",
   ];
 
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
+  }
+
+  const normalizedCode = String(updates.cost_code ?? "").trim();
+  const normalizedType = String(updates.cost_type ?? "").trim();
+  if (!normalizedCode) {
+    return NextResponse.json({ error: "Cost code is required" }, { status: 400 });
+  }
+  if (!normalizedType) {
+    return NextResponse.json({ error: "Cost type is required" }, { status: 400 });
+  }
+  updates.cost_code = normalizedCode;
+  updates.cost_type = normalizedType;
+
+  const { data: existing, error: existingError } = await supabase
+    .from("budget_line_items")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("cost_code", normalizedCode)
+    .eq("cost_type", normalizedType)
+    .neq("id", lineItemId)
+    .limit(1);
+  if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 });
+  if ((existing || []).length > 0) {
+    return NextResponse.json(
+      { error: "A budget line item already exists for this Cost Code and Cost Type." },
+      { status: 409 }
+    );
   }
 
   const { data, error } = await supabase
