@@ -24,7 +24,16 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(
-    data || { project_id: projectId, enable_always_editable_sov: false, enable_ssov_by_default: false, enable_financial_markup: false }
+    data || {
+      project_id: projectId,
+      enable_always_editable_sov: false,
+      enable_ssov_by_default: false,
+      enable_financial_markup: false,
+      number_of_change_order_tiers: 1,
+      allow_standard_users_create_ccos: false,
+      allow_standard_users_create_pcos: false,
+      enable_field_initiated_change_orders: false,
+    }
   );
 }
 
@@ -44,10 +53,10 @@ export async function PUT(
 
   const payload: Record<string, unknown> = {
     project_id: projectId,
-    number_of_change_order_tiers: tiers,
-    allow_standard_users_create_ccos: allowStandardUsersCreateCcos,
-    allow_standard_users_create_pcos: allowStandardUsersCreatePcos,
-    enable_field_initiated_change_orders: enableFieldInitiated,
+    number_of_change_order_tiers: Number(body.number_of_change_order_tiers) || 1,
+    allow_standard_users_create_ccos: !!body.allow_standard_users_create_ccos,
+    allow_standard_users_create_pcos: !!body.allow_standard_users_create_pcos,
+    enable_field_initiated_change_orders: !!body.enable_field_initiated_change_orders,
     enable_always_editable_sov: !!body.enable_always_editable_sov,
     enable_financial_markup: !!body.enable_financial_markup,
     updated_by: session.id,

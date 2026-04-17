@@ -102,6 +102,33 @@ type IncludedPotentialRow = {
   status: string;
 };
 
+type RelatedItem = {
+  id: string;
+  item_type: string;
+  item_label: string | null;
+  item_date: string | null;
+  notes: string | null;
+  sort_order: number;
+};
+
+const RELATED_ITEM_TYPES = [
+  "RFI",
+  "Submittal",
+  "Task",
+  "Bid",
+  "Meeting",
+  "Drawing",
+  "Specification Section",
+  "Potential Change Order",
+  "Change Order Request",
+  "Correspondence",
+  "Punch Item",
+  "Observation",
+  "Daily Log",
+  "Attachment",
+  "Other",
+];
+
 function contactName(email: string, contacts: DirectoryContact[]): string {
   const c = contacts.find((x) => x.email === email);
   if (!c) return email;
@@ -160,6 +187,14 @@ export default function ChangeOrderDetailClient({
   const [fieldChange, setFieldChange] = useState(false);
   const [paidInFull, setPaidInFull] = useState(false);
   const [includedPotentialRows, setIncludedPotentialRows] = useState<IncludedPotentialRow[]>([]);
+  const [activeTab, setActiveTab] = useState<"general" | "related_items">("general");
+  const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
+  const [relatedItemsLoading, setRelatedItemsLoading] = useState(false);
+  const [newItemType, setNewItemType] = useState("");
+  const [newItemLabel, setNewItemLabel] = useState("");
+  const [newItemDate, setNewItemDate] = useState("");
+  const [newItemNotes, setNewItemNotes] = useState("");
+  const [addingItem, setAddingItem] = useState(false);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/directory`)
@@ -267,6 +302,16 @@ export default function ChangeOrderDetailClient({
       .catch(() => setIncludedPotentialRows([]));
   }, [co?.number, co?.schedule_of_values, co?.source_change_event_ids, projectId, scheduleImpact, status]);
 
+  useEffect(() => {
+    if (activeTab !== "related_items") return;
+    setRelatedItemsLoading(true);
+    fetch(`/api/projects/${projectId}/change-orders/${changeOrderId}/related-items`)
+      .then((r) => r.json())
+      .then((data) => setRelatedItems(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setRelatedItemsLoading(false));
+  }, [activeTab, projectId, changeOrderId]);
+
   // designated_reviewer stores the email; username is session.email
   const isReviewer =
     !!designatedReviewer && username.trim().toLowerCase() === designatedReviewer.trim().toLowerCase();
@@ -274,6 +319,47 @@ export default function ChangeOrderDetailClient({
     "Pending - In Review",
     "Pending - Revised",
   ]).has(status);
+
+  const isAdmin = role === "admin" || role === "super_admin" || role === "site_admin";
+
+  async function handleAddRelatedItem() {
+    if (!newItemType) return;
+    setAddingItem(true);
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/change-orders/${changeOrderId}/related-items`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            item_type: newItemType,
+            item_label: newItemLabel || null,
+            item_date: newItemDate || null,
+            notes: newItemNotes || null,
+            sort_order: relatedItems.length,
+          }),
+        }
+      );
+      if (res.ok) {
+        const item: RelatedItem = await res.json();
+        setRelatedItems((prev) => [...prev, item]);
+        setNewItemType("");
+        setNewItemLabel("");
+        setNewItemDate("");
+        setNewItemNotes("");
+      }
+    } finally {
+      setAddingItem(false);
+    }
+  }
+
+  async function handleDeleteRelatedItem(itemId: string) {
+    await fetch(
+      `/api/projects/${projectId}/change-orders/${changeOrderId}/related-items/${itemId}`,
+      { method: "DELETE" }
+    );
+    setRelatedItems((prev) => prev.filter((i) => i.id !== itemId));
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -579,14 +665,143 @@ export default function ChangeOrderDetailClient({
         </div>
 
         {/* Tab bar */}
-        <div className="px-6 border-b border-gray-200 shrink-0">
-          <button className="py-2 px-1 text-sm font-medium text-gray-900 border-b-2 border-orange-500 -mb-px">
+        <div className="px-6 border-b border-gray-200 shrink-0 flex gap-4">
+          <button
+            onClick={() => setActiveTab("general")}
+            className={`py-2 px-1 text-sm font-medium border-b-2 -mb-px ${
+              activeTab === "general"
+                ? "text-gray-900 border-orange-500"
+                : "text-gray-500 border-transparent hover:text-gray-700"
+            }`}
+          >
             General
+          </button>
+          <button
+            onClick={() => setActiveTab("related_items")}
+            className={`py-2 px-1 text-sm font-medium border-b-2 -mb-px ${
+              activeTab === "related_items"
+                ? "text-gray-900 border-orange-500"
+                : "text-gray-500 border-transparent hover:text-gray-700"
+            }`}
+          >
+            Related Items{relatedItems.length > 0 ? ` (${relatedItems.length})` : ""}
           </button>
         </div>
 
+        {/* Related Items tab */}
+        {activeTab === "related_items" && (
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="max-w-5xl">
+              <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
+                Related Items
+              </p>
+              <div className="border border-gray-200 rounded overflow-hidden mb-6">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 text-gray-700 border-b border-gray-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left w-40">Type</th>
+                      <th className="px-3 py-2 text-left">Description</th>
+                      <th className="px-3 py-2 text-left w-28">Date</th>
+                      <th className="px-3 py-2 text-left">Notes</th>
+                      <th className="px-3 py-2 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {relatedItemsLoading ? (
+                      <tr>
+                        <td colSpan={5} className="px-3 py-4 text-gray-400">Loading…</td>
+                      </tr>
+                    ) : relatedItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-3 py-4 text-gray-400">No related items.</td>
+                      </tr>
+                    ) : (
+                      relatedItems.map((item) => (
+                        <tr key={item.id} className="border-b last:border-b-0 border-gray-100">
+                          <td className="px-3 py-2">{item.item_type || "—"}</td>
+                          <td className="px-3 py-2">{item.item_label || "—"}</td>
+                          <td className="px-3 py-2">{item.item_date || "—"}</td>
+                          <td className="px-3 py-2">{item.notes || "—"}</td>
+                          <td className="px-3 py-2">
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleDeleteRelatedItem(item.id)}
+                                className="text-gray-400 hover:text-red-600 text-base leading-none"
+                                title="Remove"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {isAdmin && (
+                <div className="border border-gray-200 rounded p-4 bg-gray-50">
+                  <h4 className="text-xs font-semibold text-gray-700 mb-3">Add Related Item</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Type *</label>
+                      <select
+                        value={newItemType}
+                        onChange={(e) => setNewItemType(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                      >
+                        <option value="">Select type…</option>
+                        {RELATED_ITEM_TYPES.map((t) => (
+                          <option key={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Description</label>
+                      <input
+                        value={newItemLabel}
+                        onChange={(e) => setNewItemLabel(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                        placeholder="e.g. RFI #003 — Footing depth"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={newItemDate}
+                        onChange={(e) => setNewItemDate(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Notes</label>
+                      <input
+                        value={newItemNotes}
+                        onChange={(e) => setNewItemNotes(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                        placeholder="Optional notes"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={handleAddRelatedItem}
+                      disabled={addingItem || !newItemType}
+                      className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50"
+                    >
+                      {addingItem ? "Adding…" : "Add Item"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Scrollable form body */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        {activeTab === "general" && <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="max-w-5xl">
             <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">
               General Information
@@ -1074,7 +1289,7 @@ export default function ChangeOrderDetailClient({
               </>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* Footer */}
         {saveError && (
