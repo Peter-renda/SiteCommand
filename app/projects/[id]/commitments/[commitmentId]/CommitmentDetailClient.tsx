@@ -69,6 +69,26 @@ type SsovItem = {
   sort_order: number;
 };
 
+type ChangeHistoryItem = {
+  id: string;
+  action: string;
+  field_name: string | null;
+  from_value: string | null;
+  to_value: string | null;
+  changed_by_name: string | null;
+  created_at: string;
+};
+
+type DetailTab =
+  | "general"
+  | "change_orders"
+  | "invoices"
+  | "payments_issued"
+  | "related_items"
+  | "emails"
+  | "change_history"
+  | "financial_markup";
+
 const SSOV_STATUS_LABELS: Record<string, string> = {
   "": "Not Started",
   draft: "Draft",
@@ -440,10 +460,13 @@ export default function CommitmentDetailClient({
   const [loading, setLoading] = useState(true);
   const [ssovBusy, setSsovBusy] = useState(false);
   const [ssovError, setSsovError] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"general" | "financial_markup">("general");
+  const [activeTab, setActiveTab] = useState<DetailTab>("general");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [changeHistory, setChangeHistory] = useState<ChangeHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   async function handleDelete() {
     setDeleting(true);
@@ -501,6 +524,21 @@ export default function CommitmentDetailClient({
       await reloadCommitment();
     } finally {
       setSsovBusy(false);
+    }
+  }
+
+  async function loadHistory() {
+    if (historyLoaded || historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/commitments/${commitmentId}/history`);
+      if (res.ok) {
+        const data = await res.json();
+        setChangeHistory(Array.isArray(data) ? data : []);
+        setHistoryLoaded(true);
+      }
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
@@ -649,21 +687,37 @@ export default function CommitmentDetailClient({
           </div>
         </div>
         {/* Tab bar */}
-        <div className="px-8 flex items-center gap-0 border-t border-gray-100">
-          <button
-            onClick={() => setActiveTab("general")}
-            className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "general"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            General
-          </button>
-          {commitment.financial_markup_enabled && (
+        <div className="px-8 flex items-center border-t border-gray-100 overflow-x-auto">
+          {(
+            [
+              { key: "general", label: "General" },
+              { key: "change_orders", label: "Change Orders" },
+              { key: "invoices", label: "Invoices" },
+              { key: "payments_issued", label: "Payments Issued" },
+              { key: "related_items", label: "Related Items" },
+              { key: "emails", label: "Emails" },
+              { key: "change_history", label: "Change History" },
+            ] as { key: DetailTab; label: string }[]
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => {
+                setActiveTab(key);
+                if (key === "change_history") loadHistory();
+              }}
+              className={`py-2 px-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                activeTab === key
+                  ? "border-orange-500 text-orange-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          {commitment.financial_markup_enabled ? (
             <button
               onClick={() => setActiveTab("financial_markup")}
-              className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`py-2 px-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                 activeTab === "financial_markup"
                   ? "border-orange-500 text-orange-600"
                   : "border-transparent text-gray-500 hover:text-gray-700"
@@ -671,9 +725,11 @@ export default function CommitmentDetailClient({
             >
               Financial Markup
             </button>
-          )}
-          {!commitment.financial_markup_enabled && (
-            <span className="py-2 px-4 text-sm text-gray-300 cursor-not-allowed" title="Enable Financial Markup in settings to access this tab">
+          ) : (
+            <span
+              className="py-2 px-4 text-sm text-gray-300 cursor-not-allowed whitespace-nowrap"
+              title="Enable Financial Markup in settings to access this tab"
+            >
               Financial Markup
             </span>
           )}
@@ -711,6 +767,74 @@ export default function CommitmentDetailClient({
               </a>
             </div>
           </Section>
+        )}
+
+        {/* ── Placeholder tabs ── */}
+        {(activeTab === "change_orders" || activeTab === "invoices" || activeTab === "payments_issued" || activeTab === "related_items" || activeTab === "emails") && (
+          <div className="py-16 text-center">
+            <p className="text-sm text-gray-400">
+              {activeTab === "change_orders" && "Change Orders"}
+              {activeTab === "invoices" && "Invoices"}
+              {activeTab === "payments_issued" && "Payments Issued"}
+              {activeTab === "related_items" && "Related Items"}
+              {activeTab === "emails" && "Emails"}
+              {" "}— coming soon
+            </p>
+            <p className="text-xs text-gray-300 mt-1">This section will appear here when available.</p>
+          </div>
+        )}
+
+        {/* ── Change History Tab ── */}
+        {activeTab === "change_history" && (
+          <div className="py-8">
+            <p className="text-xs text-gray-500 mb-4">
+              A non-deletable audit log of all modifications made to this commitment. Visible to Admins only.
+            </p>
+            {historyLoading ? (
+              <p className="text-sm text-gray-400">Loading…</p>
+            ) : changeHistory.length === 0 ? (
+              <p className="text-sm text-gray-400">No change history recorded yet.</p>
+            ) : (
+              <div className="border border-gray-200 rounded overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[200px]">Action</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[120px]">From</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[120px]">To</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[120px]">Changed By</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[160px]">Date &amp; Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {changeHistory.map((entry) => (
+                      <tr key={entry.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+                        <td className="px-3 py-2 text-gray-900">{entry.action}</td>
+                        <td className="px-3 py-2 text-gray-500">
+                          {entry.from_value != null ? (
+                            <span className="font-mono">{entry.from_value || <span className="text-gray-300 italic">empty</span>}</span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-gray-900">
+                          {entry.to_value != null ? (
+                            <span className="font-mono">{entry.to_value || <span className="text-gray-300 italic">empty</span>}</span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700">{entry.changed_by_name || "—"}</td>
+                        <td className="px-3 py-2 text-gray-500">
+                          {new Date(entry.created_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
 
         {activeTab === "general" && (<>
@@ -785,28 +909,6 @@ export default function CommitmentDetailClient({
                 className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
                 dangerouslySetInnerHTML={{ __html: commitment.description }}
               />
-            </div>
-          )}
-          {commitment.type === "subcontract" && (commitment.inclusions || commitment.exclusions) && (
-            <div className="mt-4 grid grid-cols-1 gap-4">
-              {commitment.inclusions && (
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Inclusions — Scope of Work</p>
-                  <div
-                    className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: commitment.inclusions }}
-                  />
-                </div>
-              )}
-              {commitment.exclusions && (
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Exclusions</p>
-                  <div
-                    className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: commitment.exclusions }}
-                  />
-                </div>
-              )}
             </div>
           )}
         </Section>
@@ -998,6 +1100,28 @@ export default function CommitmentDetailClient({
                     className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{ __html: commitment.exhibit_a_scope }}
                   />
+                </div>
+              )}
+              {(commitment.inclusions || commitment.exclusions) && (
+                <div className="mt-4 grid grid-cols-1 gap-4">
+                  {commitment.inclusions && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Inclusions — Scope of Work</p>
+                      <div
+                        className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: commitment.inclusions }}
+                      />
+                    </div>
+                  )}
+                  {commitment.exclusions && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Exclusions</p>
+                      <div
+                        className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: commitment.exclusions }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
