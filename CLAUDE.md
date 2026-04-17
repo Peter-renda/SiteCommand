@@ -556,3 +556,77 @@ Notes:
 ### Prime Contracts: Enable Financial Markup
 - Prime contract advanced settings should include a dedicated **Enable Financial Markup** toggle at the contract level.
 - Enabling this setting is prerequisite behavior for applying markup rules on associated prime contract change orders.
+
+## Commitment CO Workflow Notes from Procore Tutorials (Added April 17, 2026)
+
+### Add a Change Event Line Item to an Unapproved Commitment CO
+- Keep a bulk action labeled **Add to Unapproved Commitment CO** in Change Events.
+- Allow selecting line items across multiple change events.
+- Only show commitment CO targets that are not **Approved**.
+- Result expectation: selected change event line items append as additional SOV lines on the chosen commitment CO.
+- Permissions baseline:
+  - **Admin** on Change Events.
+  - **Admin** on Commitments.
+- ERP caveat: linked ERP workflows may alter which options appear in bulk-action menus.
+
+### Add a Related Item to a Commitment Change Order
+- Commitment CO detail should support a **Related Items** association pattern.
+- Only project tools that are active should appear as selectable related-item types.
+- Related-item picker options should honor record-level view permissions in each tool.
+- Permissions baseline:
+  - **Admin** on Change Orders.
+
+### Add Financial Markup to CCOs
+- Require commitment-level financial markup enablement before rule entry on CCOs.
+- Preserve proportional distribution behavior of markup across CCO SOV lines.
+- Keep horizontal + vertical markup interaction explicit in UI/help text.
+- Preserve limitation messaging:
+  - CCOs with financial markup cannot be used on subcontractor invoices.
+- Permissions baseline:
+  - **Admin** on Commitments.
+
+### Approve or Reject Commitment Change Orders
+- Approval actions should be available to the assigned **Designated Reviewer** when CCO status is in pending review states.
+- Keep reviewer identity + review date captured when action is submitted.
+- Permission baseline:
+  - **Standard** or above on Commitments and Change Orders, plus reviewer assignment.
+
+### Bulk Create Commitment Change Orders from a Change Event
+- Support bulk creation from selected change event line items where possible.
+- Keep tiering guidance explicit in UX:
+  - 2-tier: CE > CPCO > CCO
+  - 3-tier: CE > CPCO > COR > CCO
+- Preserve vendor/contract grouping context before record creation.
+- Permissions baseline:
+  - **Standard+** on Change Events.
+  - **Admin** on Commitments.
+
+### Complete a Commitment Change Order with DocuSign
+- Require DocuSign integration enablement at company and project levels.
+- Keep CCO-level **Sign with DocuSign** behavior explicit before final completion.
+- Preserve flow expectations:
+  1. Open CCO.
+  2. Launch DocuSign.
+  3. Prepare envelope (documents, recipients, message, preview/send).
+- Keep re-authentication state messaging clear when DocuSign token expires.
+
+### Create a Commitment Change Order (CCO)
+- Maintain support for creating CCOs from commitments with tier-aware behavior.
+- If Change Events are enabled, steer users into change-event-first creation flow when direct create is restricted.
+- Keep prerequisites explicit:
+  - Existing commitment.
+  - Optional DocuSign completion path.
+
+### Create a Commitment Potential Change Order from a Change Event
+- Require Change Events tool enabled + Commitments configured for 2-tier workflows when mapping to CPCO behavior.
+- Support creating before or after RFQ response; clarify that late-stage RFQ workflows can auto-populate CPCO SOV amounts.
+- Preserve permissions model for Admin and eligible Standard users based on private/setting constraints.
+
+### Determine the Order in Which Change Orders Were Approved
+- Preserve guidance that approved change orders may need rollback in reverse approval order before editing/deleting older items.
+- Approval-order visibility should be easy to audit with status + approval date context.
+
+### Forward a Change Order to a Project User by Email
+- Change orders should be forwardable via built-in email workflow to project directory users with valid email addresses.
+- Keep support for notifying designated reviewers that a response is required.
+- Preserve distinction between forwarding a Commitment CO vs Prime CO while reusing common messaging patterns.
