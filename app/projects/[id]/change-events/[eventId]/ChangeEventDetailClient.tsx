@@ -44,6 +44,19 @@ type ChangeEvent = {
   delete_blocked?: boolean;
 };
 type PrimePcoOption = { id: string; number: string; title: string; contract_name: string | null };
+type BudgetLine = {
+  id: string;
+  cost_code: string;
+  description: string | null;
+  budget_modifications: number;
+  original_budget_amount: number;
+  approved_cos: number;
+  pending_budget_changes: number;
+  committed_costs: number;
+  job_to_date_costs: number;
+  commitments_invoiced: number;
+  pending_cost_changes: number;
+};
 
 type TabKey = "General" | "Related Items" | "Comments" | "Emails" | "Change History" | "Advanced Settings";
 
@@ -137,6 +150,15 @@ export default function ChangeEventDetailClient({
   const [pcoPickerOpen, setPcoPickerOpen] = useState(false);
   const [pcoPickerLoading, setPcoPickerLoading] = useState(false);
   const [pcoPickerContracts, setPcoPickerContracts] = useState<{ id: string; contract_number: number; title: string }[]>([]);
+  const [budgetModalOpen, setBudgetModalOpen] = useState(false);
+  const [budgetModalLoading, setBudgetModalLoading] = useState(false);
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [budgetItems, setBudgetItems] = useState<BudgetLine[]>([]);
+  const [budgetFromId, setBudgetFromId] = useState("");
+  const [budgetToId, setBudgetToId] = useState("");
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [budgetNotes, setBudgetNotes] = useState("");
+  const [budgetError, setBudgetError] = useState<string | null>(null);
   const lineItems = event?.line_items ?? [];
   const filteredLineItems = lineItems.filter((li) =>
     search
@@ -389,6 +411,136 @@ export default function ChangeEventDetailClient({
     if (!patchRes.ok) throw new Error("Failed to add selected SOV to the PCO.");
   }
 
+  const selectedBudgetLine = budgetItems.find((item) => item.id === budgetToId) ?? null;
+
+  async function openBudgetModificationModal() {
+    if (selectedLineItems.length !== 1) {
+      window.alert("Select exactly one change event line item to create a budget modification.");
+      return;
+    }
+    setQuickActionsOpen(false);
+    setBudgetModalOpen(true);
+    setBudgetModalLoading(true);
+    setBudgetError(null);
+    setBudgetAmount("");
+    setBudgetNotes("");
+    try {
+      const res = await fetch(`/api/projects/${projectId}/budget`);
+      const data = await res.json();
+      const rows = Array.isArray(data) ? (data as BudgetLine[]) : [];
+      setBudgetItems(rows);
+      const selected = selectedLineItems[0];
+      const defaultTo = rows.find((row) => (row.cost_code ?? "").trim() === (selected.budget_code ?? "").trim());
+      setBudgetToId(defaultTo?.id ?? "");
+      setBudgetFromId("");
+      if (!defaultTo) {
+        setBudgetError("No matching budget line item was found for this change event line item. Select a destination line item.");
+      }
+    } catch {
+      setBudgetItems([]);
+      setBudgetError("Unable to load budget line items.");
+    } finally {
+      setBudgetModalLoading(false);
+    }
+  }
+
+  async function handleCreateBudgetModification() {
+    if (budgetSaving) return;
+    setBudgetError(null);
+    const amount = Number(budgetAmount);
+    if (!budgetFromId || !budgetToId) {
+      setBudgetError("Choose both a source and destination line item.");
+      return;
+    }
+    if (budgetFromId === budgetToId) {
+      setBudgetError("Source and destination line items must be different.");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setBudgetError("Enter a transfer amount greater than zero.");
+      return;
+    }
+
+    const fromItem = budgetItems.find((item) => item.id === budgetFromId);
+    const toItem = budgetItems.find((item) => item.id === budgetToId);
+    if (!fromItem || !toItem) {
+      setBudgetError("Invalid source or destination line item.");
+      return;
+    }
+
+    setBudgetSaving(true);
+    try {
+      const patchPayload = (item: BudgetLine, delta: number) => ({
+        cost_code: item.cost_code,
+        description: item.description,
+        original_budget_amount: item.original_budget_amount,
+        budget_modifications: Number(item.budget_modifications || 0) + delta,
+        approved_cos: item.approved_cos,
+        pending_budget_changes: item.pending_budget_changes,
+        committed_costs: item.committed_costs,
+        job_to_date_costs: item.job_to_date_costs,
+        commitments_invoiced: item.commitments_invoiced,
+        pending_cost_changes: item.pending_cost_changes,
+      });
+
+      const [fromRes, toRes] = await Promise.all([
+        fetch(`/api/projects/${projectId}/budget/${fromItem.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patchPayload(fromItem, -amount)),
+        }),
+        fetch(`/api/projects/${projectId}/budget/${toItem.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patchPayload(toItem, amount)),
+        }),
+      ]);
+      if (!fromRes.ok || !toRes.ok) throw new Error("Unable to update budget line items.");
+
+      const recordRes = await fetch(`/api/projects/${projectId}/budget/modifications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows: [
+            {
+              fromId: fromItem.id,
+              toId: toItem.id,
+              fromCostCode: fromItem.cost_code,
+              toCostCode: toItem.cost_code,
+              amount,
+              notes: budgetNotes.trim(),
+            },
+          ],
+        }),
+      });
+      if (!recordRes.ok) throw new Error("Unable to save budget modification record.");
+
+      const selectedLi = selectedLineItems[0];
+      setEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              line_items: prev.line_items.map((li) =>
+                li.id === selectedLi.id
+                  ? { ...li, cost_budget_mod: Number(li.cost_budget_mod ?? 0) + amount }
+                  : li
+              ),
+            }
+          : prev
+      );
+      setBudgetModalOpen(false);
+      setBudgetFromId("");
+      setBudgetToId("");
+      setBudgetAmount("");
+      setBudgetNotes("");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to create budget modification.";
+      setBudgetError(message);
+    } finally {
+      setBudgetSaving(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <ProjectNav projectId={projectId} />
@@ -531,8 +683,9 @@ export default function ChangeEventDetailClient({
                   {quickActionsOpen && hasSelection && (
                     <div className="absolute left-0 z-20 mt-1 w-72 rounded border border-gray-200 bg-white p-2 shadow-lg text-xs space-y-2">
                       <p className="px-2 text-[11px] text-gray-500">
-                        Add selected line items to unapproved commitments or unapproved prime PCOs.
+                        Add selected line items to related workflows, including Budget Modifications.
                       </p>
+                      <button onClick={openBudgetModificationModal} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Budget Modification</button>
                       <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/new?type=purchase_order&eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Purchase Order Contract</button>
                       <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/commitments/new?type=subcontract&eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Create Subcontract</button>
                       <button onClick={() => { setQuickActionsOpen(false); router.push(`/projects/${projectId}/change-events/send-rfqs?eventIds=${event.id}`); }} className="block w-full text-left rounded px-2 py-1 hover:bg-gray-50">Send RFQs</button>
@@ -796,6 +949,96 @@ export default function ChangeEventDetailClient({
           </section>
         )}
       </div>
+      {budgetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) setBudgetModalOpen(false); }}>
+          <div className="bg-white rounded-lg shadow-xl w-[560px] max-w-[95vw]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900">Create Budget Modification</h2>
+              <button onClick={() => setBudgetModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              {budgetModalLoading ? (
+                <p className="text-sm text-gray-500">Loading budget line items…</p>
+              ) : (
+                <>
+                  <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                    {selectedLineItems[0]?.description || selectedLineItems[0]?.budget_code
+                      ? `Change Event Line Item: ${selectedLineItems[0]?.budget_code ?? "—"} — ${selectedLineItems[0]?.description ?? "Untitled"}`
+                      : "Select one change event line item to continue."}
+                  </div>
+                  <label className="block text-xs text-gray-600">
+                    From (Source Cost Code)
+                    <select
+                      value={budgetFromId}
+                      onChange={(e) => setBudgetFromId(e.target.value)}
+                      className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                    >
+                      <option value="">Select source line item…</option>
+                      {budgetItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.cost_code} — {item.description || "No description"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs text-gray-600">
+                    To (Selected Change Event Cost Code)
+                    <select
+                      value={budgetToId}
+                      onChange={(e) => setBudgetToId(e.target.value)}
+                      className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                    >
+                      <option value="">Select destination line item…</option>
+                      {budgetItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.cost_code} — {item.description || "No description"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs text-gray-600">
+                    Transfer Amount
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={budgetAmount}
+                      onChange={(e) => setBudgetAmount(e.target.value)}
+                      className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                      placeholder="0.00"
+                    />
+                  </label>
+                  <label className="block text-xs text-gray-600">
+                    Notes
+                    <textarea
+                      value={budgetNotes}
+                      onChange={(e) => setBudgetNotes(e.target.value)}
+                      className="mt-1 min-h-20 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                      placeholder="Add notes for this transfer."
+                    />
+                  </label>
+                  {selectedBudgetLine && (
+                    <p className="text-[11px] text-gray-500">
+                      Destination cost code: <span className="font-medium text-gray-700">{selectedBudgetLine.cost_code}</span>
+                    </p>
+                  )}
+                  {budgetError && <p className="text-xs text-red-600">{budgetError}</p>}
+                </>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-200">
+              <button onClick={() => setBudgetModalOpen(false)} className="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={handleCreateBudgetModification}
+                disabled={budgetModalLoading || budgetSaving}
+                className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                {budgetSaving ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {pcoPickerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) setPcoPickerOpen(false); }}>
           <div className="bg-white rounded-lg shadow-xl w-[480px] max-h-[80vh] flex flex-col">
