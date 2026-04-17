@@ -25,6 +25,8 @@ type Commitment = {
 type Contact = {
   id: string;
   type?: "user" | "company" | "distribution_group" | null;
+  company?: string | null;
+  permission?: string | null;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
@@ -161,6 +163,20 @@ export default function SendRFQsClient({
     return name || c.email || "Unnamed Contact";
   }
 
+  function recipientOptionsForRow(row: RecipientRow) {
+    const normalizedCompany = String(row.contract_company || "").trim().toLowerCase();
+    const companyMatches = selectableContacts.filter(
+      (c) => String(c.company || "").trim().toLowerCase() === normalizedCompany
+    );
+    const withPermission = companyMatches.filter((c) => {
+      const permission = String(c.permission || "").toLowerCase();
+      return permission.includes("standard") || permission.includes("admin");
+    });
+    if (withPermission.length > 0) return withPermission;
+    if (companyMatches.length > 0) return companyMatches;
+    return selectableContacts;
+  }
+
   function updateRow(index: number, patch: Partial<RecipientRow>) {
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
@@ -276,7 +292,7 @@ export default function SendRFQsClient({
                             className="h-9 px-2 border border-gray-300 rounded min-w-56"
                           >
                             <option value="">Select recipient...</option>
-                            {selectableContacts.map((c) => {
+                            {recipientOptionsForRow(row).map((c) => {
                               const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim();
                               return (
                                 <option key={c.id} value={c.id}>

@@ -56,6 +56,14 @@ type BudgetItem = {
   description: string;
 };
 
+type CommitmentOption = {
+  id: string;
+  number: number;
+  title: string;
+  status: string | null;
+  contract_company: string | null;
+};
+
 // ── Budget Code Dropdown ───────────────────────────────────────────────────────
 
 function BudgetCodeDropdown({
@@ -528,6 +536,8 @@ function LineItemsTable({
   contractOptions,
   budgetItems,
   onCreateBudgetCode,
+  onAddLinesForAllCommitments,
+  onImportCsv,
 }: {
   items: LineItem[];
   onChange: (id: string, field: keyof LineItem, value: string) => void;
@@ -537,6 +547,8 @@ function LineItemsTable({
   contractOptions: string[];
   budgetItems: BudgetItem[];
   onCreateBudgetCode: (code: string, description: string) => Promise<void>;
+  onAddLinesForAllCommitments: () => void;
+  onImportCsv: (file: File) => void;
 }) {
   const totalRevROM = items.reduce((s, li) => s + calcROM(li.revQty, li.revUnitCost), 0);
   const totalCostROM = items.reduce((s, li) => s + calcROM(li.costQty, li.costUnitCost), 0);
@@ -771,16 +783,24 @@ function LineItemsTable({
         </button>
         <button
           type="button"
+          onClick={onAddLinesForAllCommitments}
           className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
         >
           Add Lines for All Commitments
         </button>
-        <button
-          type="button"
-          className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
-        >
+        <label className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
           Import Line Items from CSV
-        </button>
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onImportCsv(file);
+              e.currentTarget.value = "";
+            }}
+          />
+        </label>
       </div>
     </div>
   );
@@ -811,6 +831,7 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
   const [primeContractOptions, setPrimeContractOptions] = useState<string[]>([]);
   const [vendorOptions, setVendorOptions] = useState<string[]>([]);
   const [contractOptions, setContractOptions] = useState<string[]>([]);
+  const [commitments, setCommitments] = useState<CommitmentOption[]>([]);
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
 
   // Fetch next number
@@ -875,6 +896,7 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
           .filter((c: { number: number; title: string }) => c.number != null && c.title)
           .map((c: { number: number; title: string }) => `${c.number}: ${c.title}`);
         setContractOptions(contracts);
+        setCommitments(arr);
       })
       .catch(() => {});
   }, [projectId]);
@@ -904,6 +926,61 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
 
   function addLine() {
     setLineItems((prev) => [...prev, emptyLine()]);
+  }
+
+  async function addLinesForAllCommitments() {
+    const approved = commitments.filter((c) => String(c.status ?? "").toLowerCase() === "approved");
+    if (approved.length === 0) {
+      window.alert("No approved commitments were found.");
+      return;
+    }
+
+    const sovLists = await Promise.all(
+      approved.map(async (commitment) => {
+        const res = await fetch(`/api/projects/${projectId}/commitments/${commitment.id}/sov`);
+        const data = await res.json();
+        return { commitment, lines: Array.isArray(data) ? data : [] };
+      })
+    );
+
+    const imported: LineItem[] = [];
+    sovLists.forEach(({ commitment, lines }) => {
+      lines.forEach((line: Record<string, unknown>) => {
+        imported.push({
+          id: uid(),
+          budgetCode: String(line.budget_code ?? ""),
+          description: String(line.description ?? ""),
+          vendor: String(commitment.contract_company ?? ""),
+          contract: `${commitment.number}: ${commitment.title}`,
+          unitOfMeasure: String(line.uom ?? ""),
+          revQty: "",
+          revUnitCost: "",
+          costQty: Number(line.qty ?? 0) ? String(line.qty) : "",
+          costUnitCost: Number(line.unit_cost ?? 0) ? String(line.unit_cost) : "",
+        });
+      });
+    });
+    if (imported.length === 0) {
+      window.alert("No commitment schedule of values line items were found.");
+      return;
+    }
+    setLineItems((prev) => [...prev.filter((li) => li.budgetCode || li.description || li.vendor || li.contract || li.unitOfMeasure || li.revQty || li.revUnitCost || li.costQty || li.costUnitCost), ...imported]);
+  }
+
+  function importCsv(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result ?? "");
+      const lines = text.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
+      if (lines.length <= 1) return;
+      const rows = lines.slice(1);
+      const imported = rows.map((row) => {
+        const [budgetCode = "", description = "", vendor = "", contract = "", unitOfMeasure = "", revQty = "", revUnitCost = "", costQty = "", costUnitCost = ""] = row.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
+        return { id: uid(), budgetCode, description, vendor, contract, unitOfMeasure, revQty, revUnitCost, costQty, costUnitCost };
+      });
+      setLineItems((prev) => [...prev.filter((li) => li.budgetCode || li.description || li.vendor || li.contract || li.unitOfMeasure || li.revQty || li.revUnitCost || li.costQty || li.costUnitCost), ...imported]);
+    };
+    reader.readAsText(file);
   }
 
   const handleSave = useCallback(async () => {
@@ -1160,6 +1237,8 @@ export default function NewChangeEventClient({ projectId }: { projectId: string 
             contractOptions={contractOptions}
             budgetItems={budgetItems}
             onCreateBudgetCode={handleCreateBudgetCode}
+            onAddLinesForAllCommitments={addLinesForAllCommitments}
+            onImportCsv={importCsv}
           />
         </section>
       </div>
