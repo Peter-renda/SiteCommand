@@ -195,7 +195,7 @@ function CreateRFIModal({
     responsible_contractor_id: string | null;
     specification_id: string | null;
     drawing_number: string;
-    attachmentFile: File | null;
+    attachmentFiles: File[];
   }) => void;
   onCancel: () => void;
 }) {
@@ -210,19 +210,30 @@ function CreateRFIModal({
   const [responsibleContractorId, setResponsibleContractorId] = useState<string | null>(null);
   const [specificationId, setSpecificationId] = useState<string | null>(null);
   const [drawingNumber, setDrawingNumber] = useState("");
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  function addFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const incoming = Array.from(files);
+    setAttachmentFiles((prev) => {
+      const key = (f: File) => `${f.name}__${f.size}__${f.lastModified}`;
+      const existing = new Set(prev.map(key));
+      return [...prev, ...incoming.filter((f) => !existing.has(key(f)))];
+    });
+  }
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) setAttachmentFile(file);
+    addFiles(e.target.files);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) setAttachmentFile(file);
+    addFiles(e.dataTransfer.files);
+  }
+  function removeFile(index: number) {
+    setAttachmentFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   return (
@@ -259,21 +270,29 @@ function CreateRFIModal({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Attachment</label>
-            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+            <label className="block text-xs font-medium text-gray-500 mb-1">Attachments</label>
+            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${dragOver ? "border-gray-400 bg-gray-50" : "border-gray-200 hover:border-gray-300"} ${attachmentFile ? "bg-gray-50" : ""}`}
+              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${dragOver ? "border-gray-400 bg-gray-50" : "border-gray-200 hover:border-gray-300"} ${attachmentFiles.length > 0 ? "bg-gray-50" : ""}`}
             >
-              {attachmentFile ? (
-                <p className="text-sm text-gray-700">{attachmentFile.name}</p>
-              ) : (
-                <p className="text-sm text-gray-500">Drag and drop a file or click to attach</p>
-              )}
+              <p className="text-sm text-gray-500">Drag and drop files or click to attach</p>
             </div>
+            {attachmentFiles.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {attachmentFiles.map((f, i) => (
+                  <li key={`${f.name}-${f.lastModified}-${i}`} className="flex items-center justify-between gap-2 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-md">
+                    <span className="text-sm text-gray-700 truncate">{f.name}</span>
+                    <button type="button" onClick={() => removeFile(i)} className="text-gray-400 hover:text-gray-700 flex-shrink-0" aria-label={`Remove ${f.name}`}>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -328,8 +347,8 @@ function CreateRFIModal({
 
           <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
             <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "draft", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFile })} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create as Draft</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "open", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFile })} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create as Open</button>
+            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "draft", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFiles })} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create as Draft</button>
+            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "open", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFiles })} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create as Open</button>
           </div>
         </div>
       </div>
@@ -536,7 +555,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
     responsible_contractor_id: string | null;
     specification_id: string | null;
     drawing_number: string;
-    attachmentFile: File | null;
+    attachmentFiles: File[];
   }) {
     setShowCreate(false);
     setCreating(true);
@@ -561,17 +580,20 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
     });
     if (res.ok) {
       const newRfi: RFI = await res.json();
-      if (data.attachmentFile) {
+      const failed: string[] = [];
+      for (const file of data.attachmentFiles) {
         const formData = new FormData();
-        formData.append("file", data.attachmentFile);
+        formData.append("file", file);
         const attRes = await fetch(`/api/projects/${projectId}/rfis/${newRfi.id}/attachment`, { method: "POST", body: formData });
         if (attRes.ok) {
           const updated = await attRes.json();
-          newRfi.attachments = updated.attachments ?? [];
+          newRfi.attachments = updated.attachments ?? newRfi.attachments;
         } else {
-          const attErr = await attRes.json().catch(() => ({}));
-          setAttachmentError(attErr.error ?? "Failed to upload attachment. Please add it again from the RFI detail page.");
+          failed.push(file.name);
         }
+      }
+      if (failed.length > 0) {
+        setAttachmentError(`Failed to upload ${failed.length === 1 ? "attachment" : "attachments"}: ${failed.join(", ")}. Please add ${failed.length === 1 ? "it" : "them"} again from the RFI detail page.`);
       }
       setRfis((prev) => [...prev, newRfi]);
       if (data.status === "open" && data.distribution_list.length > 0) {

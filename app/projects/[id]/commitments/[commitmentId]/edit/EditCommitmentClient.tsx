@@ -595,6 +595,10 @@ export default function EditCommitmentClient({
   // DocuSign
   const [signDocusign, setSignDocusign] = useState(false);
 
+  // Financial Markup (per-commitment enable)
+  const [financialMarkupEnabled, setFinancialMarkupEnabled] = useState(false);
+  const [projectFinancialMarkupEnabled, setProjectFinancialMarkupEnabled] = useState(false);
+
   // Email Contract modal
   const [emailModalOpen, setEmailModalOpen] = useState(false);
 
@@ -628,6 +632,14 @@ export default function EditCommitmentClient({
   // Commitment project-level settings
   const [alwaysEditableSov, setAlwaysEditableSov] = useState(false);
 
+  // Import SOV from CSV
+  const [sovImportOpen, setSovImportOpen] = useState(false);
+  const [sovImportDelimiter, setSovImportDelimiter] = useState<"," | ";">(",");
+  const [sovImportFile, setSovImportFile] = useState<File | null>(null);
+  const [sovImportMode, setSovImportMode] = useState<"add" | "replace">("add");
+  const [sovImportError, setSovImportError] = useState<string>("");
+  const [sovImportSuccess, setSovImportSuccess] = useState<string>("");
+
   useEffect(() => {
     Promise.all([
       fetch(`/api/projects/${projectId}/directory`).then((r) => r.json()),
@@ -656,6 +668,7 @@ export default function EditCommitmentClient({
       setInclusions(c.inclusions ?? "");
       setExclusions(c.exclusions ?? "");
       setSignDocusign(c.sign_docusign ?? false);
+      setFinancialMarkupEnabled(c.financial_markup_enabled ?? false);
       setIsPrivate(c.is_private ?? true);
       setSovViewAllowed(c.sov_view_allowed ?? false);
       setSubcontractCoverLetter(c.subcontract_cover_letter ?? "");
@@ -710,6 +723,7 @@ export default function EditCommitmentClient({
       .then((r) => r.json())
       .then((data) => {
         setAlwaysEditableSov(!!data?.enable_always_editable_sov);
+        setProjectFinancialMarkupEnabled(!!data?.enable_financial_markup);
       })
       .catch(() => {});
   }, [projectId]);
@@ -871,6 +885,148 @@ export default function EditCommitmentClient({
     });
   }
 
+  function downloadSovTemplate(mode: "blank" | "existing") {
+    const isUQ = sovMethod === "unit_quantity";
+    const header = isUQ
+      ? ["Budget Code", "Cost Type", "Description", "Quantity", "UOM", "Unit Price", "Amount"]
+      : ["Budget Code", "Cost Type", "Description", "Amount"];
+    const rows: string[][] = [header];
+    if (mode === "existing") {
+      for (const line of sovLines.filter((l) => !l.deleted && !l.is_group_header)) {
+        rows.push(
+          isUQ
+            ? [line.budget_code, "", line.description, line.qty, line.uom, line.unit_cost, String(numVal(line.qty) * numVal(line.unit_cost))]
+            : [line.budget_code, "", line.description, line.amount || "0"]
+        );
+      }
+    } else {
+      rows.push(
+        isUQ
+          ? ["01-100", "Other", "Mobilization", "1", "LS", "5000.00", "5000.00"]
+          : ["01-100", "Other", "Mobilization", "5000.00"]
+      );
+    }
+    const csv = rows
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(sovImportDelimiter))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `commitment_sov_import_${isUQ ? "unit_qty" : "amount"}_template.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function parseSovImportCSV(text: string, delimiter: string): SovLine[] | string {
+    const isUQ = sovMethod === "unit_quantity";
+    const rows = text.trim().split(/\r?\n/).map((r) => {
+      const cells: string[] = [];
+      let cur = "";
+      let inQ = false;
+      for (let i = 0; i < r.length; i++) {
+        const ch = r[i];
+        if (ch === '"' && !inQ) { inQ = true; continue; }
+        if (ch === '"' && inQ && r[i + 1] === '"') { cur += '"'; i++; continue; }
+        if (ch === '"' && inQ) { inQ = false; continue; }
+        if (ch === delimiter && !inQ) { cells.push(cur); cur = ""; continue; }
+        cur += ch;
+      }
+      cells.push(cur);
+      return cells;
+    });
+
+    if (rows.length < 2) return "CSV must contain a header row and at least one data row.";
+
+    const header = rows[0].map((h) => h.toLowerCase().trim());
+    const codeIdx = header.findIndex((h) => h.includes("budget code") || h.includes("cost code"));
+    const descIdx = header.findIndex((h) => h.includes("description"));
+    const amtIdx = header.findIndex((h) => h === "amount" || h.includes("amount"));
+    const qtyIdx = header.findIndex((h) => h === "quantity" || h === "qty");
+    const uomIdx = header.findIndex((h) => h.includes("uom") || h.includes("unit of measure"));
+    const unitPriceIdx = header.findIndex((h) => h.includes("unit price") || h.includes("unit cost"));
+
+    if (codeIdx === -1) return "Required column 'Budget Code' not found.";
+    if (isUQ) {
+      if (qtyIdx === -1) return "Required column 'Quantity' not found for Unit/Quantity Based accounting.";
+      if (uomIdx === -1) return "Required column 'UOM' not found for Unit/Quantity Based accounting.";
+      if (unitPriceIdx === -1) return "Required column 'Unit Price' not found for Unit/Quantity Based accounting.";
+    } else {
+      if (amtIdx === -1) return "Required column 'Amount' not found for Amount Based accounting.";
+    }
+
+    const newLines: SovLine[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.every((c) => !c.trim())) continue;
+
+      const code = codeIdx >= 0 ? (row[codeIdx] ?? "").trim() : "";
+      if (!code) return `Row ${i + 1}: 'Budget Code' is required.`;
+      const desc = descIdx >= 0 ? (row[descIdx] ?? "").trim() : "";
+
+      let qty = "";
+      let uom = "";
+      let unitCost = "";
+      let amount = "";
+
+      if (isUQ) {
+        const q = parseFloat((row[qtyIdx] ?? "").replace(/[^0-9.-]/g, ""));
+        const u = (row[uomIdx] ?? "").trim();
+        const up = parseFloat((row[unitPriceIdx] ?? "").replace(/[^0-9.-]/g, ""));
+        if (isNaN(q)) return `Row ${i + 1}: 'Quantity' must be a number.`;
+        if (!u) return `Row ${i + 1}: 'UOM' is required.`;
+        if (isNaN(up)) return `Row ${i + 1}: 'Unit Price' must be a number.`;
+        qty = String(q);
+        uom = u;
+        unitCost = String(up);
+      } else {
+        const a = parseFloat((row[amtIdx] ?? "").replace(/[^0-9.-]/g, ""));
+        if (isNaN(a)) return `Row ${i + 1}: 'Amount' must be a number (use 15000, not $15,000).`;
+        amount = String(a);
+      }
+
+      newLines.push({
+        _key: uid(),
+        is_group_header: false,
+        group_name: "",
+        change_event_id: "",
+        change_event_line_item_id: "",
+        change_event_line_item: "",
+        budget_code: code,
+        description: desc,
+        qty,
+        uom,
+        unit_cost: unitCost,
+        amount,
+      });
+    }
+    return newLines;
+  }
+
+  async function handleSovImport() {
+    setSovImportError("");
+    setSovImportSuccess("");
+    if (!sovImportFile) { setSovImportError("Please select a CSV file."); return; }
+    const text = await sovImportFile.text();
+    const result = parseSovImportCSV(text, sovImportDelimiter);
+    if (typeof result === "string") { setSovImportError(result); return; }
+
+    if (sovImportMode === "replace") {
+      // Mark existing (saved) lines for deletion on save
+      for (const line of sovLines) {
+        if (line.dbId) removedDbIds.current.push(line.dbId);
+      }
+      setSovLines(result);
+    } else {
+      setSovLines((prev) => [...prev.filter((l) => !l.deleted), ...result]);
+    }
+    setSovImportSuccess(`Imported ${result.length} line${result.length !== 1 ? "s" : ""}.`);
+    setSovImportOpen(false);
+    setSovImportFile(null);
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
@@ -893,6 +1049,7 @@ export default function EditCommitmentClient({
           default_retainage: numVal(defaultRetainage),
           description,
           sign_docusign: signDocusign,
+          financial_markup_enabled: financialMarkupEnabled,
           // Subcontract dates
           start_date: commitmentType === "subcontract" ? (startDate || null) : undefined,
           estimated_completion: commitmentType === "subcontract" ? (estimatedCompletion || null) : undefined,
@@ -1128,6 +1285,34 @@ export default function EditCommitmentClient({
               </span>
             </label>
           </Field>
+
+          {projectFinancialMarkupEnabled ? (
+            <Field label="Financial Markup" className="mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={financialMarkupEnabled}
+                  onChange={(e) => setFinancialMarkupEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-gray-900"
+                />
+                <span className="text-sm text-gray-700">
+                  Enable Financial Markups on this commitment
+                  <span className="block text-xs text-gray-500 mt-0.5">
+                    Required before adding markup rules to change orders on this contract.
+                    Once markup is applied to a change order, it cannot be added to a subcontractor invoice.
+                  </span>
+                </span>
+              </label>
+            </Field>
+          ) : (
+            <p className="text-xs text-gray-400 mb-4">
+              Financial Markup is disabled at the project level. Enable it in{" "}
+              <a href={`/projects/${projectId}/commitments/settings`} className="underline hover:text-gray-600">
+                Commitments Settings
+              </a>{" "}
+              to use it on this commitment.
+            </p>
+          )}
         </Section>
 
         {/* ── Schedule of Values ── */}
@@ -1150,6 +1335,29 @@ export default function EditCommitmentClient({
             onUpdate={updateSovLine}
             onRemove={removeSovLine}
           />
+
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setSovImportError("");
+                setSovImportSuccess("");
+                setSovImportOpen(true);
+              }}
+              disabled={status !== "draft" && !alwaysEditableSov}
+              className="text-xs px-3 py-1.5 border border-gray-300 rounded bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                status !== "draft" && !alwaysEditableSov
+                  ? "Import is only available while the commitment is in Draft, unless Enable Always Editable Schedule of Values is on."
+                  : undefined
+              }
+            >
+              Import SOV from CSV
+            </button>
+            {sovImportSuccess && (
+              <span className="text-xs text-green-600">{sovImportSuccess}</span>
+            )}
+          </div>
         </Section>
 
         {/* ── Subcontractor SOV ── */}
@@ -1313,6 +1521,128 @@ export default function EditCommitmentClient({
           onClose={() => setEmailModalOpen(false)}
           onSend={handleEmailContract}
         />
+      )}
+
+      {/* Import SOV from CSV modal */}
+      {sovImportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setSovImportOpen(false)}>
+          <div
+            className="bg-white rounded-lg shadow-lg w-full max-w-lg mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-900">Import SOV from CSV</h3>
+              <button onClick={() => setSovImportOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-3">
+              Accounting method: <strong>{sovMethod === "unit_quantity" ? "Unit/Quantity Based" : "Amount Based"}</strong>.
+              {" "}Required columns:{" "}
+              {sovMethod === "unit_quantity"
+                ? "Budget Code, Quantity, UOM, Unit Price (Cost Type, Description optional; Amount is calculated)."
+                : "Budget Code, Amount (Cost Type, Description optional). Use 15000, not $15,000."}
+            </p>
+
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Delimiter</label>
+              <div className="flex gap-3 text-xs">
+                <label className="inline-flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="sov-delim"
+                    checked={sovImportDelimiter === ","}
+                    onChange={() => setSovImportDelimiter(",")}
+                  />
+                  Comma (,)
+                </label>
+                <label className="inline-flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="sov-delim"
+                    checked={sovImportDelimiter === ";"}
+                    onChange={() => setSovImportDelimiter(";")}
+                  />
+                  Semicolon (;)
+                </label>
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Import mode</label>
+              <div className="flex gap-3 text-xs">
+                <label className="inline-flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="sov-mode"
+                    checked={sovImportMode === "add"}
+                    onChange={() => setSovImportMode("add")}
+                  />
+                  Add additional items
+                </label>
+                <label className="inline-flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="sov-mode"
+                    checked={sovImportMode === "replace"}
+                    onChange={() => setSovImportMode("replace")}
+                  />
+                  Replace all existing items
+                </label>
+              </div>
+            </div>
+
+            <div className="mb-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => downloadSovTemplate("blank")}
+                className="text-xs px-2.5 py-1 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Download blank template
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadSovTemplate("existing")}
+                className="text-xs px-2.5 py-1 border border-gray-300 rounded hover:bg-gray-50"
+                disabled={sovLines.filter((l) => !l.deleted && !l.is_group_header).length === 0}
+              >
+                Download with existing items
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-700 mb-1">CSV file</label>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => setSovImportFile(e.target.files?.[0] ?? null)}
+                className="text-xs"
+              />
+            </div>
+
+            {sovImportError && (
+              <div className="mb-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
+                {sovImportError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSovImportOpen(false)}
+                className="px-3 py-1.5 text-xs text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSovImport}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded hover:bg-orange-600"
+              >
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

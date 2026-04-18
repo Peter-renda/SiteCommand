@@ -69,6 +69,26 @@ type SsovItem = {
   sort_order: number;
 };
 
+type ChangeHistoryItem = {
+  id: string;
+  action: string;
+  field_name: string | null;
+  from_value: string | null;
+  to_value: string | null;
+  changed_by_name: string | null;
+  created_at: string;
+};
+
+type DetailTab =
+  | "general"
+  | "change_orders"
+  | "invoices"
+  | "payments_issued"
+  | "related_items"
+  | "emails"
+  | "change_history"
+  | "financial_markup";
+
 const SSOV_STATUS_LABELS: Record<string, string> = {
   "": "Not Started",
   draft: "Draft",
@@ -136,6 +156,95 @@ const ERP_COLORS: Record<string, string> = {
   pending: "text-amber-500",
 };
 
+// ── Export helpers ────────────────────────────────────────────────────────────
+
+function exportSovCSV(commitment: Commitment, sovItems: SovItem[]) {
+  const isUQ = commitment.sov_accounting_method === "unit_quantity";
+  const headers = isUQ
+    ? ["#", "Budget Code", "Description", "Qty", "UOM", "Unit Cost", "Amount", "Billed to Date"]
+    : ["#", "Budget Code", "Description", "Amount", "Billed to Date"];
+  const rows = sovItems
+    .filter((l) => !l.is_group_header)
+    .map((l, i) =>
+      isUQ
+        ? [i + 1, l.budget_code, l.description, l.qty, l.uom, l.unit_cost, l.qty * l.unit_cost, l.billed_to_date]
+        : [i + 1, l.budget_code, l.description, l.amount, l.billed_to_date]
+    );
+  const csv = [headers, ...rows]
+    .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `commitment-${commitment.number}-sov.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportCommitmentPDF(commitment: Commitment, sovItems: SovItem[], typeLabel: string) {
+  const isUQ = commitment.sov_accounting_method === "unit_quantity";
+  const sovRows = sovItems
+    .filter((l) => !l.is_group_header)
+    .map((l, i) => {
+      const amt = isUQ ? l.qty * l.unit_cost : l.amount;
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${l.budget_code || ""}</td>
+        <td>${l.description || ""}</td>
+        ${isUQ ? `<td>${l.qty}</td><td>${l.uom}</td><td>$${l.unit_cost.toFixed(2)}</td>` : ""}
+        <td>${fmt(amt)}</td>
+        <td>${fmt(l.billed_to_date)}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const revised = commitment.original_contract_amount + commitment.approved_change_orders;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${typeLabel} #${commitment.number}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:9px;padding:20px;color:#111}
+      h1{font-size:14px;margin-bottom:4px}
+      .meta{color:#555;font-size:8px;margin-bottom:16px}
+      .amounts{display:flex;gap:24px;margin-bottom:16px}
+      .amt-block{background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px;padding:6px 10px}
+      .amt-label{font-size:7px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:2px}
+      .amt-value{font-size:11px;font-weight:600}
+      table{width:100%;border-collapse:collapse;margin-top:8px}
+      th{background:#f3f4f6;text-align:left;padding:4px 6px;font-size:7px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border-bottom:1px solid #e5e7eb}
+      td{padding:4px 6px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+      @media print{body{padding:0}}
+    </style></head><body>
+    <h1>${typeLabel} #${commitment.number}${commitment.title ? " — " + commitment.title : ""}</h1>
+    <div class="meta">${commitment.contract_company || ""} &bull; ${commitment.status}</div>
+    <div class="amounts">
+      <div class="amt-block"><div class="amt-label">Original Contract</div><div class="amt-value">${fmt(commitment.original_contract_amount)}</div></div>
+      <div class="amt-block"><div class="amt-label">Approved COs</div><div class="amt-value">${fmt(commitment.approved_change_orders)}</div></div>
+      <div class="amt-block"><div class="amt-label">Revised Contract</div><div class="amt-value">${fmt(revised)}</div></div>
+    </div>
+    ${sovRows ? `<h2 style="font-size:11px;margin-bottom:6px">Schedule of Values</h2>
+    <table><thead><tr>
+      <th>#</th><th>Budget Code</th><th>Description</th>
+      ${isUQ ? "<th>Qty</th><th>UOM</th><th>Unit Cost</th>" : ""}
+      <th>Amount</th><th>Billed to Date</th>
+    </tr></thead><tbody>${sovRows}</tbody></table>` : ""}
+    </body></html>`;
+
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:0;";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) { document.body.removeChild(iframe); return; }
+  doc.open(); doc.write(html); doc.close();
+  setTimeout(() => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    setTimeout(() => document.body.removeChild(iframe), 500);
+  }, 300);
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function DetailField({
@@ -193,6 +302,7 @@ function SsovPanel({
   onNotify: () => void;
   onSubmit: () => void;
   onRevise: () => void;
+  onApprove: () => void;
   editHref: string;
 }) {
   const allocated = items.reduce((sum, i) => sum + Number(i.amount || 0), 0);
@@ -200,7 +310,7 @@ function SsovPanel({
   const canEdit = status === "draft" || status === "revise_resubmit";
   const canNotify = canEdit && !!invoiceContact;
   const canSubmit = canEdit && Math.round(remaining * 100) === 0 && items.length > 0;
-  const canRevise = status === "under_review";
+  const canReview = status === "under_review";
 
   return (
     <div>
@@ -253,13 +363,22 @@ function SsovPanel({
               Submit
             </button>
           )}
-          {canRevise && (
+          {canReview && (
             <button
               onClick={onRevise}
               disabled={busy}
               className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60"
             >
               Return to Revise & Resubmit
+            </button>
+          )}
+          {canReview && (
+            <button
+              onClick={onApprove}
+              disabled={busy}
+              className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-60"
+            >
+              Approve
             </button>
           )}
         </div>
@@ -351,9 +470,13 @@ export default function CommitmentDetailClient({
   const [loading, setLoading] = useState(true);
   const [ssovBusy, setSsovBusy] = useState(false);
   const [ssovError, setSsovError] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"general" | "financial_markup">("general");
+  const [activeTab, setActiveTab] = useState<DetailTab>("general");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [changeHistory, setChangeHistory] = useState<ChangeHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   async function handleDelete() {
     setDeleting(true);
@@ -395,7 +518,7 @@ export default function CommitmentDetailClient({
     });
   }, [projectId, commitmentId]);
 
-  async function callSsovAction(action: "notify" | "submit" | "revise") {
+  async function callSsovAction(action: "notify" | "submit" | "revise" | "approve") {
     setSsovBusy(true);
     setSsovError("");
     try {
@@ -411,6 +534,21 @@ export default function CommitmentDetailClient({
       await reloadCommitment();
     } finally {
       setSsovBusy(false);
+    }
+  }
+
+  async function loadHistory() {
+    if (historyLoaded || historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/commitments/${commitmentId}/history`);
+      if (res.ok) {
+        const data = await res.json();
+        setChangeHistory(Array.isArray(data) ? data : []);
+        setHistoryLoaded(true);
+      }
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
@@ -511,6 +649,45 @@ export default function CommitmentDetailClient({
             >
               Delete
             </button>
+
+            {/* Export dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu((o) => !o)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export
+                <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showExportMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                  <button
+                    onClick={() => { exportCommitmentPDF(commitment, sovItems, typeLabel); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                    </svg>
+                    Export as PDF
+                  </button>
+                  <button
+                    onClick={() => { exportSovCSV(commitment, sovItems); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                    </svg>
+                    Export SOV as CSV
+                  </button>
+                </div>
+              )}
+            </div>
+
             <a
               href={`/projects/${projectId}/commitments/${commitmentId}/edit`}
               className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
@@ -520,21 +697,37 @@ export default function CommitmentDetailClient({
           </div>
         </div>
         {/* Tab bar */}
-        <div className="px-8 flex items-center gap-0 border-t border-gray-100">
-          <button
-            onClick={() => setActiveTab("general")}
-            className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "general"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            General
-          </button>
-          {commitment.financial_markup_enabled && (
+        <div className="px-8 flex items-center border-t border-gray-100 overflow-x-auto">
+          {(
+            [
+              { key: "general", label: "General" },
+              { key: "change_orders", label: "Change Orders" },
+              { key: "invoices", label: "Invoices" },
+              { key: "payments_issued", label: "Payments Issued" },
+              { key: "related_items", label: "Related Items" },
+              { key: "emails", label: "Emails" },
+              { key: "change_history", label: "Change History" },
+            ] as { key: DetailTab; label: string }[]
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => {
+                setActiveTab(key);
+                if (key === "change_history") loadHistory();
+              }}
+              className={`py-2 px-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                activeTab === key
+                  ? "border-orange-500 text-orange-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          {commitment.financial_markup_enabled ? (
             <button
               onClick={() => setActiveTab("financial_markup")}
-              className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`py-2 px-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                 activeTab === "financial_markup"
                   ? "border-orange-500 text-orange-600"
                   : "border-transparent text-gray-500 hover:text-gray-700"
@@ -542,9 +735,11 @@ export default function CommitmentDetailClient({
             >
               Financial Markup
             </button>
-          )}
-          {!commitment.financial_markup_enabled && (
-            <span className="py-2 px-4 text-sm text-gray-300 cursor-not-allowed" title="Enable Financial Markup in settings to access this tab">
+          ) : (
+            <span
+              className="py-2 px-4 text-sm text-gray-300 cursor-not-allowed whitespace-nowrap"
+              title="Enable Financial Markup in settings to access this tab"
+            >
               Financial Markup
             </span>
           )}
@@ -582,6 +777,74 @@ export default function CommitmentDetailClient({
               </a>
             </div>
           </Section>
+        )}
+
+        {/* ── Placeholder tabs ── */}
+        {(activeTab === "change_orders" || activeTab === "invoices" || activeTab === "payments_issued" || activeTab === "related_items" || activeTab === "emails") && (
+          <div className="py-16 text-center">
+            <p className="text-sm text-gray-400">
+              {activeTab === "change_orders" && "Change Orders"}
+              {activeTab === "invoices" && "Invoices"}
+              {activeTab === "payments_issued" && "Payments Issued"}
+              {activeTab === "related_items" && "Related Items"}
+              {activeTab === "emails" && "Emails"}
+              {" "}— coming soon
+            </p>
+            <p className="text-xs text-gray-300 mt-1">This section will appear here when available.</p>
+          </div>
+        )}
+
+        {/* ── Change History Tab ── */}
+        {activeTab === "change_history" && (
+          <div className="py-8">
+            <p className="text-xs text-gray-500 mb-4">
+              A non-deletable audit log of all modifications made to this commitment. Visible to Admins only.
+            </p>
+            {historyLoading ? (
+              <p className="text-sm text-gray-400">Loading…</p>
+            ) : changeHistory.length === 0 ? (
+              <p className="text-sm text-gray-400">No change history recorded yet.</p>
+            ) : (
+              <div className="border border-gray-200 rounded overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[200px]">Action</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[120px]">From</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[120px]">To</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[120px]">Changed By</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[160px]">Date &amp; Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {changeHistory.map((entry) => (
+                      <tr key={entry.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+                        <td className="px-3 py-2 text-gray-900">{entry.action}</td>
+                        <td className="px-3 py-2 text-gray-500">
+                          {entry.from_value != null ? (
+                            <span className="font-mono">{entry.from_value || <span className="text-gray-300 italic">empty</span>}</span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-gray-900">
+                          {entry.to_value != null ? (
+                            <span className="font-mono">{entry.to_value || <span className="text-gray-300 italic">empty</span>}</span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700">{entry.changed_by_name || "—"}</td>
+                        <td className="px-3 py-2 text-gray-500">
+                          {new Date(entry.created_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
 
         {activeTab === "general" && (<>
@@ -656,28 +919,6 @@ export default function CommitmentDetailClient({
                 className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
                 dangerouslySetInnerHTML={{ __html: commitment.description }}
               />
-            </div>
-          )}
-          {commitment.type === "subcontract" && (commitment.inclusions || commitment.exclusions) && (
-            <div className="mt-4 grid grid-cols-1 gap-4">
-              {commitment.inclusions && (
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Inclusions — Scope of Work</p>
-                  <div
-                    className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: commitment.inclusions }}
-                  />
-                </div>
-              )}
-              {commitment.exclusions && (
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Exclusions</p>
-                  <div
-                    className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: commitment.exclusions }}
-                  />
-                </div>
-              )}
             </div>
           )}
         </Section>
@@ -791,6 +1032,7 @@ export default function CommitmentDetailClient({
                 onNotify={() => callSsovAction("notify")}
                 onSubmit={() => callSsovAction("submit")}
                 onRevise={() => callSsovAction("revise")}
+                onApprove={() => callSsovAction("approve")}
                 editHref={`/projects/${projectId}/commitments/${commitmentId}/ssov`}
               />
             )}
@@ -869,6 +1111,28 @@ export default function CommitmentDetailClient({
                     className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{ __html: commitment.exhibit_a_scope }}
                   />
+                </div>
+              )}
+              {(commitment.inclusions || commitment.exclusions) && (
+                <div className="mt-4 grid grid-cols-1 gap-4">
+                  {commitment.inclusions && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Inclusions — Scope of Work</p>
+                      <div
+                        className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: commitment.inclusions }}
+                      />
+                    </div>
+                  )}
+                  {commitment.exclusions && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Exclusions</p>
+                      <div
+                        className="text-sm text-gray-900 border border-gray-100 rounded p-3 bg-gray-50 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: commitment.exclusions }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

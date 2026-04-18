@@ -56,6 +56,8 @@ type FormData = {
   is_partial: boolean;
 };
 
+type ProductivityViewMode = "standard" | "real_time_productivity";
+
 const emptyForm: FormData = {
   cost_code: "",
   cost_type: "",
@@ -329,6 +331,9 @@ export default function Budget() {
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [newItemPreset, setNewItemPreset] = useState<Partial<FormData>>({});
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importCsv, setImportCsv] = useState("");
+  const [productivityViewMode, setProductivityViewMode] = useState<ProductivityViewMode>("standard");
   const createRef = useRef<HTMLDivElement>(null);
   const rowMenuRef = useRef<HTMLDivElement>(null);
 
@@ -434,6 +439,44 @@ export default function Budget() {
   async function handleDelete(itemId: string) {
     const res = await fetch(`/api/projects/${id}/budget/${itemId}`, { method: "DELETE" });
     if (res.ok) setItems((prev) => prev.filter((i) => i.id !== itemId));
+    setRowMenuId(null);
+  }
+
+  async function handleImportBudget() {
+    if (!importCsv.trim()) {
+      alert("Paste CSV rows before importing.");
+      return;
+    }
+    const form = new FormData();
+    form.append("csv", importCsv);
+    const res = await fetch(`/api/projects/${id}/budget/import`, {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      alert(errorData.error || "Import failed.");
+      return;
+    }
+    setShowImportModal(false);
+    setImportCsv("");
+    await loadItems();
+  }
+
+  async function handleDeleteBudgetData(itemId: string, mode: "labor_hours" | "production_quantities" | "both") {
+    const res = await fetch(`/api/projects/${id}/budget/${itemId}/delete-budget-data`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
+    });
+    if (!res.ok) {
+      alert("Failed to delete selected budget data.");
+      return;
+    }
+    const updated = await res.json();
+    if (updated) {
+      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    }
     setRowMenuId(null);
   }
 
@@ -615,44 +658,52 @@ export default function Budget() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Budget</h1>
           {activeTab === "budget" ? (
-            <div ref={createRef} className="relative">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowCreateMenu((o) => !o)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
+                onClick={() => setShowImportModal(true)}
+                className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Create
-                <svg
-                  className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
+                Import Budget
               </button>
-              {showCreateMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
-                  <button
-                    onClick={() => { setNewItemPreset({}); setShowModal(true); setShowCreateMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              <div ref={createRef} className="relative">
+                <button
+                  onClick={() => setShowCreateMenu((o) => !o)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                   >
-                    Add Budget Line Item
-                  </button>
-                  <button
-                    onClick={() => { setEditingItem(null); setNewItemPreset({ is_partial: true, original_budget_amount: "0" }); setShowModal(true); setShowCreateMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Add Partial Line Item
-                  </button>
-                  <button
-                    onClick={() => { setEditingItem(null); setNewItemPreset({ is_gst: true, cost_type: "Other" }); setShowModal(true); setShowCreateMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Add GST Line Item
-                  </button>
-                </div>
-              )}
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showCreateMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                    <button
+                      onClick={() => { setNewItemPreset({}); setShowModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Add Budget Line Item
+                    </button>
+                    <button
+                      onClick={() => { setEditingItem(null); setNewItemPreset({ is_partial: true, original_budget_amount: "0" }); setShowModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Add Partial Line Item
+                    </button>
+                    <button
+                      onClick={() => { setEditingItem(null); setNewItemPreset({ is_gst: true, cost_type: "Other" }); setShowModal(true); setShowCreateMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Add GST Line Item
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
@@ -772,6 +823,18 @@ export default function Budget() {
                                 >
                                   Delete
                                 </button>
+                                <button
+                                  onClick={() => handleDeleteBudgetData(item.id, "labor_hours")}
+                                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  Delete Labor Hours
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteBudgetData(item.id, "production_quantities")}
+                                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  Delete Prod. Qty
+                                </button>
                               </div>
                             )}
                           </div>
@@ -786,9 +849,19 @@ export default function Budget() {
         ) : activeTab === "production_quantities" ? (
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-              <p className="text-sm text-gray-700">
-                Add budgeted production quantities and compare installed quantities with actual labor hours for real-time productivity tracking.
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-gray-700">
+                  Add budgeted production quantities and compare installed quantities with actual labor hours for real-time productivity tracking.
+                </p>
+                <select
+                  value={productivityViewMode}
+                  onChange={(e) => setProductivityViewMode(e.target.value as ProductivityViewMode)}
+                  className="text-xs px-2 py-1.5 border border-gray-200 rounded-md bg-white"
+                >
+                  <option value="standard">Standard View</option>
+                  <option value="real_time_productivity">Real-Time Labor Productivity View</option>
+                </select>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -801,6 +874,13 @@ export default function Budget() {
                     <th className="text-left px-3 py-3 font-semibold text-gray-700">Installed Qty</th>
                     <th className="text-left px-3 py-3 font-semibold text-gray-700">Actual Labor Hrs</th>
                     <th className="text-left px-3 py-3 font-semibold text-gray-700">Units / Hour</th>
+                    {productivityViewMode === "real_time_productivity" && (
+                      <>
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700">% Hours Used</th>
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700">Hours Remaining</th>
+                        <th className="text-left px-3 py-3 font-semibold text-gray-700">Estimated RT Cost</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -820,6 +900,15 @@ export default function Budget() {
                           <td className="px-3 py-2">{item.installed_quantity.toLocaleString("en-US")}</td>
                           <td className="px-3 py-2">{item.actual_labor_hours.toLocaleString("en-US")}</td>
                           <td className="px-3 py-2">{c.installedPerHour.toFixed(2)}</td>
+                          {productivityViewMode === "real_time_productivity" && (
+                            <>
+                              <td className="px-3 py-2">
+                                {item.budgeted_quantity > 0 ? `${((item.actual_labor_hours / item.budgeted_quantity) * 100).toFixed(1)}%` : "0.0%"}
+                              </td>
+                              <td className="px-3 py-2">{Math.max(item.budgeted_quantity - item.actual_labor_hours, 0).toLocaleString("en-US")}</td>
+                              <td className="px-3 py-2">{fmt(item.actual_labor_hours * (item.actual_labor_cost / (item.actual_labor_hours || 1)))}</td>
+                            </>
+                          )}
                         </tr>
                       );
                     })
@@ -1003,6 +1092,44 @@ export default function Budget() {
       )}
       {editingItem && (
         <LineItemModal initial={editingItem} onConfirm={handleEdit} onCancel={() => setEditingItem(null)} />
+      )}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-3">Import Budget (CSV)</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              Use the template header order. Existing Cost Code + Cost Type combinations are updated; new combinations are added.
+            </p>
+            <div className="flex items-center gap-2 mb-3">
+              <a
+                href={`/api/projects/${id}/budget/import-template`}
+                className="px-3 py-2 text-xs font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50"
+              >
+                Download Template
+              </a>
+              <button
+                onClick={() => setImportCsv("cost_code,cost_type,description,original_budget_amount,budget_modifications,approved_cos,pending_budget_changes,committed_costs,direct_costs,erp_job_to_date_costs,cost_rom,cost_rfq,non_commitment_cost,pending_cost_changes,forecast_to_complete,budgeted_quantity,budgeted_uom,installed_quantity,actual_labor_hours,actual_labor_cost\n03-300,Labor,Concrete Placement,100000,0,0,0,0,0,0,0,0,0,0,5000,2400,HRS,250,60,4200")}
+                className="px-3 py-2 text-xs font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50"
+              >
+                Paste Sample
+              </button>
+            </div>
+            <textarea
+              value={importCsv}
+              onChange={(e) => setImportCsv(e.target.value)}
+              placeholder="Paste CSV here..."
+              className="w-full h-72 border border-gray-200 rounded-md p-3 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setShowImportModal(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-md text-gray-700">
+                Cancel
+              </button>
+              <button onClick={handleImportBudget} className="px-4 py-2 text-sm rounded-md bg-gray-900 text-white">
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

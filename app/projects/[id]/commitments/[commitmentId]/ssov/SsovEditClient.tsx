@@ -64,6 +64,11 @@ export default function SsovEditClient({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>("");
+  const [importOpen, setImportOpen] = useState(false);
+  const [importDelimiter, setImportDelimiter] = useState<"," | ";">(","  );
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importError, setImportError] = useState<string>("");
+  const [importSuccess, setImportSuccess] = useState<string>("");
   const removed = useState<string[]>([])[0];
 
   useEffect(() => {
@@ -234,6 +239,85 @@ export default function SsovEditClient({
     window.location.href = `/projects/${projectId}/commitments/${commitmentId}`;
   }
 
+  function downloadTemplate() {
+    const csv = [
+      ["SOV Position Number", "Budget Code", "Description", "Subcontractor SOV Amount"],
+      ["1", "01-100", "Mobilization", "5000.00"],
+    ]
+      .map((row) => row.map((c) => `"${c}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ssov_import_template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function parseImportCSV(text: string, delimiter: string): SsovLine[] | string {
+    const rows = text.trim().split(/\r?\n/).map((r) => {
+      const cells: string[] = [];
+      let cur = "";
+      let inQ = false;
+      for (let i = 0; i < r.length; i++) {
+        const ch = r[i];
+        if (ch === '"' && !inQ) { inQ = true; continue; }
+        if (ch === '"' && inQ && r[i + 1] === '"') { cur += '"'; i++; continue; }
+        if (ch === '"' && inQ) { inQ = false; continue; }
+        if (ch === delimiter && !inQ) { cells.push(cur); cur = ""; continue; }
+        cur += ch;
+      }
+      cells.push(cur);
+      return cells;
+    });
+
+    if (rows.length < 2) return "CSV must contain a header row and at least one data row.";
+
+    const header = rows[0].map((h) => h.toLowerCase().trim());
+    const posIdx = header.findIndex((h) => h.includes("sov position") || h.includes("position number"));
+    const amtIdx = header.findIndex((h) => h.includes("subcontractor sov amount") || h.includes("amount"));
+    const codeIdx = header.findIndex((h) => h.includes("budget code"));
+    const descIdx = header.findIndex((h) => h.includes("description"));
+
+    if (posIdx === -1) return "Required column 'SOV Position Number' not found.";
+    if (amtIdx === -1) return "Required column 'Subcontractor SOV Amount' not found.";
+
+    const newLines: SsovLine[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.every((c) => !c.trim())) continue;
+      const posNum = parseInt(row[posIdx]);
+      const amt = parseFloat(row[amtIdx]?.replace(/[^0-9.-]/g, "") ?? "");
+      if (isNaN(posNum) || posNum < 1) return `Row ${i + 1}: 'SOV Position Number' must be a positive integer.`;
+      if (isNaN(amt)) return `Row ${i + 1}: 'Subcontractor SOV Amount' must be a number.`;
+      const sovMatch = nonHeaderSov[posNum - 1];
+      newLines.push({
+        _key: uid(),
+        sov_item_id: sovMatch?.id ?? "",
+        budget_code: codeIdx >= 0 ? (row[codeIdx] ?? "") : (sovMatch?.budget_code ?? ""),
+        description: descIdx >= 0 ? (row[descIdx] ?? "") : (sovMatch?.description ?? ""),
+        amount: String(amt),
+      });
+    }
+    return newLines;
+  }
+
+  async function handleImport() {
+    setImportError("");
+    setImportSuccess("");
+    if (!importFile) { setImportError("Please select a CSV file."); return; }
+    const text = await importFile.text();
+    const result = parseImportCSV(text, importDelimiter);
+    if (typeof result === "string") { setImportError(result); return; }
+    setLines(result);
+    setImportSuccess(`Imported ${result.length} line${result.length !== 1 ? "s" : ""}.`);
+    setImportOpen(false);
+    setImportFile(null);
+  }
+
   const nonHeaderSov = sovItems.filter((s) => !s.is_group_header);
 
   return (
@@ -302,6 +386,12 @@ export default function SsovEditClient({
         {error && (
           <div className="mb-4 text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
             {error}
+          </div>
+        )}
+        {importSuccess && (
+          <div className="mb-4 text-xs text-green-700 bg-green-50 border border-green-100 rounded px-3 py-2 flex items-center justify-between">
+            <span>{importSuccess}</span>
+            <button onClick={() => setImportSuccess("")} className="text-green-500 hover:text-green-700">✕</button>
           </div>
         )}
 
@@ -446,10 +536,109 @@ export default function SsovEditClient({
               >
                 Add Detail Line
               </button>
+              <button
+                onClick={() => { setImportError(""); setImportSuccess(""); setImportOpen(true); }}
+                className="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded hover:bg-gray-100"
+              >
+                Import CSV
+              </button>
+            </div>
+          )}
+          {!readOnly && activeLines.length === 0 && (
+            <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => { setImportError(""); setImportSuccess(""); setImportOpen(true); }}
+                className="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded hover:bg-gray-100"
+              >
+                Import CSV
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Import CSV Modal */}
+      {importOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-gray-900">Import Subcontractor SOV from CSV</h2>
+              <button onClick={() => setImportOpen(false)} className="text-gray-400 hover:text-gray-700">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500 mb-2">
+                Your CSV must include <strong>SOV Position Number</strong> and{" "}
+                <strong>Subcontractor SOV Amount</strong> columns. Download the template to get started.
+              </p>
+              <button
+                onClick={downloadTemplate}
+                className="flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Template
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Delimiter</label>
+              <div className="flex gap-2">
+                {([",", ";"] as const).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setImportDelimiter(d)}
+                    className={`px-3 py-1.5 text-xs rounded border transition-colors ${
+                      importDelimiter === d
+                        ? "border-gray-900 bg-gray-900 text-white"
+                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {d === "," ? "Comma (,)" : "Semicolon (;)"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">CSV File</label>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-gray-600 file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+              />
+            </div>
+
+            {importError && (
+              <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
+                {importError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setImportOpen(false)}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-200 rounded hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={!importFile}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 disabled:opacity-60"
+              >
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

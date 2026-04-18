@@ -549,6 +549,7 @@ export default function CommitmentsClient({
   // Dropdown refs
   const createRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+  const tableSettingsRef = useRef<HTMLDivElement>(null);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
@@ -560,12 +561,25 @@ export default function CommitmentsClient({
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<{ id: string; message: string } | null>(null);
 
+  // Column & display management
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [sortConfig, setSortConfig] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  const [rowHeight, setRowHeight] = useState<"small" | "medium" | "large">("medium");
+  const [tableSettingsOpen, setTableSettingsOpen] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filterType, setFilterType] = useState<"" | "subcontract" | "purchase_order">("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterExecuted, setFilterExecuted] = useState<"" | "yes" | "no">("");
+  const [filterCompany, setFilterCompany] = useState("");
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (createRef.current && !createRef.current.contains(e.target as Node))
         setShowCreateMenu(false);
       if (exportRef.current && !exportRef.current.contains(e.target as Node))
         setShowExportMenu(false);
+      if (tableSettingsRef.current && !tableSettingsRef.current.contains(e.target as Node))
+        setTableSettingsOpen(false);
       if (rowMenuRef.current && !rowMenuRef.current.contains(e.target as Node))
         setRowMenuId(null);
     }
@@ -674,62 +688,73 @@ export default function CommitmentsClient({
     window.location.href = "/";
   }
 
-  // Filtered list based on search
-  const visibleItems =
+  function matchesSearch(item: Commitment) {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      item.contract_company.toLowerCase().includes(q) ||
+      item.title.toLowerCase().includes(q) ||
+      String(item.number).includes(q)
+    );
+  }
+
+  function applySort(arr: Commitment[]): Commitment[] {
+    if (!sortConfig) return arr;
+    const { key, dir } = sortConfig;
+    return [...arr].sort((a, b) => {
+      const aVal =
+        key === "revised_contract_amount"
+          ? a.original_contract_amount + a.approved_change_orders
+          : (a as Record<string, unknown>)[key];
+      const bVal =
+        key === "revised_contract_amount"
+          ? b.original_contract_amount + b.approved_change_orders
+          : (b as Record<string, unknown>)[key];
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return dir === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      return dir === "asc"
+        ? String(aVal ?? "").localeCompare(String(bVal ?? ""))
+        : String(bVal ?? "").localeCompare(String(aVal ?? ""));
+    });
+  }
+
+  const visibleItems = applySort(
     activeTab === "contracts"
       ? items.filter((item) => {
-          if (!search.trim()) return true;
-          const q = search.toLowerCase();
-          return (
-            item.contract_company.toLowerCase().includes(q) ||
-            item.title.toLowerCase().includes(q) ||
-            String(item.number).includes(q)
-          );
+          if (!matchesSearch(item)) return false;
+          if (filterType && item.type !== filterType) return false;
+          if (filterStatus && item.status !== filterStatus) return false;
+          if (filterExecuted === "yes" && !item.executed) return false;
+          if (filterExecuted === "no" && item.executed) return false;
+          if (filterCompany && !item.contract_company.toLowerCase().includes(filterCompany.toLowerCase())) return false;
+          return true;
         })
-      : deletedItems.filter((item) => {
-          if (!search.trim()) return true;
-          const q = search.toLowerCase();
-          return (
-            item.contract_company.toLowerCase().includes(q) ||
-            item.title.toLowerCase().includes(q) ||
-            String(item.number).includes(q)
-          );
-        });
+      : deletedItems.filter(matchesSearch)
+  );
 
-  const COLS = [
-    { key: "number", label: "Number", width: "w-24" },
-    { key: "contract_company", label: "Contract Company", width: "min-w-[160px]" },
+  type ColDef = { key: string; label: string; width: string; mandatory?: boolean };
+
+  const ALL_COLS: ColDef[] = [
+    { key: "number", label: "#", width: "w-24", mandatory: true },
+    { key: "contract_company", label: "Contract Company", width: "min-w-[160px]", mandatory: true },
     { key: "title", label: "Title", width: "min-w-[140px]" },
     { key: "erp_status", label: "ERP Status", width: "min-w-[110px]" },
     { key: "status", label: "Status", width: "w-28" },
     { key: "executed", label: "Executed", width: "w-24" },
     { key: "ssov_status", label: "SSOV Status", width: "min-w-[120px]" },
-    {
-      key: "original_contract_amount",
-      label: "Original Contract Amount",
-      width: "min-w-[160px]",
-    },
-    {
-      key: "approved_change_orders",
-      label: "Approved Change Orders",
-      width: "min-w-[155px]",
-    },
-    {
-      key: "revised_contract_amount",
-      label: "Revised Contract Amount",
-      width: "min-w-[155px]",
-    },
-    {
-      key: "pending_change_orders",
-      label: "Pending Change Orders",
-      width: "min-w-[150px]",
-    },
+    { key: "original_contract_amount", label: "Original Contract Amount", width: "min-w-[160px]" },
+    { key: "approved_change_orders", label: "Approved Change Orders", width: "min-w-[155px]" },
+    { key: "revised_contract_amount", label: "Revised Contract Amount", width: "min-w-[155px]" },
+    { key: "pending_change_orders", label: "Pending Change Orders", width: "min-w-[150px]" },
     { key: "draft_amount", label: "Draft", width: "min-w-[100px]" },
     { key: "invoiced", label: "Invoiced", width: "min-w-[120px]" },
     { key: "payments_issued", label: "Payments Issued", width: "min-w-[130px]" },
-  ] as const;
+  ];
 
-  function renderCell(item: Commitment, key: (typeof COLS)[number]["key"]) {
+  const COLS = ALL_COLS.filter((c) => c.mandatory || !hiddenCols.has(c.key));
+
+  function renderCell(item: Commitment, key: string) {
     switch (key) {
       case "number":
         return (
@@ -1030,7 +1055,7 @@ export default function CommitmentsClient({
         </div>
 
         {/* Search + filter bar */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <div className="relative">
               <svg
@@ -1054,9 +1079,16 @@ export default function CommitmentsClient({
                 className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 w-48"
               />
             </div>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
+            <button
+              onClick={() => setShowFilterPanel((o) => !o)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-md transition-colors ${
+                showFilterPanel || filterType || filterStatus || filterExecuted || filterCompany
+                  ? "border-orange-400 text-orange-600 bg-orange-50"
+                  : "text-gray-600 border-gray-200 bg-white hover:bg-gray-50"
+              }`}
+            >
               <svg
-                className="w-4 h-4 text-gray-400"
+                className="w-4 h-4"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1069,9 +1101,160 @@ export default function CommitmentsClient({
                 />
               </svg>
               Filters
+              {(filterType || filterStatus || filterExecuted || filterCompany) && (
+                <span className="ml-0.5 w-4 h-4 rounded-full bg-orange-500 text-white text-[10px] flex items-center justify-center font-medium">
+                  {[filterType, filterStatus, filterExecuted, filterCompany].filter(Boolean).length}
+                </span>
+              )}
             </button>
           </div>
+
+          {/* Table Settings */}
+          <div ref={tableSettingsRef} className="relative">
+            <button
+              onClick={() => setTableSettingsOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              Table Settings
+            </button>
+            {tableSettingsOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-lg z-20 p-4 space-y-4">
+                {/* Row Height */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Row Height</p>
+                  <div className="flex gap-2">
+                    {(["small", "medium", "large"] as const).map((h) => (
+                      <button
+                        key={h}
+                        onClick={() => setRowHeight(h)}
+                        className={`flex-1 py-1 text-xs rounded border capitalize transition-colors ${
+                          rowHeight === h
+                            ? "border-gray-900 bg-gray-900 text-white"
+                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Column Visibility */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Columns</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setHiddenCols(new Set())}
+                        className="text-[11px] text-gray-400 hover:text-gray-700"
+                      >
+                        Show All
+                      </button>
+                      <span className="text-gray-200">|</span>
+                      <button
+                        onClick={() => setHiddenCols(new Set(ALL_COLS.filter((c) => !c.mandatory).map((c) => c.key)))}
+                        className="text-[11px] text-gray-400 hover:text-gray-700"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {ALL_COLS.map((col) => (
+                      <label key={col.key} className={`flex items-center gap-2 cursor-pointer ${col.mandatory ? "opacity-50 cursor-not-allowed" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={!hiddenCols.has(col.key)}
+                          disabled={col.mandatory}
+                          onChange={(e) => {
+                            setHiddenCols((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.delete(col.key);
+                              else next.add(col.key);
+                              return next;
+                            });
+                          }}
+                          className="w-3.5 h-3.5 rounded border-gray-300 text-gray-900"
+                        />
+                        <span className="text-xs text-gray-700">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Filter panel */}
+        {showFilterPanel && (
+          <div className="mb-4 p-3 bg-white border border-gray-200 rounded-lg flex flex-wrap items-end gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Contract Company</label>
+              <input
+                type="text"
+                value={filterCompany}
+                onChange={(e) => setFilterCompany(e.target.value)}
+                placeholder="Filter by company…"
+                className="text-sm border border-gray-200 rounded px-2 py-1.5 w-44 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as typeof filterType)}
+                className="text-sm border border-gray-200 rounded px-2 py-1.5 bg-white"
+              >
+                <option value="">All Types</option>
+                <option value="subcontract">Subcontract</option>
+                <option value="purchase_order">Purchase Order</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="text-sm border border-gray-200 rounded px-2 py-1.5 bg-white"
+              >
+                <option value="">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="approved">Approved</option>
+                <option value="processing">Processing</option>
+                <option value="submitted">Submitted</option>
+                <option value="out_for_bid">Out For Bid</option>
+                <option value="out_for_signature">Out For Signature</option>
+                <option value="complete">Complete</option>
+                <option value="void">Void</option>
+                <option value="terminated">Terminated</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Executed</label>
+              <select
+                value={filterExecuted}
+                onChange={(e) => setFilterExecuted(e.target.value as typeof filterExecuted)}
+                className="text-sm border border-gray-200 rounded px-2 py-1.5 bg-white"
+              >
+                <option value="">Any</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+            {(filterType || filterStatus || filterExecuted || filterCompany) && (
+              <button
+                onClick={() => { setFilterType(""); setFilterStatus(""); setFilterExecuted(""); setFilterCompany(""); }}
+                className="text-xs text-gray-400 hover:text-gray-700 pb-1.5"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Table */}
         {loading ? (
@@ -1082,14 +1265,35 @@ export default function CommitmentsClient({
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
-                    {COLS.map((col) => (
-                      <th
-                        key={col.key}
-                        className={`text-left px-3 py-3 font-semibold text-gray-600 whitespace-nowrap ${col.width}`}
-                      >
-                        {col.label}
-                      </th>
-                    ))}
+                    {COLS.map((col) => {
+                      const isSorted = sortConfig?.key === col.key;
+                      return (
+                        <th
+                          key={col.key}
+                          onClick={() =>
+                            setSortConfig((prev) =>
+                              prev?.key === col.key
+                                ? prev.dir === "asc"
+                                  ? { key: col.key, dir: "desc" }
+                                  : null
+                                : { key: col.key, dir: "asc" }
+                            )
+                          }
+                          className={`text-left px-3 py-3 font-semibold text-gray-600 whitespace-nowrap cursor-pointer select-none hover:bg-gray-100 transition-colors ${col.width}`}
+                        >
+                          <span className="flex items-center gap-1">
+                            {col.label}
+                            <span className="text-gray-300">
+                              {isSorted ? (
+                                sortConfig?.dir === "asc" ? "↑" : "↓"
+                              ) : (
+                                <span className="opacity-0 group-hover:opacity-100">↕</span>
+                              )}
+                            </span>
+                          </span>
+                        </th>
+                      );
+                    })}
                     <th className="px-3 py-3 w-10" />
                   </tr>
                 </thead>
@@ -1127,7 +1331,7 @@ export default function CommitmentsClient({
                         {COLS.map((col) => (
                           <td
                             key={col.key}
-                            className="px-3 py-3 text-xs whitespace-nowrap"
+                            className={`px-3 text-xs whitespace-nowrap ${rowHeight === "small" ? "py-1" : rowHeight === "large" ? "py-5" : "py-3"}`}
                           >
                             {renderCell(item, col.key)}
                           </td>

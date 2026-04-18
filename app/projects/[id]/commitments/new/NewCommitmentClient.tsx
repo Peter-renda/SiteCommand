@@ -766,6 +766,9 @@ export default function NewCommitmentClient({
   // Financial markup
   const [financialMarkupEnabled, setFinancialMarkupEnabled] = useState(false);
 
+  // SSOV (enabled by project default if set)
+  const [ssovEnabled, setSsovEnabled] = useState(false);
+
   // SOV
   const [sovMethod, setSovMethod] = useState<"unit_quantity" | "amount">(
     "unit_quantity"
@@ -773,6 +776,16 @@ export default function NewCommitmentClient({
   const [sovLines, setSovLines] = useState<SovLine[]>([]);
 
   const [saving, setSaving] = useState(false);
+
+  // Fetch project-level commitment settings to apply defaults
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/commitment-settings`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.enable_ssov_by_default) setSsovEnabled(true);
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   useEffect(() => {
     Promise.all([
@@ -959,9 +972,10 @@ export default function NewCommitmentClient({
           // PO-specific dates
           contract_date: contractDate || null,
           issued_on_date: issuedOnDate || null,
-          // DocuSign / markup
+          // DocuSign / markup / SSOV
           sign_docusign: signDocuSign,
           financial_markup_enabled: financialMarkupEnabled,
+          ssov_enabled: sovMethod === "amount" ? ssovEnabled : false,
         }),
       });
 
@@ -1282,6 +1296,32 @@ export default function NewCommitmentClient({
             onUpdate={updateSovLine}
             onRemove={removeSovLine}
           />
+        </Section>
+
+        {/* ── Subcontractor SOV ── */}
+        <Section title="Subcontractor SOV">
+          {sovMethod !== "amount" ? (
+            <p className="text-xs text-gray-500">
+              The Subcontractor SOV tab is only supported with the Amount Based accounting method.
+              Switch the SOV above to Amount to enable it.
+            </p>
+          ) : (
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={ssovEnabled}
+                onChange={(e) => setSsovEnabled(e.target.checked)}
+                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
+              />
+              <span className="text-sm text-gray-700">
+                Enable Subcontractor SOV
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  Lets the invoice contact provide a detailed cost breakdown for each SOV line item.
+                  Line items from the SSOV carry over to invoices. Not compatible with Unit/Quantity Based accounting.
+                </span>
+              </span>
+            </label>
+          )}
         </Section>
 
         {/* ── Contract Dates ── */}

@@ -1835,6 +1835,169 @@ function PreviewInDashboardModal({
   );
 }
 
+const REPORT_360_CATEGORIES: { label: string; sources: string[]; isNew?: boolean }[] = [
+  {
+    label: "Directory & Portfolio",
+    isNew: true,
+    sources: ["Company", "Project"],
+  },
+  {
+    label: "Financials",
+    sources: [
+      "Budget",
+      "Change Events",
+      "Change Orders",
+      "Commitments",
+      "Company",
+      "Finance",
+      "Invoices",
+      "Pay",
+      "Prime Contracts",
+      "Project",
+    ],
+  },
+  {
+    label: "Project Execution",
+    sources: [
+      "Change Events",
+      "Commitments",
+      "Daily Log",
+      "Documents",
+      "Drawings",
+      "Locations",
+      "Meetings",
+      "Photos",
+      "Project",
+      "Punch List",
+      "RFIs",
+      "Schedule",
+      "Specifications",
+      "Submittals",
+      "Tasks",
+      "Timesheets",
+    ],
+  },
+  {
+    label: "Resource Management",
+    sources: [
+      "Budget",
+      "Change Events",
+      "Change Orders",
+      "Commitments",
+      "Company",
+      "Employees",
+      "Invoices",
+      "Prime Contracts",
+      "Project",
+      "Timesheets",
+    ],
+  },
+];
+
+function Create360CategoryModal({
+  selected,
+  onSelect,
+  onClose,
+  onContinue,
+}: {
+  selected: string;
+  onSelect: (label: string) => void;
+  onClose: () => void;
+  onContinue: () => void;
+}) {
+  const [openCategory, setOpenCategory] = useState<string | null>(selected);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+        <div className="px-6 py-5 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Create a New 360 Report</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Make data-driven decisions easier by using 360 Reports to compile data from multiple tools, even inactive project data, into a single report.
+          </p>
+        </div>
+        <div className="px-6 py-5 flex-1 overflow-y-auto bg-gray-50 space-y-3">
+          {REPORT_360_CATEGORIES.map((cat) => {
+            const isSelected = selected === cat.label;
+            const isOpen = openCategory === cat.label;
+            const half = Math.ceil(cat.sources.length / 2);
+            const leftCol = cat.sources.slice(0, half);
+            const rightCol = cat.sources.slice(half);
+            return (
+              <div key={cat.label} className="bg-white rounded-lg shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelect(cat.label);
+                    setOpenCategory(isOpen ? null : cat.label);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-4 text-left"
+                >
+                  <span
+                    className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      isSelected ? "border-blue-600" : "border-gray-300"
+                    }`}
+                  >
+                    {isSelected && <span className="w-2 h-2 rounded-full bg-blue-600" />}
+                  </span>
+                  <span className="flex-1 text-sm font-semibold text-gray-900">{cat.label}</span>
+                  {cat.isNew && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                      New
+                    </span>
+                  )}
+                  <svg
+                    className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {isOpen && (
+                  <div className="px-10 pb-4 -mt-1">
+                    <p className="text-xs text-gray-500 mb-2">
+                      Create custom reports with connected data from across all of your {cat.label} tools.
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-700">
+                      <ul className="list-disc list-inside space-y-1">
+                        {leftCol.map((s) => (
+                          <li key={s}>{s}</li>
+                        ))}
+                      </ul>
+                      <ul className="list-disc list-inside space-y-1">
+                        {rightCol.map((s) => (
+                          <li key={s}>{s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-md"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onContinue}
+            className="px-5 py-2 text-sm font-medium bg-orange-500 text-white rounded-md hover:bg-orange-600"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ReportingClient({ projectId }: { projectId: string }) {
@@ -1870,6 +2033,9 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
   const [activeSavedReport, setActiveSavedReport] = useState<SavedReport | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createType, setCreateType] = useState("");
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const [show360CategoryModal, setShow360CategoryModal] = useState(false);
+  const [selected360Category, setSelected360Category] = useState<string>("Directory & Portfolio");
 
   const visualLibrary = useMemo(() => myReports.map(makeVisualFromReport), [myReports]);
 
@@ -2088,15 +2254,48 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
               Assist
             </button>
             {activeTab === "reports" ? (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Create Report
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setCreateMenuOpen((v) => !v)}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {createMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setCreateMenuOpen(false)} />
+                    <div className="absolute right-0 top-11 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[280px]">
+                      <button
+                        onClick={() => {
+                          setCreateMenuOpen(false);
+                          setSelected360Category("Directory & Portfolio");
+                          setShow360CategoryModal(true);
+                        }}
+                        className="w-full text-left px-4 py-2.5 hover:bg-gray-50"
+                      >
+                        <p className="text-sm font-semibold text-gray-900">360 Report</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Create reports using data across multiple tools or a single tool</p>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCreateMenuOpen(false);
+                          setShowCreateModal(true);
+                        }}
+                        className="w-full text-left px-4 py-2.5 hover:bg-gray-50"
+                      >
+                        <p className="text-sm font-semibold text-gray-900">Single Tool Report</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Create reports using data from a single tool only</p>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             ) : (
               <button
                 onClick={() => setShowCreateDashboardModal(true)}
@@ -2393,6 +2592,18 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
           }}
           onSave={handleSaveReport}
           onUpdate={updateSavedReport}
+        />
+      )}
+
+      {show360CategoryModal && (
+        <Create360CategoryModal
+          selected={selected360Category}
+          onSelect={setSelected360Category}
+          onClose={() => setShow360CategoryModal(false)}
+          onContinue={() => {
+            setShow360CategoryModal(false);
+            setShowCreateModal(true);
+          }}
         />
       )}
 

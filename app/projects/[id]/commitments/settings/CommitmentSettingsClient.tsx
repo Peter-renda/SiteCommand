@@ -38,11 +38,12 @@ export default function CommitmentSettingsClient({
   username: string;
 }) {
   const [alwaysEditable, setAlwaysEditable] = useState(false);
+  const [ssovByDefault, setSsovByDefault] = useState(false);
+  const [enableFinancialMarkup, setEnableFinancialMarkup] = useState(false);
   const [changeOrderTiers, setChangeOrderTiers] = useState(1);
   const [allowStandardUsersCreateCcos, setAllowStandardUsersCreateCcos] = useState(false);
   const [allowStandardUsersCreatePcos, setAllowStandardUsersCreatePcos] = useState(false);
   const [enableFieldInitiatedCos, setEnableFieldInitiatedCos] = useState(false);
-  const [enableFinancialMarkup, setEnableFinancialMarkup] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string>("");
@@ -57,11 +58,12 @@ export default function CommitmentSettingsClient({
       .then((r) => r.json())
       .then((data) => {
         setAlwaysEditable(!!data?.enable_always_editable_sov);
-        setChangeOrderTiers(Number(data?.number_of_change_order_tiers) || 1);
+        setSsovByDefault(!!data?.enable_ssov_by_default);
+        setEnableFinancialMarkup(!!data?.enable_financial_markup);
+        setChangeOrderTiers(data?.number_of_change_order_tiers ?? 1);
         setAllowStandardUsersCreateCcos(!!data?.allow_standard_users_create_ccos);
         setAllowStandardUsersCreatePcos(!!data?.allow_standard_users_create_pcos);
         setEnableFieldInitiatedCos(!!data?.enable_field_initiated_change_orders);
-        setEnableFinancialMarkup(!!data?.enable_financial_markup);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -87,12 +89,13 @@ export default function CommitmentSettingsClient({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          enable_always_editable_sov: alwaysEditable,
+          enable_ssov_by_default: ssovByDefault,
+          enable_financial_markup: enableFinancialMarkup,
           number_of_change_order_tiers: changeOrderTiers,
           allow_standard_users_create_ccos: allowStandardUsersCreateCcos,
           allow_standard_users_create_pcos: allowStandardUsersCreatePcos,
           enable_field_initiated_change_orders: enableFieldInitiatedCos,
-          enable_always_editable_sov: alwaysEditable,
-          enable_financial_markup: enableFinancialMarkup,
         }),
       });
       if (res.ok) setSavedAt(new Date().toLocaleTimeString());
@@ -269,33 +272,48 @@ export default function CommitmentSettingsClient({
               </span>
             </span>
           </label>
+        </div>
+
+        <div className="py-6 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Default Contract Settings</h2>
+          <div className="space-y-4">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={ssovByDefault}
+                onChange={(e) => setSsovByDefault(e.target.checked)}
+                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
+              />
+              <span className="text-sm text-gray-700">
+                Enable Subcontractor SOV by Default
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  When turned on, the Subcontractor SOV tab is enabled by default on all new purchase orders and subcontracts. Only applies to contracts using the Amount Based accounting method. Individual contracts can still be configured separately.
+                </span>
+              </span>
+            </label>
+          </div>
           {savedAt && <p className="mt-3 text-[11px] text-green-600">Saved at {savedAt}</p>}
         </div>
 
         <div className="py-6 border-b border-gray-200">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Financial Markup</h2>
           <p className="text-xs text-gray-500 mb-3">
-            When enabled at the project level, users with Admin access can enable financial markup per commitment and add markup rules to change orders.
+            When enabled, users with Admin access can enable financial markup per commitment and add markup rules to change orders on that commitment.
           </p>
-          <div className="space-y-3">
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enableFinancialMarkup}
-                onChange={(e) => setEnableFinancialMarkup(e.target.checked)}
-                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
-              />
-              <span className="text-sm text-gray-700">
-                Enable Financial Markup on Commitment Change Orders
-                <span className="block text-xs text-gray-500 mt-0.5">
-                  Allows horizontal and vertical markup rules (Basic, Compounds All Above, Selective Compounding, Iterative/Margin) to be added to individual change orders. After applying, the change order cannot be added to a subcontractor invoice.
-                </span>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enableFinancialMarkup}
+              onChange={(e) => setEnableFinancialMarkup(e.target.checked)}
+              className="w-4 h-4 mt-0.5 rounded border-gray-300 text-gray-900"
+            />
+            <span className="text-sm text-gray-700">
+              Enable Financial Markup on Commitment Change Orders
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Unlocks the Financial Markup toggle on individual commitments. After applying markup to a change order, that change order cannot be added to a subcontractor invoice.
               </span>
-            </label>
-            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-              Enable this setting to allow financial markup on commitment change orders. Individual commitments can still opt-in/out during contract setup.
-            </p>
-          </div>
+            </span>
+          </label>
         </div>
 
         <div className="py-6">
