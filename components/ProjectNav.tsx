@@ -368,8 +368,8 @@ export default function ProjectNav({
               </svg>
             </button>
             {open && (
-              <div className="absolute left-0 top-full mt-1 w-56 sm:w-[760px] bg-white border border-gray-100 rounded-xl shadow-xl z-[9999] p-5 max-h-[80vh] overflow-y-auto">
-                <div className="grid grid-cols-1 gap-1 sm:grid-cols-4 sm:gap-6">
+              <div className="absolute left-0 top-full mt-1 w-56 sm:w-[min(96vw,1120px)] bg-white border border-gray-100 rounded-xl shadow-xl z-[9999] p-5 max-h-[80vh] overflow-y-auto">
+                <div className="grid grid-cols-1 gap-1 sm:grid-cols-5 sm:gap-6">
                   {visibleSections.map((section) => (
                     <div key={section.label}>
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 mt-3 sm:mt-0">
