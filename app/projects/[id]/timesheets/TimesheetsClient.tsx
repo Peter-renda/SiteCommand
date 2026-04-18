@@ -100,20 +100,9 @@ export default function TimesheetsClient({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
-          SiteCommand
-        </a>
-        <div className="flex items-center gap-5">
-          <span className="text-sm text-gray-400">{username}</span>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-400 hover:text-gray-900 transition-colors"
-          >
-            Logout
-          </button>
-        </div>
+        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">SiteCommand</a>
+        <div className="flex items-center gap-5"><span className="text-sm text-gray-400">{username}</span><button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button></div>
       </header>
-
       <ProjectNav projectId={projectId} />
 
       <main className="max-w-5xl mx-auto px-6 py-8">
