@@ -167,6 +167,7 @@ export default function SubmittalDetailClient({
   const [distOpen, setDistOpen] = useState(true);
   const [workflowOpen, setWorkflowOpen] = useState(true);
   const [generalOpen, setGeneralOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<"general" | "related" | "emails" | "history">("general");
   const [showAllRecipients, setShowAllRecipients] = useState(false);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -351,6 +352,7 @@ export default function SubmittalDetailClient({
   const canEdit = submittal.created_by === userId;
   const distList = submittal.distribution_list ?? [];
   const attachments = submittal.attachments ?? [];
+  const relatedItemsCount = (submittal.related_items ?? []).length;
   const visibleRecipients = showAllRecipients ? distList : distList.slice(0, DIST_SHOW_LIMIT);
   const statusLabel = STATUS_LABELS[submittal.status] ?? submittal.status;
 
@@ -441,8 +443,63 @@ export default function SubmittalDetailClient({
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <nav className="flex gap-0 -mb-px">
+          {[
+            { id: "general", label: "General" },
+            { id: "related", label: `Related Items (${relatedItemsCount})` },
+            { id: "emails", label: "Emails (0)" },
+            { id: "history", label: "Change History (0)" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as "general" | "related" | "emails" | "history")}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? "border-gray-900 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
+      <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
+        {activeTab === "emails" && (
+          <div className="bg-white border border-gray-200 rounded-lg px-6 py-12 text-center">
+            <p className="text-sm text-gray-400">Email activity feed is coming soon.</p>
+          </div>
+        )}
+
+        {activeTab === "history" && (
+          <div className="bg-white border border-gray-200 rounded-lg px-6 py-12 text-center">
+            <p className="text-sm text-gray-400">Change history is coming soon.</p>
+          </div>
+        )}
+
+        {activeTab === "related" && (
+          <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Related Items</h3>
+            {(submittal.related_items ?? []).length === 0 ? (
+              <p className="text-sm text-gray-500">No related items added.</p>
+            ) : (
+              <ul className="space-y-2">
+                {(submittal.related_items ?? []).map((item, idx) => (
+                  <li key={`${item.href}-${idx}`} className="text-sm">
+                    <a href={item.href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{item.title || item.href}</a>
+                    <span className="text-gray-500"> · {item.type || "link"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {activeTab === "general" && (
+          <>
         {/* ── Distribution Summary ───────────────────────────────────────── */}
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <button
@@ -877,23 +934,8 @@ export default function SubmittalDetailClient({
             </div>
           )}
         </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Related Items</h3>
-          {(submittal.related_items ?? []).length === 0 ? (
-            <p className="text-sm text-gray-500">No related items added.</p>
-          ) : (
-            <ul className="space-y-2">
-              {(submittal.related_items ?? []).map((item, idx) => (
-                <li key={`${item.href}-${idx}`} className="text-sm">
-                  <a href={item.href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{item.title || item.href}</a>
-                  <span className="text-gray-500"> · {item.type || "link"}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
+          </>
+        )}
       </main>
     </div>
   );
