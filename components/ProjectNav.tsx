@@ -23,8 +23,11 @@ function isToolEnabled(slug: string, enabledFeatures: string[] | null | undefine
   // Transmittals before T&M Tickets existed. Treat T&M Tickets as enabled in that case.
   if (slug === "tm-tickets" && enabledFeatures.includes("transmittals")) return true;
   // Backward compatibility: Timesheets launched after legacy allowlists were created.
-  // If workforce tools (T&M Tickets) are enabled, surface Timesheets as well.
-  if (slug === "timesheets" && enabledFeatures.includes("tm-tickets")) return true;
+  // If workforce tools are enabled through either direct T&M Tickets access or
+  // the legacy Transmittals fallback, surface Timesheets as well.
+  if (slug === "timesheets" && (enabledFeatures.includes("tm-tickets") || enabledFeatures.includes("transmittals"))) {
+    return true;
+  }
   return false;
 }
 
