@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { canViewPunchListItem } from "@/lib/punch-list-access";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -16,7 +17,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .order("item_number", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+  const visibleItems = (data || []).filter((item) => canViewPunchListItem(item, session.id));
+  return NextResponse.json(visibleItems);
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
