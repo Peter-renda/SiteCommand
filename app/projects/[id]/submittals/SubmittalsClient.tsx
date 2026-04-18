@@ -56,7 +56,19 @@ type SubmittalPackage = {
 };
 
 
-const SUBMITTAL_TYPES = ["Shop Drawing", "Product Data", "Sample", "O&M Manual", "Warranty", "Certificate", "Other"];
+const SUBMITTAL_TYPES = [
+  "Document",
+  "Other",
+  "Pay Request",
+  "Payroll",
+  "Plans",
+  "Prints",
+  "Product Information",
+  "Product Manual",
+  "Sample",
+  "Shop Drawing",
+  "Specification",
+];
 const STATUSES = [
   "closed", "draft", "open", "approved", "approved_as_noted", "for_the_record",
   "make_corrections", "no_exceptions_taken", "not_reviewed", "note_markings",
