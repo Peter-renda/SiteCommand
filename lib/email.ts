@@ -139,6 +139,52 @@ export async function sendRFIBallInCourtEmail(
   });
 }
 
+export async function sendRFICreatedEmail(
+  to: string,
+  recipientName: string,
+  senderName: string,
+  rfiNumber: number,
+  rfiSubject: string | null,
+  rfiQuestion: string | null,
+  dueDate: string | null,
+  projectName: string,
+  rfiUrl: string,
+  role: "manager" | "assignee" | "distribution",
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // silent if not configured
+
+  const resend = new Resend(apiKey);
+  const subject = rfiSubject || "No subject";
+  const questionLine = rfiQuestion
+    ? `<blockquote style="border-left:3px solid #e5e7eb;margin:12px 0;padding:8px 16px;color:#555;font-size:13px;white-space:pre-wrap;">${rfiQuestion}</blockquote>`
+    : "";
+  const dueLine = dueDate
+    ? `<p style="font-size:13px;color:#555;"><strong>Due:</strong> ${new Date(dueDate + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>`
+    : "";
+  const roleNote =
+    role === "manager"
+      ? "You are receiving this because you are the RFI manager on SiteCommand."
+      : role === "assignee"
+        ? "You are receiving this because you are assigned to this RFI on SiteCommand."
+        : "You are receiving this because you are on the distribution list for this RFI on SiteCommand.";
+
+  await resend.emails.send({
+    from: 'SiteCommand <invites@sitecommand.xyz>',
+    to,
+    subject: `RFI #${rfiNumber} opened: ${subject} — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
+      <p style="font-size:14px;"><strong>${senderName}</strong> opened <strong>RFI #${rfiNumber}: ${subject}</strong> on <strong>${projectName}</strong>.</p>
+      ${questionLine}
+      ${dueLine}
+      <p><a href="${rfiUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View RFI</a></p>
+      <p style="color:#888;font-size:11px;">You'll need a SiteCommand account with access to this project to open the RFI.</p>
+      <p style="color:#aaa;font-size:11px;">${roleNote}</p>
+    `,
+  });
+}
+
 export async function sendRFIClosedEmail(
   to: string,
   recipientName: string,

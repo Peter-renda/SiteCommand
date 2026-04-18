@@ -596,15 +596,8 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
         setAttachmentError(`Failed to upload ${failed.length === 1 ? "attachment" : "attachments"}: ${failed.join(", ")}. Please add ${failed.length === 1 ? "it" : "them"} again from the RFI detail page.`);
       }
       setRfis((prev) => [...prev, newRfi]);
-      if (data.status === "open" && data.distribution_list.length > 0) {
-        const emails = data.distribution_list.map((d) => d.email).filter(Boolean) as string[];
-        if (emails.length) {
-          await fetch(`/api/projects/${projectId}/rfis/${newRfi.id}/notify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ distribution_emails: emails, rfi_summary: `RFI #${newRfi.rfi_number}: ${data.subject}` }),
-          });
-        }
+      if (data.status === "open") {
+        await fetch(`/api/projects/${projectId}/rfis/${newRfi.id}/notify`, { method: "POST" });
       }
     }
     setCreating(false);
