@@ -414,6 +414,9 @@ function CreateSubmittalModal({
   ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [budgetCostCodes, setBudgetCostCodes] = useState<{ code: string; description: string }[]>([]);
+  const [projectDrawings, setProjectDrawings] = useState<{ number: string; title: string }[]>([]);
+  const [drawingPickerOpen, setDrawingPickerOpen] = useState(false);
+  const drawingPickerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/budget`)
@@ -428,6 +431,39 @@ function CreateSubmittalModal({
       })
       .catch(() => {});
   }, [projectId]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/drawings`)
+      .then((r) => r.json())
+      .then((data: { drawings?: { drawing_no: string | null; title: string | null }[] }) => {
+        const rows = Array.isArray(data?.drawings) ? data.drawings : [];
+        const seen = new Set<string>();
+        const unique = rows
+          .map((d) => ({ number: (d.drawing_no ?? "").trim(), title: (d.title ?? "").trim() }))
+          .filter((d) => d.number && !seen.has(d.number) && seen.add(d.number))
+          .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
+        setProjectDrawings(unique);
+      })
+      .catch(() => {});
+  }, [projectId]);
+
+  useEffect(() => {
+    function onPointerDown(e: MouseEvent) {
+      if (drawingPickerRef.current && !drawingPickerRef.current.contains(e.target as Node)) {
+        setDrawingPickerOpen(false);
+      }
+    }
+    window.addEventListener("mousedown", onPointerDown);
+    return () => window.removeEventListener("mousedown", onPointerDown);
+  }, []);
+
+  const linkedDrawingList = linkedDrawings.split(",").map((s) => s.trim()).filter(Boolean);
+  function toggleLinkedDrawing(num: string) {
+    const current = new Set(linkedDrawingList);
+    if (current.has(num)) current.delete(num);
+    else current.add(num);
+    setLinkedDrawings(Array.from(current).join(", "));
+  }
 
   function buildData() {
     return {
@@ -581,7 +617,49 @@ function CreateSubmittalModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Linked Drawings</label>
-              <input type="text" value={linkedDrawings} onChange={(e) => setLinkedDrawings(e.target.value)} placeholder="Drawing numbers" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+              <div className="relative" ref={drawingPickerRef}>
+                <button
+                  type="button"
+                  onClick={() => setDrawingPickerOpen((o) => !o)}
+                  disabled={projectDrawings.length === 0}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
+                >
+                  <span className="truncate">
+                    {projectDrawings.length === 0
+                      ? "No drawings available"
+                      : linkedDrawingList.length === 0
+                      ? "Select drawings..."
+                      : `${linkedDrawingList.length} selected`}
+                  </span>
+                  <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${drawingPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 20 20" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
+                  </svg>
+                </button>
+                {drawingPickerOpen && projectDrawings.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full max-h-56 overflow-auto bg-white border border-gray-200 rounded-md shadow-lg">
+                    {projectDrawings.map((d) => {
+                      const checked = linkedDrawingList.includes(d.number);
+                      return (
+                        <label key={d.number} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer">
+                          <input type="checkbox" checked={checked} onChange={() => toggleLinkedDrawing(d.number)} className="h-3.5 w-3.5" />
+                          <span className="font-mono text-gray-700">{d.number}</span>
+                          {d.title && <span className="text-gray-400 truncate">— {d.title}</span>}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {linkedDrawingList.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {linkedDrawingList.map((num) => (
+                    <span key={num} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
+                      {num}
+                      <button type="button" onClick={() => toggleLinkedDrawing(num)} className="text-gray-400 hover:text-gray-700">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
