@@ -36,7 +36,6 @@ const ALL_FEATURES: { key: string; label: string; group: string }[] = [
   { key: "rfis", label: "RFIs", group: "Project Management" },
   { key: "submittals", label: "Submittals", group: "Project Management" },
   { key: "transmittals", label: "Transmittals", group: "Project Management" },
-  { key: "tm-tickets", label: "T&M Tickets", group: "Project Management" },
   { key: "punch-list", label: "Punch List", group: "Project Management" },
   { key: "meetings", label: "Meetings", group: "Project Management" },
   { key: "schedule", label: "Schedule", group: "Project Management" },
@@ -56,6 +55,9 @@ const ALL_FEATURES: { key: string; label: string; group: string }[] = [
   { key: "change-orders", label: "Change Orders", group: "Financial" },
   { key: "change-events", label: "Change Events", group: "Financial" },
   { key: "scope-of-work", label: "Scope of Work", group: "Financial" },
+  // Workforce Management
+  { key: "tm-tickets", label: "T&M Tickets", group: "Workforce Management" },
+  { key: "timesheets", label: "Timesheets", group: "Workforce Management" },
   // Preconstruction
   { key: "preconstruction", label: "Preconstruction", group: "Preconstruction" },
   { key: "bid-management", label: "Bid Management", group: "Preconstruction" },
