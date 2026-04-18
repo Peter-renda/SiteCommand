@@ -238,3 +238,37 @@
 - Timecard field-level visibility/requiredness settings are not yet configurable per project.
 - Imported budget-quantity validations (cost code must map to budgeted quantity) are not yet enforced.
 - Company-level rollup approvals and report integrations are not yet surfaced in Timesheets UI.
+
+## Timesheets Alignment Pass – Review/Approve/Search/View/Export Tutorials (April 18, 2026)
+
+### Tutorials reviewed in this pass
+- Approve a Timesheet
+- Review a Timesheet
+- Export a Project's Timesheets
+- Search for and Filter Project Level Timesheets
+- View a Timesheet
+- View a Timesheet Entry Signature
+- View Quantities on a Timesheet
+
+### Changes implemented in SiteCommand
+- Rebuilt the project timesheets page to align with tutorial flow instead of the previous crew-assignment placeholder.
+- Added date range filtering, keyword search, and status filtering over timesheets and timecard fields (employee/resource, location, cost code).
+- Added a CSV export workflow for the current filtered dataset directly from the Timesheets page.
+- Added a true list-and-detail timesheet experience:
+  - left panel list of timesheets
+  - right panel details with entries
+  - in-context status changes at timesheet level
+- Added explicit tutorial-aligned actions for review and approval:
+  - Mark Reviewed
+  - Approve
+  - status dropdown includes Reviewed
+- Added quantities viewer modal to support “View Quantities on a Timesheet”.
+- Added signature viewer modal to support “View a Timesheet Entry Signature”.
+- Added migration support for signature metadata on entries (`signature_name`, `signed_at`).
+- Updated DB-level status constraints to include `reviewed` for both timesheets and timesheet entries.
+
+### Notes / remaining parity gaps
+- Signature capture is still assumed to occur from mobile flow and is only *viewed* here.
+- CSV export is client-generated from loaded data; no server-side export template yet.
+- Multi-tier approval permission enforcement is not yet implemented at role-policy level.
+- Company-level “mark completed” governance remains outside this project-level page scope.
