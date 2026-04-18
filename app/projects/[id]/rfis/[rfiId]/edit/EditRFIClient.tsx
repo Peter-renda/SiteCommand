@@ -326,7 +326,7 @@ export default function EditRFIClient({ projectId, rfiId, userId, role }: { proj
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Distribution List</label>
-            <MultiContactPicker directory={directory} selected={distributionList} onChange={setDistributionList} placeholder="Add recipients..." />
+            <MultiContactPicker directory={directory} selected={distributionList} onChange={setDistributionList} placeholder="Add recipients..." filterType="user" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
