@@ -1,33 +1,49 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
-type Crew = {
+type Quantity = {
   id: string;
-  name: string;
+  units_installed: number;
+  uom: string | null;
+  notes: string | null;
 };
 
-type Employee = {
+type TimesheetEntry = {
   id: string;
-  name: string;
-  role: string;
+  resource_name: string;
+  resource_type: "employee" | "equipment";
+  total_hours: number;
+  location_path: string | null;
+  cost_code: string | null;
+  time_type: string;
+  status: string;
+  signed_at?: string | null;
+  signature_name?: string | null;
+  quantity?: Quantity[] | null;
 };
 
-const CREWS: Crew[] = [
-  { id: "crew-1", name: "Concrete Crew" },
-  { id: "crew-2", name: "Framing Crew" },
-  { id: "crew-3", name: "MEP Crew" },
-];
+type Timesheet = {
+  id: string;
+  work_date: string;
+  status: string;
+  notes: string | null;
+  entries: TimesheetEntry[];
+};
 
-const EMPLOYEES: Employee[] = [
-  { id: "emp-1", name: "Jake Thompson", role: "Foreman" },
-  { id: "emp-2", name: "Ava Nguyen", role: "Carpenter" },
-  { id: "emp-3", name: "Marcus Lee", role: "Laborer" },
-  { id: "emp-4", name: "Sofia Patel", role: "Electrician" },
-  { id: "emp-5", name: "Daniel Cruz", role: "Plumber" },
-  { id: "emp-6", name: "Mia Brooks", role: "Operator" },
-];
+const TIMESHEET_STATUSES = ["draft", "submitted", "reviewed", "approved", "completed"];
+const ENTRY_STATUSES = ["draft", "submitted", "reviewed", "approved", "completed"];
+
+function toDateInputValue(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function formatDate(value: string) {
+  if (!value) return "—";
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
+}
 
 export default function TimesheetsClient({
   projectId,
@@ -36,65 +52,172 @@ export default function TimesheetsClient({
   projectId: string;
   username: string;
 }) {
-  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
-  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
-  const [activeCrewId, setActiveCrewId] = useState(CREWS[0]?.id ?? "");
-  const [assignments, setAssignments] = useState<Record<string, string[]>>(
-    Object.fromEntries(CREWS.map((crew) => [crew.id, []])),
-  );
-  const [hasTimesheet, setHasTimesheet] = useState(false);
-  const [showCopyHint, setShowCopyHint] = useState(false);
+  const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState(toDateInputValue(new Date()));
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const [selectedTimesheetId, setSelectedTimesheetId] = useState<string | null>(null);
+  const [newTimesheetDate, setNewTimesheetDate] = useState(toDateInputValue(new Date()));
+  const [copySourceId, setCopySourceId] = useState("");
+
+  const [quantitiesSheetId, setQuantitiesSheetId] = useState<string | null>(null);
+  const [signatureEntry, setSignatureEntry] = useState<TimesheetEntry | null>(null);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
   }
 
-  const assignedEmployeeIds = useMemo(
-    () => new Set(Object.values(assignments).flat()),
-    [assignments],
+  async function fetchTimesheets() {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const query = new URLSearchParams();
+      if (dateFrom) query.set("from", dateFrom);
+      if (dateTo) query.set("to", dateTo);
+      const res = await fetch(`/api/projects/${projectId}/timesheets?${query.toString()}`);
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to load timesheets");
+      const data = (await res.json()) as Timesheet[];
+      setTimesheets(data || []);
+      setSelectedTimesheetId((current) => current ?? data?.[0]?.id ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load timesheets");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void fetchTimesheets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const filteredTimesheets = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return timesheets.filter((sheet) => {
+      if (statusFilter !== "all" && sheet.status !== statusFilter) return false;
+      if (!keyword) return true;
+      const haystack = [
+        sheet.work_date,
+        sheet.status,
+        ...(sheet.entries || []).flatMap((entry) => [entry.resource_name, entry.location_path || "", entry.cost_code || ""]),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(keyword);
+    });
+  }, [timesheets, statusFilter, search]);
+
+  const selectedTimesheet = useMemo(
+    () => filteredTimesheets.find((sheet) => sheet.id === selectedTimesheetId) ?? filteredTimesheets[0] ?? null,
+    [filteredTimesheets, selectedTimesheetId],
   );
 
-  const unassignedEmployees = EMPLOYEES.filter((employee) => !assignedEmployeeIds.has(employee.id));
-  const allEmployeesAssigned = assignedEmployeeIds.size === EMPLOYEES.length;
-
-  function handleSelectNewDailyTimesheet() {
-    setIsCreateMenuOpen(false);
-    setShowCopyHint(false);
-    setHasTimesheet(false);
-    setAssignments(Object.fromEntries(CREWS.map((crew) => [crew.id, []])));
-    setActiveCrewId(CREWS[0]?.id ?? "");
-    setIsBuilderOpen(true);
-  }
-
-  function handleSelectCopyFromDate() {
-    setIsCreateMenuOpen(false);
-    setShowCopyHint(true);
-  }
-
-  function assignEmployeeToActiveCrew(employeeId: string) {
-    if (!activeCrewId) return;
-    setAssignments((current) => {
-      const next: Record<string, string[]> = {};
-      Object.entries(current).forEach(([crewId, members]) => {
-        next[crewId] = members.filter((memberId) => memberId !== employeeId);
-      });
-      next[activeCrewId] = [...(next[activeCrewId] ?? []), employeeId];
-      return next;
+  async function patchTimesheet(timesheetId: string, payload: Record<string, unknown>) {
+    const res = await fetch(`/api/projects/${projectId}/timesheets/${timesheetId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to update timesheet");
+    setTimesheets((current) => current.map((sheet) => (sheet.id === timesheetId ? data : sheet)));
   }
 
-  function removeEmployeeFromCrew(crewId: string, employeeId: string) {
-    setAssignments((current) => ({
-      ...current,
-      [crewId]: (current[crewId] ?? []).filter((memberId) => memberId !== employeeId),
-    }));
+  async function patchEntry(timesheetId: string, entryId: string, payload: Record<string, unknown>) {
+    const res = await fetch(`/api/projects/${projectId}/timesheets/${timesheetId}/entries/${entryId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to update entry");
+
+    setTimesheets((current) =>
+      current.map((sheet) =>
+        sheet.id !== timesheetId
+          ? sheet
+          : {
+              ...sheet,
+              entries: sheet.entries.map((entry) => (entry.id === entryId ? { ...entry, ...data } : entry)),
+            },
+      ),
+    );
   }
 
-  function handleCreateTimesheet() {
-    if (!allEmployeesAssigned) return;
-    setIsBuilderOpen(false);
-    setHasTimesheet(true);
+  async function createTimesheet() {
+    try {
+      const payload: Record<string, unknown> = { work_date: newTimesheetDate };
+      if (copySourceId) payload.copy_from_timesheet_id = copySourceId;
+      const res = await fetch(`/api/projects/${projectId}/timesheets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not create timesheet");
+      setTimesheets((current) => [data, ...current]);
+      setSelectedTimesheetId(data.id);
+      setCopySourceId("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not create timesheet");
+    }
+  }
+
+  function exportCsv() {
+    const rows: string[][] = [[
+      "Work Date",
+      "Timesheet Status",
+      "Resource",
+      "Type",
+      "Entry Status",
+      "Hours",
+      "Location",
+      "Cost Code",
+      "Time Type",
+      "Signed By",
+      "Signed At",
+      "Units Installed",
+      "UOM",
+    ]];
+
+    filteredTimesheets.forEach((sheet) => {
+      (sheet.entries || []).forEach((entry) => {
+        const quantity = entry.quantity?.[0];
+        rows.push([
+          sheet.work_date,
+          sheet.status,
+          entry.resource_name,
+          entry.resource_type,
+          entry.status,
+          String(entry.total_hours ?? 0),
+          entry.location_path || "",
+          entry.cost_code || "",
+          entry.time_type,
+          entry.signature_name || "",
+          entry.signed_at || "",
+          String(quantity?.units_installed ?? ""),
+          quantity?.uom || "",
+        ]);
+      });
+    });
+
+    const csv = rows
+      .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `timesheets-${projectId}-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -105,193 +228,172 @@ export default function TimesheetsClient({
       </header>
       <ProjectNav projectId={projectId} />
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-4">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
           <h1 className="text-xl font-semibold text-gray-900">Timesheets</h1>
-          <div className="relative">
-            <button
-              onClick={() => setIsCreateMenuOpen((current) => !current)}
-              className="inline-flex items-center gap-2 rounded-md bg-gray-900 text-white text-sm font-medium px-4 py-2 hover:bg-gray-800 transition-colors"
-            >
-              Create
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M5.25 7.5L10 12.25 14.75 7.5" />
-              </svg>
-            </button>
-            {isCreateMenuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-20">
-                <button
-                  onClick={handleSelectNewDailyTimesheet}
-                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  New Daily Timesheet
-                </button>
-                <button
-                  onClick={handleSelectCopyFromDate}
-                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100"
-                >
-                  Copy from any date
-                </button>
-              </div>
-            )}
+
+          <div className="grid md:grid-cols-6 gap-2">
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm" />
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employee, location, cost code" className="md:col-span-2 border border-gray-300 rounded-md px-3 py-2 text-sm" />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+              <option value="all">All statuses</option>
+              {TIMESHEET_STATUSES.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+            <button onClick={() => void fetchTimesheets()} className="rounded-md bg-gray-900 text-white px-3 py-2 text-sm font-medium">Apply Filters</button>
+          </div>
+
+          <div className="grid md:grid-cols-[1fr_auto] gap-2 border-t pt-3">
+            <div className="grid sm:grid-cols-3 gap-2">
+              <input type="date" value={newTimesheetDate} onChange={(e) => setNewTimesheetDate(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm" />
+              <select value={copySourceId} onChange={(e) => setCopySourceId(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                <option value="">New blank timesheet</option>
+                {timesheets.map((sheet) => (
+                  <option key={sheet.id} value={sheet.id}>Copy from {formatDate(sheet.work_date)}</option>
+                ))}
+              </select>
+              <button onClick={() => void createTimesheet()} className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium">Create Timesheet</button>
+            </div>
+            <button onClick={exportCsv} className="rounded-md bg-emerald-700 text-white px-3 py-2 text-sm font-medium">Export CSV</button>
           </div>
         </div>
 
-        {showCopyHint && (
-          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-            Copy from any date flow is ready for wiring to your project data source.
-          </div>
-        )}
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
 
-        {!hasTimesheet ? (
-          <div className="bg-white border border-dashed border-gray-200 rounded-xl px-6 py-16 flex flex-col items-center text-center">
-            <h3 className="text-sm font-semibold text-gray-700 mb-1">No daily timesheet created yet</h3>
-            <p className="text-sm text-gray-400 max-w-sm">
-              Click <span className="font-medium text-gray-600">Create</span> to start a new daily timesheet or copy
-              from a previous date.
-            </p>
-          </div>
-        ) : (
-          <section className="space-y-4">
-            <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Daily Timesheet</h2>
-                <p className="text-sm text-gray-500">Crew and employee roster created for today.</p>
-              </div>
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                Ready
-              </span>
-            </div>
+        <div className="grid lg:grid-cols-[360px_1fr] gap-4">
+          <section className="bg-white border border-gray-200 rounded-xl divide-y">
+            {isLoading ? (
+              <p className="p-4 text-sm text-gray-500">Loading timesheets…</p>
+            ) : filteredTimesheets.length === 0 ? (
+              <p className="p-4 text-sm text-gray-500">No timesheets match your date range and filters.</p>
+            ) : (
+              filteredTimesheets.map((sheet) => (
+                <button
+                  key={sheet.id}
+                  onClick={() => setSelectedTimesheetId(sheet.id)}
+                  className={`w-full text-left p-4 hover:bg-gray-50 ${selectedTimesheet?.id === sheet.id ? "bg-gray-50" : ""}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-sm text-gray-900">{formatDate(sheet.work_date)}</p>
+                    <span className="text-xs uppercase tracking-wide text-gray-500">{sheet.status}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{sheet.entries?.length ?? 0} entries</p>
+                </button>
+              ))
+            )}
+          </section>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {CREWS.map((crew) => {
-                const members = (assignments[crew.id] ?? [])
-                  .map((id) => EMPLOYEES.find((employee) => employee.id === id))
-                  .filter(Boolean) as Employee[];
-                return (
-                  <article key={crew.id} className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">{crew.name}</h3>
-                    <ul className="space-y-2">
-                      {members.map((member) => (
-                        <li key={member.id} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-700">{member.name}</span>
-                          <span className="text-gray-400">{member.role}</span>
-                        </li>
+          <section className="bg-white border border-gray-200 rounded-xl p-4">
+            {!selectedTimesheet ? (
+              <p className="text-sm text-gray-500">Select a timesheet to view details.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2 justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">{formatDate(selectedTimesheet.work_date)}</h2>
+                    <p className="text-sm text-gray-500">Review entries, signatures, and quantities.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedTimesheet.status}
+                      onChange={(e) => void patchTimesheet(selectedTimesheet.id, { status: e.target.value })}
+                      className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    >
+                      {TIMESHEET_STATUSES.map((status) => (
+                        <option key={status} value={status}>{status}</option>
                       ))}
-                    </ul>
-                  </article>
+                    </select>
+                    <button onClick={() => setQuantitiesSheetId(selectedTimesheet.id)} className="border border-gray-300 rounded-md px-3 py-2 text-sm">View Quantities</button>
+                    <button onClick={() => void patchTimesheet(selectedTimesheet.id, { status: "reviewed" })} className="border border-blue-300 text-blue-700 rounded-md px-3 py-2 text-sm">Mark Reviewed</button>
+                    <button onClick={() => void patchTimesheet(selectedTimesheet.id, { status: "approved" })} className="bg-gray-900 text-white rounded-md px-3 py-2 text-sm">Approve</button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-gray-600">
+                      <tr>
+                        <th className="text-left p-2">Resource</th>
+                        <th className="text-left p-2">Hours</th>
+                        <th className="text-left p-2">Location</th>
+                        <th className="text-left p-2">Cost Code</th>
+                        <th className="text-left p-2">Status</th>
+                        <th className="text-left p-2">Signature</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(selectedTimesheet.entries || []).map((entry) => (
+                        <tr key={entry.id} className="border-t">
+                          <td className="p-2">{entry.resource_name}</td>
+                          <td className="p-2">{entry.total_hours}</td>
+                          <td className="p-2">{entry.location_path || "—"}</td>
+                          <td className="p-2">{entry.cost_code || "—"}</td>
+                          <td className="p-2">
+                            <select
+                              value={entry.status}
+                              onChange={(e) => void patchEntry(selectedTimesheet.id, entry.id, { status: e.target.value })}
+                              className="border border-gray-300 rounded-md px-2 py-1 text-xs"
+                            >
+                              {ENTRY_STATUSES.map((status) => (
+                                <option key={status} value={status}>{status}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="p-2">
+                            {entry.signed_at ? (
+                              <button onClick={() => setSignatureEntry(entry)} className="text-blue-700 underline text-xs">Signed</button>
+                            ) : (
+                              <span className="text-xs text-gray-400">Unsigned</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
+
+      {quantitiesSheetId && (
+        <div className="fixed inset-0 bg-gray-900/40 z-40 p-6 flex items-center justify-center">
+          <div className="bg-white w-full max-w-3xl rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Installed Quantities</h3>
+              <button onClick={() => setQuantitiesSheetId(null)} className="text-sm text-gray-500">Close</button>
+            </div>
+            <div className="space-y-2 max-h-[65vh] overflow-auto">
+              {(timesheets.find((sheet) => sheet.id === quantitiesSheetId)?.entries || []).map((entry) => {
+                const quantity = entry.quantity?.[0];
+                return (
+                  <div key={entry.id} className="border border-gray-200 rounded-lg p-3 text-sm">
+                    <p className="font-medium text-gray-900">{entry.resource_name}</p>
+                    <p className="text-gray-600">Units: {quantity?.units_installed ?? 0} {quantity?.uom || ""}</p>
+                    <p className="text-gray-500">Notes: {quantity?.notes || "—"}</p>
+                  </div>
                 );
               })}
             </div>
-          </section>
-        )}
-      </main>
+          </div>
+        </div>
+      )}
 
-      {isBuilderOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 z-30 flex items-center justify-center p-6">
-          <div className="w-full max-w-4xl bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">New Daily Timesheet</h2>
-                <p className="text-sm text-gray-500">Assign every employee to a crew.</p>
-              </div>
-              <button
-                onClick={() => setIsBuilderOpen(false)}
-                className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-              >
-                Close
-              </button>
+      {signatureEntry && (
+        <div className="fixed inset-0 bg-gray-900/40 z-40 p-6 flex items-center justify-center">
+          <div className="bg-white w-full max-w-md rounded-xl border border-gray-200 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Timesheet Entry Signature</h3>
+              <button onClick={() => setSignatureEntry(null)} className="text-sm text-gray-500">Close</button>
             </div>
-
-            <div className="grid md:grid-cols-[230px_1fr] min-h-[420px]">
-              <aside className="border-r border-gray-100 bg-gray-50 p-4">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-3">Crews</h3>
-                <ul className="space-y-2">
-                  {CREWS.map((crew) => {
-                    const count = assignments[crew.id]?.length ?? 0;
-                    const isActive = activeCrewId === crew.id;
-                    return (
-                      <li key={crew.id}>
-                        <button
-                          onClick={() => setActiveCrewId(crew.id)}
-                          className={`w-full text-left rounded-lg px-3 py-2 border text-sm transition-colors ${
-                            isActive
-                              ? "bg-gray-900 text-white border-gray-900"
-                              : "bg-white text-gray-700 border-gray-200 hover:border-gray-300"
-                          }`}
-                        >
-                          <div className="font-medium">{crew.name}</div>
-                          <div className={`text-xs ${isActive ? "text-gray-200" : "text-gray-400"}`}>{count} added</div>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </aside>
-
-              <section className="p-4">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-3">All Employees</h3>
-                <ul className="grid sm:grid-cols-2 gap-2">
-                  {unassignedEmployees.map((employee) => (
-                    <li key={employee.id}>
-                      <button
-                        onClick={() => assignEmployeeToActiveCrew(employee.id)}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-left hover:border-gray-400 transition-colors"
-                      >
-                        <p className="text-sm font-medium text-gray-800">{employee.name}</p>
-                        <p className="text-xs text-gray-400">{employee.role}</p>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-
-                {unassignedEmployees.length === 0 && (
-                  <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                    All employees are assigned. Create the daily timesheet to continue.
-                  </div>
-                )}
-
-                <div className="mt-4 border-t border-gray-100 pt-4">
-                  <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">
-                    Assigned to selected crew
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {(assignments[activeCrewId] ?? []).map((employeeId) => {
-                      const employee = EMPLOYEES.find((item) => item.id === employeeId);
-                      if (!employee) return null;
-                      return (
-                        <span
-                          key={employeeId}
-                          className="inline-flex items-center gap-2 text-xs bg-gray-100 text-gray-700 rounded-full px-3 py-1"
-                        >
-                          {employee.name}
-                          <button
-                            onClick={() => removeEmployeeFromCrew(activeCrewId, employeeId)}
-                            className="text-gray-500 hover:text-gray-800"
-                            aria-label={`Remove ${employee.name}`}
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              </section>
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-sm text-gray-500">
-                {assignedEmployeeIds.size}/{EMPLOYEES.length} employees assigned
-              </p>
-              <button
-                onClick={handleCreateTimesheet}
-                disabled={!allEmployeesAssigned}
-                className="rounded-md bg-gray-900 text-white text-sm font-medium px-4 py-2 disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors"
-              >
-                Create Daily Timesheet
-              </button>
-            </div>
+            <p className="text-sm text-gray-700">Signed by: {signatureEntry.signature_name || "Employee"}</p>
+            <p className="text-sm text-gray-700">Signed at: {signatureEntry.signed_at ? new Date(signatureEntry.signed_at).toLocaleString() : "—"}</p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+              Editing a signed timecard should require re-signing by the employee.
+            </p>
           </div>
         </div>
       )}
