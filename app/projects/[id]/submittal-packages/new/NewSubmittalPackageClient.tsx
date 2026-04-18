@@ -313,13 +313,17 @@ function AddExistingSubmittalModal({
 // ── Create Submittal Modal (inline, saves immediately) ────────────────────────
 
 const SUBMITTAL_TYPES = [
-  "Shop Drawing",
-  "Product Data",
-  "Sample",
-  "O&M Manual",
-  "Warranty",
-  "Certificate",
+  "Document",
   "Other",
+  "Pay Request",
+  "Payroll",
+  "Plans",
+  "Prints",
+  "Product Information",
+  "Product Manual",
+  "Sample",
+  "Shop Drawing",
+  "Specification",
 ];
 
 function CreateSubmittalModal({
