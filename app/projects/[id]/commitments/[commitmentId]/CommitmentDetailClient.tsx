@@ -302,6 +302,7 @@ function SsovPanel({
   onNotify: () => void;
   onSubmit: () => void;
   onRevise: () => void;
+  onApprove: () => void;
   editHref: string;
 }) {
   const allocated = items.reduce((sum, i) => sum + Number(i.amount || 0), 0);
@@ -309,7 +310,7 @@ function SsovPanel({
   const canEdit = status === "draft" || status === "revise_resubmit";
   const canNotify = canEdit && !!invoiceContact;
   const canSubmit = canEdit && Math.round(remaining * 100) === 0 && items.length > 0;
-  const canRevise = status === "under_review";
+  const canReview = status === "under_review";
 
   return (
     <div>
@@ -362,13 +363,22 @@ function SsovPanel({
               Submit
             </button>
           )}
-          {canRevise && (
+          {canReview && (
             <button
               onClick={onRevise}
               disabled={busy}
               className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60"
             >
               Return to Revise & Resubmit
+            </button>
+          )}
+          {canReview && (
+            <button
+              onClick={onApprove}
+              disabled={busy}
+              className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-60"
+            >
+              Approve
             </button>
           )}
         </div>
@@ -508,7 +518,7 @@ export default function CommitmentDetailClient({
     });
   }, [projectId, commitmentId]);
 
-  async function callSsovAction(action: "notify" | "submit" | "revise") {
+  async function callSsovAction(action: "notify" | "submit" | "revise" | "approve") {
     setSsovBusy(true);
     setSsovError("");
     try {
@@ -1022,6 +1032,7 @@ export default function CommitmentDetailClient({
                 onNotify={() => callSsovAction("notify")}
                 onSubmit={() => callSsovAction("submit")}
                 onRevise={() => callSsovAction("revise")}
+                onApprove={() => callSsovAction("approve")}
                 editHref={`/projects/${projectId}/commitments/${commitmentId}/ssov`}
               />
             )}

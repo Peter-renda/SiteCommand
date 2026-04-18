@@ -1089,3 +1089,160 @@ RFI, Submittal, Task, Bid, Meeting, Drawing, Specification Section, Potential Ch
   - `GET /POST /api/projects/[id]/change-orders/[changeOrderId]/related-items` — read_only GET, admin POST.
   - `PATCH /DELETE /api/projects/[id]/change-orders/[changeOrderId]/related-items/[itemId]` — admin only.
 - UI: `ChangeOrderDetailClient.tsx` — **Related Items** tab added alongside the **General** tab. Tab shows item count badge when items exist. Add form visible only to admin users.
+
+## Procore Tutorial Alignment Notes (Added April 18, 2026 - Commitments + Change Events)
+
+### Sources Reviewed
+- https://v2.support.procore.com/product-manuals/change-events-project/tutorials/add-a-change-event-line-item-to-an-unapproved-commitment/
+- https://v2.support.procore.com/product-manuals/change-events-project/tutorials/add-a-change-event-line-item-to-an-unapproved-commitment-co/
+- https://v2.support.procore.com/product-manuals/commitments-project/tutorials/enable-or-disable-the-ssov-tab-on-a-commitment/
+- https://v2.support.procore.com/product-manuals/commitments-project/tutorials/import-commitment-sov-line-items-from-a-csv-file/
+- https://v2.support.procore.com/product-manuals/commitments-project/tutorials/review-a-commitments-subcontractor-schedule-of-values/
+
+### Add a Change Event Line Item to an Unapproved Commitment
+
+#### Required Permissions
+- **Admin** on Change Events AND **Admin** on Commitments.
+
+#### Prerequisites
+- The Change Events tool must be enabled on the project.
+
+#### Limitations (per Procore)
+Change event line items cannot be added to a commitment when:
+- The commitment status is **Approved**.
+- Invoices have already been created on the commitment.
+- For ERP-integrated projects (Sage 300 CRE, QuickBooks Desktop, Viewpoint Spectrum) the target commitment must already have ≥1 SOV line item with a cost code (and cost type, depending on ERP).
+
+#### Workflow
+1. Open the Change Events tool.
+2. Select the desired change event line items (may span multiple change events).
+3. Click **Bulk Actions** → **Add to Unapproved Commitment**.
+4. Pick the target unapproved commitment from the submenu (grouped by Subcontracts / Purchase Orders).
+5. Additional SOV line items are added to the selected commitment.
+
+#### Implementation Notes (SiteCommand)
+- Bulk action is defined in `ChangeEventsClient.tsx` under the Bulk Actions dropdown (`Add to Unapproved Commitment` action, `commitment-submenu` with `unapprovedOnly: true`).
+- Commitments are fetched from `/api/projects/[id]/commitments`; the submenu only lists commitments where `isUnapproved(c.status)`.
+- The action is disabled (with inline tooltip "the selected line item has already be associated with a Commitment CO") when any selected line item already has a cost association to prevent double-linking.
+- Current flow navigates to the commitment edit page with `eventIds` pre-selected, so new SOV lines can be added from the change event line items on save.
+- **Invoices gate**: an Invoices module is not yet implemented on SiteCommand commitments (placeholder tab only). When invoices are introduced, the submenu must additionally filter out commitments that already have invoices (see `069_budget_restructure.sql::commitments_invoiced` column for the eventual data source).
+
+### Add a Change Event Line Item to an Unapproved Commitment CO
+
+#### Required Permissions
+- **Admin** on Change Events AND **Admin** on Commitments.
+
+#### Prerequisites
+- A commitment potential change order (or CCO, depending on tiering) must exist for the target commitment.
+
+#### Limitations (per Procore)
+- Only commitment change orders that are **not Approved** are valid targets.
+- For ERP-integrated projects, the bulk option may be replaced by an alternative SOV-linking workflow.
+- Change event line items can be added before or after RFQ responses; when added after, SOV auto-populates with RFQ amounts.
+
+#### Workflow
+1. Open the Change Events tool.
+2. Select change event line items (may span multiple events; filterable by vendor).
+3. Click **Bulk Actions** → **Add to Unapproved Commitment CO**.
+4. Pick the target unapproved CCO from the submenu.
+5. SOV lines are appended to the CCO; navigation continues to the CCO detail page.
+
+#### Implementation Notes (SiteCommand)
+- Action `Add to Unapproved Commitment CO` (type `commitment-co-submenu`) in `ChangeEventsClient.tsx`.
+- `allCommitmentCcos` is pre-filtered to status != `approved` (`/api/projects/[id]/change-orders?type=commitment` call + client-side filter).
+- `addSelectedSovToCommitmentCco()` fetches the target CCO, merges existing `schedule_of_values` with new lines (deduping by `budget_code__description__amount`), preserves `budget_codes` and `source_change_event_ids`, recalculates the CCO `amount`, and PATCHes it.
+
+### Enable or Disable the Subcontractor SOV Tab on a Commitment
+
+#### Required Permissions
+- **Admin** level on the Commitments tool.
+
+#### Prerequisites
+- A commitment must already exist.
+- The commitment must use **Amount Based** accounting. The SSOV tab is NOT supported with Unit/Quantity Based accounting.
+
+#### Project-Level Default
+- Commitments tool → **Configure Settings** → **Default Contract Settings** → check/uncheck **Enable Subcontractor SOV by Default** → Save. Affects newly-created commitments.
+
+#### Per-Commitment Workflow (Individual)
+1. Open the commitment → **Edit**.
+2. In the **Subcontractor SOV** section, check or uncheck **Enable Subcontractor SOV**.
+3. Click **Save**.
+
+#### Limitations
+- Available only on Amount Based commitments — the toggle is hidden (with an inline explanation) when the SOV is Unit/Quantity Based.
+- When **Enable Always Editable Schedule of Values** is active, additional workflow limitations apply to downstream SSOV edits.
+
+#### Implementation Notes (SiteCommand)
+- Project-level default: `enable_ssov_by_default` column in `commitment_settings` (migration `093_commitment_settings_defaults.sql`). Surfaced under **Default Contract Settings** in `CommitmentSettingsClient.tsx`.
+- Per-commitment toggle: `ssov_enabled` column on `commitments` (migration `090_commitment_ssov_workflow.sql`). Toggle rendered in `EditCommitmentClient.tsx` under the **Subcontractor SOV** section (only when `sovMethod === "amount"`).
+- New commitments pre-fill from `enable_ssov_by_default` in `NewCommitmentClient.tsx`.
+- API `PATCH /api/projects/[id]/commitments/[commitmentId]` keeps `ssov_status` consistent with `ssov_enabled` (sets to `draft` when turning on, clears to `""` + nulls `ssov_notified_at`/`ssov_submitted_at` when turning off).
+
+### Import Commitment SOV Line Items from a CSV File (General SOV)
+
+#### Required Permissions
+- **Admin** on Commitments, OR
+- **Read Only** / **Standard** with the **Update Purchase Order Contract** or **Update Work Order Contract** granular permission enabled.
+
+#### Prerequisites
+- When **Enable Always Editable Schedule of Values** is OFF (default), the commitment must be in **Draft**.
+- When **Enable Always Editable Schedule of Values** is ON, import can run at any status, but cannot replace invoiced line items.
+
+#### CSV Columns by Accounting Method
+- **Amount Based** (required): Budget Code, Amount. (Optional: Sub Job, Cost Type, Description, Tax Code.)
+- **Unit/Quantity Based** (required): Budget Code, Quantity, UOM, Unit Price. (Optional: Sub Job, Cost Type, Description, Tax Code, Subtotal, Override.)
+- **Cost Type** defaults to **Other** when blank.
+- Amounts must use plain numerics (for example `15000`, not `$15,000`).
+
+#### Things to Consider
+- Delimiter may be **comma (,)** (default) or **semicolon (;)**.
+- Template download options: **blank template** or **pre-populated with existing line items**.
+- Import modes: **add additional items** or **replace all existing items**.
+- ERP-integrated companies have additional prerequisites depending on the system.
+
+#### Workflow
+1. Open the commitment → **Edit** → scroll to **Schedule of Values**.
+2. Click **Import SOV from CSV** below the SOV table.
+3. Pick the delimiter, import mode, and (optionally) download a template.
+4. Select a CSV file and click **Import**.
+5. Imported lines appear in the SOV table for review. Click **Save** on the commitment to persist them.
+
+#### Implementation Notes (SiteCommand)
+- UI lives in `EditCommitmentClient.tsx`. The **Import SOV from CSV** button is shown below the SOV table and is disabled when the commitment status is not Draft and `Enable Always Editable Schedule of Values` is off.
+- Helpers: `parseSovImportCSV(text, delimiter)` validates required columns per accounting method; `downloadSovTemplate("blank" | "existing")` produces a matching template.
+- Import mode `replace` queues all existing saved SOV lines for deletion (via `removedDbIds.current`) before swapping in the imported lines; mode `add` appends lines. Nothing is persisted until the user clicks Save on the commitment.
+- Imported lines are not linked to change events (`change_event_id` / `change_event_line_item_id` are left empty).
+
+### Review a Commitment's Subcontractor SOV (Approve / Return for Revision)
+
+#### Required Permissions
+- **Admin** on the Commitments tool (to review, approve, or return the SSOV).
+
+#### Prerequisites
+- SSOV must be **enabled** on the commitment and the accounting method must be Amount Based.
+- Line items must already have been added and submitted by the invoice contact (or entered by an upstream admin).
+
+#### Review Actions
+- **Approve**: available while status is **Under Review**. Transitions `ssov_status` from `under_review` → `approved` and records `ssov_approved_at`.
+- **Return for Revision**: available while status is **Under Review**. Transitions `ssov_status` from `under_review` → `revise_resubmit` so the invoice contact can edit and resubmit.
+
+#### Status Transitions
+- `draft` → `under_review` (on Submit, once Remaining to Allocate = $0)
+- `under_review` → `approved` (on Approve by admin)
+- `under_review` → `revise_resubmit` (on Return for Revision by admin)
+- `revise_resubmit` → `under_review` (on next Submit)
+
+#### Workflow
+1. Open the commitment detail page.
+2. In the **Subcontractor SOV** section, confirm status is **Under Review**.
+3. Click **Approve** to finalize or **Return to Revise & Resubmit** to send back for edits.
+
+#### Implementation Notes (SiteCommand)
+- **Approve endpoint** (new): `POST /api/projects/[id]/commitments/[commitmentId]/ssov/approve` — admin-only; validates SSOV is enabled, accounting method is `amount`, and status is `under_review`; updates `ssov_status = approved` and `ssov_approved_at`; writes a `commitment_change_history` row (`action: "Approved Subcontractor SOV"`) for audit.
+- **Revise endpoint** (existing): `POST /api/projects/[id]/commitments/[commitmentId]/ssov/revise` — admin-only; transitions `under_review` → `revise_resubmit`.
+- **Submit endpoint** (existing): `POST /api/projects/[id]/commitments/[commitmentId]/ssov/submit` — invoice-contact action; requires Remaining to Allocate = $0 and status `draft` or `revise_resubmit`.
+- **Notify endpoint** (existing): `POST /api/projects/[id]/commitments/[commitmentId]/ssov/notify` — admin-only; sends email to the invoice contact while status is `draft` or `revise_resubmit`.
+- UI: `SsovPanel` in `CommitmentDetailClient.tsx` surfaces **Send SSOV Notification** (when editable + contact assigned), **Edit Subcontractor SOV**, **Submit**, **Return to Revise & Resubmit**, and **Approve**. The review buttons only appear while status is `under_review` (`canReview`).
+- Migration: `101_commitment_ssov_approved_at.sql` adds `commitments.ssov_approved_at` TIMESTAMPTZ.
+- SiteCommand uses a single **invoice contact** on the commitment (`subcontractor_contact`) rather than a distribution list; notifications are sent to that contact only.
