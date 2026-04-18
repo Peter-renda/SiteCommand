@@ -352,7 +352,6 @@ export default function SubmittalDetailClient({
   const canEdit = submittal.created_by === userId;
   const distList = submittal.distribution_list ?? [];
   const attachments = submittal.attachments ?? [];
-  const relatedItemsCount = (submittal.related_items ?? []).length;
   const visibleRecipients = showAllRecipients ? distList : distList.slice(0, DIST_SHOW_LIMIT);
   const statusLabel = STATUS_LABELS[submittal.status] ?? submittal.status;
 
@@ -433,30 +432,15 @@ export default function SubmittalDetailClient({
           )}
         </div>
       </div>
-      <div className="bg-white border-b border-gray-200 px-6">
-        <div className="flex items-center gap-8">
-          {tabs.map((tab, index) => (
-            <button key={tab.key} className={`py-2 text-sm ${index === 0 ? "font-semibold text-gray-900 border-b-2 border-gray-900" : "text-gray-600"}`}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="bg-white border-b border-gray-200 px-6">
         <nav className="flex gap-0 -mb-px">
-          {[
-            { id: "general", label: "General" },
-            { id: "related", label: `Related Items (${relatedItemsCount})` },
-            { id: "emails", label: "Emails (0)" },
-            { id: "history", label: "Change History (0)" },
-          ].map((tab) => (
+          {tabs.map((tab) => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as "general" | "related" | "emails" | "history")}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as "general" | "related" | "emails" | "history")}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
+                activeTab === tab.key
                   ? "border-gray-900 text-gray-900"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
