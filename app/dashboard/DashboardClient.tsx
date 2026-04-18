@@ -24,12 +24,6 @@ type MyTask = {
   project_name: string;
 };
 
-type AiSearchSource = {
-  id: string;
-  title: string;
-  href: string;
-};
-
 const ALL_TYPES = ["rfi", "submittal", "document", "daily_log", "task", "drawing"];
 
 const TYPE_LABELS: Record<string, string> = {
@@ -267,10 +261,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
   const dashboardSearchRef = useRef<HTMLDivElement>(null);
   const [dashboardSearch, setDashboardSearch] = useState("");
   const [showDashboardSearch, setShowDashboardSearch] = useState(false);
-  const [aiSearchLoading, setAiSearchLoading] = useState(false);
-  const [aiSearchError, setAiSearchError] = useState("");
-  const [aiSearchAnswer, setAiSearchAnswer] = useState("");
-  const [aiSearchSources, setAiSearchSources] = useState<AiSearchSource[]>([]);
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
@@ -363,15 +353,12 @@ export default function DashboardClient({ username, email, role, companyRole, us
         setCompanyToolsMenuOpen(false);
       }
       if (dashboardSearchRef.current && !dashboardSearchRef.current.contains(e.target as Node)) {
-        // Keep the dropdown open while the AI is loading so the answer can be displayed
-        if (!aiSearchLoading) {
-          setShowDashboardSearch(false);
-        }
+        setShowDashboardSearch(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [aiSearchLoading]);
+  }, []);
 
   const searchQuery = dashboardSearch.trim().toLowerCase();
   const dashboardSearchResults = searchQuery.length < 1
@@ -447,38 +434,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
-  }
-
-  async function askAi() {
-    const question = dashboardSearch.trim();
-    if (aiSearchLoading) return;
-    if (question.length < 3) {
-      setAiSearchError("Type at least 3 characters to use AI search.");
-      setShowDashboardSearch(true);
-      return;
-    }
-    setAiSearchLoading(true);
-    setAiSearchError("");
-    setAiSearchAnswer("");
-    setAiSearchSources([]);
-    try {
-      const res = await fetch("/api/dashboard/ai-search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setAiSearchError(data.error || "AI search failed.");
-        return;
-      }
-      setAiSearchAnswer(data.answer || "No answer returned.");
-      setAiSearchSources(Array.isArray(data.sources) ? data.sources : []);
-    } catch {
-      setAiSearchError("AI search failed. Please try again.");
-    } finally {
-      setAiSearchLoading(false);
-    }
   }
 
   async function handleSavePassword(e: React.FormEvent) {
@@ -634,32 +589,13 @@ export default function DashboardClient({ username, email, role, companyRole, us
               onChange={(e) => {
                 setDashboardSearch(e.target.value);
                 setShowDashboardSearch(true);
-                setAiSearchError("");
-                setAiSearchAnswer("");
-                setAiSearchSources([]);
               }}
               onFocus={() => setShowDashboardSearch(true)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  askAi();
-                }
-              }}
-              placeholder="Search portal or ask AI..."
+              placeholder="Search..."
               className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
             {showDashboardSearch && dashboardSearch.trim().length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto">
-                <div className="px-3 py-2 border-b border-gray-100 bg-gray-50/80">
-                  <button
-                    type="button"
-                    onClick={askAi}
-                    disabled={aiSearchLoading || dashboardSearch.trim().length < 3}
-                    className="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {aiSearchLoading ? "Asking AI…" : `Ask AI about “${dashboardSearch.trim()}”`}
-                  </button>
-                </div>
                 {dashboardSearchResults.length === 0 ? (
                   <p className="px-3 py-2 text-xs text-gray-400">No results found.</p>
                 ) : (
@@ -675,27 +611,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
                         <p className="text-xs text-gray-500 truncate">{result.subtitle}</p>
                       </a>
                     ))}
-                  </div>
-                )}
-                {(aiSearchError || aiSearchAnswer) && (
-                  <div className="px-3 py-3 border-t border-gray-100 bg-gray-50/50">
-                    <p className="text-[11px] font-semibold tracking-wide text-gray-500 uppercase mb-1">AI Answer</p>
-                    {aiSearchError ? (
-                      <p className="text-xs text-red-600">{aiSearchError}</p>
-                    ) : (
-                      <>
-                        <p className="text-xs text-gray-700 whitespace-pre-wrap">{aiSearchAnswer}</p>
-                        {aiSearchSources.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {aiSearchSources.map((source) => (
-                              <a key={source.id} href={source.href} className="block text-[11px] text-gray-500 hover:text-gray-700 truncate">
-                                {source.title}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
                   </div>
                 )}
               </div>
