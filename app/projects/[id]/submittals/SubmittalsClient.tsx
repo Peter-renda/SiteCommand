@@ -363,12 +363,13 @@ function SingleContactPicker({
 }
 
 function CreateSubmittalModal({
-  projectId, nextNumber, directory, specifications, onConfirm, onCancel, onSpecCreated,
+  projectId, nextNumber, directory, specifications, packages, onConfirm, onCancel, onSpecCreated,
 }: {
   projectId: string;
   nextNumber: number;
   directory: DirectoryContact[];
   specifications: Specification[];
+  packages: SubmittalPackage[];
   onConfirm: (data: Record<string, unknown>, sendEmails: boolean) => void;
   onCancel: () => void;
   onSpecCreated: (spec: Specification) => void;
@@ -378,6 +379,7 @@ function CreateSubmittalModal({
   const [revision, setRevision] = useState("A");
   const [specificationId, setSpecificationId] = useState<string | null>(null);
   const [submittalType, setSubmittalType] = useState("");
+  const [submittalPackageId, setSubmittalPackageId] = useState<string>("");
   const [status, setStatus] = useState("draft");
   const [responsibleContractorId, setResponsibleContractorId] = useState<string | null>(null);
   const [receivedFromId, setReceivedFromId] = useState<string | null>(null);
@@ -441,6 +443,7 @@ function CreateSubmittalModal({
       approver_name_id: approverNameId, owners_manual: ownersManual || null, package_notes: packageNotes || null,
       confirmed_delivery_date: confirmedDeliveryDate || null, actual_delivery_date: actualDeliveryDate || null,
       workflow_steps: workflowSteps.map((s, i) => ({ step: i + 1, person_id: s.personId, role: s.role, due_date: s.dueDate || null })),
+      submittal_package_id: submittalPackageId || null,
     };
   }
 
@@ -490,6 +493,23 @@ function CreateSubmittalModal({
               onChange={setSpecificationId}
               onSpecCreated={onSpecCreated}
             />
+          </div>
+
+          {/* Submittal Package */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Submittal Package</label>
+            <select
+              value={submittalPackageId}
+              onChange={(e) => setSubmittalPackageId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+            >
+              <option value="">None</option>
+              {packages.map((p) => (
+                <option key={p.id} value={p.id}>
+                  #{p.package_number} — {p.title}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Status / Submittal Manager */}
@@ -806,7 +826,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
     setShowCreate(false);
     setShowCreateMenu(false);
     setCreating(true);
-    const { attachmentFile, ...rest } = data;
+    const { attachmentFile, submittal_package_id, ...rest } = data;
     const res = await fetch(`/api/projects/${projectId}/submittals`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -821,6 +841,16 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
         if (attRes.ok) {
           const updated = await attRes.json();
           newSubmittal.attachments = updated.attachments ?? [];
+        }
+      }
+      if (typeof submittal_package_id === "string" && submittal_package_id) {
+        const pkgRes = await fetch(`/api/projects/${projectId}/submittal-packages/${submittal_package_id}/actions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "add_existing", payload: { submittal_ids: [newSubmittal.id] } }),
+        });
+        if (pkgRes.ok) {
+          setPackages((prev) => prev.map((p) => p.id === submittal_package_id ? { ...p, submittal_count: p.submittal_count + 1 } : p));
         }
       }
       setSubmittals((prev) => [...prev, newSubmittal]);
@@ -1063,6 +1093,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
           nextNumber={nextNumber}
           directory={directory}
           specifications={specifications}
+          packages={packages}
           onConfirm={handleCreate}
           onCancel={() => setShowCreate(false)}
           onSpecCreated={(spec) => setSpecifications((prev) => [...prev, spec].sort((a, b) => a.name.localeCompare(b.name)))}
