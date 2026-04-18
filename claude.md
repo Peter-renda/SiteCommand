@@ -182,3 +182,59 @@
 - Related item support remains on submittal records (`related_items` payload), but package-level related item linking is not yet exposed in dedicated package UI.
 - Package-level attachment upload exists on the new-package form; attachment persistence/editing in the package detail page is not yet fully wired.
 - “Send submittals in package for review” wizard-level parity is partially represented through mass-review and distribute actions but not yet implemented as a guided multi-step package workflow.
+
+## Timesheets + Resource Tracking Alignment Notes (Added April 18, 2026)
+
+### Source Tutorials/Guides Reviewed
+- About Project Timesheets
+- Resource Tracking and Project Financials Setup Guide
+- Resource Tracking and Unit Quantity Based Budget Setup Guide
+- Bulk Enter Timecard Entries on a Timesheet
+- Create a Timesheet
+- Add a Multi-Tiered Location to an Item
+- Add Quantities to a Timesheet
+- Add Employees/Resources to a Timesheet
+- Edit a Timesheet
+- Delete a Timesheet
+- Edit Quantities on a Timesheet
+- Delete Quantities on a Timesheet
+
+### Product Alignment Implemented in SiteCommand
+- Added a complete project-level Timesheets data model:
+  - `timesheets` (one per project/date)
+  - `timesheet_entries` (resource timecards)
+  - `timesheet_entry_quantities` (units installed + UOM + notes)
+  - `project_locations` (hierarchical/multi-tiered location tree)
+- Added Timesheets API support for:
+  - list/create timesheets
+  - optional “create from previous timesheet” behavior
+  - timesheet status updates (`draft`, `submitted`, `approved`, `completed`)
+  - timesheet delete restrictions (approved sheets must be status-changed first)
+  - add resources to a timesheet
+  - bulk timecard updates (hours, time type, billable, description, etc.)
+  - inline entry edits + deletion
+  - quantity create/edit/delete per timecard entry
+- Added Location API support to mirror “multi-tiered location” workflows:
+  - list locations per project
+  - add a new top-level location
+  - add a child location under an existing parent
+  - persisted `path` format using parent hierarchy (e.g., `Building A > Level 2 > East Wing`)
+
+### UX/Flow Alignment Implemented
+- Replaced Timesheets placeholder page with a working end-to-end UI.
+- Supported key tutorial-aligned flows:
+  - create a blank timesheet
+  - create from previous timesheet
+  - add resources to an existing timesheet
+  - select multiple timecards and apply bulk updates
+  - edit individual timecards inline
+  - submit/approve/complete status progression
+  - add/edit/delete installed quantities from each timecard row
+  - delete individual entries and entire timesheets (with status guardrails)
+  - assign/add multi-tiered locations during time entry
+
+### Known Gaps / Follow-ups
+- “Equipment” resources are modeled at the API level, but current UI focuses on employee directory selection.
+- Timecard field-level visibility/requiredness settings are not yet configurable per project.
+- Imported budget-quantity validations (cost code must map to budgeted quantity) are not yet enforced.
+- Company-level rollup approvals and report integrations are not yet surfaced in Timesheets UI.
