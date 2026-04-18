@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { canViewPunchListItem } from "@/lib/punch-list-access";
 
 export async function GET(
   _req: NextRequest,
@@ -20,6 +21,9 @@ export async function GET(
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+  if (!canViewPunchListItem(data, session.id)) {
+    return NextResponse.json({ error: "Item not found" }, { status: 404 });
+  }
   return NextResponse.json(data);
 }
 

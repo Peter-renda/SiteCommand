@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { canViewPunchListItem } from "@/lib/punch-list-access";
 
 export async function POST(
   req: NextRequest,
@@ -18,12 +19,15 @@ export async function POST(
 
   const { data: item } = await supabase
     .from("punch_list_items")
-    .select("attachments")
+    .select("attachments, private, created_by, punch_item_manager_id, final_approver_id, assignees")
     .eq("id", itemId)
     .eq("project_id", projectId)
     .single();
 
   if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+  if (!canViewPunchListItem(item, session.id)) {
+    return NextResponse.json({ error: "Item not found" }, { status: 404 });
+  }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
   const path = `${projectId}/${itemId}/${Date.now()}-${safeName}`;
