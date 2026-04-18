@@ -130,6 +130,146 @@ function buildFolderTree(
   return result;
 }
 
+type FolderNode = { id: string; name: string; parent_id: string | null };
+
+function FolderTreeSidebar({
+  projectName,
+  folders,
+  currentParentId,
+  expandedFolders,
+  onToggleExpand,
+  onNavigate,
+}: {
+  projectName: string;
+  folders: FolderNode[];
+  currentParentId: string | null;
+  expandedFolders: Set<string>;
+  onToggleExpand: (id: string) => void;
+  onNavigate: (id: string | null) => void;
+}) {
+  const childrenByParent = React.useMemo(() => {
+    const map = new Map<string | null, FolderNode[]>();
+    for (const f of folders) {
+      const list = map.get(f.parent_id) ?? [];
+      list.push(f);
+      map.set(f.parent_id, list);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return map;
+  }, [folders]);
+
+  function renderNode(folder: FolderNode, depth: number): React.ReactElement {
+    const children = childrenByParent.get(folder.id) ?? [];
+    const hasKids = children.length > 0;
+    const expanded = expandedFolders.has(folder.id);
+    const isCurrent = currentParentId === folder.id;
+
+    return (
+      <div key={folder.id}>
+        <div
+          onClick={() => onNavigate(folder.id)}
+          className={`group flex items-center gap-1 py-1 pr-2 cursor-pointer text-sm rounded-md ${
+            isCurrent ? "bg-blue-50 text-gray-900" : "text-gray-700 hover:bg-gray-50"
+          }`}
+          style={{ paddingLeft: `${depth * 14 + 8}px` }}
+        >
+          {hasKids ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand(folder.id);
+              }}
+              className="p-0.5 text-gray-400 hover:text-gray-700 shrink-0"
+              aria-label={expanded ? "Collapse" : "Expand"}
+            >
+              <svg
+                className={`w-3 h-3 transition-transform ${expanded ? "rotate-90" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          ) : (
+            <span className="w-4 shrink-0" />
+          )}
+          <svg
+            className="w-4 h-4 text-gray-400 shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+            />
+          </svg>
+          <span className="truncate">{folder.name}</span>
+        </div>
+        {expanded && hasKids && (
+          <div>{children.map((c) => renderNode(c, depth + 1))}</div>
+        )}
+      </div>
+    );
+  }
+
+  const rootFolders = childrenByParent.get(null) ?? [];
+  const rootExpanded = true;
+  const isRootCurrent = currentParentId === null;
+
+  return (
+    <aside className="w-64 shrink-0 self-start sticky top-0 bg-white border-r border-gray-100 overflow-y-auto" style={{ maxHeight: "calc(100vh - 56px)" }}>
+      <div className="py-2">
+        <div
+          onClick={() => onNavigate(null)}
+          className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer border-l-2 ${
+            isRootCurrent
+              ? "border-blue-500 bg-blue-50"
+              : "border-transparent hover:bg-gray-50"
+          }`}
+        >
+          <svg
+            className={`w-3.5 h-3.5 shrink-0 transition-transform ${rootExpanded ? "" : "-rotate-90"} text-gray-500`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+          <svg
+            className="w-4 h-4 text-gray-500 shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <span className="text-sm font-semibold text-gray-900 truncate">{projectName}</span>
+        </div>
+
+        <div className="mt-1 pl-3">
+          {rootFolders.length === 0 ? (
+            <p className="px-2 py-2 text-xs text-gray-400">No folders yet</p>
+          ) : (
+            rootFolders.map((f) => renderNode(f, 0))
+          )}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 // ── PDF Viewer Modal ─────────────────────────────────────────────────────────
 
 // Annotation types
@@ -1504,6 +1644,7 @@ export default function DocumentsClient({
   const [infoPanelItem, setInfoPanelItem] = useState<DocItem | null>(null);
   const [pdfPreview, setPdfPreview] = useState<DocItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -1536,7 +1677,20 @@ export default function DocumentsClient({
 
   useEffect(() => {
     loadItems(null);
+    loadAllFolders();
   }, [projectId]);
+
+  async function loadAllFolders() {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/documents?all_folders=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setAllFolders(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // leave existing folder list
+    }
+  }
 
   async function loadItems(parentId: string | null) {
     setLoading(true);
@@ -1572,6 +1726,51 @@ export default function DocumentsClient({
     setInfoPanelItem(null);
     loadItems(crumb.id);
   }
+
+  function navigateToFolderId(folderId: string | null) {
+    setInfoPanelItem(null);
+    if (folderId === null) {
+      setBreadcrumb([{ id: null, name: "Documents" }]);
+      setCurrentParentId(null);
+      loadItems(null);
+      return;
+    }
+    const byId = new Map(allFolders.map((f) => [f.id, f]));
+    const chain: BreadcrumbItem[] = [];
+    let curId: string | null = folderId;
+    while (curId) {
+      const f = byId.get(curId);
+      if (!f) break;
+      chain.unshift({ id: f.id, name: f.name });
+      curId = f.parent_id;
+    }
+    setBreadcrumb([{ id: null, name: "Documents" }, ...chain]);
+    setCurrentParentId(folderId);
+    loadItems(folderId);
+  }
+
+  function toggleFolderExpanded(folderId: string) {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    if (!currentParentId) return;
+    const byId = new Map(allFolders.map((f) => [f.id, f]));
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      let cur: string | null = byId.get(currentParentId)?.parent_id ?? null;
+      while (cur) {
+        next.add(cur);
+        cur = byId.get(cur)?.parent_id ?? null;
+      }
+      return next;
+    });
+  }, [currentParentId, allFolders]);
 
   async function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -1645,6 +1844,7 @@ export default function DocumentsClient({
     setUploading(false);
     if (folderInputRef.current) folderInputRef.current.value = "";
     await loadItems(currentParentId);
+    await loadAllFolders();
   }
 
   async function handleCreateFolder(name: string) {
@@ -1655,6 +1855,7 @@ export default function DocumentsClient({
       body: JSON.stringify({ name, parent_id: currentParentId }),
     });
     await loadItems(currentParentId);
+    await loadAllFolders();
   }
 
   async function uploadDocumentFile(file: File, parentId: string | null): Promise<string | null> {
@@ -1720,11 +1921,13 @@ export default function DocumentsClient({
       setInfoPanelItem((prev) =>
         prev?.id === renameTarget.id ? { ...prev, name } : prev
       );
+      if (renameTarget.type === "folder") await loadAllFolders();
     }
   }
 
   async function handleMove(targetParentId: string | null) {
     if (!moveTarget) return;
+    const movedWasFolder = moveTarget.type === "folder";
     setMoveTarget(null);
     await fetch(`/api/projects/${projectId}/documents/${moveTarget.id}`, {
       method: "PATCH",
@@ -1732,6 +1935,7 @@ export default function DocumentsClient({
       body: JSON.stringify({ parent_id: targetParentId }),
     });
     setItems((prev) => prev.filter((item) => item.id !== moveTarget.id));
+    if (movedWasFolder) await loadAllFolders();
   }
 
   async function handleCopy(item: DocItem) {
@@ -1740,17 +1944,20 @@ export default function DocumentsClient({
       method: "POST",
     });
     await loadItems(currentParentId);
+    if (item.type === "folder") await loadAllFolders();
   }
 
   async function handleDelete() {
     if (!deleteTarget) return;
     const id = deleteTarget.id;
+    const wasFolder = deleteTarget.type === "folder";
     setDeleteTarget(null);
     await fetch(`/api/projects/${projectId}/documents/${id}`, {
       method: "DELETE",
     });
     setItems((prev) => prev.filter((item) => item.id !== id));
     if (infoPanelItem?.id === id) setInfoPanelItem(null);
+    if (wasFolder) await loadAllFolders();
   }
 
   async function handleDownload(item: DocItem) {
@@ -1791,15 +1998,7 @@ export default function DocumentsClient({
 
   async function openMoveModal(item: DocItem) {
     setOpenMenuId(null);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/documents?all_folders=true`);
-      if (res.ok) {
-        const data = await res.json();
-        setAllFolders(Array.isArray(data) ? data : []);
-      }
-    } catch {
-      setAllFolders([]);
-    }
+    await loadAllFolders();
     setMoveTarget(item);
   }
 
@@ -1874,8 +2073,19 @@ export default function DocumentsClient({
 
       <ProjectNav projectId={projectId} />
 
-      <main className={`mx-auto px-6 py-8 transition-all ${infoPanelItem ? "max-w-4xl" : "max-w-6xl"}`}
+      <div className="flex items-start">
+        <FolderTreeSidebar
+          projectName={projectName}
+          folders={allFolders}
+          currentParentId={currentParentId}
+          expandedFolders={expandedFolders}
+          onToggleExpand={toggleFolderExpanded}
+          onNavigate={navigateToFolderId}
+        />
+
+      <main className={`flex-1 min-w-0 px-6 py-8 transition-all`}
         style={infoPanelItem ? { marginRight: "320px" } : undefined}>
+        <div className={`mx-auto ${infoPanelItem ? "max-w-4xl" : "max-w-5xl"}`}>
         {/* Page title + breadcrumb + add button */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -2120,7 +2330,9 @@ export default function DocumentsClient({
             </table>
           </div>
         )}
+        </div>
       </main>
+      </div>
 
       {/* Modals */}
       {showNewFolder && (
