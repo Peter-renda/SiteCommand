@@ -272,3 +272,36 @@
 - CSV export is client-generated from loaded data; no server-side export template yet.
 - Multi-tier approval permission enforcement is not yet implemented at role-policy level.
 - Company-level “mark completed” governance remains outside this project-level page scope.
+
+---
+
+# Budget + Timesheets Alignment Pass – Advanced Settings / Imports / Productivity (April 18, 2026)
+
+## Tutorials reviewed in this pass
+- Configure Advanced Settings: Project Level Timesheets
+- Import a Unit Quantity Based Budget
+- Add a Real-Time Labor Productivity Budget View
+- Delete Budgeted Labor Hours and Budgeted Production Quantities
+- Import a Budget
+
+## Changes implemented in SiteCommand
+- Added budget import support endpoints:
+  - `GET /api/projects/:id/budget/import-template` to download a CSV template with the required column order.
+  - `POST /api/projects/:id/budget/import` to import CSV rows and upsert by `Cost Code + Cost Type`.
+- Added targeted delete endpoint to match labor/production deletion workflows:
+  - `POST /api/projects/:id/budget/:lineItemId/delete-budget-data`
+  - Modes: `labor_hours`, `production_quantities`, `both`.
+- Updated Budget UI with import workflow controls:
+  - New **Import Budget** button.
+  - Import modal with template download, sample paste, and CSV input area.
+- Added row-level actions on budget items:
+  - Delete labor hours only.
+  - Delete production quantities only.
+- Expanded Production Quantities tab with a switchable **Real-Time Labor Productivity View**:
+  - `% Hours Used`
+  - `Hours Remaining`
+  - `Estimated RT Cost`
+
+## Notes / parity gaps
+- Current import parser supports CSV text in-app (template-aligned) and not direct XLSX binary uploads yet.
+- Advanced Timesheets settings UI (time-entry format, lunch-tracking format, geofence settings) should be added as a dedicated project admin screen in a future pass.

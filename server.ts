@@ -10,6 +10,72 @@ import path from "path";
 import fs from "fs";
 import multer from "multer";
 const upload = multer({ dest: "uploads/" });
+
+type BudgetImportRow = {
+  cost_code: string;
+  cost_type: string;
+  description?: string;
+  original_budget_amount?: number;
+  budget_modifications?: number;
+  approved_cos?: number;
+  pending_budget_changes?: number;
+  committed_costs?: number;
+  direct_costs?: number;
+  erp_job_to_date_costs?: number;
+  cost_rom?: number;
+  cost_rfq?: number;
+  non_commitment_cost?: number;
+  pending_cost_changes?: number;
+  forecast_to_complete?: number;
+  budgeted_quantity?: number;
+  budgeted_uom?: string;
+  installed_quantity?: number;
+  actual_labor_hours?: number;
+  actual_labor_cost?: number;
+};
+
+function parseBudgetImportCsv(input: string): BudgetImportRow[] {
+  const lines = input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length < 2) return [];
+  const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const rows: BudgetImportRow[] = [];
+  for (let i = 1; i < lines.length; i += 1) {
+    const parts = lines[i].split(",").map((p) => p.trim());
+    const row: Record<string, string> = {};
+    for (let c = 0; c < header.length; c += 1) row[header[c]] = parts[c] ?? "";
+    if (!row.cost_code || !row.cost_type) continue;
+    const num = (k: string) => {
+      const n = parseFloat((row[k] ?? "0").replace(/[^0-9.-]/g, ""));
+      return Number.isFinite(n) ? n : 0;
+    };
+    rows.push({
+      cost_code: row.cost_code,
+      cost_type: row.cost_type,
+      description: row.description ?? "",
+      original_budget_amount: num("original_budget_amount"),
+      budget_modifications: num("budget_modifications"),
+      approved_cos: num("approved_cos"),
+      pending_budget_changes: num("pending_budget_changes"),
+      committed_costs: num("committed_costs"),
+      direct_costs: num("direct_costs"),
+      erp_job_to_date_costs: num("erp_job_to_date_costs"),
+      cost_rom: num("cost_rom"),
+      cost_rfq: num("cost_rfq"),
+      non_commitment_cost: num("non_commitment_cost"),
+      pending_cost_changes: num("pending_cost_changes"),
+      forecast_to_complete: num("forecast_to_complete"),
+      budgeted_quantity: num("budgeted_quantity"),
+      budgeted_uom: row.budgeted_uom ?? "",
+      installed_quantity: num("installed_quantity"),
+      actual_labor_hours: num("actual_labor_hours"),
+      actual_labor_cost: num("actual_labor_cost"),
+    });
+  }
+  return rows;
+}
 async function startServer() {
   initDb();
   const app = express();
@@ -403,6 +469,99 @@ async function startServer() {
   app.delete("/api/projects/:id/budget/:lineItemId", authenticate, (req, res) => {
     db.prepare("DELETE FROM budget_line_items WHERE id = ? AND project_id = ?").run(req.params.lineItemId, req.params.id);
     res.json({ success: true });
+  });
+  app.get("/api/projects/:id/budget/import-template", authenticate, (_req, res) => {
+    const csv = [
+      "cost_code,cost_type,description,original_budget_amount,budget_modifications,approved_cos,pending_budget_changes,committed_costs,direct_costs,erp_job_to_date_costs,cost_rom,cost_rfq,non_commitment_cost,pending_cost_changes,forecast_to_complete,budgeted_quantity,budgeted_uom,installed_quantity,actual_labor_hours,actual_labor_cost",
+      "03-300,Labor,Concrete Placement,100000,0,0,0,0,0,0,0,0,0,0,5000,2400,HRS,250,60,4200",
+    ].join("\n");
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=budget-import-template.csv");
+    res.send(csv);
+  });
+  app.post("/api/projects/:id/budget/import", authenticate, upload.single("file"), (req, res) => {
+    const text = typeof req.body?.csv === "string" ? req.body.csv : "";
+    const rows = parseBudgetImportCsv(text);
+    if (!rows.length) {
+      return res.status(400).json({ error: "No valid budget rows found. Include cost_code and cost_type columns." });
+    }
+    const upsert = db.transaction(() => {
+      for (const row of rows) {
+        const existing = db.prepare(`
+          SELECT id FROM budget_line_items
+          WHERE project_id = ? AND lower(cost_code) = lower(?) AND lower(cost_type) = lower(?)
+        `).get(req.params.id, row.cost_code, row.cost_type) as { id?: string } | undefined;
+        if (existing?.id) {
+          db.prepare(`
+            UPDATE budget_line_items
+            SET description = ?, original_budget_amount = ?, budget_modifications = ?, approved_cos = ?, pending_budget_changes = ?,
+                committed_costs = ?, direct_costs = ?, erp_job_to_date_costs = ?, cost_rom = ?, cost_rfq = ?, non_commitment_cost = ?,
+                pending_cost_changes = ?, forecast_to_complete = ?, budgeted_quantity = ?, budgeted_uom = ?, installed_quantity = ?,
+                actual_labor_hours = ?, actual_labor_cost = ?
+            WHERE id = ?
+          `).run(
+            row.description ?? "",
+            row.original_budget_amount ?? 0,
+            row.budget_modifications ?? 0,
+            row.approved_cos ?? 0,
+            row.pending_budget_changes ?? 0,
+            row.committed_costs ?? 0,
+            row.direct_costs ?? 0,
+            row.erp_job_to_date_costs ?? 0,
+            row.cost_rom ?? 0,
+            row.cost_rfq ?? 0,
+            row.non_commitment_cost ?? 0,
+            row.pending_cost_changes ?? 0,
+            row.forecast_to_complete ?? 0,
+            row.budgeted_quantity ?? 0,
+            row.budgeted_uom ?? "",
+            row.installed_quantity ?? 0,
+            row.actual_labor_hours ?? 0,
+            row.actual_labor_cost ?? 0,
+            existing.id
+          );
+        } else {
+          const count = db.prepare("SELECT COUNT(*) as count FROM budget_line_items WHERE project_id = ?").get(req.params.id) as any;
+          db.prepare(`
+            INSERT INTO budget_line_items (
+              id, project_id, cost_code, cost_type, description, original_budget_amount, budget_modifications, approved_cos, pending_budget_changes,
+              committed_costs, direct_costs, erp_job_to_date_costs, cost_rom, cost_rfq, non_commitment_cost, pending_cost_changes, forecast_to_complete,
+              budgeted_quantity, budgeted_uom, installed_quantity, actual_labor_hours, actual_labor_cost, is_gst, is_partial, sort_order
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)
+          `).run(
+            uuidv4(), req.params.id, row.cost_code, row.cost_type, row.description ?? "", row.original_budget_amount ?? 0,
+            row.budget_modifications ?? 0, row.approved_cos ?? 0, row.pending_budget_changes ?? 0, row.committed_costs ?? 0,
+            row.direct_costs ?? 0, row.erp_job_to_date_costs ?? 0, row.cost_rom ?? 0, row.cost_rfq ?? 0, row.non_commitment_cost ?? 0,
+            row.pending_cost_changes ?? 0, row.forecast_to_complete ?? 0, row.budgeted_quantity ?? 0, row.budgeted_uom ?? "",
+            row.installed_quantity ?? 0, row.actual_labor_hours ?? 0, row.actual_labor_cost ?? 0, count.count
+          );
+        }
+      }
+    });
+    upsert();
+    res.json({ success: true, imported: rows.length });
+  });
+  app.post("/api/projects/:id/budget/:lineItemId/delete-budget-data", authenticate, (req, res) => {
+    const mode = req.body?.mode as "labor_hours" | "production_quantities" | "both" | undefined;
+    if (!mode || !["labor_hours", "production_quantities", "both"].includes(mode)) {
+      return res.status(400).json({ error: "mode must be labor_hours, production_quantities, or both." });
+    }
+    if (mode === "labor_hours") {
+      db.prepare("UPDATE budget_line_items SET actual_labor_hours = 0, actual_labor_cost = 0 WHERE id = ? AND project_id = ?")
+        .run(req.params.lineItemId, req.params.id);
+    } else if (mode === "production_quantities") {
+      db.prepare("UPDATE budget_line_items SET budgeted_quantity = 0, installed_quantity = 0 WHERE id = ? AND project_id = ?")
+        .run(req.params.lineItemId, req.params.id);
+    } else {
+      db.prepare(`
+        UPDATE budget_line_items
+        SET budgeted_quantity = 0, installed_quantity = 0, actual_labor_hours = 0, actual_labor_cost = 0
+        WHERE id = ? AND project_id = ?
+      `).run(req.params.lineItemId, req.params.id);
+    }
+    const updated = db.prepare("SELECT * FROM budget_line_items WHERE id = ? AND project_id = ?")
+      .get(req.params.lineItemId, req.params.id);
+    res.json(updated || null);
   });
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
