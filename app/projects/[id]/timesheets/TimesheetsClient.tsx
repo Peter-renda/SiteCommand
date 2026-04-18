@@ -1,215 +1,100 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
-type Quantity = { id?: string; units_installed: number; uom?: string | null; notes?: string | null };
-type Entry = {
+type Crew = {
   id: string;
-  resource_name: string;
-  resource_id?: string | null;
-  resource_type: "employee" | "equipment";
-  total_hours: number;
-  start_time?: string | null;
-  stop_time?: string | null;
-  lunch_minutes: number;
-  time_type: string;
-  billable: boolean;
-  location_path?: string | null;
-  location_id?: string | null;
-  description?: string | null;
-  status: "draft" | "submitted" | "approved" | "completed";
-  quantity?: Quantity[] | Quantity | null;
-};
-type Timesheet = {
-  id: string;
-  work_date: string;
-  status: "draft" | "submitted" | "approved" | "completed";
-  notes?: string | null;
-  entries: Entry[];
-};
-type Location = { id: string; parent_id?: string | null; name: string; path: string };
-type DirectoryContact = {
-  id: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  company?: string | null;
-  email?: string | null;
+  name: string;
 };
 
-const TIME_TYPES = ["regular", "overtime", "double_time", "holiday", "pto", "vacation", "salary", "exempt"];
+type Employee = {
+  id: string;
+  name: string;
+  role: string;
+};
 
-export default function TimesheetsClient({ projectId, username }: { projectId: string; username: string }) {
-  const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
-  const [selectedId, setSelectedId] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [newDate, setNewDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [directory, setDirectory] = useState<Array<{ id: string; name: string }>>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [newLocationName, setNewLocationName] = useState("");
-  const [locationParent, setLocationParent] = useState("");
-  const [resourceIds, setResourceIds] = useState<string[]>([]);
-  const [bulk, setBulk] = useState({ total_hours: "8", time_type: "regular", billable: true, description: "" });
-  const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
+const CREWS: Crew[] = [
+  { id: "crew-1", name: "Concrete Crew" },
+  { id: "crew-2", name: "Framing Crew" },
+  { id: "crew-3", name: "MEP Crew" },
+];
 
-  const selected = useMemo(() => timesheets.find((t) => t.id === selectedId) || null, [timesheets, selectedId]);
+const EMPLOYEES: Employee[] = [
+  { id: "emp-1", name: "Jake Thompson", role: "Foreman" },
+  { id: "emp-2", name: "Ava Nguyen", role: "Carpenter" },
+  { id: "emp-3", name: "Marcus Lee", role: "Laborer" },
+  { id: "emp-4", name: "Sofia Patel", role: "Electrician" },
+  { id: "emp-5", name: "Daniel Cruz", role: "Plumber" },
+  { id: "emp-6", name: "Mia Brooks", role: "Operator" },
+];
 
-  async function loadAll() {
-    setLoading(true);
-    try {
-      const [sheetsRes, dirRes, locRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}/timesheets`),
-        fetch(`/api/projects/${projectId}/directory`),
-        fetch(`/api/projects/${projectId}/locations`),
-      ]);
-      if (sheetsRes.status === 401 || dirRes.status === 401 || locRes.status === 401) window.location.href = "/";
-
-      const [sheets, dir, locs] = await Promise.all([sheetsRes.json(), dirRes.json(), locRes.json()]);
-      setTimesheets(Array.isArray(sheets) ? sheets : []);
-      setDirectory(
-        Array.isArray(dir)
-          ? (dir as DirectoryContact[]).map((d) => ({
-              id: d.id,
-              name:
-                `${d.first_name || ""} ${d.last_name || ""}`.trim() ||
-                d.company ||
-                d.email ||
-                "Unknown",
-            }))
-          : [],
-      );
-      setLocations(Array.isArray(locs) ? locs : []);
-      if (!selectedId && Array.isArray(sheets) && sheets.length) setSelectedId(sheets[0].id);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
-
-  async function createTimesheet(copyFromTimesheetId?: string) {
-    const res = await fetch(`/api/projects/${projectId}/timesheets`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ work_date: newDate, copy_from_timesheet_id: copyFromTimesheetId || null }),
-    });
-    if (!res.ok) {
-      alert((await res.json()).error || "Unable to create timesheet");
-      return;
-    }
-    const created = await res.json();
-    setTimesheets((prev) => [created, ...prev.filter((x) => x.id !== created.id)]);
-    setSelectedId(created.id);
-  }
-
-  async function addResources() {
-    if (!selected || !resourceIds.length) return;
-    const resources = directory.filter((d) => resourceIds.includes(d.id)).map((d) => ({ id: d.id, name: d.name, type: "employee" }));
-    const res = await fetch(`/api/projects/${projectId}/timesheets/${selected.id}/entries`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "add_resources", resources }),
-    });
-    if (!res.ok) return alert((await res.json()).error || "Unable to add resources");
-    const entries = await res.json();
-    setTimesheets((prev) => prev.map((t) => (t.id === selected.id ? { ...t, entries } : t)));
-    setResourceIds([]);
-  }
-
-  async function applyBulk() {
-    if (!selected || !selectedEntries.length) return;
-    const res = await fetch(`/api/projects/${projectId}/timesheets/${selected.id}/entries`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "bulk_apply",
-        entry_ids: selectedEntries,
-        total_hours: Number(bulk.total_hours) || 0,
-        time_type: bulk.time_type,
-        billable: bulk.billable,
-        description: bulk.description || null,
-      }),
-    });
-    if (!res.ok) return alert((await res.json()).error || "Unable to bulk update entries");
-    const entries = await res.json();
-    setTimesheets((prev) => prev.map((t) => (t.id === selected.id ? { ...t, entries } : t)));
-  }
-
-  async function saveEntry(entry: Entry, patch: Record<string, unknown>) {
-    const res = await fetch(`/api/projects/${projectId}/timesheets/${selected?.id}/entries/${entry.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    if (!res.ok) return alert((await res.json()).error || "Unable to save entry");
-    const updated = await res.json();
-    setTimesheets((prev) =>
-      prev.map((t) =>
-        t.id === selected?.id ? { ...t, entries: t.entries.map((e) => (e.id === entry.id ? { ...e, ...updated } : e)) } : t,
-      ),
-    );
-  }
-
-  async function deleteEntry(entryId: string) {
-    if (!selected || !confirm("Delete this timecard entry?")) return;
-    const res = await fetch(`/api/projects/${projectId}/timesheets/${selected.id}/entries/${entryId}`, { method: "DELETE" });
-    if (!res.ok) return alert((await res.json()).error || "Unable to delete entry");
-    setTimesheets((prev) => prev.map((t) => (t.id === selected.id ? { ...t, entries: t.entries.filter((e) => e.id !== entryId) } : t)));
-  }
-
-  async function addQuantity(entry: Entry) {
-    const units = prompt("Units Installed", String(Array.isArray(entry.quantity) ? entry.quantity[0]?.units_installed || 0 : (entry.quantity as Quantity | null)?.units_installed || 0));
-    if (units === null) return;
-    const uom = prompt("Unit of Measure (optional)", Array.isArray(entry.quantity) ? entry.quantity[0]?.uom || "" : (entry.quantity as Quantity | null)?.uom || "") || "";
-    const notes = prompt("Quantity notes (optional)", Array.isArray(entry.quantity) ? entry.quantity[0]?.notes || "" : (entry.quantity as Quantity | null)?.notes || "") || "";
-    await saveEntry(entry, { quantity: { units_installed: Number(units) || 0, uom: uom || null, notes: notes || null } });
-  }
-
-  async function deleteQuantity(entry: Entry) {
-    if (!confirm("Delete quantity for this timecard entry?")) return;
-    await saveEntry(entry, { quantity: null });
-  }
-
-  async function saveTimesheetStatus(status: Timesheet["status"]) {
-    if (!selected) return;
-    const res = await fetch(`/api/projects/${projectId}/timesheets/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    if (!res.ok) return alert((await res.json()).error || "Unable to update timesheet");
-    const updated = await res.json();
-    setTimesheets((prev) => prev.map((t) => (t.id === selected.id ? updated : t)));
-  }
-
-  async function removeTimesheet(id: string) {
-    if (!confirm("Delete this timesheet and all its timecards?")) return;
-    const res = await fetch(`/api/projects/${projectId}/timesheets/${id}`, { method: "DELETE" });
-    if (!res.ok) return alert((await res.json()).error || "Unable to delete timesheet");
-    setTimesheets((prev) => prev.filter((t) => t.id !== id));
-    if (selectedId === id) setSelectedId("");
-  }
-
-  async function addLocation() {
-    if (!newLocationName.trim()) return;
-    const res = await fetch(`/api/projects/${projectId}/locations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newLocationName.trim(), parent_id: locationParent || null }),
-    });
-    if (!res.ok) return alert((await res.json()).error || "Unable to add location");
-    const loc = await res.json();
-    setLocations((prev) => [...prev, loc].sort((a, b) => a.path.localeCompare(b.path)));
-    setNewLocationName("");
-    setLocationParent("");
-  }
+export default function TimesheetsClient({
+  projectId,
+  username,
+}: {
+  projectId: string;
+  username: string;
+}) {
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [activeCrewId, setActiveCrewId] = useState(CREWS[0]?.id ?? "");
+  const [assignments, setAssignments] = useState<Record<string, string[]>>(
+    Object.fromEntries(CREWS.map((crew) => [crew.id, []])),
+  );
+  const [hasTimesheet, setHasTimesheet] = useState(false);
+  const [showCopyHint, setShowCopyHint] = useState(false);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
+  }
+
+  const assignedEmployeeIds = useMemo(
+    () => new Set(Object.values(assignments).flat()),
+    [assignments],
+  );
+
+  const unassignedEmployees = EMPLOYEES.filter((employee) => !assignedEmployeeIds.has(employee.id));
+  const allEmployeesAssigned = assignedEmployeeIds.size === EMPLOYEES.length;
+
+  function handleSelectNewDailyTimesheet() {
+    setIsCreateMenuOpen(false);
+    setShowCopyHint(false);
+    setHasTimesheet(false);
+    setAssignments(Object.fromEntries(CREWS.map((crew) => [crew.id, []])));
+    setActiveCrewId(CREWS[0]?.id ?? "");
+    setIsBuilderOpen(true);
+  }
+
+  function handleSelectCopyFromDate() {
+    setIsCreateMenuOpen(false);
+    setShowCopyHint(true);
+  }
+
+  function assignEmployeeToActiveCrew(employeeId: string) {
+    if (!activeCrewId) return;
+    setAssignments((current) => {
+      const next: Record<string, string[]> = {};
+      Object.entries(current).forEach(([crewId, members]) => {
+        next[crewId] = members.filter((memberId) => memberId !== employeeId);
+      });
+      next[activeCrewId] = [...(next[activeCrewId] ?? []), employeeId];
+      return next;
+    });
+  }
+
+  function removeEmployeeFromCrew(crewId: string, employeeId: string) {
+    setAssignments((current) => ({
+      ...current,
+      [crewId]: (current[crewId] ?? []).filter((memberId) => memberId !== employeeId),
+    }));
+  }
+
+  function handleCreateTimesheet() {
+    if (!allEmployeesAssigned) return;
+    setIsBuilderOpen(false);
+    setHasTimesheet(true);
   }
 
   return (
@@ -220,120 +105,196 @@ export default function TimesheetsClient({ projectId, username }: { projectId: s
       </header>
       <ProjectNav projectId={projectId} />
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Work Date</label>
-              <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="border rounded-md px-2 py-1 text-sm" />
-            </div>
-            <button onClick={() => createTimesheet()} className="px-3 py-1.5 rounded-md bg-gray-900 text-white text-sm">Create Timesheet</button>
-            <button onClick={() => createTimesheet(selected?.id)} disabled={!selected} className="px-3 py-1.5 rounded-md border text-sm disabled:opacity-40">Create from Previous</button>
-            <button onClick={loadAll} className="px-3 py-1.5 rounded-md border text-sm">Refresh</button>
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-xl font-semibold text-gray-900">Timesheets</h1>
+          <div className="relative">
+            <button
+              onClick={() => setIsCreateMenuOpen((current) => !current)}
+              className="inline-flex items-center gap-2 rounded-md bg-gray-900 text-white text-sm font-medium px-4 py-2 hover:bg-gray-800 transition-colors"
+            >
+              Create
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M5.25 7.5L10 12.25 14.75 7.5" />
+              </svg>
+            </button>
+            {isCreateMenuOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-20">
+                <button
+                  onClick={handleSelectNewDailyTimesheet}
+                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  New Daily Timesheet
+                </button>
+                <button
+                  onClick={handleSelectCopyFromDate}
+                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100"
+                >
+                  Copy from any date
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-4">
-          <section className="col-span-12 lg:col-span-4 bg-white border border-gray-200 rounded-xl p-4">
-            <h2 className="font-semibold text-sm mb-3">Timesheets</h2>
-            <div className="space-y-2 max-h-[620px] overflow-auto">
-              {loading && <p className="text-sm text-gray-500">Loading…</p>}
-              {!loading && !timesheets.length && <p className="text-sm text-gray-500">No timesheets yet.</p>}
-              {timesheets.map((sheet) => (
-                <button key={sheet.id} onClick={() => setSelectedId(sheet.id)} className={`w-full text-left border rounded-md px-3 py-2 ${selectedId === sheet.id ? "border-gray-900 bg-gray-50" : "border-gray-200"}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{sheet.work_date}</span>
-                    <span className="text-xs uppercase text-gray-500">{sheet.status}</span>
-                  </div>
-                  <div className="mt-1 text-xs text-gray-500">{sheet.entries?.length || 0} resources</div>
-                  <button onClick={(e) => { e.stopPropagation(); void removeTimesheet(sheet.id); }} className="mt-1 text-xs text-red-600">Delete</button>
-                </button>
-              ))}
+        {showCopyHint && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+            Copy from any date flow is ready for wiring to your project data source.
+          </div>
+        )}
+
+        {!hasTimesheet ? (
+          <div className="bg-white border border-dashed border-gray-200 rounded-xl px-6 py-16 flex flex-col items-center text-center">
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">No daily timesheet created yet</h3>
+            <p className="text-sm text-gray-400 max-w-sm">
+              Click <span className="font-medium text-gray-600">Create</span> to start a new daily timesheet or copy
+              from a previous date.
+            </p>
+          </div>
+        ) : (
+          <section className="space-y-4">
+            <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Daily Timesheet</h2>
+                <p className="text-sm text-gray-500">Crew and employee roster created for today.</p>
+              </div>
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                Ready
+              </span>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {CREWS.map((crew) => {
+                const members = (assignments[crew.id] ?? [])
+                  .map((id) => EMPLOYEES.find((employee) => employee.id === id))
+                  .filter(Boolean) as Employee[];
+                return (
+                  <article key={crew.id} className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">{crew.name}</h3>
+                    <ul className="space-y-2">
+                      {members.map((member) => (
+                        <li key={member.id} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-700">{member.name}</span>
+                          <span className="text-gray-400">{member.role}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                );
+              })}
             </div>
           </section>
-
-          <section className="col-span-12 lg:col-span-8 space-y-4">
-            {!selected && <div className="bg-white border border-gray-200 rounded-xl p-6 text-sm text-gray-500">Choose a timesheet to manage resources and timecards.</div>}
-            {selected && (
-              <>
-                <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-                  <div className="flex flex-wrap items-center gap-2 justify-between">
-                    <h2 className="font-semibold">Timesheet {selected.work_date}</h2>
-                    <div className="flex gap-2">
-                      {(["draft", "submitted", "approved", "completed"] as const).map((status) => (
-                        <button key={status} onClick={() => saveTimesheetStatus(status)} className={`px-2 py-1 text-xs rounded-md border ${selected.status === status ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200"}`}>{status}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border rounded-md p-3">
-                    <p className="text-xs font-semibold text-gray-700 mb-2">Add Resources</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-28 overflow-auto">
-                      {directory.map((d) => (
-                        <label key={d.id} className="text-xs flex items-center gap-1"><input type="checkbox" checked={resourceIds.includes(d.id)} onChange={(e) => setResourceIds((prev) => e.target.checked ? [...prev, d.id] : prev.filter((x) => x !== d.id))} />{d.name}</label>
-                      ))}
-                    </div>
-                    <button onClick={addResources} className="mt-2 px-2 py-1 text-xs border rounded-md">Add selected resources</button>
-                  </div>
-
-                  <div className="border rounded-md p-3">
-                    <p className="text-xs font-semibold text-gray-700 mb-2">Bulk Time Entry</p>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
-                      <input value={bulk.total_hours} onChange={(e) => setBulk((b) => ({ ...b, total_hours: e.target.value }))} placeholder="Hours" className="border rounded px-2 py-1 text-sm" />
-                      <select value={bulk.time_type} onChange={(e) => setBulk((b) => ({ ...b, time_type: e.target.value }))} className="border rounded px-2 py-1 text-sm">{TIME_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
-                      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={bulk.billable} onChange={(e) => setBulk((b) => ({ ...b, billable: e.target.checked }))} />Billable</label>
-                      <input value={bulk.description} onChange={(e) => setBulk((b) => ({ ...b, description: e.target.value }))} placeholder="Description" className="border rounded px-2 py-1 text-sm" />
-                      <button onClick={applyBulk} className="px-2 py-1 border rounded text-sm">Apply to selected</button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-xl p-4 overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-gray-500 border-b">
-                        <th className="py-2 pr-2"></th><th className="py-2 pr-2">Resource</th><th className="py-2 pr-2">Hours</th><th className="py-2 pr-2">Time Type</th><th className="py-2 pr-2">Location</th><th className="py-2 pr-2">Qty</th><th className="py-2 pr-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selected.entries.map((entry) => {
-                        const qty = Array.isArray(entry.quantity) ? entry.quantity[0] : entry.quantity as Quantity | null;
-                        return (
-                          <tr key={entry.id} className="border-b align-top">
-                            <td className="py-2 pr-2"><input type="checkbox" checked={selectedEntries.includes(entry.id)} onChange={(e) => setSelectedEntries((prev) => e.target.checked ? [...prev, entry.id] : prev.filter((x) => x !== entry.id))} /></td>
-                            <td className="py-2 pr-2"><div className="font-medium">{entry.resource_name}</div><div className="text-xs text-gray-500">{entry.resource_type}</div></td>
-                            <td className="py-2 pr-2"><input type="number" step="0.25" defaultValue={entry.total_hours} onBlur={(e) => saveEntry(entry, { total_hours: Number(e.target.value) || 0 })} className="w-20 border rounded px-1 py-0.5" /></td>
-                            <td className="py-2 pr-2"><select defaultValue={entry.time_type} onChange={(e) => saveEntry(entry, { time_type: e.target.value })} className="border rounded px-1 py-0.5">{TIME_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></td>
-                            <td className="py-2 pr-2"><select value={entry.location_id || ""} onChange={(e) => { const loc = locations.find((l) => l.id === e.target.value); void saveEntry(entry, { location_id: loc?.id || null, location_path: loc?.path || null }); }} className="border rounded px-1 py-0.5"><option value="">—</option>{locations.map((l) => <option key={l.id} value={l.id}>{l.path}</option>)}</select></td>
-                            <td className="py-2 pr-2 text-xs">{qty ? `${qty.units_installed}${qty.uom ? ` ${qty.uom}` : ""}` : "—"}</td>
-                            <td className="py-2 pr-2 space-x-2 text-xs">
-                              <button onClick={() => addQuantity(entry)} className="underline">{qty ? "Edit Qty" : "Add Qty"}</button>
-                              {qty && <button onClick={() => deleteQuantity(entry)} className="underline">Delete Qty</button>}
-                              <button onClick={() => deleteEntry(entry.id)} className="text-red-600 underline">Delete</button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <h3 className="text-sm font-semibold mb-2">Multi-Tiered Locations</h3>
-                  <div className="flex flex-wrap gap-2 items-end">
-                    <select value={locationParent} onChange={(e) => setLocationParent(e.target.value)} className="border rounded px-2 py-1 text-sm">
-                      <option value="">Top level</option>
-                      {locations.map((l) => <option key={l.id} value={l.id}>{l.path}</option>)}
-                    </select>
-                    <input value={newLocationName} onChange={(e) => setNewLocationName(e.target.value)} placeholder="Location name" className="border rounded px-2 py-1 text-sm" />
-                    <button onClick={addLocation} className="px-2 py-1 text-sm border rounded">Add New Location</button>
-                  </div>
-                </div>
-              </>
-            )}
-          </section>
-        </div>
+        )}
       </main>
+
+      {isBuilderOpen && (
+        <div className="fixed inset-0 bg-gray-900/40 z-30 flex items-center justify-center p-6">
+          <div className="w-full max-w-4xl bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">New Daily Timesheet</h2>
+                <p className="text-sm text-gray-500">Assign every employee to a crew.</p>
+              </div>
+              <button
+                onClick={() => setIsBuilderOpen(false)}
+                className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid md:grid-cols-[230px_1fr] min-h-[420px]">
+              <aside className="border-r border-gray-100 bg-gray-50 p-4">
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-3">Crews</h3>
+                <ul className="space-y-2">
+                  {CREWS.map((crew) => {
+                    const count = assignments[crew.id]?.length ?? 0;
+                    const isActive = activeCrewId === crew.id;
+                    return (
+                      <li key={crew.id}>
+                        <button
+                          onClick={() => setActiveCrewId(crew.id)}
+                          className={`w-full text-left rounded-lg px-3 py-2 border text-sm transition-colors ${
+                            isActive
+                              ? "bg-gray-900 text-white border-gray-900"
+                              : "bg-white text-gray-700 border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="font-medium">{crew.name}</div>
+                          <div className={`text-xs ${isActive ? "text-gray-200" : "text-gray-400"}`}>{count} added</div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </aside>
+
+              <section className="p-4">
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-3">All Employees</h3>
+                <ul className="grid sm:grid-cols-2 gap-2">
+                  {unassignedEmployees.map((employee) => (
+                    <li key={employee.id}>
+                      <button
+                        onClick={() => assignEmployeeToActiveCrew(employee.id)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-left hover:border-gray-400 transition-colors"
+                      >
+                        <p className="text-sm font-medium text-gray-800">{employee.name}</p>
+                        <p className="text-xs text-gray-400">{employee.role}</p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+
+                {unassignedEmployees.length === 0 && (
+                  <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                    All employees are assigned. Create the daily timesheet to continue.
+                  </div>
+                )}
+
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">
+                    Assigned to selected crew
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {(assignments[activeCrewId] ?? []).map((employeeId) => {
+                      const employee = EMPLOYEES.find((item) => item.id === employeeId);
+                      if (!employee) return null;
+                      return (
+                        <span
+                          key={employeeId}
+                          className="inline-flex items-center gap-2 text-xs bg-gray-100 text-gray-700 rounded-full px-3 py-1"
+                        >
+                          {employee.name}
+                          <button
+                            onClick={() => removeEmployeeFromCrew(activeCrewId, employeeId)}
+                            className="text-gray-500 hover:text-gray-800"
+                            aria-label={`Remove ${employee.name}`}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                {assignedEmployeeIds.size}/{EMPLOYEES.length} employees assigned
+              </p>
+              <button
+                onClick={handleCreateTimesheet}
+                disabled={!allEmployeesAssigned}
+                className="rounded-md bg-gray-900 text-white text-sm font-medium px-4 py-2 disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors"
+              >
+                Create Daily Timesheet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
