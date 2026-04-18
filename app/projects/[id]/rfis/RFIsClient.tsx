@@ -46,20 +46,47 @@ type RFIResponse = {
 
 
 const STATUSES = ["open", "closed", "draft"];
-const COLUMN_KEYS = ["rfi_number", "subject", "due_date", "status", "rfi_manager", "received_from", "assignees", "distribution", "responsible_contractor", "specification", "drawing_number", "created_at"] as const;
+const COLUMN_KEYS = [
+  "subject",
+  "rfi_number",
+  "status",
+  "responsible_contractor",
+  "received_from",
+  "date_initiated",
+  "rfi_manager",
+  "assignees",
+  "ball_in_court",
+  "due_date",
+  "closed_date",
+  "location",
+  "schedule_impact",
+  "cost_impact",
+  "cost_code",
+  "sub_job",
+  "rfi_stage",
+  "distribution",
+  "private",
+] as const;
 const COLUMN_LABELS: Record<typeof COLUMN_KEYS[number], string> = {
-  rfi_number: "RFI #",
   subject: "Subject",
-  due_date: "Due Date",
+  rfi_number: "Number",
   status: "Status",
-  rfi_manager: "RFI Manager",
-  received_from: "Received From",
-  assignees: "Assignees",
-  distribution: "Distribution",
   responsible_contractor: "Responsible Contractor",
-  specification: "Specification",
-  drawing_number: "Drawing #",
-  created_at: "Created",
+  received_from: "Received From",
+  date_initiated: "Date Initiated",
+  rfi_manager: "RFI Manager",
+  assignees: "Assignees",
+  ball_in_court: "Ball In Court",
+  due_date: "Due Date",
+  closed_date: "Closed Date",
+  location: "Location",
+  schedule_impact: "Schedule Impact",
+  cost_impact: "Cost Impact",
+  cost_code: "Cost Code",
+  sub_job: "Sub Job",
+  rfi_stage: "RFI Stage",
+  distribution: "Distribution List",
+  private: "Private",
 };
 function contactDisplayName(c: DirectoryContact): string {
   if (c.type === "company") return c.company ?? "Unnamed Company";
@@ -362,12 +389,6 @@ function getContactNameById(directory: DirectoryContact[], id: string | null): s
   return c ? contactDisplayName(c) : "—";
 }
 
-function getSpecName(specifications: Specification[], id: string | null): string {
-  if (!id) return "—";
-  const s = specifications.find((x) => x.id === id);
-  return s ? (s.name + (s.code ? ` (${s.code})` : "")) : "—";
-}
-
 function formatDate(d: string | null): string {
   if (!d) return "—";
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -457,9 +478,7 @@ async function exportRFIsPDF(
         case "assignees": value = (rfi.assignees ?? []).map((a) => a.name).join(", ") || "—"; break;
         case "distribution": value = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
         case "responsible_contractor": value = getContactNameById(directory, rfi.responsible_contractor_id); break;
-        case "specification": value = getSpecName(specifications, rfi.specification_id); break;
-        case "drawing_number": value = rfi.drawing_number ?? "—"; break;
-        case "created_at": value = formatDate(rfi.created_at); break;
+        case "date_initiated": value = formatDate(rfi.created_at); break;
       }
       const label = COLUMN_LABELS[key as typeof COLUMN_KEYS[number]] ?? key;
       writeWrapped(`${label}: ${value}`);
@@ -642,13 +661,39 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                 <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showColumnConfig ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
               </button>
               {showColumnConfig && (
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-2 z-20 max-h-64 overflow-y-auto">
-                  {COLUMN_KEYS.map((key) => (
-                    <label key={key} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer">
-                      <input type="checkbox" checked={visibleColumns.includes(key)} onChange={() => toggleColumn(key)} className="rounded border-gray-300" />
-                      <span className="text-sm text-gray-700">{COLUMN_LABELS[key]}</span>
-                    </label>
-                  ))}
+                <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-[80vh] overflow-y-auto">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
+                    <h3 className="text-base font-semibold text-gray-900">Table Settings</h3>
+                    <button type="button" onClick={() => setShowColumnConfig(false)} className="text-gray-400 hover:text-gray-600">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                  <div className="px-6 pt-4 pb-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-gray-900">Configure Columns</h4>
+                      <button type="button" onClick={() => setVisibleColumns([...COLUMN_KEYS])} className="text-sm font-medium text-blue-600 hover:text-blue-700">Show All</button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {COLUMN_KEYS.map((key) => {
+                        const on = visibleColumns.includes(key);
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => toggleColumn(key)}
+                            role="switch"
+                            aria-checked={on}
+                            className="w-full flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors text-left"
+                          >
+                            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${on ? "bg-blue-500" : "bg-gray-300"}`}>
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+                            </span>
+                            <span className="text-sm text-gray-800">{COLUMN_LABELS[key]}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -739,9 +784,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                         case "assignees": cell = (rfi.assignees ?? []).map((a) => a.name).join(", ") || "—"; break;
                         case "distribution": cell = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
                         case "responsible_contractor": cell = getContactNameById(directory, rfi.responsible_contractor_id); break;
-                        case "specification": cell = getSpecName(specifications, rfi.specification_id); break;
-                        case "drawing_number": cell = rfi.drawing_number ?? "—"; break;
-                        case "created_at": cell = formatDate(rfi.created_at); break;
+                        case "date_initiated": cell = formatDate(rfi.created_at); break;
                       }
                       return <td key={key} className="px-4 py-3 text-sm text-gray-600">{cell}</td>;
                     })}
