@@ -506,6 +506,10 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<readonly string[]>(() => [...COLUMN_KEYS]);
+  const [selectedRfiIds, setSelectedRfiIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<"" | "draft" | "open" | "closed">("");
+  const [bulkDueDate, setBulkDueDate] = useState("");
+  const [applyingBulk, setApplyingBulk] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
   const columnRef = useRef<HTMLDivElement>(null);
 
@@ -619,6 +623,41 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
     setVisibleColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   }
 
+  const allSelected = rfis.length > 0 && selectedRfiIds.length === rfis.length;
+
+  async function applyBulkUpdate() {
+    if (selectedRfiIds.length === 0) return;
+    const updates: Record<string, unknown> = {};
+    if (bulkStatus) updates.status = bulkStatus;
+    if (bulkDueDate) updates.due_date = bulkDueDate;
+    if (Object.keys(updates).length === 0) {
+      window.alert("Select a status and/or due date before applying bulk edit.");
+      return;
+    }
+
+    setApplyingBulk(true);
+    const res = await fetch(`/api/projects/${projectId}/rfis/bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: selectedRfiIds, updates }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      window.alert(err.error ?? "Bulk update failed");
+      setApplyingBulk(false);
+      return;
+    }
+
+    const updated: RFI[] = await res.json();
+    const byId = new Map(updated.map((r) => [r.id, r]));
+    setRfis((prev) => prev.map((r) => byId.get(r.id) ?? r));
+    setSelectedRfiIds([]);
+    setBulkStatus("");
+    setBulkDueDate("");
+    setApplyingBulk(false);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
@@ -691,6 +730,29 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
           </div>
         </div>
 
+        {selectedRfiIds.length > 0 && (
+          <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 flex flex-wrap items-end gap-3">
+            <p className="text-sm text-gray-700 font-medium">{selectedRfiIds.length} selected</p>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Status</label>
+              <select value={bulkStatus} onChange={(e) => setBulkStatus((e.target.value as "" | "draft" | "open" | "closed"))} className="px-2.5 py-2 border border-gray-200 rounded text-sm bg-white">
+                <option value="">No change</option>
+                <option value="draft">Draft</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Due Date</label>
+              <input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} className="px-2.5 py-2 border border-gray-200 rounded text-sm" />
+            </div>
+            <button onClick={applyBulkUpdate} disabled={applyingBulk} className="px-3 py-2 text-sm text-white bg-gray-900 rounded hover:bg-gray-700 disabled:opacity-50">
+              {applyingBulk ? "Applying..." : "Apply Bulk Edit"}
+            </button>
+            <button onClick={() => setSelectedRfiIds([])} className="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded hover:bg-gray-50">Clear</button>
+          </div>
+        )}
+
         {loading ? (
           <SkeletonTable rows={5} cols={6} />
         ) : rfis.length === 0 ? (
@@ -710,7 +772,14 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
             <table className="w-full min-w-[800px]">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider w-12"></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={(e) => setSelectedRfiIds(e.target.checked ? rfis.map((r) => r.id) : [])}
+                      className="rounded border-gray-300"
+                    />
+                  </th>
                   {visibleColumns.map((key) => (
                     <th key={key} className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">
                       {COLUMN_LABELS[key as typeof COLUMN_KEYS[number]]}
@@ -726,13 +795,21 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 cursor-pointer"
                   >
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      {canEditRfi(rfi) ? (
-                        <a href={`/projects/${projectId}/rfis/${rfi.id}/edit`} className="inline-flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors" title="Edit">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                        </a>
-                      ) : (
-                        <span className="inline-block w-6" />
-                      )}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedRfiIds.includes(rfi.id)}
+                          onChange={(e) => {
+                            setSelectedRfiIds((prev) => e.target.checked ? [...prev, rfi.id] : prev.filter((id) => id !== rfi.id));
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        {canEditRfi(rfi) ? (
+                          <a href={`/projects/${projectId}/rfis/${rfi.id}/edit`} className="inline-flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors" title="Edit">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </a>
+                        ) : null}
+                      </div>
                     </td>
                     {visibleColumns.map((key) => {
                       let cell: React.ReactNode = "—";

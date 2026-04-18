@@ -76,6 +76,8 @@ export async function PATCH(
     "rfi_manager_id", "received_from_id", "assignees", "distribution_list",
     "responsible_contractor_id", "specification_id", "drawing_number", "attachments",
     "ball_in_court_id",
+    "official_response_id",
+    "related_items",
   ];
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
@@ -90,7 +92,7 @@ export async function PATCH(
   // Fetch current RFI state before updating so we can detect transitions
   const { data: prevRfi } = await supabase
     .from("rfis")
-    .select("subject, question, due_date, status, rfi_manager_id, received_from_id, assignees, distribution_list, responsible_contractor_id, specification_id, drawing_number, attachments, ball_in_court_id")
+    .select("subject, question, due_date, status, rfi_manager_id, received_from_id, assignees, distribution_list, responsible_contractor_id, specification_id, drawing_number, attachments, ball_in_court_id, official_response_id, related_items")
     .eq("id", rfiId)
     .eq("project_id", projectId)
     .single();
@@ -261,6 +263,8 @@ export async function PATCH(
       { key: "responsible_contractor_id", action: "Responsible Contractor", toDisplay: (v: unknown) => contactNameById(contacts, typeof v === "string" ? v : null) },
       { key: "specification_id", action: "Specification", toDisplay: (v: unknown) => specNameById(specifications, typeof v === "string" ? v : null) },
       { key: "drawing_number", action: "Drawing Number", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
+      { key: "official_response_id", action: "Official Response", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
+      { key: "related_items", action: "Related Items", toDisplay: (v: unknown) => (Array.isArray(v) ? `${v.length} items` : null) },
     ];
 
     for (const change of fieldChanges) {

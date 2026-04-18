@@ -132,176 +132,70 @@
 
 ---
 
-# Submittal Package Alignment Pass – Package Tutorials (April 17, 2026)
+# RFI + Admin + Drawing Alignment Pass (April 17, 2026)
 
-## Tutorials reviewed in this pass
-- Add an Existing Submittal to a Submittal Package
-- Add Related Items to a Submittal
-- Bulk Edit Submittals in a Package
-- Bulk Review Submittals in a Package
-- Create a New Submittal in a Submittal Package
-- Create a Submittal Package
-- Delete a Submittal Package
-- Distribute the Submittals in a Package
-
-## Changes added in SiteCommand
-- Added Submittal Packages detail API endpoints:
-  - `GET /api/projects/:id/submittal-packages/:packageId` (returns package + packaged submittals)
-  - `PATCH /api/projects/:id/submittal-packages/:packageId` (editable package metadata)
-  - `DELETE /api/projects/:id/submittal-packages/:packageId` (package delete; submittals become unpackaged)
-- Added package action endpoint:
-  - `POST /api/projects/:id/submittal-packages/:packageId/actions`
-  - Supports:
-    - `add_existing`
-    - `remove_items`
-    - `bulk_edit`
-    - `mass_review`
-    - `distribute`
-- Enhanced package list API (`GET /api/projects/:id/submittal-packages`) to return:
-  - `submittal_count`
-  - `distributed_count`
-- Added package detail page UI:
-  - Route: `/projects/:id/submittal-packages/:packageId`
-  - Core operations surfaced:
-    - Add Existing Submittal
-    - Create Submittal in Package
-    - Bulk Edit selected submittals
-    - Mass Review selected submittals (Ball-in-Court constrained)
-    - Distribute selected submittals
-    - Remove selected submittals from package
-    - Delete package
-- Updated Submittals log UI with a new **Packages** tab and package table:
-  - package number/title
-  - spec section
-  - submittal counts
-  - distributed progress
-  - direct navigation to package detail screen
-
-## Parity notes / known limitations
-- Package actions currently use prompt-driven inputs for some flows (bulk edit fields, mass review responder ID), which should be replaced with full-form modals for production parity.
-- Related item support remains on submittal records (`related_items` payload), but package-level related item linking is not yet exposed in dedicated package UI.
-- Package-level attachment upload exists on the new-package form; attachment persistence/editing in the package detail page is not yet fully wired.
-- “Send submittals in package for review” wizard-level parity is partially represented through mass-review and distribute actions but not yet implemented as a guided multi-step package workflow.
-
-## Timesheets + Resource Tracking Alignment Notes (Added April 18, 2026)
-
-### Source Tutorials/Guides Reviewed
-- About Project Timesheets
-- Resource Tracking and Project Financials Setup Guide
-- Resource Tracking and Unit Quantity Based Budget Setup Guide
-- Bulk Enter Timecard Entries on a Timesheet
-- Create a Timesheet
+## Requested tutorial set (from provided URLs)
 - Add a Multi-Tiered Location to an Item
-- Add Quantities to a Timesheet
-- Add Employees/Resources to a Timesheet
-- Edit a Timesheet
-- Delete a Timesheet
-- Edit Quantities on a Timesheet
-- Delete Quantities on a Timesheet
+- Add a Related Item to an RFI
+- Add Assignees to an RFI as an Assignee on an RFI
+- Apply Configurable Fieldsets to Projects
+- Bulk Edit RFIs
+- Choose an Official Response for an RFI
+- Close an RFI
+- Configure a Prefix and Starting Number for RFIs
+- Configure Advanced Settings (RFIs)
+- Copy a Configurable Fieldset
+- Create a Change Event from an RFI
+- Create a Correspondence Item from an RFI
+- Create a Potential Change Order from an RFI
+- Create an Instruction from an RFI
+- Create an RFI
+- Create and View an RFI Report
+- Create Custom Sections
+- Create New Configurable Fieldsets
+- Create New Custom Fields
+- Create or Link RFIs on a Drawing
+- Create/Edit/Delete Saved Views for RFIs
+- Customize Column Display in RFIs
+- Delete a Response to an RFI
+- Delete an RFI
+- Delete Configurable Fieldsets
 
-### Product Alignment Implemented in SiteCommand
-- Added a complete project-level Timesheets data model:
-  - `timesheets` (one per project/date)
-  - `timesheet_entries` (resource timecards)
-  - `timesheet_entry_quantities` (units installed + UOM + notes)
-  - `project_locations` (hierarchical/multi-tiered location tree)
-- Added Timesheets API support for:
-  - list/create timesheets
-  - optional “create from previous timesheet” behavior
-  - timesheet status updates (`draft`, `submitted`, `approved`, `completed`)
-  - timesheet delete restrictions (approved sheets must be status-changed first)
-  - add resources to a timesheet
-  - bulk timecard updates (hours, time type, billable, description, etc.)
-  - inline entry edits + deletion
-  - quantity create/edit/delete per timecard entry
-- Added Location API support to mirror “multi-tiered location” workflows:
-  - list locations per project
-  - add a new top-level location
-  - add a child location under an existing parent
-  - persisted `path` format using parent hierarchy (e.g., `Building A > Level 2 > East Wing`)
+## Access note
+- Direct fetch attempts to `v2.support.procore.com` were blocked in this environment (`403 Forbidden` at tunnel layer), so this pass used the tutorial topics/titles from the provided links and aligned SiteCommand functionality to those workflows where feasible.
 
-### UX/Flow Alignment Implemented
-- Replaced Timesheets placeholder page with a working end-to-end UI.
-- Supported key tutorial-aligned flows:
-  - create a blank timesheet
-  - create from previous timesheet
-  - add resources to an existing timesheet
-  - select multiple timecards and apply bulk updates
-  - edit individual timecards inline
-  - submit/approve/complete status progression
-  - add/edit/delete installed quantities from each timecard row
-  - delete individual entries and entire timesheets (with status guardrails)
-  - assign/add multi-tiered locations during time entry
+## Implemented in this pass
+- Added **official response support** for RFIs:
+  - new `rfis.official_response_id` field
+  - detail-page “Mark Official” checkbox now persists selection
+  - official response badge displayed in response list
+- Added **related items support** for RFIs:
+  - new `rfis.related_items` JSONB field
+  - RFI detail “Related Items” tab now supports add/remove and optional links
+- Added **delete response** flow for RFIs:
+  - new DELETE API for `rfi_responses`
+  - permission check: response creator or RFI creator can delete
+  - clears official response if deleted response was official
+- Added **bulk edit RFIs** flow:
+  - new bulk API endpoint for RFIs (`status`, `due_date`, optional assignees)
+  - list-page multi-select + bulk controls to apply updates
+- Extended RFI PATCH logic/history support for:
+  - `official_response_id`
+  - `related_items`
 
-### Known Gaps / Follow-ups
-- “Equipment” resources are modeled at the API level, but current UI focuses on employee directory selection.
-- Timecard field-level visibility/requiredness settings are not yet configurable per project.
-- Imported budget-quantity validations (cost code must map to budgeted quantity) are not yet enforced.
-- Company-level rollup approvals and report integrations are not yet surfaced in Timesheets UI.
+## Existing alignment already present in product
+- Create RFI flow (draft/open)
+- Close/Reopen RFI action
+- Create Change Event from RFI shortcut
+- Delete RFI action
+- RFI report/export support via PDF export
+- Column display customization in list view
 
-## Timesheets Alignment Pass – Review/Approve/Search/View/Export Tutorials (April 18, 2026)
-
-### Tutorials reviewed in this pass
-- Approve a Timesheet
-- Review a Timesheet
-- Export a Project's Timesheets
-- Search for and Filter Project Level Timesheets
-- View a Timesheet
-- View a Timesheet Entry Signature
-- View Quantities on a Timesheet
-
-### Changes implemented in SiteCommand
-- Rebuilt the project timesheets page to align with tutorial flow instead of the previous crew-assignment placeholder.
-- Added date range filtering, keyword search, and status filtering over timesheets and timecard fields (employee/resource, location, cost code).
-- Added a CSV export workflow for the current filtered dataset directly from the Timesheets page.
-- Added a true list-and-detail timesheet experience:
-  - left panel list of timesheets
-  - right panel details with entries
-  - in-context status changes at timesheet level
-- Added explicit tutorial-aligned actions for review and approval:
-  - Mark Reviewed
-  - Approve
-  - status dropdown includes Reviewed
-- Added quantities viewer modal to support “View Quantities on a Timesheet”.
-- Added signature viewer modal to support “View a Timesheet Entry Signature”.
-- Added migration support for signature metadata on entries (`signature_name`, `signed_at`).
-- Updated DB-level status constraints to include `reviewed` for both timesheets and timesheet entries.
-
-### Notes / remaining parity gaps
-- Signature capture is still assumed to occur from mobile flow and is only *viewed* here.
-- CSV export is client-generated from loaded data; no server-side export template yet.
-- Multi-tier approval permission enforcement is not yet implemented at role-policy level.
-- Company-level “mark completed” governance remains outside this project-level page scope.
-
----
-
-# Budget + Timesheets Alignment Pass – Advanced Settings / Imports / Productivity (April 18, 2026)
-
-## Tutorials reviewed in this pass
-- Configure Advanced Settings: Project Level Timesheets
-- Import a Unit Quantity Based Budget
-- Add a Real-Time Labor Productivity Budget View
-- Delete Budgeted Labor Hours and Budgeted Production Quantities
-- Import a Budget
-
-## Changes implemented in SiteCommand
-- Added budget import support endpoints:
-  - `GET /api/projects/:id/budget/import-template` to download a CSV template with the required column order.
-  - `POST /api/projects/:id/budget/import` to import CSV rows and upsert by `Cost Code + Cost Type`.
-- Added targeted delete endpoint to match labor/production deletion workflows:
-  - `POST /api/projects/:id/budget/:lineItemId/delete-budget-data`
-  - Modes: `labor_hours`, `production_quantities`, `both`.
-- Updated Budget UI with import workflow controls:
-  - New **Import Budget** button.
-  - Import modal with template download, sample paste, and CSV input area.
-- Added row-level actions on budget items:
-  - Delete labor hours only.
-  - Delete production quantities only.
-- Expanded Production Quantities tab with a switchable **Real-Time Labor Productivity View**:
-  - `% Hours Used`
-  - `Hours Remaining`
-  - `Estimated RT Cost`
-
-## Notes / parity gaps
-- Current import parser supports CSV text in-app (template-aligned) and not direct XLSX binary uploads yet.
-- Advanced Timesheets settings UI (time-entry format, lunch-tracking format, geofence settings) should be added as a dedicated project admin screen in a future pass.
+## Remaining parity gaps / recommended next steps
+- RFI prefix + starting number configuration (currently auto-increment only).
+- Advanced settings for RFIs (tool-level project/company settings UI + persistence).
+- Saved views management for RFIs (named filters/views, default view).
+- Drawing-level link/create RFI workflow in Drawings tool.
+- First-class “Create Correspondence/Instruction/Potential Change Order” one-click actions from RFI with deep integration.
+- Admin company features for configurable fieldsets/custom fields/custom sections and fieldset application/copy/delete are not covered by this RFI-focused pass.
+- Multi-tiered location picker integration is not yet implemented in RFI forms.
