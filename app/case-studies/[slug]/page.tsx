@@ -83,7 +83,7 @@ export default function CaseStudyPage({ params }: { params: { slug: string } }) 
     <div className="min-h-screen bg-white">
       <Navbar />
 
-      <main className="pt-24 pb-20">
+      <main className="pt-16 pb-20">
         {/* Hero */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 mb-10">
           <div className="mb-6">

@@ -215,7 +215,7 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
             <button
               type="button"
               onClick={createNewNote}
-              className="w-full px-3 py-2 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-black"
+              className="w-full px-3 py-2 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-gray-800"
             >
               + New note
             </button>
@@ -299,7 +299,7 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
                       <button
                         type="button"
                         onClick={() => setIsEditing(false)}
-                        className="ml-auto px-3 py-1.5 rounded bg-gray-900 text-white text-sm font-medium hover:bg-black"
+                        className="ml-auto px-3 py-1.5 rounded bg-gray-900 text-white text-sm font-medium hover:bg-gray-800"
                       >
                         Save
                       </button>
@@ -309,7 +309,7 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
                       <button
                         type="button"
                         onClick={() => setIsEditing(true)}
-                        className="px-3 py-1.5 rounded bg-gray-900 text-white text-sm font-medium hover:bg-black"
+                        className="px-3 py-1.5 rounded bg-gray-900 text-white text-sm font-medium hover:bg-gray-800"
                       >
                         Edit
                       </button>

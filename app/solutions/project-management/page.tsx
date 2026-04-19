@@ -100,7 +100,7 @@ export default function ProjectManagementPage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative overflow-hidden pt-28 pb-20 px-6 sm:px-10">
+      <section className="relative overflow-hidden pt-20 pb-20 px-6 sm:px-10">
         <div className="absolute inset-0 -z-10 pointer-events-none" style={{
           background: "radial-gradient(ellipse 60% 50% at 65% 25%, rgba(212,80,10,0.05) 0%, transparent 65%)"
         }} />

@@ -35,7 +35,7 @@ export default function CareersPage() {
     <div className="min-h-screen" style={{ background: "#FAFAF9" }}>
       <Navbar />
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-32 pb-20">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 pb-20">
         {/* Hero */}
         <div className="mb-12">
           <span className="inline-flex items-center gap-2 mb-6 animate-fade-up">

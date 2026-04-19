@@ -32,7 +32,7 @@ export default function CaseStudiesPage() {
     <div className="min-h-screen" style={{ background: "#FAFAF9" }}>
       <Navbar />
 
-      <main className="max-w-6xl mx-auto px-6 pt-36 pb-24">
+      <main className="max-w-6xl mx-auto px-6 pt-24 pb-24">
         {/* Hero */}
         <div className="mb-20">
           <div className="inline-flex items-center gap-2 mb-8 animate-fade-up">
