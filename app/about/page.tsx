@@ -46,7 +46,7 @@ export default function AboutPage() {
               "radial-gradient(ellipse 70% 60% at 60% 40%, rgba(212,80,10,0.06) 0%, transparent 70%)",
           }}
         />
-        <div className="max-w-3xl pt-32 pb-20">
+        <div className="max-w-3xl pt-20 pb-20">
           <span className="inline-flex items-center gap-2 mb-8 animate-fade-up">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
             <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">About SiteCommand</span>

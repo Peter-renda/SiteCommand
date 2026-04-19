@@ -110,7 +110,7 @@ export default function PrequalificationPage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="pt-36 pb-28 px-6">
+      <section className="pt-24 pb-28 px-6">
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 mb-8 animate-fade-up">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />

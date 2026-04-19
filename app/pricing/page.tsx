@@ -72,7 +72,7 @@ export default function PricingPage() {
       <a href="#main-content" className="skip-link">Skip to content</a>
       <Navbar />
 
-      <main id="main-content" className="max-w-5xl mx-auto px-6 pt-32 pb-24">
+      <main id="main-content" className="max-w-5xl mx-auto px-6 pt-20 pb-24">
         {/* Page title section */}
         <div className="mb-14 animate-fade-up">
           {/* Eyebrow tag */}

@@ -24,7 +24,7 @@ export default function EmptyState({ icon, title, description, action }: EmptySt
           {action.href ? (
             <a
               href={action.href}
-              className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-gray-950 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
+              className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
             >
               {action.label}
             </a>
@@ -32,7 +32,7 @@ export default function EmptyState({ icon, title, description, action }: EmptySt
             <button
               type="button"
               onClick={action.onClick}
-              className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-gray-950 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
+              className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
             >
               {action.label}
             </button>

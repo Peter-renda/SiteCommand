@@ -1,4 +1,6 @@
 import Navbar from "./components/Navbar";
+import Bezel from "./components/Bezel";
+import Eyebrow from "./components/Eyebrow";
 
 const features = [
   {
@@ -73,14 +75,8 @@ export default function Home() {
               {/* ── Left: Copy ── */}
               <div>
                 {/* Eyebrow tag */}
-                <div className="animate-fade-up inline-flex items-center gap-2 mb-8">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: "#D4500A" }}
-                  />
-                  <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">
-                    Built for contractors
-                  </span>
+                <div className="animate-fade-up mb-8">
+                  <Eyebrow>Built for contractors</Eyebrow>
                 </div>
 
                 {/* Headline — DM Serif Display for editorial luxury */}
@@ -176,26 +172,8 @@ export default function Home() {
 
               {/* ── Right: Product preview — Double-Bezel card ── */}
               <div className="hidden lg:block animate-scale-in delay-200">
-                {/* Outer shell */}
-                <div
-                  className="rounded-2xl"
-                  style={{
-                    background:
-                      "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.6) 100%)",
-                    border: "1px solid rgba(0,0,0,0.06)",
-                    boxShadow:
-                      "0 24px 48px rgba(0,0,0,0.09), 0 6px 16px rgba(0,0,0,0.05), 0 1px 0 rgba(255,255,255,0.8) inset",
-                    padding: "2px",
-                  }}
-                >
-                  {/* Inner core */}
-                  <div
-                    className="rounded-[14px] overflow-hidden"
-                    style={{
-                      background: "#FFFFFF",
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
-                    }}
-                  >
+                <Bezel size="md" elevation="lifted">
+                  <div>
                     {/* Mock app header */}
                     <div
                       className="px-5 py-3.5 border-b flex items-center justify-between"
@@ -331,29 +309,13 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-                </div>
+                </Bezel>
 
                 {/* Floating notification chip — Double-bezel small card */}
-                <div
-                  className="mt-3 ml-4 inline-flex animate-fade-up delay-500"
-                >
-                  <div
-                    className="rounded-xl"
-                    style={{
-                      background:
-                        "linear-gradient(145deg, rgba(255,255,255,0.95), rgba(240,240,238,0.7))",
-                      border: "1px solid rgba(0,0,0,0.06)",
-                      boxShadow:
-                        "0 8px 24px rgba(0,0,0,0.07), 0 2px 6px rgba(0,0,0,0.04)",
-                      padding: "1.5px",
-                    }}
-                  >
+                <div className="mt-3 ml-4 inline-flex animate-fade-up delay-500">
+                  <Bezel size="sm" elevation="soft">
                     <div
-                      className="rounded-[10px] px-4 py-3 flex items-center gap-3"
-                      style={{
-                        background: "#FFFFFF",
-                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
-                      }}
+                      className="px-4 py-3 flex items-center gap-3"
                     >
                       <div
                         className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
@@ -383,7 +345,7 @@ export default function Home() {
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </Bezel>
                 </div>
               </div>
             </div>
@@ -463,26 +425,8 @@ export default function Home() {
                   key={f.name}
                   className={f.large ? "col-span-2" : "col-span-1"}
                 >
-                  {/* Outer bezel */}
-                  <div
-                    className="h-full rounded-2xl"
-                    style={{
-                      background:
-                        "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)",
-                      border: "1px solid rgba(0,0,0,0.055)",
-                      boxShadow:
-                        "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset",
-                      padding: "1.5px",
-                    }}
-                  >
-                    {/* Inner core */}
-                    <div
-                      className="h-full rounded-[14px] p-6 flex flex-col gap-4"
-                      style={{
-                        background: "#FFFFFF",
-                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
-                      }}
-                    >
+                  <Bezel size="md" elevation="flat" className="h-full" innerClassName="h-full">
+                    <div className="h-full p-6 flex flex-col gap-4">
                       {/* Accent dot */}
                       <div
                         className="w-8 h-8 rounded-xl flex items-center justify-center"
@@ -502,7 +446,7 @@ export default function Home() {
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </Bezel>
                 </div>
               ))}
             </div>
@@ -515,26 +459,8 @@ export default function Home() {
           style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
         >
           <div className="max-w-7xl mx-auto">
-            {/* Outer bezel */}
-            <div
-              className="rounded-3xl"
-              style={{
-                background:
-                  "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)",
-                border: "1px solid rgba(0,0,0,0.055)",
-                boxShadow:
-                  "0 4px 16px rgba(0,0,0,0.05), 0 1px 0 rgba(255,255,255,0.7) inset",
-                padding: "2px",
-              }}
-            >
-              {/* Inner core */}
-              <div
-                className="rounded-[22px] px-10 py-20 text-center relative overflow-hidden"
-                style={{
-                  background: "#FFFFFF",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
-                }}
-              >
+            <Bezel size="xl" elevation="flat">
+              <div className="px-10 py-20 text-center relative overflow-hidden">
                 {/* Subtle ambient gradient */}
                 <div
                   className="absolute inset-0 pointer-events-none"
@@ -546,15 +472,7 @@ export default function Home() {
                 />
 
                 <div className="relative">
-                  <span className="inline-flex items-center gap-2 mb-6">
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: "#D4500A" }}
-                    />
-                    <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">
-                      Get started today
-                    </span>
-                  </span>
+                  <Eyebrow className="mb-6">Get started today</Eyebrow>
 
                   <h2
                     className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-950 leading-tight"
@@ -589,7 +507,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Bezel>
           </div>
         </section>
       </main>
