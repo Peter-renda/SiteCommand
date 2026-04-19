@@ -73,6 +73,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     internal_review_time,
   } = body;
 
+  const trimmedTitle = (title ?? "").toString().trim();
+  if (!trimmedTitle) {
+    return NextResponse.json({ error: "Title is required" }, { status: 400 });
+  }
+  if (!submittal_manager_id) {
+    return NextResponse.json({ error: "Submittal Manager is required" }, { status: 400 });
+  }
+
 
   const scheduleDates = calculateSubmittalSchedule({
     required_on_site_date: required_on_site_date || null,
@@ -86,7 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .insert({
       project_id: projectId,
       submittal_number: nextNumber,
-      title: (title ?? "").toString().trim() || "Untitled",
+      title: trimmedTitle,
       revision: revision || "A",
       specification_id: specification_id || null,
       submittal_type: submittal_type || null,

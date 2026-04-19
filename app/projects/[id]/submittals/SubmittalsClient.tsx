@@ -396,7 +396,7 @@ function CreateSubmittalModal({
   const [requiredOnSiteDate, setRequiredOnSiteDate] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [description, setDescription] = useState("");
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   // Additional Submittal Fields
   const [approverNameId, setApproverNameId] = useState<string | null>(null);
@@ -475,7 +475,7 @@ function CreateSubmittalModal({
       linked_drawings: linkedDrawings || null, distribution_list: distributionList,
       ball_in_court_id: ballInCourtId, lead_time: leadTime ? Number(leadTime) : null,
       required_on_site_date: requiredOnSiteDate || null, private: isPrivate,
-      description: description || null, attachmentFile, attachments: [],
+      description: description || null, attachmentFiles, attachments: [],
       approver_name_id: approverNameId, owners_manual: ownersManual || null, package_notes: packageNotes || null,
       confirmed_delivery_date: confirmedDeliveryDate || null, actual_delivery_date: actualDeliveryDate || null,
       workflow_steps: workflowSteps.map((s, i) => ({ step: i + 1, person_id: s.personId, role: s.role, due_date: s.dueDate || null })),
@@ -702,20 +702,47 @@ function CreateSubmittalModal({
           {/* Attachments */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Attachments</label>
-            <input ref={fileInputRef} type="file" className="hidden" onChange={(e: ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) setAttachmentFile(f); }} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                const list = e.target.files ? Array.from(e.target.files) : [];
+                if (list.length > 0) setAttachmentFiles((prev) => [...prev, ...list]);
+                e.target.value = "";
+              }}
+            />
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) setAttachmentFile(f); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const list = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+                if (list.length > 0) setAttachmentFiles((prev) => [...prev, ...list]);
+              }}
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${dragOver ? "border-gray-400 bg-gray-50" : "border-gray-200 hover:border-gray-300"}`}
             >
-              {attachmentFile ? (
-                <p className="text-sm text-gray-700">{attachmentFile.name}</p>
-              ) : (
-                <p className="text-sm text-gray-500">Drag and drop a file or click to attach</p>
-              )}
+              <p className="text-sm text-gray-500">Drag and drop files or click to attach</p>
             </div>
+            {attachmentFiles.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {attachmentFiles.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center justify-between px-2 py-1 text-xs bg-gray-50 rounded">
+                    <span className="truncate text-gray-700">{f.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachmentFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="text-gray-400 hover:text-gray-700 ml-2"
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* Additional Submittal Fields */}
@@ -739,9 +766,11 @@ function CreateSubmittalModal({
                 <label className="block text-xs font-medium text-gray-500 mb-1">Package Notes</label>
                 <select value={packageNotes} onChange={(e) => setPackageNotes(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
                   <option value=""></option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                  <option value="N/A">N/A</option>
+                  <option value="Make Corrections Noted">Make Corrections Noted</option>
+                  <option value="No Exceptions Taken">No Exceptions Taken</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Revise and Resubmit">Revise and Resubmit</option>
+                  <option value="Sub Specified Item">Sub Specified Item</option>
                 </select>
               </div>
             </div>
@@ -825,11 +854,41 @@ function CreateSubmittalModal({
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
-            <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="button" onClick={() => onConfirm(buildData(), false)} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create</button>
-            <button type="button" onClick={() => onConfirm(buildData(), true)} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create and send emails</button>
-          </div>
+          {(() => {
+            const missing: string[] = [];
+            if (!title.trim()) missing.push("Title");
+            if (!submittalManagerId) missing.push("Submittal Manager");
+            const disabled = missing.length > 0;
+            const disabledReason = disabled ? `Required: ${missing.join(", ")}` : "";
+            return (
+              <div className="pt-4 border-t border-gray-100">
+                {disabled && (
+                  <p className="text-xs text-red-600 mb-2">{disabledReason}</p>
+                )}
+                <div className="flex gap-3 justify-end">
+                  <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
+                  <button
+                    type="button"
+                    onClick={() => onConfirm(buildData(), false)}
+                    disabled={disabled}
+                    title={disabledReason}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Create
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onConfirm(buildData(), true)}
+                    disabled={disabled}
+                    title={disabledReason}
+                    className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Create and send emails
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -904,7 +963,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
     setShowCreate(false);
     setShowCreateMenu(false);
     setCreating(true);
-    const { attachmentFile, submittal_package_id, ...rest } = data;
+    const { attachmentFiles, submittal_package_id, ...rest } = data;
     const res = await fetch(`/api/projects/${projectId}/submittals`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -912,9 +971,10 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
     });
     if (res.ok) {
       const newSubmittal: Submittal = await res.json();
-      if (attachmentFile instanceof File) {
+      const files = Array.isArray(attachmentFiles) ? attachmentFiles.filter((f): f is File => f instanceof File) : [];
+      for (const file of files) {
         const formData = new FormData();
-        formData.append("file", attachmentFile);
+        formData.append("file", file);
         const attRes = await fetch(`/api/projects/${projectId}/submittals/${newSubmittal.id}/attachment`, { method: "POST", body: formData });
         if (attRes.ok) {
           const updated = await attRes.json();
