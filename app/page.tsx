@@ -56,7 +56,7 @@ export default function Home() {
 
       <main id="main-content">
         {/* ── Hero ── */}
-        <section className="relative overflow-hidden pt-28 pb-20 px-6 sm:px-10">
+        <section className="relative overflow-hidden pt-20 pb-20 px-6 sm:px-10">
           {/* Ambient glow */}
           <div
             className="absolute inset-0 -z-10 pointer-events-none"
@@ -419,11 +419,12 @@ export default function Home() {
             {/* Section header */}
             <div className="mb-14 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
               <div>
-                <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                  Platform
+                <span className="inline-flex items-center gap-2 mb-3">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
+                  <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Platform</span>
                 </span>
                 <h2
-                  className="mt-3 text-4xl sm:text-5xl font-bold text-gray-950"
+                  className="text-4xl sm:text-5xl font-bold text-gray-950"
                   style={{
                     fontFamily: "var(--font-dm-serif)",
                     letterSpacing: "-0.02em",

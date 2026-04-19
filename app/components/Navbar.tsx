@@ -97,12 +97,21 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+    <nav
+      className="sticky top-0 z-50 border-b"
+      style={{
+        background: "rgba(250,250,249,0.85)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderColor: "rgba(0,0,0,0.05)",
+      }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-10 flex items-center justify-between h-14">
         {/* Logo */}
         <a
           href="https://sitecommand.xyz"
-          className="text-lg font-semibold tracking-tight text-gray-900 hover:opacity-80 transition-opacity shrink-0"
+          className="text-base font-semibold tracking-tight text-gray-900 hover:opacity-80 transition-opacity shrink-0"
+          style={{ letterSpacing: "-0.01em" }}
         >
           SiteCommand
         </a>
@@ -142,7 +151,7 @@ export default function Navbar() {
               {item.label === "Solutions" && open === "Solutions" && (
                 <div
                   className="fixed left-0 right-0 bg-white border-t border-gray-200 shadow-xl"
-                  style={{ top: "64px" }}
+                  style={{ top: "56px" }}
                   onMouseEnter={() => handleEnter("Solutions")}
                   onMouseLeave={handleLeave}
                 >
@@ -209,12 +218,22 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Login — always visible */}
+          {/* Login — plain text link */}
           <Link
             href="/login"
-            className="px-4 py-2 text-sm font-semibold text-white bg-gray-950 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all duration-150"
+            className="hidden md:inline text-sm text-gray-500 hover:text-gray-900 transition-colors duration-150"
           >
             Login
+          </Link>
+
+          {/* Start Free Trial — primary CTA */}
+          <Link
+            href="/signup"
+            className="group relative hidden md:inline-flex items-center px-4 py-2 text-sm font-semibold text-white rounded-lg overflow-hidden transition-all duration-150 active:scale-[0.98]"
+            style={{ background: "#111110" }}
+          >
+            <span className="relative z-10">Start Free Trial</span>
+            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity duration-150" />
           </Link>
 
           {/* Hamburger — mobile only */}
