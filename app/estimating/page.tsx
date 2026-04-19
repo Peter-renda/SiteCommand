@@ -120,8 +120,8 @@ export default function EstimatingPage() {
               Align on scope and cost from day one by streamlining takeoffs, estimates, and proposals in one connected solution. Reduce rework, protect your margins, and win more profitable work.
             </p>
             <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
-              <a href="/signup" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
-                <span className="relative z-10">Request a demo</span>
+              <a href="/demo" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                <span className="relative z-10">explore the demo</span>
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
               </a>
               <a href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-all">See pricing</a>
@@ -230,8 +230,8 @@ export default function EstimatingPage() {
                 Join estimating teams that have cut bid prep time and built stronger margins with connected takeoff and estimating tools.
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
-                <a href="/signup" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
-                  <span className="relative z-10">Request a demo</span>
+                <a href="/demo" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                  <span className="relative z-10">explore the demo</span>
                   <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
                 </a>
                 <a href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">See pricing</a>

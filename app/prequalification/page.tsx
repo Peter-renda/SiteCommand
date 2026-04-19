@@ -132,11 +132,11 @@ export default function PrequalificationPage() {
 
           <div className="flex flex-wrap gap-4 animate-fade-up delay-300">
             <Link
-              href="/signup"
+              href="/demo"
               className="px-6 py-3 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-80"
               style={{ background: "#111110" }}
             >
-              Request a demo
+              explore the demo
             </Link>
             <Link
               href="/pricing"
@@ -300,10 +300,10 @@ export default function PrequalificationPage() {
               </p>
               <div className="flex flex-wrap gap-4 justify-center">
                 <Link
-                  href="/signup"
+                  href="/demo"
                   className="px-6 py-3 text-sm font-medium text-gray-900 bg-white rounded-lg hover:opacity-90 transition-opacity"
                 >
-                  Request a demo
+                  explore the demo
                 </Link>
                 <Link
                   href="/pricing"
