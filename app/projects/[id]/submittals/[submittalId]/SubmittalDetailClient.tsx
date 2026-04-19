@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import ProjectNav from "@/components/ProjectNav";
 import { useRouter } from "next/navigation";
 
@@ -170,6 +170,9 @@ export default function SubmittalDetailClient({
   const [showAllRecipients, setShowAllRecipients] = useState(false);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [responseModal, setResponseModal] = useState<{ personId: string } | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 
   async function runAction(action: string, payload?: Record<string, unknown>) {
     setActionLoading(action);
@@ -208,17 +211,62 @@ export default function SubmittalDetailClient({
     router.push(`/projects/${projectId}/submittals`);
   }
 
-  async function editWorkflowResponse(personId: string) {
-    const response = prompt("Response (for example: Approved / Revise and Resubmit):");
-    if (response == null) return;
-    const comments = prompt("Comments (optional):") ?? "";
-    await runAction("edit_response", {
-      person_id: personId,
-      response: response.trim() || null,
-      comments: comments.trim() || null,
-      sent_date: new Date().toISOString().slice(0, 10),
-      returned_date: new Date().toISOString().slice(0, 10),
+  async function submitResponse(personId: string, response: string, comments: string, files: File[]) {
+    setActionLoading("edit_response");
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("person_id", personId);
+      const upRes = await fetch(`/api/projects/${projectId}/submittals/${submittalId}/response-attachment`, { method: "POST", body: formData });
+      if (!upRes.ok) {
+        const data = await upRes.json().catch(() => ({}));
+        setActionLoading(null);
+        alert(data.error || "Attachment upload failed");
+        return;
+      }
+    }
+    const res = await fetch(`/api/projects/${projectId}/submittals/${submittalId}/actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "edit_response",
+        payload: {
+          person_id: personId,
+          response: response.trim() || null,
+          comments: comments.trim() || null,
+          sent_date: new Date().toISOString().slice(0, 10),
+          returned_date: new Date().toISOString().slice(0, 10),
+        },
+      }),
     });
+    const data = await res.json();
+    setActionLoading(null);
+    if (!res.ok) {
+      alert(data.error || "Action failed");
+      return;
+    }
+    setResponseModal(null);
+    router.refresh();
+  }
+
+  async function uploadGeneralAttachments(fileList: FileList | File[]) {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+    setUploadingAttachment(true);
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/projects/${projectId}/submittals/${submittalId}/attachment`, { method: "POST", body: formData });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Attachment upload failed");
+        setUploadingAttachment(false);
+        return;
+      }
+      const updated = await res.json();
+      setSubmittal((prev) => (prev ? { ...prev, attachments: updated.attachments ?? [] } : prev));
+    }
+    setUploadingAttachment(false);
   }
 
   async function forwardForReview() {
@@ -451,7 +499,32 @@ export default function SubmittalDetailClient({
                   {/* General Information Attachments group */}
                   <tr className="border-b border-gray-200 bg-gray-50">
                     <td colSpan={9} className="px-4 py-2.5">
-                      <span className="text-xs font-semibold text-gray-700">General Information Attachments</span>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold text-gray-700">General Information Attachments</span>
+                        {canEdit && (
+                          <>
+                            <input
+                              ref={attachmentInputRef}
+                              type="file"
+                              multiple
+                              className="hidden"
+                              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                const list = e.target.files;
+                                if (list && list.length > 0) uploadGeneralAttachments(list);
+                                e.target.value = "";
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => attachmentInputRef.current?.click()}
+                              disabled={uploadingAttachment}
+                              className="px-2.5 py-1 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              {uploadingAttachment ? "Uploading..." : "Add Attachment"}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   {attachments.length === 0 ? (
@@ -539,7 +612,21 @@ export default function SubmittalDetailClient({
                           <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDate(step.returned_date)}</td>
                           <td className="px-3 py-3 text-sm text-gray-600">{step.response ?? "—"}</td>
                           <td className="px-3 py-3 text-sm text-gray-600">{step.comments ?? "—"}</td>
-                          <td className="px-3 py-3 text-sm text-gray-400">{(step.attachments ?? []).length > 0 ? `${step.attachments?.length} file(s)` : "--"}</td>
+                          <td className="px-3 py-3 text-sm text-gray-600">
+                            {(step.attachments ?? []).length === 0 ? (
+                              <span className="text-gray-400">--</span>
+                            ) : (
+                              <ul className="space-y-0.5">
+                                {(step.attachments ?? []).map((att, ai) => (
+                                  <li key={`${att.url}-${ai}`}>
+                                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                                      {att.name}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </td>
                           <td className="px-3 py-3">
                             {isBallInCourt ? (
                               <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded border border-green-300 uppercase">
@@ -553,7 +640,7 @@ export default function SubmittalDetailClient({
                             <div className="flex items-center gap-2">
                               {canEdit && step.person_id && isBallInCourt && (
                                 <button
-                                  onClick={() => editWorkflowResponse(step.person_id!)}
+                                  onClick={() => setResponseModal({ personId: step.person_id! })}
                                   className="text-xs text-blue-600 hover:underline"
                                 >
                                   Edit Response
@@ -722,6 +809,109 @@ export default function SubmittalDetailClient({
         </div>
 
       </main>
+
+      {responseModal && (
+        <ResponseModal
+          personId={responseModal.personId}
+          saving={actionLoading === "edit_response"}
+          onCancel={() => setResponseModal(null)}
+          onSubmit={(response, comments, files) => submitResponse(responseModal.personId, response, comments, files)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ResponseModal({
+  personId,
+  saving,
+  onCancel,
+  onSubmit,
+}: {
+  personId: string;
+  saving: boolean;
+  onCancel: () => void;
+  onSubmit: (response: string, comments: string, files: File[]) => void;
+}) {
+  void personId;
+  const [response, setResponse] = useState("");
+  const [comments, setComments] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-6 overflow-y-auto">
+      <div className="bg-white rounded-xl w-full max-w-lg shadow-xl my-auto max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-900">Edit Response</h2>
+          <button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Response</label>
+            <select value={response} onChange={(e) => setResponse(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900">
+              <option value=""></option>
+              <option value="Approved">Approved</option>
+              <option value="Approved as Noted">Approved as Noted</option>
+              <option value="Make Corrections Noted">Make Corrections Noted</option>
+              <option value="No Exceptions Taken">No Exceptions Taken</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Revise and Resubmit">Revise and Resubmit</option>
+              <option value="Sub Specified Item">Sub Specified Item</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Comments</label>
+            <textarea value={comments} onChange={(e) => setComments(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Attachments</label>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                const list = e.target.files ? Array.from(e.target.files) : [];
+                if (list.length > 0) setFiles((prev) => [...prev, ...list]);
+                e.target.value = "";
+              }}
+            />
+            <button type="button" onClick={() => fileRef.current?.click()} className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50">
+              Add files
+            </button>
+            {files.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {files.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center justify-between px-2 py-1 text-xs bg-gray-50 rounded">
+                    <span className="truncate text-gray-700">{f.name}</span>
+                    <button type="button" onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))} className="text-gray-400 hover:text-gray-700 ml-2">×</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+          <button type="button" onClick={onCancel} disabled={saving} className="px-3 py-1.5 text-sm text-gray-700 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onSubmit(response, comments, files)}
+            disabled={saving}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
