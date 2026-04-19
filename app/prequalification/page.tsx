@@ -136,7 +136,7 @@ export default function PrequalificationPage() {
               className="px-6 py-3 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-80"
               style={{ background: "#111110" }}
             >
-              explore the demo
+              Explore the Demo
             </Link>
             <Link
               href="/pricing"
@@ -303,7 +303,7 @@ export default function PrequalificationPage() {
                   href="/demo"
                   className="px-6 py-3 text-sm font-medium text-gray-900 bg-white rounded-lg hover:opacity-90 transition-opacity"
                 >
-                  explore the demo
+                  Explore the Demo
                 </Link>
                 <Link
                   href="/pricing"
