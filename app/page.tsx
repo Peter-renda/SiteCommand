@@ -114,7 +114,7 @@ export default function Home() {
                     className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98]"
                     style={{ background: "#111110" }}
                   >
-                    <span className="relative z-10">Get started free</span>
+                    <span className="relative z-10">Get Started</span>
                     <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity duration-200" />
                   </a>
                   <a
@@ -576,14 +576,14 @@ export default function Home() {
                       className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98]"
                       style={{ background: "#111110" }}
                     >
-                      <span className="relative z-10">Start for free</span>
+                      <span className="relative z-10">see pricing</span>
                       <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity duration-200" />
                     </a>
                     <a
                       href="/demo"
                       className="inline-flex items-center gap-2 px-8 py-4 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 active:scale-[0.98]"
                     >
-                      Watch a demo
+                      explore the demo
                     </a>
                   </div>
                 </div>

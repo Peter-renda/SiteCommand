@@ -120,8 +120,8 @@ export default function BidManagementPage() {
               Move from bidding to building faster. Invite every stakeholder — from estimators and project teams to your subcontractor partners — to collaborate in a single platform.
             </p>
             <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
-              <a href="/signup" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
-                <span className="relative z-10">Request a demo</span>
+              <a href="/demo" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                <span className="relative z-10">explore the demo</span>
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
               </a>
               <a href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-all" style={{ background: "rgba(255,255,255,0.6)" }}>See pricing</a>
@@ -220,8 +220,8 @@ export default function BidManagementPage() {
                   Join construction teams that have cut bid cycle time and built stronger subcontractor relationships.
                 </p>
                 <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-                  <a href="/signup" className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
-                    <span className="relative z-10">Request a demo</span>
+                  <a href="/demo" className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                    <span className="relative z-10">explore the demo</span>
                     <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
                   </a>
                   <a href="/pricing" className="px-8 py-4 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98]">See pricing</a>
