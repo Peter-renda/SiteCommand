@@ -13,6 +13,7 @@ type ActivityItem = {
   project_id: string;
   project_name: string;
   created_at: string;
+  href: string;
 };
 
 type MyTask = {
@@ -817,7 +818,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
                 {visible.map((item) => (
                   <a
                     key={`${item.type}-${item.id}`}
-                    href={`/projects/${item.project_id}`}
+                    href={item.href}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                   >
                     <ActivityIcon type={item.type} />
