@@ -156,25 +156,17 @@ function CostCodePicker({
   selected: string[];
   onChange: (v: string[]) => void;
 }) {
-  const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-  const filtered = options.filter(
-    (o) => !selected.includes(o.cost_code) &&
-      (o.cost_code.toLowerCase().includes(search.toLowerCase()) ||
-        o.description.toLowerCase().includes(search.toLowerCase()))
-  );
-  function add(code: string) { onChange([...selected, code]); setSearch(""); }
+  const [selectedOption, setSelectedOption] = useState("");
+  const availableOptions = options.filter((o) => !selected.includes(o.cost_code));
+
+  function add(code: string) {
+    if (!code || selected.includes(code)) return;
+    onChange([...selected, code]);
+    setSelectedOption("");
+  }
   function remove(code: string) { onChange(selected.filter((s) => s !== code)); }
   return (
-    <div ref={ref} className="relative">
+    <div>
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">
           {selected.map((code) => (
@@ -187,20 +179,21 @@ function CostCodePicker({
           ))}
         </div>
       )}
-      <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder="Search cost codes..." className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
-      {open && filtered.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg max-h-40 overflow-y-auto z-20">
-          {filtered.map((o) => (
-            <button key={o.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => add(o.cost_code)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
-              <span className="font-medium text-gray-900">{o.cost_code}</span>
-              {o.description && <span className="text-gray-400 text-xs">{o.description}</span>}
-            </button>
-          ))}
-        </div>
-      )}
-      {open && search && filtered.length === 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-md shadow-lg px-3 py-2 z-20"><p className="text-xs text-gray-400">No matching cost codes</p></div>
-      )}
+      <select
+        value={selectedOption}
+        onChange={(e) => {
+          setSelectedOption(e.target.value);
+          add(e.target.value);
+        }}
+        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+      >
+        <option value="">{availableOptions.length ? "Select cost code..." : "No cost codes available"}</option>
+        {availableOptions.map((o) => (
+          <option key={o.id} value={o.cost_code}>
+            {o.cost_code}{o.description ? ` — ${o.description}` : ""}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -445,7 +438,24 @@ export default function PunchListClient({ projectId, role, username, userId }: {
     ]).then(([itemsData, dirData, budgetData]) => {
       setItems(Array.isArray(itemsData) ? itemsData : []);
       setDirectory(Array.isArray(dirData) ? dirData : []);
-      setBudgetItems(Array.isArray(budgetData) ? budgetData : []);
+      if (Array.isArray(budgetData)) {
+        const seen = new Set<string>();
+        const normalized = budgetData
+          .filter((row): row is BudgetItem => typeof row?.cost_code === "string" && row.cost_code.trim().length > 0)
+          .map((row) => ({
+            id: row.id,
+            cost_code: row.cost_code.trim(),
+            description: row.description ?? "",
+          }))
+          .filter((row) => {
+            if (seen.has(row.cost_code)) return false;
+            seen.add(row.cost_code);
+            return true;
+          });
+        setBudgetItems(normalized);
+      } else {
+        setBudgetItems([]);
+      }
       setLoading(false);
     });
   }, [projectId]);

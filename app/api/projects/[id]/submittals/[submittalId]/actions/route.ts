@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { sendSubmittalCreatedEmail } from "@/lib/email";
 
 type WorkflowStep = {
   step: number;
@@ -226,7 +227,64 @@ export async function POST(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
+
+    const workflowSteps = Array.isArray(existing.workflow_steps) ? (existing.workflow_steps as WorkflowStep[]) : [];
+    const workflowIds = workflowSteps.map((step) => step.person_id).filter(Boolean) as string[];
+
+    const contactIds = Array.from(new Set(workflowIds));
+    const contactMap = new Map<string, { name: string; email: string | null }>();
+    if (contactIds.length > 0) {
+      const { data: contacts } = await supabase
+        .from("directory_contacts")
+        .select("id, first_name, last_name, email")
+        .in("id", contactIds);
+      for (const c of contacts ?? []) {
+        const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "there";
+        contactMap.set(c.id, { name, email: c.email });
+      }
+    }
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select("name")
+      .eq("id", projectId)
+      .single();
+    const projectName = project?.name ?? "Unknown Project";
+    const submittalUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/projects/${projectId}/submittals/${submittalId}`;
+
+    const recipients: { name: string; email: string }[] = [];
+    const seenEmails = new Set<string>();
+    const addRecipient = (name: string, email: string | null) => {
+      if (!email) return;
+      const key = email.toLowerCase();
+      if (seenEmails.has(key)) return;
+      seenEmails.add(key);
+      recipients.push({ name, email });
+    };
+
+    const distributionList = Array.isArray(existing.distribution_list)
+      ? (existing.distribution_list as { id: string; name: string; email: string | null }[])
+      : [];
+    for (const entry of distributionList) addRecipient(entry.name, entry.email);
+    for (const personId of contactIds) {
+      const c = contactMap.get(personId);
+      if (c) addRecipient(c.name, c.email);
+    }
+
+    await Promise.allSettled(
+      recipients.map((recipient) =>
+        sendSubmittalCreatedEmail(
+          recipient.email,
+          recipient.name,
+          existing.submittal_number,
+          existing.title,
+          projectName,
+          submittalUrl
+        )
+      )
+    );
+
+    return NextResponse.json({ ...data, recipient_count: recipients.length });
   }
 
   if (action === "close") {

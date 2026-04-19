@@ -47,6 +47,7 @@ export async function GET() {
     project_id: string;
     project_name: string;
     created_at: string;
+    href: string;
   };
 
   const allItems: ActivityItem[] = [];
@@ -73,6 +74,7 @@ export async function GET() {
           project_id: row.project_id,
           project_name: projectMap.get(row.project_id) ?? "",
           created_at: row.created_at,
+          href: `/projects/${row.project_id}/rfis/${row.id}`,
         });
       }
     }
@@ -97,6 +99,7 @@ export async function GET() {
           project_id: row.project_id,
           project_name: projectMap.get(row.project_id) ?? "",
           created_at: row.created_at,
+          href: `/projects/${row.project_id}/submittals/${row.id}`,
         });
       }
     }
@@ -122,6 +125,7 @@ export async function GET() {
           project_id: row.project_id,
           project_name: projectMap.get(row.project_id) ?? "",
           created_at: row.created_at,
+          href: `/projects/${row.project_id}/documents`,
         });
       }
     }
@@ -146,6 +150,7 @@ export async function GET() {
           project_id: row.project_id,
           project_name: projectMap.get(row.project_id) ?? "",
           created_at: row.created_at,
+          href: `/projects/${row.project_id}/daily-log?date=${encodeURIComponent(row.log_date)}`,
         });
       }
     }
@@ -170,6 +175,7 @@ export async function GET() {
           project_id: row.project_id,
           project_name: projectMap.get(row.project_id) ?? "",
           created_at: row.created_at,
+          href: `/projects/${row.project_id}/tasks/${row.id}`,
         });
       }
     }
@@ -194,6 +200,7 @@ export async function GET() {
           project_id: row.project_id,
           project_name: projectMap.get(row.project_id) ?? "",
           created_at: row.created_at,
+          href: `/projects/${row.project_id}/drawings`,
         });
       }
     }

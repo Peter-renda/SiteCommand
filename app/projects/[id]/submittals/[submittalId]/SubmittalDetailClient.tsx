@@ -167,6 +167,7 @@ export default function SubmittalDetailClient({
   const [distOpen, setDistOpen] = useState(true);
   const [workflowOpen, setWorkflowOpen] = useState(true);
   const [generalOpen, setGeneralOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<"general" | "related" | "emails" | "history">("general");
   const [showAllRecipients, setShowAllRecipients] = useState(false);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -301,6 +302,15 @@ export default function SubmittalDetailClient({
     });
   }, [projectId, submittalId]);
 
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    if (menuOpen) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [menuOpen]);
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/");
@@ -372,7 +382,7 @@ export default function SubmittalDetailClient({
           </a>
           <span className="text-gray-300">/</span>
           <h1 className="text-sm font-semibold text-gray-900 truncate">
-            Submittal #{submittal.submittal_number}{submittal.revision ? `-${submittal.revision}` : ""}: {submittal.title}
+            Submittal #{submittal.submittal_number} Revision {submittal.revision ?? "0"}: {submittal.title}
           </h1>
           {submittal.private && (
             <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs flex-shrink-0">Private</span>
@@ -384,26 +394,90 @@ export default function SubmittalDetailClient({
           </span>
           {canEdit && (
             <>
-              <button onClick={() => runAction("duplicate")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Duplicate</button>
-              <button onClick={() => runAction("create_revision")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Create Revision</button>
-              <button onClick={() => runAction("close")} disabled={actionLoading !== null || submittal.status === "closed"} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Close</button>
-              <button onClick={() => runAction("distribute", { create_revision_upon_distribution: false })} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-50">Distribute</button>
-              <button onClick={() => runAction("redistribute")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Redistribute</button>
-              <button onClick={() => runAction(submittal.private ? "mark_public" : "mark_private")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">{submittal.private ? "Mark Public" : "Mark Private"}</button>
-              <button onClick={deleteSubmittal} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-300 rounded hover:bg-red-50 transition-colors disabled:opacity-50">Delete</button>
-              <a
-                href={`/projects/${projectId}/submittals/${submittal.id}/edit`}
-                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-              >
-                Edit
-              </a>
+              <button onClick={() => runAction("redistribute")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors disabled:opacity-50">Redistribute</button>
+              <button className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors">Export</button>
+              {!isEditing ? (
+                <button onClick={startEdit} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors">Edit</button>
+              ) : (
+                <>
+                  <button onClick={saveEdits} disabled={editSaving} className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-50">{editSaving ? "Saving..." : "Save"}</button>
+                  <button onClick={() => { setIsEditing(false); setEditValues(null); }} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">Cancel</button>
+                </>
+              )}
+              <div ref={menuRef} className="relative">
+                <button
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="px-2 py-1.5 text-xl leading-none text-gray-700 hover:text-gray-900"
+                  aria-label="More actions"
+                >
+                  ⋮
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 text-sm">
+                    <button onClick={() => runAction("create_revision")} className="w-full text-left px-3 py-2 hover:bg-gray-50">Create Revision</button>
+                    <button onClick={() => runAction("redistribute")} className="w-full text-left px-3 py-2 hover:bg-gray-50">Email</button>
+                    <button onClick={deleteSubmittal} className="w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">Delete</button>
+                    <button onClick={() => router.push(`/projects/${projectId}/submittals`)} className="w-full text-left px-3 py-2 hover:bg-gray-50">Create New Submittal</button>
+                    <button onClick={() => runAction("duplicate")} className="w-full text-left px-3 py-2 hover:bg-gray-50">Duplicate Submittal</button>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
       </div>
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <nav className="flex gap-0 -mb-px">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as "general" | "related" | "emails" | "history")}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? "border-gray-900 text-gray-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
+        {activeTab === "emails" && (
+          <div className="bg-white border border-gray-200 rounded-lg px-6 py-12 text-center">
+            <p className="text-sm text-gray-400">Email activity feed is coming soon.</p>
+          </div>
+        )}
 
+        {activeTab === "history" && (
+          <div className="bg-white border border-gray-200 rounded-lg px-6 py-12 text-center">
+            <p className="text-sm text-gray-400">Change history is coming soon.</p>
+          </div>
+        )}
+
+        {activeTab === "related" && (
+          <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Related Items</h3>
+            {(submittal.related_items ?? []).length === 0 ? (
+              <p className="text-sm text-gray-500">No related items added.</p>
+            ) : (
+              <ul className="space-y-2">
+                {(submittal.related_items ?? []).map((item, idx) => (
+                  <li key={`${item.href}-${idx}`} className="text-sm">
+                    <a href={item.href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{item.title || item.href}</a>
+                    <span className="text-gray-500"> · {item.type || "link"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {activeTab === "general" && (
+          <>
         {/* ── Distribution Summary ───────────────────────────────────────── */}
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <button
@@ -454,7 +528,13 @@ export default function SubmittalDetailClient({
               <div className="border-t border-gray-100 pt-4 flex gap-16">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-700 mb-1">Message</p>
-                  {submittal.description ? (
+                  {isEditing ? (
+                    <textarea
+                      value={editValues?.description ?? ""}
+                      onChange={(e) => setEditValues((prev) => ({ ...(prev ?? {}), description: e.target.value || null }))}
+                      className="w-full min-h-24 px-3 py-2 text-sm border border-gray-300 rounded-md"
+                    />
+                  ) : submittal.description ? (
                     <p className="text-sm text-gray-600 whitespace-pre-wrap">{submittal.description}</p>
                   ) : (
                     <p className="text-sm text-gray-400">--</p>
@@ -688,7 +768,15 @@ export default function SubmittalDetailClient({
               {/* Title */}
               <div className="py-4 border-b border-gray-100">
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Title</p>
-                <p className="text-sm text-blue-600 font-medium">{submittal.title}</p>
+                {isEditing ? (
+                  <input
+                    value={editValues?.title ?? ""}
+                    onChange={(e) => setEditValues((prev) => ({ ...(prev ?? {}), title: e.target.value }))}
+                    className="w-full max-w-xl px-3 py-2 text-sm border border-gray-300 rounded-md"
+                  />
+                ) : (
+                  <p className="text-sm text-blue-600 font-medium">{submittal.title}</p>
+                )}
               </div>
 
               {/* 4-column details grid */}
@@ -699,11 +787,31 @@ export default function SubmittalDetailClient({
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Number &amp; Revision</dt>
-                  <dd className="text-gray-700">{submittal.revision || "—"}</dd>
+                  <dd className="text-gray-700">
+                    {isEditing ? (
+                      <input
+                        value={editValues?.revision ?? ""}
+                        onChange={(e) => setEditValues((prev) => ({ ...(prev ?? {}), revision: e.target.value || null }))}
+                        className="w-24 px-2 py-1 border border-gray-300 rounded"
+                      />
+                    ) : (
+                      submittal.revision || "—"
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Submittal Type</dt>
-                  <dd className="text-gray-700">{submittal.submittal_type || "—"}</dd>
+                  <dd className="text-gray-700">
+                    {isEditing ? (
+                      <input
+                        value={editValues?.submittal_type ?? ""}
+                        onChange={(e) => setEditValues((prev) => ({ ...(prev ?? {}), submittal_type: e.target.value || null }))}
+                        className="w-full px-2 py-1 border border-gray-300 rounded"
+                      />
+                    ) : (
+                      submittal.submittal_type || "—"
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Submittal Package</dt>
@@ -724,12 +832,35 @@ export default function SubmittalDetailClient({
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Status</dt>
-                  <dd className="text-gray-700">{statusLabel}</dd>
+                  <dd className="text-gray-700">
+                    {isEditing ? (
+                      <select
+                        value={String(editValues?.status ?? submittal.status)}
+                        onChange={(e) => setEditValues((prev) => ({ ...(prev ?? {}), status: e.target.value }))}
+                        className="w-full px-2 py-1 border border-gray-300 rounded"
+                      >
+                        {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      statusLabel
+                    )}
+                  </dd>
                 </div>
 
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Submit By</dt>
-                  <dd className="text-gray-700">{formatDate(submittal.submit_by)}</dd>
+                  <dd className="text-gray-700">
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={String(editValues?.submit_by ?? "")}
+                        onChange={(e) => setEditValues((prev) => ({ ...(prev ?? {}), submit_by: e.target.value || null }))}
+                        className="w-full px-2 py-1 border border-gray-300 rounded"
+                      />
+                    ) : formatDate(submittal.submit_by)}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Received Date</dt>
@@ -737,7 +868,16 @@ export default function SubmittalDetailClient({
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Issue Date</dt>
-                  <dd className="text-gray-700">{formatDate(submittal.issue_date)}</dd>
+                  <dd className="text-gray-700">
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={String(editValues?.issue_date ?? "")}
+                        onChange={(e) => setEditValues((prev) => ({ ...(prev ?? {}), issue_date: e.target.value || null }))}
+                        className="w-full px-2 py-1 border border-gray-300 rounded"
+                      />
+                    ) : formatDate(submittal.issue_date)}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Final Due Date</dt>
@@ -746,7 +886,17 @@ export default function SubmittalDetailClient({
 
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Cost Code</dt>
-                  <dd className="text-gray-700">{submittal.cost_code || "—"}</dd>
+                  <dd className="text-gray-700">
+                    {isEditing ? (
+                      <input
+                        value={editValues?.cost_code ?? ""}
+                        onChange={(e) => setEditValues((prev) => ({ ...(prev ?? {}), cost_code: e.target.value || null }))}
+                        className="w-full px-2 py-1 border border-gray-300 rounded"
+                      />
+                    ) : (
+                      submittal.cost_code || "—"
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Location</dt>
@@ -754,7 +904,17 @@ export default function SubmittalDetailClient({
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Linked Drawings</dt>
-                  <dd className="text-gray-700">{submittal.linked_drawings || "—"}</dd>
+                  <dd className="text-gray-700">
+                    {isEditing ? (
+                      <input
+                        value={editValues?.linked_drawings ?? ""}
+                        onChange={(e) => setEditValues((prev) => ({ ...(prev ?? {}), linked_drawings: e.target.value || null }))}
+                        className="w-full px-2 py-1 border border-gray-300 rounded"
+                      />
+                    ) : (
+                      submittal.linked_drawings || "—"
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Distribution List</dt>
@@ -791,23 +951,8 @@ export default function SubmittalDetailClient({
             </div>
           )}
         </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Related Items</h3>
-          {(submittal.related_items ?? []).length === 0 ? (
-            <p className="text-sm text-gray-500">No related items added.</p>
-          ) : (
-            <ul className="space-y-2">
-              {(submittal.related_items ?? []).map((item, idx) => (
-                <li key={`${item.href}-${idx}`} className="text-sm">
-                  <a href={item.href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{item.title || item.href}</a>
-                  <span className="text-gray-500"> · {item.type || "link"}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
+          </>
+        )}
       </main>
 
       {responseModal && (

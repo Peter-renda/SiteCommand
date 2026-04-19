@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import { Skeleton } from "@/app/components/Skeleton";
 
@@ -23,6 +24,10 @@ function shiftDay(iso: string, n: number) {
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function isValidISODate(value: string | null): value is string {
+  return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 function calcDurationHours(start: string, end: string): string {
@@ -834,8 +839,12 @@ export default function DailyLogClient({
   role: string;
   username: string;
 }) {
-  const [date, setDate] = useState(todayISO());
-  const [form, setForm] = useState<LogForm>(emptyForm(todayISO()));
+  const searchParams = useSearchParams();
+  const requestedDate = searchParams.get("date");
+  const initialDate = isValidISODate(requestedDate) ? requestedDate : todayISO();
+
+  const [date, setDate] = useState(initialDate);
+  const [form, setForm] = useState<LogForm>(emptyForm(initialDate));
   const [logId, setLogId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -843,7 +852,7 @@ export default function DailyLogClient({
   const [savedOnce, setSavedOnce] = useState(false);
   const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
 
-  const formRef = useRef<LogForm>(emptyForm(todayISO()));
+  const formRef = useRef<LogForm>(emptyForm(initialDate));
   const logIdRef = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
