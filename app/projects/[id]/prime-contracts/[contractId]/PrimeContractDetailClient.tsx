@@ -229,7 +229,9 @@ export default function PrimeContractDetailClient({
   const [executedFilters, setExecutedFilters] = useState<string[]>([]);
   const [reasonFilters, setReasonFilters] = useState<string[]>([]);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/prime-contracts/${contractId}`)
@@ -274,6 +276,17 @@ export default function PrimeContractDetailClient({
     container.addEventListener("scroll", handleScroll, { passive: true });
     return () => container.removeEventListener("scroll", handleScroll);
   }, [tab]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (!filterMenuRef.current?.contains(e.target as Node)) {
+        setFilterMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   function scrollToSection(id: string) {
     setActiveSection(id);
@@ -366,6 +379,12 @@ export default function PrimeContractDetailClient({
     if (typeFilters.length > 0 && !typeFilters.includes(String(co.prime_contract_change_order || "").trim())) return false;
     return true;
   });
+
+  function toggleFilterValue(value: string, selected: string[], setSelected: React.Dispatch<React.SetStateAction<string[]>>) {
+    setSelected((prev) => (prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]));
+  }
+
+  const activeFilterCount = statusFilters.length + executedFilters.length + reasonFilters.length + typeFilters.length;
 
   function sortHeaderButton(label: string, sortKey: ChangeOrderSortKey, align: "left" | "right" = "left") {
     const active = changeOrderSort.key === sortKey;
@@ -659,57 +678,44 @@ export default function PrimeContractDetailClient({
               </button>
             </div>
             <div className="px-8 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
-              <select
-                value=""
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val && !statusFilters.includes(val)) setStatusFilters((prev) => [...prev, val]);
-                }}
-                className="px-2 py-1 text-xs border border-gray-300 rounded"
-              >
-                <option value="">Add Filter: Status</option>
-                {statusOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-              <select
-                value=""
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val && !executedFilters.includes(val)) setExecutedFilters((prev) => [...prev, val]);
-                }}
-                className="px-2 py-1 text-xs border border-gray-300 rounded"
-              >
-                <option value="">Add Filter: Executed</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-              </select>
-              <select
-                value=""
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val && !reasonFilters.includes(val)) setReasonFilters((prev) => [...prev, val]);
-                }}
-                className="px-2 py-1 text-xs border border-gray-300 rounded"
-              >
-                <option value="">Add Filter: Change Reason</option>
-                {changeReasonOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-              <select
-                value=""
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val && !typeFilters.includes(val)) setTypeFilters((prev) => [...prev, val]);
-                }}
-                className="px-2 py-1 text-xs border border-gray-300 rounded"
-              >
-                <option value="">Add Filter: Change Type</option>
-                {changeTypeOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
+              <div className="relative" ref={filterMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setFilterMenuOpen((open) => !open)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                >
+                  Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${filterMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {filterMenuOpen && (
+                  <div className="absolute z-20 mt-1 w-72 rounded-md border border-gray-200 bg-white shadow-lg p-3 space-y-3">
+                    <FilterSection
+                      label="Status"
+                      options={statusOptions}
+                      selected={statusFilters}
+                      onToggle={(value) => toggleFilterValue(value, statusFilters, setStatusFilters)}
+                    />
+                    <FilterSection
+                      label="Executed"
+                      options={["Yes", "No"]}
+                      selected={executedFilters}
+                      onToggle={(value) => toggleFilterValue(value, executedFilters, setExecutedFilters)}
+                    />
+                    <FilterSection
+                      label="Change Reason"
+                      options={changeReasonOptions}
+                      selected={reasonFilters}
+                      onToggle={(value) => toggleFilterValue(value, reasonFilters, setReasonFilters)}
+                    />
+                    <FilterSection
+                      label="Change Type"
+                      options={changeTypeOptions}
+                      selected={typeFilters}
+                      onToggle={(value) => toggleFilterValue(value, typeFilters, setTypeFilters)}
+                    />
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setStatusFilters([]);
@@ -821,6 +827,42 @@ export default function PrimeContractDetailClient({
           </div>
         )}
 
+      </div>
+    </div>
+  );
+}
+
+function FilterSection({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  if (options.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{label}</p>
+      <div className="max-h-32 overflow-y-auto border border-gray-100 rounded">
+        {options.map((option) => (
+          <label
+            key={option}
+            className="flex items-center gap-2 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              checked={selected.includes(option)}
+              onChange={() => onToggle(option)}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+            />
+            <span>{option}</span>
+          </label>
+        ))}
       </div>
     </div>
   );
