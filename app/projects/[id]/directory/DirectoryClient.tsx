@@ -533,6 +533,10 @@ export default function DirectoryClient({
   // Collapsed company groups
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
+  // Selected contacts
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
   // Three-dot menu
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -703,6 +707,33 @@ export default function DirectoryClient({
     });
   }
 
+  function toggleAllGroups() {
+    const allGroupKeys = [
+      ...companyNamesOrdered,
+      ...(usersNoCompany.length > 0 ? ["__no_company__"] : []),
+    ];
+    const allCollapsed = allGroupKeys.length > 0 && allGroupKeys.every(k => collapsedGroups.has(k));
+    setCollapsedGroups(allCollapsed ? new Set() : new Set(allGroupKeys));
+  }
+
+  function toggleSelectContact(id: string) {
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectGroup(ids: string[]) {
+    const allGroupSelected = ids.length > 0 && ids.every(id => selectedContacts.has(id));
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      if (allGroupSelected) { ids.forEach(id => next.delete(id)); }
+      else { ids.forEach(id => next.add(id)); }
+      return next;
+    });
+  }
+
   // ── Filter ──────────────────────────────────────────────────────────────────
   const q = search.toLowerCase().trim();
   const filtered = contacts.filter((c) => {
@@ -756,6 +787,24 @@ export default function DirectoryClient({
 
   const usersNoCompany = users.filter((u) => !u.company);
   const totalCount = filtered.length;
+
+  const allGroupKeys = [
+    ...companyNamesOrdered,
+    ...(usersNoCompany.length > 0 ? ["__no_company__"] : []),
+  ];
+  const allGroupsCollapsed = allGroupKeys.length > 0 && allGroupKeys.every(k => collapsedGroups.has(k));
+
+  const allSelectableIds = filtered.map(c => c.id);
+  const allSelected = allSelectableIds.length > 0 && allSelectableIds.every(id => selectedContacts.has(id));
+  const someSelected = allSelectableIds.some(id => selectedContacts.has(id));
+
+  // Sync header checkbox indeterminate state
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (headerCheckboxRef.current) {
+      headerCheckboxRef.current.indeterminate = someSelected && !allSelected;
+    }
+  });
 
   // All known company name strings (for datalist in modal)
   const allCompanyNames = [...new Set(contacts.filter((c) => c.company).map((c) => c.company as string))];
@@ -874,9 +923,33 @@ export default function DirectoryClient({
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="w-8 px-3 py-2.5" />
+                  <th className="w-8 px-3 py-2.5">
+                    {activeTab === "all" && allGroupKeys.length > 0 && (
+                      <button
+                        onClick={toggleAllGroups}
+                        title={allGroupsCollapsed ? "Expand all" : "Collapse all"}
+                        className="text-gray-400 hover:text-gray-700 transition-colors"
+                      >
+                        <svg className={`w-4 h-4 transition-transform ${allGroupsCollapsed ? "-rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    )}
+                  </th>
                   <th className="w-8 px-1 py-2.5">
-                    <input type="checkbox" className="rounded border-gray-300" readOnly />
+                    <input
+                      ref={headerCheckboxRef}
+                      type="checkbox"
+                      className="rounded border-gray-300 cursor-pointer"
+                      checked={allSelected}
+                      onChange={() => {
+                        if (allSelected) {
+                          setSelectedContacts(new Set());
+                        } else {
+                          setSelectedContacts(new Set(allSelectableIds));
+                        }
+                      }}
+                    />
                   </th>
                   <th className="px-3 py-2.5 text-left">
                     <button
@@ -908,7 +981,12 @@ export default function DirectoryClient({
                   <tr key={ce.id} className="hover:bg-blue-50/30 transition-colors border-b border-gray-100 last:border-b-0">
                     <td className="px-3 py-3" />
                     <td className="px-1 py-3">
-                      <input type="checkbox" className="rounded border-gray-300 cursor-pointer" readOnly />
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 cursor-pointer"
+                        checked={selectedContacts.has(ce.id)}
+                        onChange={() => toggleSelectContact(ce.id)}
+                      />
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2.5">
@@ -954,6 +1032,12 @@ export default function DirectoryClient({
                   const collapsed = collapsedGroups.has(companyName);
                   const isEmpty = members.length === 0;
 
+                  const groupIds = [
+                    ...(companyEntry ? [companyEntry.id] : []),
+                    ...members.map(m => m.id),
+                  ];
+                  const groupAllSelected = groupIds.length > 0 && groupIds.every(id => selectedContacts.has(id));
+
                   return [
                     // Company group header row
                     <tr key={`group-${companyName}`} className="bg-gray-50 border-b border-gray-200">
@@ -966,7 +1050,12 @@ export default function DirectoryClient({
                         </button>
                       </td>
                       <td className="px-1 py-2">
-                        <input type="checkbox" className="rounded border-gray-300" readOnly />
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 cursor-pointer"
+                          checked={groupAllSelected}
+                          onChange={() => toggleSelectGroup(groupIds)}
+                        />
                       </td>
                       <td colSpan={7} className="px-3 py-2">
                         <div className="flex items-center gap-2">
@@ -1024,6 +1113,8 @@ export default function DirectoryClient({
                         onMenuClose={() => { setOpenMenuId(null); setMenuPos(null); }}
                         onEdit={(contact) => setEditTarget(contact)}
                         indent
+                        selected={selectedContacts.has(c.id)}
+                        onToggleSelect={toggleSelectContact}
                       />
                     )) : []),
                   ];
@@ -1041,7 +1132,12 @@ export default function DirectoryClient({
                         </button>
                       </td>
                       <td className="px-1 py-2">
-                        <input type="checkbox" className="rounded border-gray-300" readOnly />
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 cursor-pointer"
+                          checked={usersNoCompany.length > 0 && usersNoCompany.every(u => selectedContacts.has(u.id))}
+                          onChange={() => toggleSelectGroup(usersNoCompany.map(u => u.id))}
+                        />
                       </td>
                       <td colSpan={7} className="px-3 py-2">
                         <span className="text-sm font-semibold text-gray-500">No Company</span>
@@ -1064,6 +1160,8 @@ export default function DirectoryClient({
                         onMenuClose={() => { setOpenMenuId(null); setMenuPos(null); }}
                         onEdit={(contact) => setEditTarget(contact)}
                         indent={false}
+                        selected={selectedContacts.has(c.id)}
+                        onToggleSelect={toggleSelectContact}
                       />
                     ))}
                   </>
@@ -1081,7 +1179,12 @@ export default function DirectoryClient({
                       <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-3 py-3" />
                         <td className="px-1 py-3">
-                          <input type="checkbox" className="rounded border-gray-300" readOnly />
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 cursor-pointer"
+                            checked={selectedContacts.has(c.id)}
+                            onChange={() => toggleSelectContact(c.id)}
+                          />
                         </td>
                         <td className="px-3 py-3 font-medium text-gray-900">{c.group_name}</td>
                         <td className="px-3 py-3 text-gray-500" />
@@ -1192,6 +1295,8 @@ function PersonRow({
   onMenuClose,
   onEdit,
   indent,
+  selected,
+  onToggleSelect,
 }: {
   c: Contact;
   displayName: string;
@@ -1203,6 +1308,8 @@ function PersonRow({
   onMenuClose: () => void;
   onEdit: (c: Contact) => void;
   indent: boolean;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
 }) {
   const alreadyInvited = invitedIds.has(c.id);
   const sending = invitingId === c.id;
@@ -1214,7 +1321,12 @@ function PersonRow({
 
       {/* Checkbox */}
       <td className="px-1 py-3">
-        <input type="checkbox" className="rounded border-gray-300 cursor-pointer" readOnly />
+        <input
+          type="checkbox"
+          className="rounded border-gray-300 cursor-pointer"
+          checked={selected}
+          onChange={() => onToggleSelect(c.id)}
+        />
       </td>
 
       {/* Name + avatar */}
