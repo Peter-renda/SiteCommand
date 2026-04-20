@@ -38,7 +38,7 @@ export async function PATCH(
   const body = await req.json();
 
   const allowed = [
-    "title", "status", "punch_item_manager_id", "type", "assignees",
+    "item_number", "title", "status", "punch_item_manager_id", "type", "assignees",
     "due_date", "final_approver_id", "distribution_list", "location",
     "priority", "trade", "reference", "schedule_impact", "cost_impact",
     "cost_codes", "private", "description", "attachments",
@@ -46,6 +46,25 @@ export async function PATCH(
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) update[key] = body[key] ?? null;
+  }
+
+  if ("title" in update) {
+    const trimmedTitle = (update.title ?? "").toString().trim();
+    if (!trimmedTitle) return NextResponse.json({ error: "Title is required." }, { status: 400 });
+    update.title = trimmedTitle;
+  }
+  if ("item_number" in update) {
+    const parsed = Number(update.item_number);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return NextResponse.json({ error: "Number is required and must be a whole number." }, { status: 400 });
+    }
+    update.item_number = parsed;
+  }
+  if ("punch_item_manager_id" in update && !update.punch_item_manager_id) {
+    return NextResponse.json({ error: "Punch item manager is required." }, { status: 400 });
+  }
+  if ("final_approver_id" in update && !update.final_approver_id) {
+    return NextResponse.json({ error: "Final approver is required." }, { status: 400 });
   }
 
   const supabase = getSupabase();

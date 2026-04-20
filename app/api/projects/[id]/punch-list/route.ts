@@ -62,13 +62,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } = body;
 
   const resolvedNumber = (item_number && Number.isInteger(Number(item_number))) ? Number(item_number) : autoNumber;
+  const trimmedTitle = (title ?? "").toString().trim();
+
+  if (!trimmedTitle) {
+    return NextResponse.json({ error: "Title is required." }, { status: 400 });
+  }
+  if (!Number.isInteger(resolvedNumber) || resolvedNumber <= 0) {
+    return NextResponse.json({ error: "Number is required and must be a whole number." }, { status: 400 });
+  }
+  if (!punch_item_manager_id) {
+    return NextResponse.json({ error: "Punch item manager is required." }, { status: 400 });
+  }
+  if (!final_approver_id) {
+    return NextResponse.json({ error: "Final approver is required." }, { status: 400 });
+  }
 
   const { data, error } = await supabase
     .from("punch_list_items")
     .insert({
       project_id: projectId,
       item_number: resolvedNumber,
-      title: (title ?? "").toString().trim() || "Untitled",
+      title: trimmedTitle,
       status: status || "open",
       punch_item_manager_id: punch_item_manager_id || null,
       type: type || null,
