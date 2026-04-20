@@ -260,6 +260,9 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
                 <p className="mb-2 text-gray-500">Select a format based on the region your project is set to.</p>
                 <select className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-gray-700 outline-none focus:border-gray-500">
                   <option>Select a format</option>
+                  <option>MasterFormat, by CSI (USA/Canada)</option>
+                  <option>NCS, by NATSPEC (Australia)</option>
+                  <option>No Format/Other</option>
                 </select>
               </div>
 
