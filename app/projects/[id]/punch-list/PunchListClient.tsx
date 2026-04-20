@@ -199,33 +199,40 @@ function CostCodePicker({
 }
 
 function CreatePunchListModal({
-  nextNumber, directory, budgetItems, onConfirm, onCancel,
+  nextNumber, directory, budgetItems, onConfirm, onCancel, mode = "create", initialItem,
 }: {
   nextNumber: number;
   directory: DirectoryContact[];
   budgetItems: BudgetItem[];
   onConfirm: (data: Record<string, unknown>) => void;
   onCancel: () => void;
+  mode?: "create" | "edit";
+  initialItem?: PunchListItem | null;
 }) {
-  const [itemNumber, setItemNumber] = useState(String(nextNumber));
-  const [title, setTitle] = useState("");
-  const [punchItemManagerId, setPunchItemManagerId] = useState<string | null>(null);
-  const [type, setType] = useState("");
-  const [assignees, setAssignees] = useState<DirContact[]>([]);
-  const [dueDate, setDueDate] = useState("");
-  const [finalApproverId, setFinalApproverId] = useState<string | null>(null);
-  const [distributionList, setDistributionList] = useState<DirContact[]>([]);
-  const [location, setLocation] = useState("");
-  const [priority, setPriority] = useState("");
-  const [trade, setTrade] = useState("");
-  const [reference, setReference] = useState("");
-  const [scheduleImpact, setScheduleImpact] = useState("");
-  const [costImpact, setCostImpact] = useState("");
-  const [selectedCostCodes, setSelectedCostCodes] = useState<string[]>([]);
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [description, setDescription] = useState("");
+  const [itemNumber, setItemNumber] = useState(String(initialItem?.item_number ?? nextNumber));
+  const [title, setTitle] = useState(initialItem?.title ?? "");
+  const [punchItemManagerId, setPunchItemManagerId] = useState<string | null>(initialItem?.punch_item_manager_id ?? null);
+  const [type, setType] = useState(initialItem?.type ?? "");
+  const [assignees, setAssignees] = useState<DirContact[]>(initialItem?.assignees ?? []);
+  const [dueDate, setDueDate] = useState(initialItem?.due_date ?? "");
+  const [finalApproverId, setFinalApproverId] = useState<string | null>(initialItem?.final_approver_id ?? null);
+  const [distributionList, setDistributionList] = useState<DirContact[]>(initialItem?.distribution_list ?? []);
+  const [location, setLocation] = useState(initialItem?.location ?? "");
+  const [priority, setPriority] = useState(initialItem?.priority ?? "");
+  const [trade, setTrade] = useState(initialItem?.trade ?? "");
+  const [reference, setReference] = useState(initialItem?.reference ?? "");
+  const [scheduleImpact, setScheduleImpact] = useState(initialItem?.schedule_impact ?? "");
+  const [costImpact, setCostImpact] = useState(initialItem?.cost_impact ?? "");
+  const [selectedCostCodes, setSelectedCostCodes] = useState<string[]>(
+    initialItem?.cost_codes
+      ? initialItem.cost_codes.split(",").map((code) => code.trim()).filter(Boolean)
+      : []
+  );
+  const [isPrivate, setIsPrivate] = useState(initialItem?.private ?? false);
+  const [description, setDescription] = useState(initialItem?.description ?? "");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const usersOnly = directory.filter((c) => c.type === "user");
@@ -243,11 +250,30 @@ function CreatePunchListModal({
     };
   }
 
+  function validateForm() {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return "Title is required.";
+    if (!itemNumber || !Number.isInteger(Number(itemNumber)) || Number(itemNumber) <= 0) return "Number is required and must be a whole number.";
+    if (!punchItemManagerId) return "Punch item manager is required.";
+    if (!finalApproverId) return "Final approver is required.";
+    return null;
+  }
+
+  function handleSubmit() {
+    const error = validateForm();
+    if (error) {
+      setFormError(error);
+      return;
+    }
+    setFormError(null);
+    onConfirm(buildData());
+  }
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-6 overflow-y-auto">
       <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl my-auto max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
-          <h2 className="text-sm font-semibold text-gray-900">New Punch List Item</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{mode === "edit" ? "Edit Punch List Item" : "New Punch List Item"}</h2>
           <button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
@@ -390,8 +416,11 @@ function CreatePunchListModal({
 
           {/* Actions */}
           <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
+            {formError && <p className="mr-auto text-sm text-red-600">{formError}</p>}
             <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="button" onClick={() => onConfirm(buildData())} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create</button>
+            <button type="button" onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">
+              {mode === "edit" ? "Save" : "Create"}
+            </button>
           </div>
         </div>
       </div>
@@ -429,6 +458,8 @@ export default function PunchListClient({ projectId, role, username, userId }: {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editingItem, setEditingItem] = useState<PunchListItem | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -487,6 +518,32 @@ export default function PunchListClient({ projectId, role, username, userId }: {
     setCreating(false);
   }
 
+  async function handleUpdate(data: Record<string, unknown>) {
+    if (!editingItem) return;
+    setUpdating(true);
+    const { attachmentFile, ...rest } = data;
+    const res = await fetch(`/api/projects/${projectId}/punch-list/${editingItem.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rest),
+    });
+    if (res.ok) {
+      const updated: PunchListItem = await res.json();
+      if (attachmentFile instanceof File) {
+        const formData = new FormData();
+        formData.append("file", attachmentFile);
+        const attRes = await fetch(`/api/projects/${projectId}/punch-list/${updated.id}/attachment`, { method: "POST", body: formData });
+        if (attRes.ok) {
+          const attData = await attRes.json();
+          updated.attachments = attData.attachments ?? [];
+        }
+      }
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setEditingItem(null);
+    }
+    setUpdating(false);
+  }
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
@@ -512,7 +569,7 @@ export default function PunchListClient({ projectId, role, username, userId }: {
               <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               Export as PDF
             </button>
-            <button onClick={() => setShowCreate(true)} disabled={creating} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
+            <button onClick={() => setShowCreate(true)} disabled={creating || updating} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
               {creating ? "Creating..." : "Create item"}
             </button>
@@ -557,9 +614,14 @@ export default function PunchListClient({ projectId, role, username, userId }: {
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 cursor-pointer"
                   >
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <a href={`/projects/${projectId}/punch-list/${item.id}`} className="inline-flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => setEditingItem(item)}
+                        className="inline-flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                        aria-label={`Edit punch list item ${item.item_number}`}
+                      >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                      </a>
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-sm font-mono text-gray-700">{item.item_number}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{item.title}</td>
@@ -592,6 +654,17 @@ export default function PunchListClient({ projectId, role, username, userId }: {
           budgetItems={budgetItems}
           onConfirm={handleCreate}
           onCancel={() => setShowCreate(false)}
+        />
+      )}
+      {editingItem && (
+        <CreatePunchListModal
+          nextNumber={editingItem.item_number}
+          directory={directory}
+          budgetItems={budgetItems}
+          mode="edit"
+          initialItem={editingItem}
+          onConfirm={handleUpdate}
+          onCancel={() => setEditingItem(null)}
         />
       )}
     </div>
