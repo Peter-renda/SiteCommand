@@ -40,6 +40,16 @@ type Submittal = {
   description: string | null;
   attachments: { name: string; url: string }[];
   distributed_at?: string | null;
+  workflow_steps?: {
+    step: number;
+    person_id: string | null;
+    role: string;
+    sent_date?: string | null;
+    returned_date?: string | null;
+    response?: string | null;
+  }[];
+  location?: string | null;
+  schedule_task?: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -127,6 +137,24 @@ function getSpecName(specifications: Specification[], id: string | null): string
   if (!id) return "—";
   const s = specifications.find((x) => x.id === id);
   return s ? s.name + (s.code ? ` (${s.code})` : "") : "—";
+}
+
+function summarizeApprovers(directory: DirectoryContact[], steps: Submittal["workflow_steps"]): string {
+  const approverIds = (steps ?? [])
+    .filter((step) => step.person_id && step.role?.toLowerCase().includes("approver"))
+    .map((step) => step.person_id as string);
+  if (approverIds.length === 0) return "—";
+  const names = approverIds
+    .map((id) => getContactNameById(directory, id))
+    .filter((name) => name !== "—");
+  if (names.length === 0) return "—";
+  return Array.from(new Set(names)).join(", ");
+}
+
+function latestWorkflowResponse(steps: Submittal["workflow_steps"]) {
+  const withResponse = (steps ?? []).filter((step) => step.response || step.sent_date || step.returned_date);
+  if (withResponse.length === 0) return null;
+  return [...withResponse].sort((a, b) => (b.step ?? 0) - (a.step ?? 0))[0];
 }
 function MultiContactPicker({
   directory, selected, onChange, placeholder = "Search directory...", filterType,
@@ -1163,7 +1191,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
           </div>
         ) : (
           <div className="bg-white border border-gray-100 rounded-xl overflow-x-auto">
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[2200px]">
               <thead>
                 <tr className="border-b border-gray-100">
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider w-10">
@@ -1174,17 +1202,30 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                     />
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">#</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Rev.</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Title</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Specification</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Manager</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Responsible Contractor</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Submit By</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Final Due</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Received From</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Received Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Ball In Court</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Approvers</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Response</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Sent Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Returned Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Final Due Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Distributed Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Location</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Created At</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Schedule Task</th>
                 </tr>
               </thead>
               <tbody>
-                {submittals.map((s) => (
+                {submittals.map((s) => {
+                  const latestResponse = latestWorkflowResponse(s.workflow_steps);
+                  return (
                   <tr
                     key={s.id}
                     onClick={(e) => { if ((e.target as HTMLElement).closest("button,a")) return; window.location.href = `/projects/${projectId}/submittals/${s.id}`; }}
@@ -1205,7 +1246,8 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </a>
                     </td>
-                    <td className="px-4 py-3 text-sm font-mono text-gray-700">{s.submittal_number}{s.revision ? `-${s.revision}` : ""}</td>
+                    <td className="px-4 py-3 text-sm font-mono text-gray-700">{s.submittal_number}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{s.revision ?? "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{s.title}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{s.submittal_type ?? "—"}</td>
                     <td className="px-4 py-3">
@@ -1213,12 +1255,23 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                         {STATUS_LABELS[s.status] ?? s.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{getSpecName(specifications, s.specification_id)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, s.submittal_manager_id)}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{formatDate(s.submit_by)}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{formatDate(s.final_due_date)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, s.responsible_contractor_id)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(s.submit_by)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, s.received_from_id)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(s.received_date)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, s.ball_in_court_id)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{summarizeApprovers(directory, s.workflow_steps)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{latestResponse?.response ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(latestResponse?.sent_date ?? null)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(latestResponse?.returned_date ?? null)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(s.final_due_date)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(s.distributed_at ? s.distributed_at.slice(0, 10) : null)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{s.location ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{s.schedule_task ?? "—"}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
