@@ -315,6 +315,7 @@ function DrawingPdfViewerModal({
   projectId,
   userRole,
   userName,
+  userId,
 }: {
   drawing: DrawingPage;
   allDrawings: DrawingPage[];
@@ -324,6 +325,7 @@ function DrawingPdfViewerModal({
   projectId: string;
   userRole: string;
   userName: string;
+  userId: string;
 }) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const safeViewerPage = drawing.viewer_page > 0 ? drawing.viewer_page : 1;
@@ -382,8 +384,12 @@ function DrawingPdfViewerModal({
         const data: AnnotationSet[] = await res.json();
         allAnnotationsRef.current = data;
         setAllAnnotations(data);
-        const myRecords = data.filter((a) => a.created_by_name === userName);
-        const myRecord = myRecords.find((a) => a.created_by !== null) ?? myRecords[0];
+        // Match by UUID first so username changes don't orphan records; fall back to
+        // name match for legacy rows written with created_by = NULL.
+        const myRecord =
+          data.find((a) => a.created_by === userId) ??
+          data.find((a) => a.created_by === null && a.created_by_name === userName) ??
+          data.find((a) => a.created_by_name === userName);
         if (myRecord && Array.isArray(myRecord.annotation_data)) {
           strokesRef.current = myRecord.annotation_data;
           setStrokes(myRecord.annotation_data);
@@ -397,7 +403,7 @@ function DrawingPdfViewerModal({
     }
     fetchAnnotations();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [annotationsLoaded, drawing.id, projectId, userName]);
+  }, [annotationsLoaded, drawing.id, projectId, userName, userId]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const previewSurfaceRef = useRef<HTMLDivElement>(null);
@@ -758,9 +764,11 @@ function DrawingPdfViewerModal({
       if (res.ok) {
         setSaveMsg("Saved ✓");
         setTimeout(() => setSaveMsg(null), 3000);
-        const updated = allAnnotationsRef.current.some((a) => a.created_by_name === userName)
-          ? allAnnotationsRef.current.map((a) => a.created_by_name === userName ? { ...a, annotation_data: toSave } : a)
-          : [...allAnnotationsRef.current, { created_by: "", created_by_name: userName, role: userRole, annotation_data: toSave }];
+        const isMine = (a: AnnotationSet) =>
+          a.created_by === userId || (a.created_by === null && a.created_by_name === userName);
+        const updated = allAnnotationsRef.current.some(isMine)
+          ? allAnnotationsRef.current.map((a) => isMine(a) ? { ...a, created_by: userId, created_by_name: userName, annotation_data: toSave } : a)
+          : [...allAnnotationsRef.current, { created_by: userId, created_by_name: userName, role: userRole, annotation_data: toSave }];
         allAnnotationsRef.current = updated;
         setAllAnnotations(updated);
       } else {
@@ -968,10 +976,12 @@ export default function DrawingsClient({
   projectId,
   role,
   username,
+  userId,
 }: {
   projectId: string;
   role: string;
   username: string;
+  userId: string;
 }) {
   const [drawings, setDrawings] = useState<DrawingPage[]>([]);
   const [uploads, setUploads] = useState<DrawingUpload[]>([]);
@@ -1375,6 +1385,7 @@ export default function DrawingsClient({
           projectId={projectId}
           userRole={role}
           userName={username}
+          userId={userId}
         />
       )}
 

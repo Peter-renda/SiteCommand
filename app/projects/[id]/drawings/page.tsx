@@ -7,5 +7,5 @@ export default async function DrawingsPage({ params }: { params: Promise<{ id: s
   if (!session) redirect("/login");
 
   const { id } = await params;
-  return <DrawingsClient projectId={id} role={session.role} username={session.username} />;
+  return <DrawingsClient projectId={id} role={session.role} username={session.username} userId={session.id} />;
 }

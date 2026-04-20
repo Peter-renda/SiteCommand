@@ -58,7 +58,7 @@ export async function POST(
   if (existing) {
     const { data, error } = await supabase
       .from("drawing_annotations")
-      .update({ annotation_data, role, updated_at: now })
+      .update({ annotation_data, role, created_by_name: username, updated_at: now })
       .eq("id", existing.id)
       .select()
       .single();
