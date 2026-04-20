@@ -10,6 +10,11 @@ type Specification = {
   code: string | null;
 };
 
+type Division = {
+  number: string;
+  description: string;
+};
+
 type TopTab = "specifications" | "all-revisions" | "recycle-bin";
 
 export default function SpecificationsClient({ projectId }: { projectId: string }) {
@@ -18,8 +23,16 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<TopTab>("specifications");
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showCreateDivisionModal, setShowCreateDivisionModal] = useState(false);
+  const [showCreateSpecificationModal, setShowCreateSpecificationModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([{ number: "100", description: "Unclassified" }]);
+  const [newDivisionNumber, setNewDivisionNumber] = useState("");
+  const [newDivisionDescription, setNewDivisionDescription] = useState("");
+  const [newSpecificationDivision, setNewSpecificationDivision] = useState("100");
+  const [newSpecificationNumber, setNewSpecificationNumber] = useState("");
+  const [newSpecificationDescription, setNewSpecificationDescription] = useState("");
 
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -40,6 +53,23 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
       mounted = false;
     };
   }, [projectId]);
+
+  useEffect(() => {
+    setDivisions((current) => {
+      const seenNumbers = new Set(current.map((division) => division.number));
+      const inferredDivisions: Division[] = [];
+      specifications.forEach((spec) => {
+        const match = spec.code?.match(/^\s*(\d{3})/);
+        if (!match) return;
+        const number = match[1];
+        if (seenNumbers.has(number)) return;
+        seenNumbers.add(number);
+        inferredDivisions.push({ number, description: `Division ${number}` });
+      });
+      if (inferredDivisions.length === 0) return current;
+      return [...current, ...inferredDivisions].sort((a, b) => a.number.localeCompare(b.number));
+    });
+  }, [specifications]);
 
   useEffect(() => {
     function onDocumentClick(e: MouseEvent) {
@@ -77,6 +107,49 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
     if (!fileList?.length) return;
     setUploadFiles(Array.from(fileList));
   }
+
+  function closeCreateDivisionModal() {
+    setShowCreateDivisionModal(false);
+    setNewDivisionNumber("");
+    setNewDivisionDescription("");
+  }
+
+  function closeCreateSpecificationModal() {
+    setShowCreateSpecificationModal(false);
+    setNewSpecificationDivision(divisions[0]?.number ?? "100");
+    setNewSpecificationNumber("");
+    setNewSpecificationDescription("");
+  }
+
+  function handleCreateDivision() {
+    if (!newDivisionNumber.trim() || !newDivisionDescription.trim()) return;
+    const nextDivision = { number: newDivisionNumber.trim(), description: newDivisionDescription.trim() };
+    setDivisions((current) => {
+      const deduped = current.filter((division) => division.number !== nextDivision.number);
+      return [...deduped, nextDivision].sort((a, b) => a.number.localeCompare(b.number));
+    });
+    closeCreateDivisionModal();
+  }
+
+  function handleCreateSpecification() {
+    if (!newSpecificationDivision.trim() || !newSpecificationNumber.trim()) return;
+    const division = divisions.find((item) => item.number === newSpecificationDivision);
+    const specName = newSpecificationDescription.trim() || "Untitled Specification";
+    const specCode = `${newSpecificationDivision} ${newSpecificationNumber.trim()}`;
+    const suffix = division?.description ? ` - ${division.description}` : "";
+    setSpecifications((current) => [
+      {
+        id: `local-${Date.now()}`,
+        name: specName,
+        code: `${specCode}${suffix}`,
+      },
+      ...current,
+    ]);
+    closeCreateSpecificationModal();
+  }
+
+  const canCreateDivision = Boolean(newDivisionNumber.trim() && newDivisionDescription.trim());
+  const canCreateSpecification = Boolean(newSpecificationDivision.trim() && newSpecificationNumber.trim());
 
   const topTabs: Array<{ key: TopTab; label: string }> = [
     { key: "specifications", label: "Specifications" },
@@ -173,11 +246,19 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
             />
           </div>
           <div className="flex items-center gap-5 text-sm font-medium text-gray-800">
-            <button type="button" className="flex items-center gap-1 hover:text-black">
+            <button
+              type="button"
+              onClick={() => setShowCreateDivisionModal(true)}
+              className="flex items-center gap-1 hover:text-black"
+            >
               <Plus className="h-4 w-4" />
               Create Division
             </button>
-            <button type="button" className="flex items-center gap-1 hover:text-black">
+            <button
+              type="button"
+              onClick={() => setShowCreateSpecificationModal(true)}
+              className="flex items-center gap-1 hover:text-black"
+            >
               <Plus className="h-4 w-4" />
               Create Specification
             </button>
@@ -294,6 +375,128 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
                 </button>
                 <button type="button" className="rounded bg-orange-200 px-4 py-2 text-sm font-semibold text-white">Process</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateDivisionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-[520px] overflow-hidden rounded bg-[#e5e5e5] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-300 px-5 py-5">
+              <h2 className="text-[32px] font-semibold leading-none text-gray-900">Create Division</h2>
+              <button type="button" onClick={closeCreateDivisionModal} className="text-gray-700 hover:text-gray-900">
+                <X className="h-7 w-7" />
+              </button>
+            </div>
+            <div className="space-y-4 border-b border-gray-300 px-5 py-5">
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">
+                  Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  value={newDivisionNumber}
+                  onChange={(e) => setNewDivisionNumber(e.target.value)}
+                  placeholder="Enter Number"
+                  className="w-full rounded border border-gray-300 bg-[#efefef] px-3 py-2 text-sm outline-none focus:border-gray-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={newDivisionDescription}
+                  onChange={(e) => setNewDivisionDescription(e.target.value)}
+                  placeholder="Enter Description"
+                  className="min-h-[80px] w-full rounded border border-gray-300 bg-[#efefef] px-3 py-2 text-sm outline-none focus:border-gray-500"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-4 px-5 py-4">
+              <button
+                type="button"
+                onClick={closeCreateDivisionModal}
+                className="px-2 py-1 text-sm font-semibold text-gray-700 hover:text-gray-900"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!canCreateDivision}
+                onClick={handleCreateDivision}
+                className="rounded px-4 py-2 text-sm font-semibold text-white disabled:bg-[#f4c7af] enabled:bg-[#f39a6e] enabled:hover:bg-[#ea8858]"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateSpecificationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-[760px] overflow-hidden rounded bg-[#e5e5e5] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-300 px-5 py-5">
+              <h2 className="text-[34px] font-semibold leading-none text-gray-900">Create Specification</h2>
+              <button type="button" onClick={closeCreateSpecificationModal} className="text-gray-700 hover:text-gray-900">
+                <X className="h-7 w-7" />
+              </button>
+            </div>
+            <div className="space-y-4 border-b border-gray-300 px-5 py-5">
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">
+                  Division <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={newSpecificationDivision}
+                  onChange={(e) => setNewSpecificationDivision(e.target.value)}
+                  className="w-full rounded border border-gray-400 bg-[#efefef] px-3 py-2 text-sm outline-none focus:border-gray-500"
+                >
+                  {divisions.map((division) => (
+                    <option key={division.number} value={division.number}>
+                      {division.number} - {division.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">
+                  Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  value={newSpecificationNumber}
+                  onChange={(e) => setNewSpecificationNumber(e.target.value)}
+                  placeholder="Enter Number"
+                  className="w-full rounded border border-gray-300 bg-[#efefef] px-3 py-2 text-sm outline-none focus:border-gray-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">Description</label>
+                <textarea
+                  value={newSpecificationDescription}
+                  onChange={(e) => setNewSpecificationDescription(e.target.value)}
+                  placeholder="Enter Description"
+                  className="min-h-24 w-full rounded border border-gray-300 bg-[#efefef] px-3 py-2 text-sm outline-none focus:border-gray-500"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-4 px-5 py-4">
+              <button
+                type="button"
+                onClick={closeCreateSpecificationModal}
+                className="px-2 py-1 text-sm font-semibold text-gray-700 hover:text-gray-900"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!canCreateSpecification}
+                onClick={handleCreateSpecification}
+                className="rounded px-4 py-2 text-sm font-semibold text-white disabled:bg-[#f4c7af] enabled:bg-[#f39a6e] enabled:hover:bg-[#ea8858]"
+              >
+                Create
+              </button>
             </div>
           </div>
         </div>
