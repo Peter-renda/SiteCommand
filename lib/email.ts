@@ -464,3 +464,55 @@ export async function sendCommitmentEmail({
   });
   if (error) throw new Error(error.message);
 }
+
+export async function sendTransmittalCreatedEmail({
+  to,
+  recipientName,
+  projectName,
+  transmittalNumber,
+  transmittalSubject,
+  transmittalUrl,
+  sentVia,
+  dueBy,
+  sentDate,
+}: {
+  to: string;
+  recipientName: string;
+  projectName: string;
+  transmittalNumber: number;
+  transmittalSubject: string | null;
+  transmittalUrl: string;
+  sentVia?: string | null;
+  dueBy?: string | null;
+  sentDate?: string | null;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // silent if not configured
+
+  const resend = new Resend(apiKey);
+  const subjectLine = transmittalSubject || "No subject";
+  const dueLine = dueBy
+    ? `<p style="font-size:13px;color:#555;"><strong>Due by:</strong> ${new Date(`${dueBy}T12:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>`
+    : "";
+  const sentLine = sentDate
+    ? `<p style="font-size:13px;color:#555;"><strong>Sent date:</strong> ${new Date(`${sentDate}T12:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>`
+    : "";
+  const viaLine = sentVia ? `<p style="font-size:13px;color:#555;"><strong>Sent via:</strong> ${sentVia}</p>` : "";
+
+  await resend.emails.send({
+    from: "SiteCommand <invites@sitecommand.xyz>",
+    to,
+    subject: `Transmittal #${transmittalNumber}: ${subjectLine} — ${projectName}`,
+    html: `
+      <p style="font-size:14px;">Hi${recipientName ? ` ${recipientName}` : ""},</p>
+      <p style="font-size:14px;">A transmittal has been created on <strong>${projectName}</strong>.</p>
+      <p style="font-size:16px;font-weight:600;">Transmittal #${transmittalNumber}: ${subjectLine}</p>
+      ${viaLine}
+      ${sentLine}
+      ${dueLine}
+      <p><a href="${transmittalUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open Transmittal</a></p>
+      <p style="color:#888;font-size:11px;">You'll need a SiteCommand account with access to this project to open the transmittal.</p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are in the To/CC list for this transmittal.</p>
+    `,
+  });
+}

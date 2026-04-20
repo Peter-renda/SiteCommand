@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { sendTransmittalCreatedEmail } from "@/lib/email";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     sent_date,
     items,
     comments,
+    send_email,
   } = body;
 
   const { data, error } = await supabase
@@ -73,5 +75,64 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const shouldSendEmail = Boolean(send_email);
+  if (shouldSendEmail) {
+    const [{ data: project }, { data: toContact }, { data: ccContactRows }] = await Promise.all([
+      supabase.from("projects").select("name").eq("id", projectId).single(),
+      to_id
+        ? supabase.from("directory_contacts").select("id, first_name, last_name, company, group_name, email").eq("id", to_id).single()
+        : Promise.resolve({ data: null }),
+      Array.isArray(cc_contacts) && cc_contacts.length > 0
+        ? supabase
+            .from("directory_contacts")
+            .select("id, first_name, last_name, company, group_name, email")
+            .in("id", cc_contacts.map((c: { id: string }) => c.id).filter(Boolean))
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const recipients = new Map<string, { name: string; email: string }>();
+    const addRecipient = (name: string, email: string | null | undefined) => {
+      if (!email) return;
+      const key = email.toLowerCase();
+      if (recipients.has(key)) return;
+      recipients.set(key, { name, email });
+    };
+    const contactName = (c: { first_name?: string | null; last_name?: string | null; company?: string | null; group_name?: string | null }) =>
+      [c.first_name, c.last_name].filter(Boolean).join(" ") || c.company || c.group_name || "there";
+
+    if (toContact?.email) addRecipient(contactName(toContact), toContact.email);
+    for (const c of ccContactRows ?? []) addRecipient(contactName(c), c.email);
+    for (const c of Array.isArray(cc_contacts) ? cc_contacts : []) {
+      const name = typeof c?.name === "string" ? c.name : "there";
+      const email = typeof c?.email === "string" ? c.email : null;
+      addRecipient(name, email);
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+    const transmittalUrl = `${appUrl}/projects/${projectId}/transmittals/${data.id}`;
+
+    const emailResults = await Promise.allSettled(
+      Array.from(recipients.values()).map((recipient) =>
+        sendTransmittalCreatedEmail({
+          to: recipient.email,
+          recipientName: recipient.name,
+          projectName: project?.name ?? "Project",
+          transmittalNumber: data.transmittal_number,
+          transmittalSubject: data.subject,
+          transmittalUrl,
+          sentVia: data.sent_via,
+          dueBy: data.due_by,
+          sentDate: data.sent_date,
+        }),
+      ),
+    );
+
+    const failedEmails = emailResults.filter((r) => r.status === "rejected").length;
+    if (failedEmails > 0) {
+      return NextResponse.json({ ...data, email_warning: `${failedEmails} email(s) could not be sent.` });
+    }
+  }
+
   return NextResponse.json(data);
 }

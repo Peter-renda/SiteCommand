@@ -325,7 +325,7 @@ export default function NewTransmittalClient({
 }) {
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
   const [nextNumber, setNextNumber] = useState<number>(1);
-  const [saving, setSaving] = useState(false);
+  const [saveAction, setSaveAction] = useState<"create" | "email" | null>(null);
 
   // Format doc cache: formatName → FormatDoc[]
   const [formatCache, setFormatCache] = useState<Record<string, FormatDoc[]>>({});
@@ -431,8 +431,8 @@ export default function NewTransmittalClient({
     setItems((prev) => prev.filter((item) => item.id !== id));
   }
 
-  async function handleSave() {
-    setSaving(true);
+  async function handleSave(sendEmail: boolean) {
+    setSaveAction(sendEmail ? "email" : "create");
     const res = await fetch(`/api/projects/${projectId}/transmittals`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -446,14 +446,24 @@ export default function NewTransmittalClient({
         action_as_noted: actionAsNoted,
         due_by: dueBy || null,
         sent_date: sentDate || null,
-        items: items.map(({ id: _id, linkedDocId: _lid, ...rest }) => rest),
+        items: items.map((item) => ({
+          format: item.format,
+          description: item.description,
+          date: item.date,
+          copies: item.copies,
+        })),
         comments,
+        send_email: sendEmail,
       }),
     });
     if (res.ok) {
+      const payload = await res.json();
+      if (payload?.email_warning) {
+        alert(payload.email_warning);
+      }
       window.location.href = `/projects/${projectId}/transmittals`;
     } else {
-      setSaving(false);
+      setSaveAction(null);
     }
   }
 
@@ -751,11 +761,19 @@ export default function NewTransmittalClient({
           </a>
           <button
             type="button"
-            onClick={handleSave}
-            disabled={saving}
+            onClick={() => handleSave(true)}
+            disabled={saveAction !== null}
             className="px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Create Transmittal"}
+            {saveAction === "email" ? "Creating & Emailing..." : "Create and Email"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSave(false)}
+            disabled={saveAction !== null}
+            className="px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50"
+          >
+            {saveAction === "create" ? "Creating..." : "Create"}
           </button>
         </div>
       </main>
