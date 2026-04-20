@@ -59,6 +59,11 @@ type Submittal = {
   created_at: string;
 };
 
+type EditableSubmittalFields = Pick<
+  Submittal,
+  "title" | "revision" | "submittal_type" | "status" | "submit_by" | "issue_date" | "cost_code" | "linked_drawings" | "description"
+>;
+
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
   pending_review: "Pending Review",
@@ -143,6 +148,12 @@ function DownloadIcon() {
 }
 
 const DIST_SHOW_LIMIT = 4;
+const tabs: { key: "general" | "related" | "emails" | "history"; label: string }[] = [
+  { key: "general", label: "General" },
+  { key: "related", label: "Related" },
+  { key: "emails", label: "Emails" },
+  { key: "history", label: "History" },
+];
 
 export default function SubmittalDetailClient({
   projectId,
@@ -174,6 +185,49 @@ export default function SubmittalDetailClient({
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [responseModal, setResponseModal] = useState<{ personId: string } | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editValues, setEditValues] = useState<EditableSubmittalFields | null>(null);
+
+  function startEdit() {
+    if (!submittal) return;
+    setEditValues({
+      title: submittal.title,
+      revision: submittal.revision,
+      submittal_type: submittal.submittal_type,
+      status: submittal.status,
+      submit_by: submittal.submit_by,
+      issue_date: submittal.issue_date,
+      cost_code: submittal.cost_code,
+      linked_drawings: submittal.linked_drawings,
+      description: submittal.description,
+    });
+    setIsEditing(true);
+    setMenuOpen(false);
+  }
+
+  async function saveEdits() {
+    if (!editValues) return;
+    setEditSaving(true);
+    const res = await fetch(`/api/projects/${projectId}/submittals/${submittalId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editValues),
+    });
+    const data = await res.json().catch(() => ({}));
+    setEditSaving(false);
+    if (!res.ok) {
+      alert((data as { error?: string }).error || "Failed to save changes");
+      return;
+    }
+    setSubmittal(data as Submittal);
+    setIsEditing(false);
+    setEditValues(null);
+    router.refresh();
+  }
 
   async function runAction(action: string, payload?: Record<string, unknown>) {
     setActionLoading(action);
