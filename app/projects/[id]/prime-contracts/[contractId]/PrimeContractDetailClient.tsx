@@ -747,7 +747,7 @@ export default function PrimeContractDetailClient({
                       <tr
                         key={co.id}
                         className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/change-orders/${co.id}`)}
+                        onClick={() => router.push(`/projects/${projectId}/change-orders/${co.id}`)}
                       >
                         <td className="px-4 py-2.5 text-gray-600 font-medium">{co.number}</td>
                         <td className="px-4 py-2.5 text-gray-600">{co.revision ?? 0}</td>
