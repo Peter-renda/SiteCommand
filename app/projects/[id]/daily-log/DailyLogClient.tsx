@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import { Skeleton } from "@/app/components/Skeleton";
@@ -131,6 +131,8 @@ type WeatherObservation = {
 type PhotoEntry = {
   id: string;
   description: string;
+  url?: string;
+  filename?: string;
 };
 
 type LogForm = {
@@ -799,12 +801,15 @@ function WeatherSection({
 
 // ── Photos ───────────────────────────────────────────────────────────────────
 
-function PhotosSection({ entries, onAdd, onDelete }: {
+function PhotosSection({ projectId, entries, onAdd, onDelete }: {
+  projectId: string;
   entries: PhotoEntry[];
   onAdd: (e: PhotoEntry) => void;
   onDelete: (id: string) => void;
 }) {
   const [desc, setDesc] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   function handleCreate() {
     if (!desc.trim()) return;
@@ -812,10 +817,73 @@ function PhotosSection({ entries, onAdd, onDelete }: {
     setDesc("");
   }
 
+  async function handleFilesSelected(event: ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const formData = new FormData();
+    Array.from(files).forEach((file) => formData.append("file", file));
+
+    setUploading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/photos`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) return;
+      const uploaded = await res.json();
+      if (Array.isArray(uploaded)) {
+        uploaded.forEach((photo) => {
+          onAdd({
+            id: uid(),
+            description: photo.filename || "Photo",
+            url: photo.url,
+            filename: photo.filename,
+          });
+        });
+      }
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  }
+
   return (
     <SectionCard title="Photos">
+      <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+        <p className="text-xs text-gray-500">
+          Upload photos from your device. On mobile, you can pick from gallery or take a picture.
+        </p>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Add photos"
+          aria-label="Add photos"
+        >
+          <span className="text-lg leading-none">+</span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          multiple
+          onChange={handleFilesSelected}
+          className="hidden"
+        />
+      </div>
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
+          {e.url && (
+            <Col label="Preview" minW="80px">
+              <a href={e.url} target="_blank" rel="noreferrer" className="inline-block">
+                <img src={e.url} alt={e.filename || e.description || "Photo"} className="h-10 w-10 rounded object-cover border border-gray-200" />
+              </a>
+            </Col>
+          )}
+          {e.filename && <Col label="File" minW="180px"><span className="text-xs text-gray-700">{e.filename}</span></Col>}
           <Col label="Description" minW="200px"><span className="text-xs text-gray-600">{e.description}</span></Col>
         </EntryRow>
       ))}
@@ -1154,6 +1222,7 @@ export default function DailyLogClient({
             <div className="space-y-5">
               <section id="photos" className="scroll-mt-24">
                 <PhotosSection
+                  projectId={projectId}
                   entries={form.photos}
                   onAdd={(e) => addToList("photos", e)}
                   onDelete={(id) => removeFromList("photos", id)}
