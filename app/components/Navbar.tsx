@@ -226,16 +226,6 @@ export default function Navbar() {
             Login
           </Link>
 
-          {/* Start Free Trial — primary CTA */}
-          <Link
-            href="/signup"
-            className="group relative hidden md:inline-flex items-center px-4 py-2 text-sm font-semibold text-white rounded-lg overflow-hidden transition-all duration-150 active:scale-[0.98]"
-            style={{ background: "#111110" }}
-          >
-            <span className="relative z-10">Start Free Trial</span>
-            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity duration-150" />
-          </Link>
-
           {/* Hamburger — mobile only */}
           <button
             className="md:hidden p-2 text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 transition-colors"
