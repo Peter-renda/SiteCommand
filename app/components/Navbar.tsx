@@ -9,9 +9,9 @@ type SolutionsProduct = { label: string; description: string; href: string };
 type SolutionsCapabilityColumn = { heading: string; items: NavSubItem[] };
 
 const solutionsProducts: SolutionsProduct[] = [
-  { label: "Project Execution", description: "Build with confidence from start to finish", href: "#" },
-  { label: "Cost Management", description: "Take control of your project financials", href: "#" },
-  { label: "Resource Management", description: "Optimize every crew, hour, and piece of equipment", href: "#" },
+  { label: "Project Execution", description: "Build with confidence from start to finish", href: "/project-execution/general-contractors" },
+  { label: "Cost Management", description: "Take control of your project financials", href: "/cost-management/general-contractors" },
+  { label: "Resource Management", description: "Optimize every crew, hour, and piece of equipment", href: "/resource-management/general-contractors" },
 ];
 
 const solutionsCapabilities: SolutionsCapabilityColumn[] = [
