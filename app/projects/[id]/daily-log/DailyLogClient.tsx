@@ -1127,18 +1127,22 @@ export default function DailyLogClient({
   }
 
   function addToList(key: keyof LogForm, entry: unknown) {
-    const newForm = { ...form, [key]: [...(form[key] as unknown[]), entry] };
-    setForm(newForm);
-    saveFormData(newForm, logId);
+    setForm((prev) => {
+      const newForm = { ...prev, [key]: [...(prev[key] as unknown[]), entry] };
+      void saveFormData(newForm, logIdRef.current);
+      return newForm;
+    });
   }
 
   function removeFromList(key: keyof LogForm, id: string) {
-    const newForm = {
-      ...form,
-      [key]: (form[key] as { id: string }[]).filter((e) => e.id !== id),
-    };
-    setForm(newForm);
-    saveFormData(newForm, logId);
+    setForm((prev) => {
+      const newForm = {
+        ...prev,
+        [key]: (prev[key] as { id: string }[]).filter((e) => e.id !== id),
+      };
+      void saveFormData(newForm, logIdRef.current);
+      return newForm;
+    });
   }
 
   async function handleSave() {
