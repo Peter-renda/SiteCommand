@@ -1,20 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import ProjectNav from "../components/ProjectNav";
+
 export default function DailyLog() {
   const { id } = useParams();
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [log, setLog] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPage, setPhotoPage] = useState(1);
+  const photosPerPage = 1;
+
+  const photoPageCount = Math.max(1, Math.ceil(photos.length / photosPerPage));
+  const currentPhotoPage = Math.min(photoPage, photoPageCount);
+  const displayedPhoto = photos[(currentPhotoPage - 1) * photosPerPage];
+
   useEffect(() => {
     setLoading(true);
     fetch(`/api/projects/${id}/daily-log?date=${date}`)
       .then((res) => res.json())
       .then((data) => {
-        setLog(data);
-        setLoading(false);
+      setLog(data);
+      setLoading(false);
       });
   }, [id, date]);
+
   async function handleSave() {
     const res = await fetch(`/api/projects/${id}/daily-log`, {
       method: "POST",
@@ -32,6 +42,24 @@ export default function DailyLog() {
       setLog(data);
     }
   }
+
+  function handlePhotoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.target.files || []);
+    if (selectedFiles.length === 0) {
+      return;
+    }
+    setPhotos((currentPhotos) => [...currentPhotos, ...selectedFiles]);
+    event.target.value = "";
+  }
+
+  function goToNextPhoto() {
+    setPhotoPage((current) => Math.min(current + 1, photoPageCount));
+  }
+
+  function goToPreviousPhoto() {
+    setPhotoPage((current) => Math.max(current - 1, 1));
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <ProjectNav projectId={id!} />
@@ -105,6 +133,83 @@ export default function DailyLog() {
             <div className="bg-white border border-gray-100 rounded-xl p-6">
               <h2 className="text-sm font-semibold text-gray-900 mb-4">Work Summary</h2>
               <p className="text-sm text-gray-400 italic">Sections for Manpower, Deliveries, and Inspections coming soon in this ported version.</p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-2xl font-semibold text-gray-900">Photos</h2>
+              </div>
+              <div className="flex items-center gap-6 text-gray-500 text-2xl mb-4">
+                <span className="italic text-xl">
+                  {photos.length === 0 ? "0-0 of 0" : `${currentPhotoPage}-${currentPhotoPage} of ${photos.length}`}
+                </span>
+                <span className="text-gray-700 not-italic">Page:</span>
+                <span className="text-gray-700 not-italic">{currentPhotoPage}</span>
+                <button
+                  type="button"
+                  onClick={goToPreviousPhoto}
+                  className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
+                  disabled={currentPhotoPage <= 1}
+                  aria-label="Previous photo"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={goToNextPhoto}
+                  className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
+                  disabled={currentPhotoPage >= photoPageCount || photos.length === 0}
+                  aria-label="Next photo"
+                >
+                  ›
+                </button>
+              </div>
+              <label className="w-40 h-40 border border-gray-300 bg-gray-50 flex flex-col items-center justify-center text-orange-500 text-4xl font-semibold cursor-pointer hover:border-orange-300 transition-colors">
+                {displayedPhoto ? (
+                  <div
+                    role="img"
+                    aria-label={displayedPhoto.name}
+                    className="w-full h-full bg-center bg-cover"
+                    style={{ backgroundImage: `url(${URL.createObjectURL(displayedPhoto)})` }}
+                  />
+                ) : (
+                  <>
+                    <span className="leading-none">+</span>
+                    <span className="text-3xl mt-3">Upload</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+              </label>
+              <div className="flex items-center gap-6 text-gray-500 text-2xl mt-4">
+                <span className="italic text-xl">
+                  {photos.length === 0 ? "0-0 of 0" : `${currentPhotoPage}-${currentPhotoPage} of ${photos.length}`}
+                </span>
+                <span className="text-gray-700 not-italic">Page:</span>
+                <span className="text-gray-700 not-italic">{currentPhotoPage}</span>
+                <button
+                  type="button"
+                  onClick={goToPreviousPhoto}
+                  className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
+                  disabled={currentPhotoPage <= 1}
+                  aria-label="Previous photo bottom"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={goToNextPhoto}
+                  className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
+                  disabled={currentPhotoPage >= photoPageCount || photos.length === 0}
+                  aria-label="Next photo bottom"
+                >
+                  ›
+                </button>
+              </div>
             </div>
           </div>
         )}
