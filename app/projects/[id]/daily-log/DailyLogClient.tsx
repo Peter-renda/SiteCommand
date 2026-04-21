@@ -140,6 +140,11 @@ type PhotoEntry = {
   uploaded_by_name?: string;
 };
 
+type PhotoAlbum = {
+  id: string;
+  name: string;
+};
+
 type LogForm = {
   log_date: string;
   weather_conditions: string;
@@ -802,11 +807,12 @@ function WeatherSection({
 
 // ── Photos ───────────────────────────────────────────────────────────────────
 
-function PhotosSection({ projectId, entries, onAdd, onUpdate }: {
+function PhotosSection({ projectId, entries, onAdd, onUpdate, albumOptions }: {
   projectId: string;
   entries: PhotoEntry[];
   onAdd: (e: PhotoEntry) => void;
   onUpdate: (id: string, patch: Partial<PhotoEntry>) => void;
+  albumOptions: string[];
 }) {
   const PHOTOS_PER_PAGE = 25;
   const PHOTOS_PER_ROW = 10;
@@ -1036,12 +1042,16 @@ function PhotosSection({ projectId, entries, onAdd, onUpdate }: {
 
                 <div>
                   <label className="block text-gray-400 mb-1">Album</label>
-                  <input
+                  <select
                     value={previewPhoto.album ?? ""}
                     onChange={(e) => onUpdate(previewPhoto.id, { album: e.target.value })}
-                    placeholder="Unclassified"
                     className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white placeholder:text-gray-500"
-                  />
+                  >
+                    <option value="">Unclassified</option>
+                    {albumOptions.map((albumName) => (
+                      <option key={albumName} value={albumName}>{albumName}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -1116,6 +1126,7 @@ export default function DailyLogClient({
   const [dirty, setDirty] = useState(false);
   const [savedOnce, setSavedOnce] = useState(false);
   const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
+  const [photoAlbums, setPhotoAlbums] = useState<PhotoAlbum[]>([]);
 
   const formRef = useRef<LogForm>(emptyForm(initialDate));
   const logIdRef = useRef<string | null>(null);
@@ -1140,6 +1151,15 @@ export default function DailyLogClient({
       })
       .catch(() => {});
   }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/photo-albums`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((albums: PhotoAlbum[]) => {
+        setPhotoAlbums(Array.isArray(albums) ? albums : []);
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   async function loadLog(d: string) {
     setLoading(true);
@@ -1427,6 +1447,7 @@ export default function DailyLogClient({
                   entries={form.photos}
                   onAdd={(e) => addToList("photos", e)}
                   onUpdate={(id, patch) => updateInList("photos", id, patch)}
+                  albumOptions={photoAlbums.map((a) => a.name)}
                 />
               </section>
 

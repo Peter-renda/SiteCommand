@@ -2,13 +2,31 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import ProjectNav from "../components/ProjectNav";
 
+type LocalPhoto = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  title: string;
+  album: string;
+  comments: string;
+  uploadedAt: string;
+  uploadedBy: string;
+};
+
+type ProjectAlbum = {
+  id: string;
+  name: string;
+};
+
 export default function DailyLog() {
   const { id } = useParams();
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [log, setLog] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [photoPage, setPhotoPage] = useState(1);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [albumOptions, setAlbumOptions] = useState<ProjectAlbum[]>([]);
   const photosPerPage = 1;
 
   const photoPageCount = Math.max(1, Math.ceil(photos.length / photosPerPage));
@@ -24,6 +42,15 @@ export default function DailyLog() {
       setLoading(false);
       });
   }, [id, date]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${id}/photo-albums`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((albums: ProjectAlbum[]) => {
+        setAlbumOptions(Array.isArray(albums) ? albums : []);
+      })
+      .catch(() => {});
+  }, [id]);
 
   async function handleSave() {
     const res = await fetch(`/api/projects/${id}/daily-log`, {
@@ -48,7 +75,19 @@ export default function DailyLog() {
     if (selectedFiles.length === 0) {
       return;
     }
-    setPhotos((currentPhotos) => [...currentPhotos, ...selectedFiles]);
+    const now = new Date().toISOString();
+    const uploadedBy = "Project User";
+    const nextPhotos = selectedFiles.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      previewUrl: URL.createObjectURL(file),
+      title: "",
+      album: "",
+      comments: "",
+      uploadedAt: now,
+      uploadedBy,
+    }));
+    setPhotos((currentPhotos) => [...currentPhotos, ...nextPhotos]);
     event.target.value = "";
   }
 
@@ -58,6 +97,24 @@ export default function DailyLog() {
 
   function goToPreviousPhoto() {
     setPhotoPage((current) => Math.max(current - 1, 1));
+  }
+
+  function updatePhoto(id: string, patch: Partial<LocalPhoto>) {
+    setPhotos((current) => current.map((photo) => (photo.id === id ? { ...photo, ...patch } : photo)));
+  }
+
+  function goToPreviousPreview() {
+    setPreviewIndex((current) => {
+      if (current === null || photos.length === 0) return current;
+      return current === 0 ? photos.length - 1 : current - 1;
+    });
+  }
+
+  function goToNextPreview() {
+    setPreviewIndex((current) => {
+      if (current === null || photos.length === 0) return current;
+      return current === photos.length - 1 ? 0 : current + 1;
+    });
   }
 
   return (
@@ -167,9 +224,10 @@ export default function DailyLog() {
                 {displayedPhoto ? (
                   <div
                     role="img"
-                    aria-label={displayedPhoto.name}
+                    aria-label={displayedPhoto.file.name}
                     className="w-full h-full bg-center bg-cover"
-                    style={{ backgroundImage: `url(${URL.createObjectURL(displayedPhoto)})` }}
+                    style={{ backgroundImage: `url(${displayedPhoto.previewUrl})` }}
+                    onClick={() => setPreviewIndex((currentPhotoPage - 1) * photosPerPage)}
                   />
                 ) : (
                   <>
@@ -214,6 +272,89 @@ export default function DailyLog() {
           </div>
         )}
       </main>
+      {previewIndex !== null && photos[previewIndex] && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setPreviewIndex(null)}>
+          <div className="max-w-[1200px] max-h-[88vh] w-full h-full flex items-stretch" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-1 min-w-0 flex items-center justify-center bg-black/40 rounded-l-lg">
+              <img
+                src={photos[previewIndex].previewUrl}
+                alt={photos[previewIndex].title || photos[previewIndex].file.name}
+                className="max-h-[82vh] w-auto max-w-full object-contain"
+              />
+            </div>
+            <aside className="w-[320px] shrink-0 bg-[#111318] text-white rounded-r-lg border-l border-white/10 p-4 overflow-y-auto">
+              <h3 className="text-sm font-semibold text-gray-200">Information</h3>
+              <p className="text-sm mt-3 font-medium">{photos[previewIndex].title || "No Description"}</p>
+              <div className="mt-4 border-t border-white/15 pt-4 space-y-4 text-xs">
+                <div>
+                  <label className="block text-gray-400 mb-1">Title</label>
+                  <input
+                    value={photos[previewIndex].title}
+                    onChange={(e) => updatePhoto(photos[previewIndex].id, { title: e.target.value })}
+                    className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <p className="text-gray-400">Date Uploaded</p>
+                  <p className="mt-1 text-sm">{new Date(photos[previewIndex].uploadedAt).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Uploaded By</p>
+                  <p className="mt-1 text-sm">{photos[previewIndex].uploadedBy}</p>
+                </div>
+                <div>
+                  <label className="block text-gray-400 mb-1">Album</label>
+                  <select
+                    value={photos[previewIndex].album}
+                    onChange={(e) => updatePhoto(photos[previewIndex].id, { album: e.target.value })}
+                    className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white"
+                  >
+                    <option value="">Unclassified</option>
+                    {albumOptions.map((album) => (
+                      <option key={album.id} value={album.name}>{album.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 mb-1">Comments</label>
+                  <textarea
+                    value={photos[previewIndex].comments}
+                    onChange={(e) => updatePhoto(photos[previewIndex].id, { comments: e.target.value })}
+                    rows={5}
+                    className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white resize-y"
+                  />
+                </div>
+              </div>
+            </aside>
+          </div>
+          {photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToPreviousPreview();
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/30"
+                aria-label="Previous photo"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToNextPreview();
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/30"
+                aria-label="Next photo"
+              >
+                ›
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
