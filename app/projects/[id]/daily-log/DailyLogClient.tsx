@@ -131,8 +131,18 @@ type WeatherObservation = {
 type PhotoEntry = {
   id: string;
   description: string;
+  title?: string;
+  album?: string;
+  comments?: string;
   url?: string;
   filename?: string;
+  uploaded_at?: string;
+  uploaded_by_name?: string;
+};
+
+type PhotoAlbum = {
+  id: string;
+  name: string;
 };
 
 type LogForm = {
@@ -797,17 +807,18 @@ function WeatherSection({
 
 // ── Photos ───────────────────────────────────────────────────────────────────
 
-function PhotosSection({ projectId, entries, onAdd, onDelete }: {
+function PhotosSection({ projectId, entries, onAdd, onUpdate, albumOptions }: {
   projectId: string;
   entries: PhotoEntry[];
   onAdd: (e: PhotoEntry) => void;
-  onDelete: (id: string) => void;
+  onUpdate: (id: string, patch: Partial<PhotoEntry>) => void;
+  albumOptions: string[];
 }) {
   const PHOTOS_PER_PAGE = 25;
   const PHOTOS_PER_ROW = 10;
-  const [desc, setDesc] = useState("");
   const [uploading, setUploading] = useState(false);
   const [page, setPage] = useState(1);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const totalPages = Math.max(1, Math.ceil(entries.length / PHOTOS_PER_PAGE));
   const currentPage = Math.min(page, totalPages);
@@ -819,11 +830,16 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  function handleCreate() {
-    if (!desc.trim()) return;
-    onAdd({ id: uid(), description: desc.trim() });
-    setDesc("");
-  }
+  useEffect(() => {
+    if (previewIndex === null) return;
+    if (entries.length === 0) {
+      setPreviewIndex(null);
+      return;
+    }
+    if (previewIndex > entries.length - 1) {
+      setPreviewIndex(entries.length - 1);
+    }
+  }, [entries, previewIndex]);
 
   async function handleFilesSelected(event: ChangeEvent<HTMLInputElement>) {
     const files = event.target.files;
@@ -845,8 +861,11 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
           onAdd({
             id: uid(),
             description: photo.filename || "Photo",
+            title: "",
             url: photo.url,
             filename: photo.filename,
+            uploaded_at: photo.uploaded_at,
+            uploaded_by_name: photo.uploaded_by_name,
           });
         });
       }
@@ -859,6 +878,30 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
   function formatPhotoRange() {
     if (entries.length === 0) return "0-0 of 0";
     return `${pageStart + 1}-${Math.min(pageEnd, entries.length)} of ${entries.length}`;
+  }
+
+  function showPrevPreview() {
+    setPreviewIndex((prev) => {
+      if (prev === null || entries.length === 0) return prev;
+      return prev === 0 ? entries.length - 1 : prev - 1;
+    });
+  }
+
+  function showNextPreview() {
+    setPreviewIndex((prev) => {
+      if (prev === null || entries.length === 0) return prev;
+      return prev === entries.length - 1 ? 0 : prev + 1;
+    });
+  }
+
+  const previewPhoto = previewIndex === null ? null : entries[previewIndex];
+  const previewTitle = previewPhoto?.title?.trim() || previewPhoto?.description?.trim() || "";
+
+  function formatUploadedAt(value?: string) {
+    if (!value) return "—";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "—";
+    return parsed.toLocaleString();
   }
 
   return (
@@ -895,7 +938,6 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           multiple
           onChange={handleFilesSelected}
           className="hidden"
@@ -912,20 +954,17 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
             <span className="text-2xl leading-none">+</span>
             <span className="text-[11px] font-medium">{uploading ? "Uploading..." : "Upload"}</span>
           </button>
-          {visibleEntries.map((e) => (
+          {visibleEntries.map((e, index) => (
             <div key={e.id} className="relative group">
-              <button
-                type="button"
-                onClick={() => onDelete(e.id)}
-                className="absolute top-1 right-1 z-10 inline-flex items-center justify-center w-5 h-5 rounded-full bg-black/55 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label={`Delete ${e.filename || e.description || "photo"}`}
-              >
-                ×
-              </button>
               {e.url ? (
-                <a href={e.url} target="_blank" rel="noreferrer" className="block">
+                <button
+                  type="button"
+                  onClick={() => setPreviewIndex(pageStart + index)}
+                  className="block w-full"
+                  aria-label={`Preview ${e.filename || e.description || "photo"}`}
+                >
                   <img src={e.url} alt={e.filename || e.description || "Photo"} className="aspect-square w-full rounded border border-gray-200 object-cover" />
-                </a>
+                </button>
               ) : (
                 <div className="aspect-square w-full rounded border border-gray-200 bg-gray-50 p-1 text-[10px] text-gray-500 flex items-center justify-center text-center">
                   {e.description || "Photo"}
@@ -935,11 +974,118 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
           ))}
         </div>
       </div>
-      <FormRow onSubmit={handleCreate}>
-        <Col label="Description / Reference" minW="280px">
-          <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Photo caption or file reference..." className={inCls} />
-        </Col>
-      </FormRow>
+
+      {previewPhoto?.url && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreviewIndex(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo preview"
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPreviewIndex(null);
+            }}
+            className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/20 text-white hover:bg-white/30"
+            aria-label="Close preview"
+          >
+            ✕
+          </button>
+          {entries.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                showPrevPreview();
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/30"
+              aria-label="Previous photo"
+            >
+              ‹
+            </button>
+          )}
+          <div className="max-w-[1200px] max-h-[88vh] w-full h-full flex items-stretch gap-0" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-1 min-w-0 flex items-center justify-center bg-black/40 rounded-l-lg">
+              <img
+                src={previewPhoto.url}
+                alt={previewTitle || "Photo preview"}
+                className="max-h-[82vh] w-auto max-w-full object-contain"
+              />
+            </div>
+            <aside className="w-[320px] shrink-0 bg-[#111318] text-white rounded-r-lg border-l border-white/10 p-4 overflow-y-auto">
+              <h3 className="text-sm font-semibold text-gray-200">Information</h3>
+              <p className="text-sm mt-3 font-medium">{previewTitle || "No Description"}</p>
+
+              <div className="mt-4 border-t border-white/15 pt-4 space-y-4 text-xs">
+                <div>
+                  <label className="block text-gray-400 mb-1">Title</label>
+                  <input
+                    value={previewPhoto.title ?? previewPhoto.description ?? ""}
+                    onChange={(e) => onUpdate(previewPhoto.id, { title: e.target.value, description: e.target.value })}
+                    placeholder="Add title"
+                    className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white placeholder:text-gray-500"
+                  />
+                </div>
+
+                <div>
+                  <p className="text-gray-400">Date Uploaded</p>
+                  <p className="mt-1 text-sm">{formatUploadedAt(previewPhoto.uploaded_at)}</p>
+                </div>
+
+                <div>
+                  <p className="text-gray-400">Uploaded By</p>
+                  <p className="mt-1 text-sm">{previewPhoto.uploaded_by_name || "—"}</p>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 mb-1">Album</label>
+                  <select
+                    value={previewPhoto.album ?? ""}
+                    onChange={(e) => onUpdate(previewPhoto.id, { album: e.target.value })}
+                    className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white placeholder:text-gray-500"
+                  >
+                    <option value="">Unclassified</option>
+                    {albumOptions.map((albumName) => (
+                      <option key={albumName} value={albumName}>{albumName}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 mb-1">Comments</label>
+                  <textarea
+                    value={previewPhoto.comments ?? ""}
+                    onChange={(e) => onUpdate(previewPhoto.id, { comments: e.target.value })}
+                    placeholder="No comments"
+                    rows={5}
+                    className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white placeholder:text-gray-500 resize-y"
+                  />
+                </div>
+              </div>
+
+              <p className="mt-4 text-xs text-gray-400">
+                {previewIndex! + 1} of {entries.length}
+              </p>
+            </aside>
+          </div>
+          {entries.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                showNextPreview();
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/30"
+              aria-label="Next photo"
+            >
+              ›
+            </button>
+          )}
+        </div>
+      )}
     </SectionCard>
   );
 }
@@ -980,6 +1126,7 @@ export default function DailyLogClient({
   const [dirty, setDirty] = useState(false);
   const [savedOnce, setSavedOnce] = useState(false);
   const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
+  const [photoAlbums, setPhotoAlbums] = useState<PhotoAlbum[]>([]);
 
   const formRef = useRef<LogForm>(emptyForm(initialDate));
   const logIdRef = useRef<string | null>(null);
@@ -1004,6 +1151,15 @@ export default function DailyLogClient({
       })
       .catch(() => {});
   }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/photo-albums`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((albums: PhotoAlbum[]) => {
+        setPhotoAlbums(Array.isArray(albums) ? albums : []);
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   async function loadLog(d: string) {
     setLoading(true);
@@ -1128,18 +1284,35 @@ export default function DailyLogClient({
   }
 
   function addToList(key: keyof LogForm, entry: unknown) {
-    const newForm = { ...form, [key]: [...(form[key] as unknown[]), entry] };
-    setForm(newForm);
-    saveFormData(newForm, logId);
+    setForm((prev) => {
+      const newForm = { ...prev, [key]: [...(prev[key] as unknown[]), entry] };
+      void saveFormData(newForm, logIdRef.current);
+      return newForm;
+    });
   }
 
   function removeFromList(key: keyof LogForm, id: string) {
-    const newForm = {
-      ...form,
-      [key]: (form[key] as { id: string }[]).filter((e) => e.id !== id),
-    };
-    setForm(newForm);
-    saveFormData(newForm, logId);
+    setForm((prev) => {
+      const newForm = {
+        ...prev,
+        [key]: (prev[key] as { id: string }[]).filter((e) => e.id !== id),
+      };
+      void saveFormData(newForm, logIdRef.current);
+      return newForm;
+    });
+  }
+
+  function updateInList(key: keyof LogForm, id: string, patch: Record<string, unknown>) {
+    setForm((prev) => {
+      const newForm = {
+        ...prev,
+        [key]: (prev[key] as ({ id: string } & Record<string, unknown>)[]).map((entry) =>
+          entry.id === id ? { ...entry, ...patch } : entry
+        ),
+      };
+      void saveFormData(newForm, logIdRef.current);
+      return newForm;
+    });
   }
 
   async function handleSave() {
@@ -1273,7 +1446,8 @@ export default function DailyLogClient({
                   projectId={projectId}
                   entries={form.photos}
                   onAdd={(e) => addToList("photos", e)}
-                  onDelete={(id) => removeFromList("photos", id)}
+                  onUpdate={(id, patch) => updateInList("photos", id, patch)}
+                  albumOptions={photoAlbums.map((a) => a.name)}
                 />
               </section>
 
