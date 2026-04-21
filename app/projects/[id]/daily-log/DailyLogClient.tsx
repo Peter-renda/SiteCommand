@@ -1122,12 +1122,10 @@ export default function DailyLogClient({
           </div>
         ) : (
           <div className="space-y-5">
-            <WeatherSection
-              form={form}
-              patch={patch}
-              observations={form.weather_observations}
-              onAddObs={(o) => addToList("weather_observations", o)}
-              onDeleteObs={(id) => removeFromList("weather_observations", id)}
+            <PhotosSection
+              entries={form.photos}
+              onAdd={(e) => addToList("photos", e)}
+              onDelete={(id) => removeFromList("photos", id)}
             />
 
             <ManpowerSection
@@ -1179,10 +1177,12 @@ export default function DailyLogClient({
               onDelete={(id) => removeFromList("note_entries", id)}
             />
 
-            <PhotosSection
-              entries={form.photos}
-              onAdd={(e) => addToList("photos", e)}
-              onDelete={(id) => removeFromList("photos", id)}
+            <WeatherSection
+              form={form}
+              patch={patch}
+              observations={form.weather_observations}
+              onAddObs={(o) => addToList("weather_observations", o)}
+              onDeleteObs={(id) => removeFromList("weather_observations", id)}
             />
           </div>
         )}
