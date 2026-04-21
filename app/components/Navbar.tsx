@@ -296,6 +296,24 @@ export default function Navbar() {
               )}
             </div>
           ))}
+
+          <div className="pt-2 mt-2 border-t border-gray-100 space-y-2">
+            <Link
+              href="/login"
+              className="block px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+              onClick={() => setMobileOpen(false)}
+            >
+              Login
+            </Link>
+            <Link
+              href="/signup"
+              className="block px-3 py-2 text-sm font-semibold text-white rounded-md text-center"
+              style={{ background: "#111110" }}
+              onClick={() => setMobileOpen(false)}
+            >
+              Start Free Trial
+            </Link>
+          </div>
         </div>
       )}
     </nav>
