@@ -895,7 +895,6 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           multiple
           onChange={handleFilesSelected}
           className="hidden"
