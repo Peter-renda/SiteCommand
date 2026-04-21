@@ -832,6 +832,7 @@ function PhotosSection({ entries, onAdd, onDelete }: {
 
 const DAILY_LOG_SECTIONS = [
   { id: "photos", label: "Photos" },
+  { id: "manpower", label: "Manpower" },
   { id: "inspections", label: "Inspections" },
   { id: "deliveries", label: "Deliveries" },
   { id: "visitors", label: "Visitors" },
@@ -839,8 +840,7 @@ const DAILY_LOG_SECTIONS = [
   { id: "accidents", label: "Accidents" },
   { id: "delays", label: "Delays" },
   { id: "notes", label: "Notes" },
-  { id: "manpower", label: "Manpower" },
-  { id: "observed-weather", label: "Observed Weather" },
+  { id: "observed-weather", label: "Observed Weather Conditions" },
 ] as const;
 
 export default function DailyLogClient({
@@ -1152,13 +1152,11 @@ export default function DailyLogClient({
             </aside>
 
             <div className="space-y-5">
-              <section id="observed-weather" className="scroll-mt-24">
-                <WeatherSection
-                  form={form}
-                  patch={patch}
-                  observations={form.weather_observations}
-                  onAddObs={(o) => addToList("weather_observations", o)}
-                  onDeleteObs={(id) => removeFromList("weather_observations", id)}
+              <section id="photos" className="scroll-mt-24">
+                <PhotosSection
+                  entries={form.photos}
+                  onAdd={(e) => addToList("photos", e)}
+                  onDelete={(id) => removeFromList("photos", id)}
                 />
               </section>
 
@@ -1227,11 +1225,13 @@ export default function DailyLogClient({
                 />
               </section>
 
-              <section id="photos" className="scroll-mt-24">
-                <PhotosSection
-                  entries={form.photos}
-                  onAdd={(e) => addToList("photos", e)}
-                  onDelete={(id) => removeFromList("photos", id)}
+              <section id="observed-weather" className="scroll-mt-24">
+                <WeatherSection
+                  form={form}
+                  patch={patch}
+                  observations={form.weather_observations}
+                  onAddObs={(o) => addToList("weather_observations", o)}
+                  onDeleteObs={(id) => removeFromList("weather_observations", id)}
                 />
               </section>
             </div>
