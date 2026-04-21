@@ -266,7 +266,7 @@ function FormRow({ onSubmit, children }: {
 }) {
   return (
     <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/40">
-      <div className="inline-flex items-end gap-4 text-xs min-w-max">
+      <div className="inline-flex items-end gap-4 text-xs w-max min-w-full">
         {children}
         <div className="sticky right-0 ml-auto shrink-0 pb-0.5 pl-3 bg-gray-50/95 border-l border-gray-200">
           <button
