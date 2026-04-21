@@ -131,8 +131,13 @@ type WeatherObservation = {
 type PhotoEntry = {
   id: string;
   description: string;
+  title?: string;
+  album?: string;
+  comments?: string;
   url?: string;
   filename?: string;
+  uploaded_at?: string;
+  uploaded_by_name?: string;
 };
 
 type LogForm = {
@@ -797,11 +802,11 @@ function WeatherSection({
 
 // ── Photos ───────────────────────────────────────────────────────────────────
 
-function PhotosSection({ projectId, entries, onAdd, onDelete }: {
+function PhotosSection({ projectId, entries, onAdd, onUpdate }: {
   projectId: string;
   entries: PhotoEntry[];
   onAdd: (e: PhotoEntry) => void;
-  onDelete: (id: string) => void;
+  onUpdate: (id: string, patch: Partial<PhotoEntry>) => void;
 }) {
   const PHOTOS_PER_PAGE = 25;
   const PHOTOS_PER_ROW = 10;
@@ -850,8 +855,11 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
           onAdd({
             id: uid(),
             description: photo.filename || "Photo",
+            title: "",
             url: photo.url,
             filename: photo.filename,
+            uploaded_at: photo.uploaded_at,
+            uploaded_by_name: photo.uploaded_by_name,
           });
         });
       }
@@ -881,6 +889,14 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
   }
 
   const previewPhoto = previewIndex === null ? null : entries[previewIndex];
+  const previewTitle = previewPhoto?.title?.trim() || previewPhoto?.description?.trim() || "";
+
+  function formatUploadedAt(value?: string) {
+    if (!value) return "—";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "—";
+    return parsed.toLocaleString();
+  }
 
   return (
     <SectionCard title="Photos">
@@ -934,14 +950,6 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
           </button>
           {visibleEntries.map((e, index) => (
             <div key={e.id} className="relative group">
-              <button
-                type="button"
-                onClick={() => onDelete(e.id)}
-                className="absolute top-1 right-1 z-10 inline-flex items-center justify-center w-5 h-5 rounded-full bg-black/55 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label={`Delete ${e.filename || e.description || "photo"}`}
-              >
-                ×
-              </button>
               {e.url ? (
                 <button
                   type="button"
@@ -993,19 +1001,65 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
               ‹
             </button>
           )}
-          <div
-            className="max-w-6xl max-h-[85vh] w-full flex flex-col items-center gap-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={previewPhoto.url}
-              alt={previewPhoto.filename || previewPhoto.description || "Photo preview"}
-              className="max-h-[78vh] w-auto max-w-full rounded-lg object-contain"
-            />
-            <p className="text-xs text-gray-200">
-              {previewIndex! + 1} of {entries.length}
-              {previewPhoto.filename ? ` • ${previewPhoto.filename}` : ""}
-            </p>
+          <div className="max-w-[1200px] max-h-[88vh] w-full h-full flex items-stretch gap-0" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-1 min-w-0 flex items-center justify-center bg-black/40 rounded-l-lg">
+              <img
+                src={previewPhoto.url}
+                alt={previewTitle || "Photo preview"}
+                className="max-h-[82vh] w-auto max-w-full object-contain"
+              />
+            </div>
+            <aside className="w-[320px] shrink-0 bg-[#111318] text-white rounded-r-lg border-l border-white/10 p-4 overflow-y-auto">
+              <h3 className="text-sm font-semibold text-gray-200">Information</h3>
+              <p className="text-sm mt-3 font-medium">{previewTitle || "No Description"}</p>
+
+              <div className="mt-4 border-t border-white/15 pt-4 space-y-4 text-xs">
+                <div>
+                  <label className="block text-gray-400 mb-1">Title</label>
+                  <input
+                    value={previewPhoto.title ?? previewPhoto.description ?? ""}
+                    onChange={(e) => onUpdate(previewPhoto.id, { title: e.target.value, description: e.target.value })}
+                    placeholder="Add title"
+                    className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white placeholder:text-gray-500"
+                  />
+                </div>
+
+                <div>
+                  <p className="text-gray-400">Date Uploaded</p>
+                  <p className="mt-1 text-sm">{formatUploadedAt(previewPhoto.uploaded_at)}</p>
+                </div>
+
+                <div>
+                  <p className="text-gray-400">Uploaded By</p>
+                  <p className="mt-1 text-sm">{previewPhoto.uploaded_by_name || "—"}</p>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 mb-1">Album</label>
+                  <input
+                    value={previewPhoto.album ?? ""}
+                    onChange={(e) => onUpdate(previewPhoto.id, { album: e.target.value })}
+                    placeholder="Unclassified"
+                    className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white placeholder:text-gray-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 mb-1">Comments</label>
+                  <textarea
+                    value={previewPhoto.comments ?? ""}
+                    onChange={(e) => onUpdate(previewPhoto.id, { comments: e.target.value })}
+                    placeholder="No comments"
+                    rows={5}
+                    className="w-full rounded border border-white/20 bg-black/20 px-2 py-1.5 text-sm text-white placeholder:text-gray-500 resize-y"
+                  />
+                </div>
+              </div>
+
+              <p className="mt-4 text-xs text-gray-400">
+                {previewIndex! + 1} of {entries.length}
+              </p>
+            </aside>
           </div>
           {entries.length > 1 && (
             <button
@@ -1228,6 +1282,19 @@ export default function DailyLogClient({
     });
   }
 
+  function updateInList(key: keyof LogForm, id: string, patch: Record<string, unknown>) {
+    setForm((prev) => {
+      const newForm = {
+        ...prev,
+        [key]: (prev[key] as ({ id: string } & Record<string, unknown>)[]).map((entry) =>
+          entry.id === id ? { ...entry, ...patch } : entry
+        ),
+      };
+      void saveFormData(newForm, logIdRef.current);
+      return newForm;
+    });
+  }
+
   async function handleSave() {
     await saveFormData(form, logId);
   }
@@ -1359,7 +1426,7 @@ export default function DailyLogClient({
                   projectId={projectId}
                   entries={form.photos}
                   onAdd={(e) => addToList("photos", e)}
-                  onDelete={(id) => removeFromList("photos", id)}
+                  onUpdate={(id, patch) => updateInList("photos", id, patch)}
                 />
               </section>
 
