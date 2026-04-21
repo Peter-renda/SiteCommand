@@ -805,9 +805,9 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
 }) {
   const PHOTOS_PER_PAGE = 25;
   const PHOTOS_PER_ROW = 10;
-  const [desc, setDesc] = useState("");
   const [uploading, setUploading] = useState(false);
   const [page, setPage] = useState(1);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const totalPages = Math.max(1, Math.ceil(entries.length / PHOTOS_PER_PAGE));
   const currentPage = Math.min(page, totalPages);
@@ -819,11 +819,16 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  function handleCreate() {
-    if (!desc.trim()) return;
-    onAdd({ id: uid(), description: desc.trim() });
-    setDesc("");
-  }
+  useEffect(() => {
+    if (previewIndex === null) return;
+    if (entries.length === 0) {
+      setPreviewIndex(null);
+      return;
+    }
+    if (previewIndex > entries.length - 1) {
+      setPreviewIndex(entries.length - 1);
+    }
+  }, [entries, previewIndex]);
 
   async function handleFilesSelected(event: ChangeEvent<HTMLInputElement>) {
     const files = event.target.files;
@@ -860,6 +865,22 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
     if (entries.length === 0) return "0-0 of 0";
     return `${pageStart + 1}-${Math.min(pageEnd, entries.length)} of ${entries.length}`;
   }
+
+  function showPrevPreview() {
+    setPreviewIndex((prev) => {
+      if (prev === null || entries.length === 0) return prev;
+      return prev === 0 ? entries.length - 1 : prev - 1;
+    });
+  }
+
+  function showNextPreview() {
+    setPreviewIndex((prev) => {
+      if (prev === null || entries.length === 0) return prev;
+      return prev === entries.length - 1 ? 0 : prev + 1;
+    });
+  }
+
+  const previewPhoto = previewIndex === null ? null : entries[previewIndex];
 
   return (
     <SectionCard title="Photos">
@@ -911,7 +932,7 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
             <span className="text-2xl leading-none">+</span>
             <span className="text-[11px] font-medium">{uploading ? "Uploading..." : "Upload"}</span>
           </button>
-          {visibleEntries.map((e) => (
+          {visibleEntries.map((e, index) => (
             <div key={e.id} className="relative group">
               <button
                 type="button"
@@ -922,9 +943,14 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
                 ×
               </button>
               {e.url ? (
-                <a href={e.url} target="_blank" rel="noreferrer" className="block">
+                <button
+                  type="button"
+                  onClick={() => setPreviewIndex(pageStart + index)}
+                  className="block w-full"
+                  aria-label={`Preview ${e.filename || e.description || "photo"}`}
+                >
                   <img src={e.url} alt={e.filename || e.description || "Photo"} className="aspect-square w-full rounded border border-gray-200 object-cover" />
-                </a>
+                </button>
               ) : (
                 <div className="aspect-square w-full rounded border border-gray-200 bg-gray-50 p-1 text-[10px] text-gray-500 flex items-center justify-center text-center">
                   {e.description || "Photo"}
@@ -934,11 +960,68 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
           ))}
         </div>
       </div>
-      <FormRow onSubmit={handleCreate}>
-        <Col label="Description / Reference" minW="280px">
-          <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Photo caption or file reference..." className={inCls} />
-        </Col>
-      </FormRow>
+
+      {previewPhoto?.url && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreviewIndex(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo preview"
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPreviewIndex(null);
+            }}
+            className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/20 text-white hover:bg-white/30"
+            aria-label="Close preview"
+          >
+            ✕
+          </button>
+          {entries.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                showPrevPreview();
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/30"
+              aria-label="Previous photo"
+            >
+              ‹
+            </button>
+          )}
+          <div
+            className="max-w-6xl max-h-[85vh] w-full flex flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewPhoto.url}
+              alt={previewPhoto.filename || previewPhoto.description || "Photo preview"}
+              className="max-h-[78vh] w-auto max-w-full rounded-lg object-contain"
+            />
+            <p className="text-xs text-gray-200">
+              {previewIndex! + 1} of {entries.length}
+              {previewPhoto.filename ? ` • ${previewPhoto.filename}` : ""}
+            </p>
+          </div>
+          {entries.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                showNextPreview();
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/30"
+              aria-label="Next photo"
+            >
+              ›
+            </button>
+          )}
+        </div>
+      )}
     </SectionCard>
   );
 }
