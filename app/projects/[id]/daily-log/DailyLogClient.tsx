@@ -216,7 +216,9 @@ function SectionCard({
           {badge && <span className="text-xs text-gray-400">{badge}</span>}
         </div>
       </div>
-      <div>{children}</div>
+      <div className="overflow-x-auto">
+        <div className="min-w-full">{children}</div>
+      </div>
     </div>
   );
 }
@@ -243,15 +245,11 @@ function EntryRow({ children, onDelete }: {
 }) {
   return (
     <div className="px-4 py-3 border-b border-gray-50 hover:bg-gray-50/50 group">
-      <div className="flex items-center justify-between gap-3">
-        <div className="overflow-x-auto flex-1 min-w-0">
-          <div className="inline-flex gap-6 text-xs">
-            {children}
-          </div>
-        </div>
+      <div className="flex items-center gap-6 text-xs min-w-max">
+        {children}
         <button
           onClick={onDelete}
-          className="shrink-0 p-1 text-gray-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          className="sticky right-0 ml-auto shrink-0 p-1 text-gray-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 bg-white/95"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -268,17 +266,15 @@ function FormRow({ onSubmit, children }: {
 }) {
   return (
     <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/40">
-      <div className="overflow-x-auto">
-        <div className="inline-flex items-end gap-4 text-xs">
-          {children}
-          <div className="shrink-0 pb-0.5">
-            <button
-              onClick={onSubmit}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors whitespace-nowrap"
-            >
-              Add Entry
-            </button>
-          </div>
+      <div className="inline-flex items-end gap-4 text-xs min-w-max">
+        {children}
+        <div className="sticky right-0 ml-auto shrink-0 pb-0.5 pl-3 bg-gray-50/95 border-l border-gray-200">
+          <button
+            onClick={onSubmit}
+            className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors whitespace-nowrap"
+          >
+            Create
+          </button>
         </div>
       </div>
     </div>
@@ -1122,7 +1118,7 @@ export default function DailyLogClient({
 
       <ProjectNav projectId={projectId} />
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-[1500px] mx-auto px-4 py-8">
         {/* Date navigation */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -1202,7 +1198,7 @@ export default function DailyLogClient({
             <Skeleton className="h-24 w-full" />
           </div>
         ) : (
-          <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6">
+          <div className="lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:gap-5">
             <aside className="hidden lg:block">
               <div className="sticky top-20 bg-white border border-gray-100 rounded-xl p-3">
                 <div className="border-l border-gray-200 pl-2 space-y-1">
