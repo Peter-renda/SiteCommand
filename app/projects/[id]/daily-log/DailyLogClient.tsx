@@ -803,9 +803,21 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
   onAdd: (e: PhotoEntry) => void;
   onDelete: (id: string) => void;
 }) {
+  const PHOTOS_PER_PAGE = 25;
+  const PHOTOS_PER_ROW = 10;
   const [desc, setDesc] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [page, setPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const totalPages = Math.max(1, Math.ceil(entries.length / PHOTOS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PHOTOS_PER_PAGE;
+  const pageEnd = pageStart + PHOTOS_PER_PAGE;
+  const visibleEntries = entries.slice(pageStart, pageEnd);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   function handleCreate() {
     if (!desc.trim()) return;
@@ -844,22 +856,41 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
     }
   }
 
+  function formatPhotoRange() {
+    if (entries.length === 0) return "0-0 of 0";
+    return `${pageStart + 1}-${Math.min(pageEnd, entries.length)} of ${entries.length}`;
+  }
+
   return (
     <SectionCard title="Photos">
-      <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-        <p className="text-xs text-gray-500">
-          Upload photos from your device. On mobile, you can pick from gallery or take a picture.
-        </p>
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Add photos"
-          aria-label="Add photos"
-        >
-          <span className="text-lg leading-none">+</span>
-        </button>
+      <div className="px-4 py-3 border-b border-gray-50 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-500">
+            Upload photos from your device. On mobile, you can pick from gallery or take a picture.
+          </p>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span>{formatPhotoRange()}</span>
+            <span>Page {currentPage} of {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Previous photo page"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Next photo page"
+            >
+              ›
+            </button>
+          </div>
+        </div>
         <input
           ref={fileInputRef}
           type="file"
@@ -869,20 +900,41 @@ function PhotosSection({ projectId, entries, onAdd, onDelete }: {
           onChange={handleFilesSelected}
           className="hidden"
         />
+        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${PHOTOS_PER_ROW}, minmax(0, 1fr))` }}>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="aspect-square rounded border border-dashed border-gray-300 text-orange-500 hover:bg-orange-50/50 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1"
+            title="Add photos"
+            aria-label="Add photos"
+          >
+            <span className="text-2xl leading-none">+</span>
+            <span className="text-[11px] font-medium">{uploading ? "Uploading..." : "Upload"}</span>
+          </button>
+          {visibleEntries.map((e) => (
+            <div key={e.id} className="relative group">
+              <button
+                type="button"
+                onClick={() => onDelete(e.id)}
+                className="absolute top-1 right-1 z-10 inline-flex items-center justify-center w-5 h-5 rounded-full bg-black/55 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label={`Delete ${e.filename || e.description || "photo"}`}
+              >
+                ×
+              </button>
+              {e.url ? (
+                <a href={e.url} target="_blank" rel="noreferrer" className="block">
+                  <img src={e.url} alt={e.filename || e.description || "Photo"} className="aspect-square w-full rounded border border-gray-200 object-cover" />
+                </a>
+              ) : (
+                <div className="aspect-square w-full rounded border border-gray-200 bg-gray-50 p-1 text-[10px] text-gray-500 flex items-center justify-center text-center">
+                  {e.description || "Photo"}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-      {entries.map((e) => (
-        <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          {e.url && (
-            <Col label="Preview" minW="80px">
-              <a href={e.url} target="_blank" rel="noreferrer" className="inline-block">
-                <img src={e.url} alt={e.filename || e.description || "Photo"} className="h-10 w-10 rounded object-cover border border-gray-200" />
-              </a>
-            </Col>
-          )}
-          {e.filename && <Col label="File" minW="180px"><span className="text-xs text-gray-700">{e.filename}</span></Col>}
-          <Col label="Description" minW="200px"><span className="text-xs text-gray-600">{e.description}</span></Col>
-        </EntryRow>
-      ))}
       <FormRow onSubmit={handleCreate}>
         <Col label="Description / Reference" minW="280px">
           <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Photo caption or file reference..." className={inCls} />
