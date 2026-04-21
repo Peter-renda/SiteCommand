@@ -190,13 +190,21 @@ p           { text-wrap: pretty; }
   font-variant-numeric: tabular-nums;
 }
 
+/* Display & mono font-family helpers */
+.font-display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; }
+.font-mono    { font-family: var(--font-mono); }
+
+/* DM Serif italic for accents (e.g. "need your attention" break) */
+.serif-italic { font-family: var(--font-display); font-style: italic; font-weight: 400; }
+
 /* Mono label used for RFI IDs, project numbers, currency in tables */
 .mono-label {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--fg-5);
+  letter-spacing: 0.02em;
 }
 
 /* Eyebrow: UPPERCASE + widely tracked, with brand dot */
@@ -204,11 +212,11 @@ p           { text-wrap: pretty; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--fg-5);
+  color: var(--fg-4);
 }
 .eyebrow::before {
   content: '';
@@ -218,6 +226,127 @@ p           { text-wrap: pretty; }
   border-radius: 9999px;
   background: var(--brand-500);
   flex-shrink: 0;
+}
+.eyebrow-quiet::before { background: var(--gray-300); }
+
+/* ──────────────── Bezel (double-layer surface) ────────────────
+   Usage: <div class="bezel"><div class="bezel-inner">…</div></div>
+   Equivalent to the <Bezel> component — use the class variant for
+   inline surfaces that don't warrant the component wrapper. */
+.bezel {
+  border-radius: var(--radius-2xl);
+  background: var(--bezel-outer-bg);
+  border: var(--bezel-outer-border);
+  box-shadow: var(--shadow-lg);
+  padding: 2px;
+}
+.bezel-inner {
+  border-radius: var(--radius-xl);
+  background: var(--bezel-inner-bg);
+  box-shadow: var(--bezel-inner-highlight);
+  overflow: hidden;
+  height: 100%;
+}
+
+/* Ambient hero glow — apply behind the focus card for warm light */
+.ambient-hero { background-image: var(--ambient-hero); }
+
+/* Hairline border helper — matches --border-base for 1px card edges */
+.hairline { border-color: var(--border-base); }
+
+/* Subtle lift on hover for interactive cards */
+.lift {
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    border-color var(--dur-base),
+    box-shadow var(--dur-base);
+}
+.lift:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+}
+
+/* Status / semantic pills */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.pill::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.7;
+}
+.pill-bid    { background: var(--status-bid-bg);  color: var(--status-bid-fg); }
+.pill-pre    { background: var(--status-pre-bg);  color: var(--status-pre-fg); }
+.pill-coc    { background: var(--status-coc-bg);  color: var(--status-coc-fg); }
+.pill-post   { background: var(--status-post-bg); color: var(--status-post-fg); }
+.pill-war    { background: var(--status-war-bg);  color: var(--status-war-fg); }
+.pill-open   { background: var(--brand-100);      color: var(--brand-700); }
+.pill-warn   { background: var(--warning-50);     color: #A16207; }
+.pill-danger { background: var(--danger-50);      color: var(--danger-500); }
+.pill-info   { background: var(--info-50);        color: var(--info-500); }
+
+/* Field-level completion dot (daily log sidebar stepper) */
+.step-dot {
+  width: 14px; height: 14px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--gray-300);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  transition: all 180ms var(--ease-out);
+  flex-shrink: 0;
+}
+.step-dot.filled {
+  background: var(--brand-500);
+  border-color: var(--brand-500);
+}
+.step-dot.filled::after {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 9999px;
+  background: white;
+}
+
+/* Sparkline / progress track */
+.spark-track {
+  background: var(--gray-100);
+  border-radius: 9999px;
+  overflow: hidden;
+  height: 4px;
+}
+.spark-fill {
+  height: 100%;
+  background: var(--gray-800);
+  border-radius: 9999px;
+}
+.spark-fill.brand { background: var(--brand-500); }
+
+/* Weather hero band — warm gradient with faint brand/navy glow */
+.weather-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #FAFAF9 0%, #F3F4F6 100%);
+}
+.weather-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 30% 40% at 85% 30%, rgba(212,80,10,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 10% 80%, rgba(30,58,95,0.05) 0%, transparent 65%);
+  pointer-events: none;
 }
 
 /* Visible focus ring for keyboard navigation */

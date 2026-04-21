@@ -281,7 +281,7 @@ function FormRow({ onSubmit, children }: {
         <div className="sticky right-0 ml-auto shrink-0 pb-0.5 pl-3 bg-gray-50/95 border-l border-gray-200">
           <button
             onClick={onSubmit}
-            className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors whitespace-nowrap"
+            className="px-3 py-1.5 text-xs font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors whitespace-nowrap"
           >
             Create
           </button>
@@ -947,7 +947,7 @@ function PhotosSection({ projectId, entries, onAdd, onUpdate, albumOptions }: {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="aspect-square rounded border border-dashed border-gray-300 text-orange-500 hover:bg-orange-50/50 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1"
+            className="aspect-square rounded border border-dashed border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-[color:var(--ink)] hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1 transition-colors"
             title="Add photos"
             aria-label="Add photos"
           >
@@ -1344,74 +1344,106 @@ export default function DailyLogClient({
       <ProjectNav projectId={projectId} />
 
       <main className="max-w-[1500px] mx-auto px-4 py-8">
-        {/* Date navigation */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setDate(shiftDay(date, -1))}
-              className="p-2 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors"
-              title="Previous day"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
+        {/* Weather hero band — warm gradient + DM Serif temp, eyebrow page heading */}
+        <div className="bezel mb-6">
+          <div className="bezel-inner weather-hero">
+            <div className="relative z-[1] grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-6 px-6 sm:px-8 py-6 sm:py-7">
+              {/* Left: page heading + date nav */}
+              <div>
+                <p className="eyebrow mb-3">Daily log</p>
+                <div className="flex items-center gap-3 mb-2">
+                  <button
+                    onClick={() => setDate(shiftDay(date, -1))}
+                    className="p-2 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors"
+                    title="Previous day"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <div className="flex items-baseline gap-3">
+                    <input
+                      type="date"
+                      value={date}
+                      max={todayISO()}
+                      onChange={(e) => e.target.value && setDate(e.target.value)}
+                      className="font-display text-[28px] leading-none text-[color:var(--ink)] bg-transparent border-none outline-none cursor-pointer"
+                      style={{ colorScheme: "light" }}
+                    />
+                    {isToday && <span className="pill pill-info">Today</span>}
+                  </div>
+                  <button
+                    onClick={() => setDate(shiftDay(date, 1))}
+                    disabled={isToday}
+                    className="p-2 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Next day"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {loading
+                    ? "Loading..."
+                    : logId
+                    ? dirty
+                      ? "Unsaved changes"
+                      : `Log saved · ${savedOnce ? "stored" : ""}`
+                    : "No log for this date yet"}
+                </p>
 
-            <div className="text-center">
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={date}
-                  max={todayISO()}
-                  onChange={(e) => e.target.value && setDate(e.target.value)}
-                  className="text-lg font-semibold text-gray-900 bg-transparent border-none outline-none cursor-pointer"
-                  style={{ colorScheme: "light" }}
-                />
-                {isToday && (
-                  <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-                    Today
-                  </span>
-                )}
+                <div className="flex items-center gap-2 mt-5">
+                  {!isToday && (
+                    <button
+                      onClick={() => setDate(todayISO())}
+                      className="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+                    >
+                      Jump to today
+                    </button>
+                  )}
+                  <button
+                    onClick={handleSave}
+                    disabled={saving || !dirty}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {saving ? "Saving..." : savedOnce && !dirty ? "Saved" : "Save log"}
+                  </button>
+                </div>
               </div>
-              <p className="text-xs text-gray-400 -mt-0.5">
-                {loading
-                  ? "Loading..."
-                  : logId
-                  ? dirty
-                    ? "Unsaved changes"
-                    : "Log saved"
-                  : "No log for this date"}
-              </p>
+
+              {/* Right: weather snapshot */}
+              <div className="md:border-l md:hairline md:pl-8">
+                <p className="eyebrow eyebrow-quiet mb-3">Observed on site</p>
+                <div className="flex items-baseline gap-3 mb-3">
+                  <span className="font-display text-[44px] leading-none text-[color:var(--ink)] tabular-nums">
+                    {form.weather_temp ? `${form.weather_temp}°` : "—"}
+                  </span>
+                  <span className="text-sm text-gray-600">
+                    {form.weather_conditions || "No conditions logged"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
+                  {form.weather_wind && (
+                    <div className="flex items-center gap-2">
+                      <span className="mono-label">WIND</span>
+                      <span>{form.weather_wind}</span>
+                    </div>
+                  )}
+                  {form.weather_humidity && (
+                    <div className="flex items-center gap-2">
+                      <span className="mono-label">HUMIDITY</span>
+                      <span>{form.weather_humidity}</span>
+                    </div>
+                  )}
+                  {!form.weather_wind && !form.weather_humidity && (
+                    <p className="text-xs text-gray-400 italic col-span-2">
+                      Record wind, humidity and more below.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-
-            <button
-              onClick={() => setDate(shiftDay(date, 1))}
-              disabled={isToday}
-              className="p-2 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              title="Next day"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {!isToday && (
-              <button
-                onClick={() => setDate(todayISO())}
-                className="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
-              >
-                Today
-              </button>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={saving || !dirty}
-              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {saving ? "Saving..." : savedOnce && !dirty ? "Saved" : "Save Log"}
-            </button>
           </div>
         </div>
 
@@ -1423,19 +1455,42 @@ export default function DailyLogClient({
             <Skeleton className="h-24 w-full" />
           </div>
         ) : (
-          <div className="lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:gap-5">
+          <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6">
             <aside className="hidden lg:block">
-              <div className="sticky top-20 bg-white border border-gray-100 rounded-xl p-3">
-                <div className="border-l border-gray-200 pl-2 space-y-1">
-                  {DAILY_LOG_SECTIONS.map((section) => (
-                    <a
-                      key={section.id}
-                      href={`#${section.id}`}
-                      className="block text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded px-2 py-1 transition-colors"
-                    >
-                      {section.label}
-                    </a>
-                  ))}
+              <div className="sticky top-20 bg-white border hairline rounded-xl p-4">
+                <p className="eyebrow mb-4">Sections</p>
+                <div className="space-y-0.5">
+                  {DAILY_LOG_SECTIONS.map((section) => {
+                    const count = (() => {
+                      switch (section.id) {
+                        case "photos": return form.photos.length;
+                        case "manpower": return form.manpower.length;
+                        case "inspections": return form.inspections.length;
+                        case "deliveries": return form.deliveries.length;
+                        case "visitors": return form.visitors.length;
+                        case "safety-violations": return form.safety_violations.length;
+                        case "accidents": return form.accidents.length;
+                        case "delays": return form.delays.length;
+                        case "notes": return form.note_entries.length;
+                        case "observed-weather": return form.weather_observations.length + (form.weather_conditions ? 1 : 0);
+                        default: return 0;
+                      }
+                    })();
+                    const filled = count > 0;
+                    return (
+                      <a
+                        key={section.id}
+                        href={`#${section.id}`}
+                        className="flex items-center gap-3 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md px-2 py-1.5 transition-colors"
+                      >
+                        <span className={`step-dot ${filled ? "filled" : ""}`} aria-hidden />
+                        <span className="flex-1 truncate">{section.label}</span>
+                        {filled && (
+                          <span className="mono-label tabular-nums">{count}</span>
+                        )}
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             </aside>

@@ -49,47 +49,53 @@ function timeAgo(ts: string): string {
   return `${months}mo ago`;
 }
 
+function ActivityGlyph({ type }: { type: ActivityItem["type"] }) {
+  const stroke = 1.75;
+  switch (type) {
+    case "rfi":
+      return (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+    case "submittal":
+      return (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      );
+    case "document":
+      return (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+      );
+    case "daily_log":
+      return (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      );
+    case "task":
+      return (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      );
+  }
+}
+
 function ActivityIcon({ type }: { type: ActivityItem["type"] }) {
-  if (type === "rfi") {
-    return (
-      <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    );
-  }
-  if (type === "submittal") {
-    return (
-      <svg className="w-4 h-4 text-purple-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-    );
-  }
-  if (type === "document") {
-    return (
-      <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-      </svg>
-    );
-  }
-  if (type === "daily_log") {
-    return (
-      <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    );
-  }
-  if (type === "task") {
-    return (
-      <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    );
-  }
-  // drawing
   return (
-    <svg className="w-4 h-4 text-orange-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
+    <div className="w-7 h-7 rounded-md bg-gray-50 border hairline flex items-center justify-center text-gray-600 shrink-0">
+      <ActivityGlyph type={type} />
+    </div>
   );
 }
 
@@ -101,19 +107,46 @@ type Project = {
   value: number;
   status: string;
   created_at: string;
+  project_number?: string | null;
+  sector?: string | null;
   members?: Member[];
 };
 
 const ADMIN_EMAIL = "ptrenda1@gmail.com";
 
-function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 px-6 py-5">
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-2">{label}</p>
-      <p className="text-2xl font-semibold text-gray-900">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
-  );
+const STATUS_PILL: Record<string, string> = {
+  "bidding": "pill-bid",
+  "pre-construction": "pill-pre",
+  "course of construction": "pill-coc",
+  "post-construction": "pill-post",
+  "warranty": "pill-war",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  "bidding": "Bidding",
+  "pre-construction": "Pre-Construction",
+  "course of construction": "In Construction",
+  "post-construction": "Post-Construction",
+  "warranty": "Warranty",
+};
+
+function progressForStatus(status: string): number {
+  switch (status) {
+    case "bidding": return 0;
+    case "pre-construction": return 0.1;
+    case "course of construction": return 0.55;
+    case "post-construction": return 0.95;
+    case "warranty": return 1;
+    default: return 0;
+  }
+}
+
+function formatCurrencyDisplay(n: number): string {
+  if (!n) return "$0";
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}B`;
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n.toLocaleString()}`;
 }
 
 function MemberPicker({
@@ -633,52 +666,138 @@ export default function DashboardClient({ username, email, role, companyRole, us
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <div className="flex items-center justify-between mb-8">
-          <div></div>
-          {canManageProjects && (
-            <button
-              onClick={openModal}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              New Project
-            </button>
+        {/* Focus Card — hero with ambient glow, attention items + portfolio snapshot */}
+        {(() => {
+          const scopedTasks = myTasks.filter((t) => !currentProjectId || t.project_id === currentProjectId);
+          const attentionCount = scopedTasks.length;
+          const greetingFirstName = (username || "there").split(/[\s.@]/)[0];
+          const greeting = `Good ${(() => { const h = new Date().getHours(); return h < 12 ? "morning" : h < 18 ? "afternoon" : "evening"; })()}, ${greetingFirstName}.`;
+          return (
+            <div className="bezel ambient-hero mb-10">
+              <div className="bezel-inner">
+                <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
+                  {/* Left: attention */}
+                  <div className="px-6 sm:px-8 py-7 sm:py-9">
+                    <p className="eyebrow mb-4">Today · Where you&rsquo;re needed</p>
+                    <h1 className="font-display text-[32px] sm:text-[40px] leading-[1.05] text-[color:var(--ink)] mb-1">
+                      {attentionCount > 0 ? (
+                        <>
+                          <span className="tabular-nums">{attentionCount}</span>{" "}
+                          {attentionCount === 1 ? "item" : "items"}{" "}
+                          <span className="serif-italic text-gray-500">need your attention</span>
+                        </>
+                      ) : (
+                        <>
+                          {greeting}{" "}
+                          <span className="serif-italic text-gray-500">nothing overdue</span>
+                        </>
+                      )}
+                    </h1>
+                    <p className="text-sm text-gray-500 mb-6 max-w-md">
+                      {attentionCount > 0
+                        ? "Open tasks assigned to you across all active projects."
+                        : "Signals from your projects will surface here as work progresses."}
+                    </p>
+
+                    {scopedTasks.length > 0 ? (
+                      <ul className="divide-y divide-gray-50 border hairline rounded-lg bg-white">
+                        {scopedTasks.slice(0, 4).map((task) => (
+                          <li key={task.id}>
+                            <a
+                              href={`/projects/${task.project_id}`}
+                              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                            >
+                              <span className={`pill ${task.due_date && new Date(task.due_date) < new Date() ? "pill-danger" : "pill-warn"} shrink-0`}>
+                                Task
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm text-gray-900 truncate">{task.title}</p>
+                                <p className="text-xs text-gray-400 truncate">{task.project_name}</p>
+                              </div>
+                              {task.due_date && (
+                                <span className="text-xs text-gray-500 shrink-0 mono-label">
+                                  {(() => {
+                                    const d = new Date(task.due_date);
+                                    const now = new Date();
+                                    const days = Math.floor((d.getTime() - now.getTime()) / 86_400_000);
+                                    if (days < 0) return `${Math.abs(days)}d overdue`;
+                                    if (days === 0) return "Due today";
+                                    return `Due ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+                                  })()}
+                                </span>
+                              )}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-xs text-gray-400 italic">You&rsquo;re all caught up.</div>
+                    )}
+
+                    {canManageProjects && (
+                      <div className="mt-6">
+                        <button
+                          onClick={openModal}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[color:var(--ink)] text-white text-sm font-semibold rounded-md hover:bg-black transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                          </svg>
+                          New project
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: portfolio snapshot */}
+                  <div className="border-t lg:border-t-0 lg:border-l hairline px-6 sm:px-8 py-7 sm:py-9 bg-gradient-to-br from-white to-[color:var(--surface-sunken)]">
+                    <p className="eyebrow mb-4">Portfolio · At a glance</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">Total value</p>
+                    <p className="font-display text-[36px] leading-none text-[color:var(--ink)] tabular-nums mb-6">
+                      {formatCurrencyDisplay(totalValue)}
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="mono-label mb-1">PROJECTS</p>
+                        <p className="font-display text-xl text-[color:var(--ink)] tabular-nums">{projects.length}</p>
+                      </div>
+                      <div>
+                        <p className="mono-label mb-1">ACTIVE</p>
+                        <p className="font-display text-xl text-[color:var(--ink)] tabular-nums">{activeCount}</p>
+                      </div>
+                      <div>
+                        <p className="mono-label mb-1">COMPLETE</p>
+                        <p className="font-display text-xl text-[color:var(--ink)] tabular-nums">{completedCount}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-5 border-t hairline">
+                      <p className="mono-label mb-2">TASKS OPEN TO YOU</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="font-display text-2xl text-[color:var(--ink)] tabular-nums">{attentionCount}</p>
+                        <p className="text-xs text-gray-400">
+                          {attentionCount === 1 ? "item awaiting action" : "items awaiting action"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Projects section header */}
+        <div className="flex items-end justify-between mb-5">
+          <div>
+            <p className="eyebrow mb-2">Portfolio</p>
+            <h2 className="font-display text-[22px] leading-tight text-[color:var(--ink)]">Projects</h2>
+          </div>
+          {projects.length > 0 && (
+            <p className="text-xs text-gray-400 mono-label">{projects.length} TOTAL</p>
           )}
         </div>
-
-        {/* My Tasks Alert Banner */}
-        {myTasks.filter((t) => !currentProjectId || t.project_id === currentProjectId).length > 0 && (
-          <div className="mb-6 space-y-1.5">
-            {myTasks.filter((t) => !currentProjectId || t.project_id === currentProjectId).map((task) => (
-              <a
-                key={task.id}
-                href={`/projects/${task.project_id}`}
-                className="flex items-center px-3 py-2 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg transition-colors"
-              >
-                <span className="text-xs text-red-900 min-w-0 truncate">
-                  <span className="font-semibold">{task.project_name}:</span> {task.title}
-                </span>
-                {task.due_date && (
-                  <span className="ml-auto text-xs text-red-500 shrink-0 pl-3">
-                    Due {new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </span>
-                )}
-              </a>
-            ))}
-          </div>
-        )}
-
-        {/* Stat tiles */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <StatTile label="Portfolio Value" value={`$${totalValue.toLocaleString()}`} sub="across all projects" />
-          <StatTile label="Total Projects" value={projects.length.toString()} />
-          <StatTile label="Active" value={activeCount.toString()} sub="in progress" />
-          <StatTile label="Completed" value={completedCount.toString()} sub="finished" />
-        </div>
-
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Projects</h2>
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -705,59 +824,106 @@ export default function DashboardClient({ username, email, role, companyRole, us
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((project) => (
-              <a key={project.id} href={`/projects/${project.id}`} className="block bg-white border border-gray-100 rounded-xl px-5 py-4 hover:border-gray-300 transition-colors">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-900 leading-snug">{project.name}</h3>
-                  <span className={`ml-3 shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${project.status === "course of construction" ? "bg-green-50 text-green-700" : project.status === "bidding" ? "bg-blue-50 text-blue-700" : project.status === "pre-construction" ? "bg-yellow-50 text-yellow-700" : project.status === "warranty" ? "bg-purple-50 text-purple-700" : "bg-gray-100 text-gray-500"}`}>
-                    {project.status}
-                  </span>
-                </div>
-                {project.address && (
-                  <div className="flex items-center gap-1 mb-2">
-                    <svg className="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <p className="text-xs text-gray-400">{project.address}</p>
-                  </div>
-                )}
-                {project.description && (
-                  <p className="text-xs text-gray-400 mb-3 leading-relaxed">{project.description}</p>
-                )}
-                {project.members && project.members.length > 0 && (
-                  <div className="flex items-center gap-1.5 mb-4">
-                    <div className="flex -space-x-1.5">
-                      {project.members.slice(0, 4).map((m) => (
-                        <div
-                          key={m.id}
-                          title={m.username}
-                          className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-semibold text-gray-600"
-                        >
-                          {m.username[0].toUpperCase()}
-                        </div>
-                      ))}
+            {projects.map((project) => {
+              const pillClass = STATUS_PILL[project.status] ?? "pill-post";
+              const statusLabel = STATUS_LABEL[project.status] ?? project.status;
+              const progress = progressForStatus(project.status);
+              const isActive = project.status === "course of construction";
+              return (
+                <a
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className="lift block bg-white border hairline rounded-xl px-5 pt-4 pb-0 overflow-hidden"
+                >
+                  {/* Top row: number · sector + pill */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {project.project_number && (
+                        <span className="mono-label">{project.project_number}</span>
+                      )}
+                      {project.project_number && project.sector && (
+                        <span className="text-gray-300">·</span>
+                      )}
+                      {project.sector && (
+                        <span className="text-[11px] uppercase tracking-wider text-gray-500 font-medium truncate">
+                          {project.sector}
+                        </span>
+                      )}
                     </div>
-                    {project.members.length > 4 && (
-                      <span className="text-xs text-gray-400">+{project.members.length - 4} more</span>
-                    )}
+                    <span className={`pill ${pillClass} shrink-0`}>{statusLabel}</span>
                   </div>
-                )}
-                <div className="flex items-end justify-between">
-                  <p className="text-lg font-semibold text-gray-900">${(project.value || 0).toLocaleString()}</p>
-                  <p className="text-xs text-gray-400">
-                    {new Date(project.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+
+                  {/* Project name */}
+                  <h3 className="text-[15px] font-semibold text-gray-900 leading-snug mb-1">
+                    {project.name}
+                  </h3>
+
+                  {/* Address */}
+                  {project.address && (
+                    <p className="text-xs text-gray-400 mb-4 truncate">{project.address}</p>
+                  )}
+
+                  {/* Value (DM Serif) */}
+                  <p className="font-display text-[28px] leading-none text-[color:var(--ink)] tabular-nums mb-4">
+                    {formatCurrencyDisplay(project.value || 0)}
                   </p>
-                </div>
-              </a>
-            ))}
+
+                  {/* Progress spark-track */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="mono-label">PROGRESS</span>
+                      <span className="mono-label">{Math.round(progress * 100)}%</span>
+                    </div>
+                    <div className="spark-track">
+                      <div
+                        className={`spark-fill ${isActive ? "brand" : ""}`}
+                        style={{ width: `${Math.max(3, progress * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Members */}
+                  {project.members && project.members.length > 0 && (
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="flex -space-x-1.5">
+                        {project.members.slice(0, 4).map((m) => (
+                          <div
+                            key={m.id}
+                            title={m.username}
+                            className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-semibold text-gray-600"
+                          >
+                            {m.username[0].toUpperCase()}
+                          </div>
+                        ))}
+                      </div>
+                      {project.members.length > 4 && (
+                        <span className="text-xs text-gray-400">+{project.members.length - 4}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Site-pulse footer */}
+                  <div className="-mx-5 px-5 py-2.5 border-t hairline bg-[color:var(--surface-sunken)] flex items-center justify-between">
+                    <span className="mono-label">
+                      {isActive ? "ON SITE" : project.status === "warranty" ? "WARRANTY" : project.status === "bidding" ? "BIDDING" : project.status === "pre-construction" ? "PRE-CON" : "WRAPPED"}
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                      {new Date(project.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </div>
+                </a>
+              );
+            })}
           </div>
         )}
 
         {/* Recent Activity */}
-        <div className="mt-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-900">Recent Activity</h2>
+        <div className="mt-12">
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <p className="eyebrow mb-2">Signal</p>
+              <h2 className="font-display text-[22px] leading-tight text-[color:var(--ink)]">Recent activity</h2>
+            </div>
             {/* 3-dot filter button */}
             <div ref={filterMenuRef} className="relative">
               <button
@@ -793,10 +959,10 @@ export default function DashboardClient({ username, email, role, companyRole, us
           </div>
 
           {activityLoading ? (
-            <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
+            <div className="bg-white border hairline rounded-xl divide-y divide-gray-50">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
-                  <div className="w-4 h-4 bg-gray-200 rounded-full shrink-0" />
+                <div key={i} className="flex items-center gap-3 px-4 py-3.5 animate-pulse">
+                  <div className="w-7 h-7 bg-gray-100 rounded-md shrink-0" />
                   <div className="flex-1 space-y-1.5">
                     <div className="h-3 bg-gray-200 rounded w-2/3" />
                     <div className="h-2.5 bg-gray-100 rounded w-1/3" />
@@ -814,19 +980,18 @@ export default function DashboardClient({ username, email, role, companyRole, us
             const visible = filtered.slice(0, visibleCount);
             const hasMore = filtered.length > visibleCount;
             return (
-              <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
+              <div className="bg-white border hairline rounded-xl divide-y divide-gray-50">
                 {visible.map((item) => (
                   <a
                     key={`${item.type}-${item.id}`}
                     href={item.href}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors"
                   >
                     <ActivityIcon type={item.type} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-800 truncate">{item.title}</p>
                       <p className="text-xs text-gray-400 truncate">
-                        <span className="font-medium text-gray-500">{TYPE_LABELS[item.type]}</span>
-                        {" · "}
+                        <span className="mono-label mr-2">{TYPE_LABELS[item.type].toUpperCase()}</span>
                         {item.project_name}
                       </p>
                     </div>
