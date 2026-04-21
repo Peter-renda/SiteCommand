@@ -642,13 +642,13 @@ function ManpowerSection({ entries, onAdd, onDelete, companySuggestions }: {
     >
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          {e.company && <Col label="Company" minW="120px"><span className="text-gray-800 font-medium">{e.company}</span></Col>}
+          <Col label="Company" minW="120px"><span className="text-gray-800 font-medium">{e.company || "—"}</span></Col>
           <Col label="Workers" minW="60px"><span className="text-gray-700">{e.workers || "—"}</span></Col>
           <Col label="Hrs/Worker" minW="70px"><span className="text-gray-700">{e.hours || "—"}</span></Col>
           <Col label="Total Hrs" minW="70px"><span className="text-gray-700">{((parseInt(e.workers) || 0) * (parseFloat(e.hours) || 0)).toFixed(1)}h</span></Col>
-          {e.location && <Col label="Location" minW="100px"><span className="text-gray-700">{e.location}</span></Col>}
-          {e.cost_code && <Col label="Cost Code" minW="80px"><span className="text-gray-700">{e.cost_code}</span></Col>}
-          {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          <Col label="Location" minW="100px"><span className="text-gray-700">{e.location || "—"}</span></Col>
+          <Col label="Cost Code" minW="80px"><span className="text-gray-700">{e.cost_code || "—"}</span></Col>
+          <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments || "—"}</span></Col>
         </EntryRow>
       ))}
       <FormRow onSubmit={handleCreate}>
@@ -829,6 +829,19 @@ function PhotosSection({ entries, onAdd, onDelete }: {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
+
+const DAILY_LOG_SECTIONS = [
+  { id: "photos", label: "Photos" },
+  { id: "inspections", label: "Inspections" },
+  { id: "deliveries", label: "Deliveries" },
+  { id: "visitors", label: "Visitors" },
+  { id: "safety-violations", label: "Safety Violations" },
+  { id: "accidents", label: "Accidents" },
+  { id: "delays", label: "Delays" },
+  { id: "notes", label: "Notes" },
+  { id: "manpower", label: "Manpower" },
+  { id: "observed-weather", label: "Observed Weather" },
+] as const;
 
 export default function DailyLogClient({
   projectId,
@@ -1041,7 +1054,7 @@ export default function DailyLogClient({
 
       <ProjectNav projectId={projectId} />
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Date navigation */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -1121,69 +1134,107 @@ export default function DailyLogClient({
             <Skeleton className="h-24 w-full" />
           </div>
         ) : (
-          <div className="space-y-5">
-            <PhotosSection
-              entries={form.photos}
-              onAdd={(e) => addToList("photos", e)}
-              onDelete={(id) => removeFromList("photos", id)}
-            />
+          <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6">
+            <aside className="hidden lg:block">
+              <div className="sticky top-20 bg-white border border-gray-100 rounded-xl p-3">
+                <div className="border-l border-gray-200 pl-2 space-y-1">
+                  {DAILY_LOG_SECTIONS.map((section) => (
+                    <a
+                      key={section.id}
+                      href={`#${section.id}`}
+                      className="block text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded px-2 py-1 transition-colors"
+                    >
+                      {section.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </aside>
 
-            <ManpowerSection
-              entries={form.manpower}
-              onAdd={(e) => addToList("manpower", e)}
-              onDelete={(id) => removeFromList("manpower", id)}
-              companySuggestions={companySuggestions}
-            />
+            <div className="space-y-5">
+              <section id="observed-weather" className="scroll-mt-24">
+                <WeatherSection
+                  form={form}
+                  patch={patch}
+                  observations={form.weather_observations}
+                  onAddObs={(o) => addToList("weather_observations", o)}
+                  onDeleteObs={(id) => removeFromList("weather_observations", id)}
+                />
+              </section>
 
-            <InspectionsSection
-              entries={form.inspections}
-              onAdd={(e) => addToList("inspections", e)}
-              onDelete={(id) => removeFromList("inspections", id)}
-            />
+              <section id="manpower" className="scroll-mt-24">
+                <ManpowerSection
+                  entries={form.manpower}
+                  onAdd={(e) => addToList("manpower", e)}
+                  onDelete={(id) => removeFromList("manpower", id)}
+                  companySuggestions={companySuggestions}
+                />
+              </section>
 
-            <DeliveriesSection
-              entries={form.deliveries}
-              onAdd={(e) => addToList("deliveries", e)}
-              onDelete={(id) => removeFromList("deliveries", id)}
-            />
+              <section id="inspections" className="scroll-mt-24">
+                <InspectionsSection
+                  entries={form.inspections}
+                  onAdd={(e) => addToList("inspections", e)}
+                  onDelete={(id) => removeFromList("inspections", id)}
+                />
+              </section>
 
-            <VisitorsSection
-              entries={form.visitors}
-              onAdd={(e) => addToList("visitors", e)}
-              onDelete={(id) => removeFromList("visitors", id)}
-            />
+              <section id="deliveries" className="scroll-mt-24">
+                <DeliveriesSection
+                  entries={form.deliveries}
+                  onAdd={(e) => addToList("deliveries", e)}
+                  onDelete={(id) => removeFromList("deliveries", id)}
+                />
+              </section>
 
-            <SafetyViolationsSection
-              entries={form.safety_violations}
-              onAdd={(e) => addToList("safety_violations", e)}
-              onDelete={(id) => removeFromList("safety_violations", id)}
-            />
+              <section id="visitors" className="scroll-mt-24">
+                <VisitorsSection
+                  entries={form.visitors}
+                  onAdd={(e) => addToList("visitors", e)}
+                  onDelete={(id) => removeFromList("visitors", id)}
+                />
+              </section>
 
-            <AccidentsSection
-              entries={form.accidents}
-              onAdd={(e) => addToList("accidents", e)}
-              onDelete={(id) => removeFromList("accidents", id)}
-            />
+              <section id="safety-violations" className="scroll-mt-24">
+                <SafetyViolationsSection
+                  entries={form.safety_violations}
+                  onAdd={(e) => addToList("safety_violations", e)}
+                  onDelete={(id) => removeFromList("safety_violations", id)}
+                />
+              </section>
 
-            <DelaysSection
-              entries={form.delays}
-              onAdd={(e) => addToList("delays", e)}
-              onDelete={(id) => removeFromList("delays", id)}
-            />
+              <section id="accidents" className="scroll-mt-24">
+                <AccidentsSection
+                  entries={form.accidents}
+                  onAdd={(e) => addToList("accidents", e)}
+                  onDelete={(id) => removeFromList("accidents", id)}
+                />
+              </section>
 
-            <NoteEntriesSection
-              entries={form.note_entries}
-              onAdd={(e) => addToList("note_entries", e)}
-              onDelete={(id) => removeFromList("note_entries", id)}
-            />
+              <section id="delays" className="scroll-mt-24">
+                <DelaysSection
+                  entries={form.delays}
+                  onAdd={(e) => addToList("delays", e)}
+                  onDelete={(id) => removeFromList("delays", id)}
+                />
+              </section>
 
-            <WeatherSection
-              form={form}
-              patch={patch}
-              observations={form.weather_observations}
-              onAddObs={(o) => addToList("weather_observations", o)}
-              onDeleteObs={(id) => removeFromList("weather_observations", id)}
-            />
+              <section id="notes" className="scroll-mt-24">
+                <NoteEntriesSection
+                  entries={form.note_entries}
+                  onAdd={(e) => addToList("note_entries", e)}
+                  onDelete={(id) => removeFromList("note_entries", id)}
+                />
+              </section>
+
+              <section id="photos" className="scroll-mt-24">
+                <PhotosSection
+                  entries={form.photos}
+                  onAdd={(e) => addToList("photos", e)}
+                  onDelete={(id) => removeFromList("photos", id)}
+                />
+              </section>
+            </div>
           </div>
         )}
       </main>
