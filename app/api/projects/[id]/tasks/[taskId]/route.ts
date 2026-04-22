@@ -34,7 +34,13 @@ export async function PATCH(
   const body = await req.json();
 
   const update: Record<string, unknown> = {};
+  if (body.title !== undefined) update.title = typeof body.title === "string" ? body.title : null;
   if (body.status !== undefined) update.status = body.status;
+  if (body.category !== undefined) update.category = body.category;
+  if (body.due_date !== undefined) update.due_date = body.due_date;
+  if (body.description !== undefined) update.description = body.description;
+  if (body.distribution_list !== undefined) update.distribution_list = body.distribution_list;
+  if (body.assignees !== undefined) update.assignees = body.assignees;
 
   const supabase = getSupabase();
   const { data, error } = await supabase
