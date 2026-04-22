@@ -145,17 +145,6 @@ const STATUS_LABEL: Record<string, string> = {
   "warranty": "Warranty",
 };
 
-function progressForStatus(status: string): number {
-  switch (status) {
-    case "bidding": return 0;
-    case "pre-construction": return 0.1;
-    case "course of construction": return 0.55;
-    case "post-construction": return 0.95;
-    case "warranty": return 1;
-    default: return 0;
-  }
-}
-
 function scheduleProgressForProject(project: Project): number | null {
   if (!project.has_schedule) return null;
 
@@ -171,6 +160,31 @@ function scheduleProgressForProject(project: Project): number | null {
   const dayMs = 86_400_000;
   const totalDays = Math.max(1, Math.ceil((finish.getTime() - start.getTime()) / dayMs));
   const elapsedDays = Math.max(0, Math.min(totalDays, Math.floor((today.getTime() - start.getTime()) / dayMs)));
+  return elapsedDays / totalDays;
+}
+
+function scheduleProgressFromTasks(tasks: ScheduleTask[]): number | null {
+  if (!Array.isArray(tasks) || tasks.length === 0) return null;
+
+  const datedTasks = tasks.filter((task) => !task.isSummary && task.start && task.finish);
+  if (datedTasks.length === 0) return null;
+
+  let minStart = Number.POSITIVE_INFINITY;
+  let maxFinish = Number.NEGATIVE_INFINITY;
+
+  for (const task of datedTasks) {
+    const startTs = new Date(task.start as string).getTime();
+    const finishTs = new Date(task.finish as string).getTime();
+    if (!Number.isNaN(startTs)) minStart = Math.min(minStart, startTs);
+    if (!Number.isNaN(finishTs)) maxFinish = Math.max(maxFinish, finishTs);
+  }
+
+  if (!Number.isFinite(minStart) || !Number.isFinite(maxFinish) || maxFinish <= minStart) return null;
+
+  const today = Date.now();
+  const dayMs = 86_400_000;
+  const totalDays = Math.max(1, Math.ceil((maxFinish - minStart) / dayMs));
+  const elapsedDays = Math.max(0, Math.min(totalDays, Math.floor((today - minStart) / dayMs)));
   return elapsedDays / totalDays;
 }
 
@@ -278,6 +292,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [companyUsers, setCompanyUsers] = useState<Member[]>([]);
+  const [scheduleProgressByProject, setScheduleProgressByProject] = useState<Record<string, number | null>>({});
 
   // Recent Activity state
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -410,6 +425,39 @@ export default function DashboardClient({ username, email, role, companyRole, us
       if (stored) setCurrentProjectId(stored);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    const scheduledProjects = projects.filter((project) => project.has_schedule);
+    if (scheduledProjects.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      const entries = await Promise.all(
+        scheduledProjects.map(async (project) => {
+          try {
+            const res = await fetch(`/api/projects/${project.id}/schedule`);
+            if (!res.ok) return [project.id, scheduleProgressForProject(project)] as const;
+            const data = await res.json();
+            const taskProgress = scheduleProgressFromTasks(Array.isArray(data?.tasks) ? data.tasks : []);
+            return [project.id, taskProgress ?? scheduleProgressForProject(project)] as const;
+          } catch {
+            return [project.id, scheduleProgressForProject(project)] as const;
+          }
+        })
+      );
+
+      if (!cancelled) {
+        setScheduleProgressByProject(Object.fromEntries(entries));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projects]);
 
   // Close filter menu on outside click
   useEffect(() => {
@@ -851,10 +899,11 @@ export default function DashboardClient({ username, email, role, companyRole, us
             {projects.map((project) => {
               const pillClass = STATUS_PILL[project.status] ?? "pill-post";
               const statusLabel = STATUS_LABEL[project.status] ?? project.status;
-              const scheduleProgress = scheduleProgressForProject(project);
-              const progress = scheduleProgress ?? progressForStatus(project.status);
+              const scheduleProgress = project.has_schedule
+                ? (scheduleProgressByProject[project.id] ?? scheduleProgressForProject(project))
+                : null;
               const isActive = project.status === "course of construction";
-              const progressLabel = scheduleProgress == null ? "Not available" : `${Math.round(progress * 100)}%`;
+              const progressLabel = scheduleProgress == null ? "Not available" : `${Math.round(scheduleProgress * 100)}%`;
               return (
                 <a
                   key={project.id}
@@ -903,7 +952,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
                     <div className="spark-track">
                       <div
                         className={`spark-fill ${isActive ? "brand" : ""}`}
-                        style={{ width: scheduleProgress == null ? "0%" : `${Math.max(3, progress * 100)}%` }}
+                        style={{ width: scheduleProgress == null ? "0%" : `${Math.max(3, scheduleProgress * 100)}%` }}
                       />
                     </div>
                   </div>
