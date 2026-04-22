@@ -25,10 +25,14 @@ type MyTask = {
   project_name: string;
 };
 
-type ScheduleTask = {
-  start?: string;
-  finish?: string;
-  isSummary?: boolean;
+type MyOpenItem = {
+  id: string;
+  title: string;
+  type: "task" | "rfi" | "submittal" | "change_event" | "change_order" | "commitment" | "prime_contract";
+  status: string;
+  due_date: string | null;
+  project_id: string;
+  project_name: string;
 };
 
 const ALL_TYPES = ["rfi", "submittal", "document", "daily_log", "task", "drawing"];
@@ -324,7 +328,9 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
   // My Tasks state
   const [myTasks, setMyTasks] = useState<MyTask[]>([]);
+  const [myOpenItems, setMyOpenItems] = useState<MyOpenItem[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const myOpenItemsRef = useRef<HTMLElement>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -400,6 +406,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
       if (res.ok) {
         const data = await res.json();
         setMyTasks(Array.isArray(data.tasks) ? data.tasks : []);
+        setMyOpenItems(Array.isArray(data.open_items) ? data.open_items : []);
       }
     } catch {}
   }
@@ -760,7 +767,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
         {/* Focus Card — hero with ambient glow, attention items + portfolio snapshot */}
         {(() => {
           const scopedTasks = myTasks.filter((t) => !currentProjectId || t.project_id === currentProjectId);
-          const attentionCount = scopedTasks.length;
+          const attentionCount = myOpenItems.length;
           const greetingFirstName = (username || "there").split(/[\s.@]/)[0];
           const greeting = `Good ${(() => { const h = new Date().getHours(); return h < 12 ? "morning" : h < 18 ? "afternoon" : "evening"; })()}, ${greetingFirstName}.`;
           return (
@@ -786,7 +793,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
                     </h1>
                     <p className="text-sm text-gray-500 mb-6 max-w-md">
                       {attentionCount > 0
-                        ? "Open tasks assigned to you across all active projects."
+                        ? "Open items assigned to you or created by you across all active projects."
                         : "Signals from your projects will surface here as work progresses."}
                     </p>
 
@@ -851,7 +858,13 @@ export default function DashboardClient({ username, email, role, companyRole, us
                     </div>
 
                     <div className="mt-6 pt-5 border-t hairline">
-                      <p className="mono-label mb-2">TASKS OPEN TO YOU</p>
+                      <button
+                        type="button"
+                        className="mono-label mb-2 hover:text-gray-700 transition-colors underline-offset-2 hover:underline"
+                        onClick={() => myOpenItemsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                      >
+                        MY OPEN ITEMS
+                      </button>
                       <div className="flex items-baseline gap-2">
                         <p className="font-display text-2xl text-[color:var(--ink)] tabular-nums">{attentionCount}</p>
                         <p className="text-xs text-gray-400">
@@ -996,6 +1009,54 @@ export default function DashboardClient({ username, email, role, companyRole, us
             })}
           </div>
         )}
+
+        {/* My Open Items */}
+        <section ref={myOpenItemsRef} className="mt-12">
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <p className="eyebrow mb-2">Today · Where you&rsquo;re needed</p>
+              <h2 className="font-display text-[22px] leading-tight text-[color:var(--ink)]">My Open Items</h2>
+            </div>
+            <p className="text-xs text-gray-400 mono-label">{myOpenItems.length} TOTAL</p>
+          </div>
+
+          {myOpenItems.length === 0 ? (
+            <div className="text-xs text-gray-400 italic">You&rsquo;re all caught up.</div>
+          ) : (
+            <ul className="divide-y divide-gray-50 border hairline rounded-xl bg-white">
+              {myOpenItems.map((item) => (
+                <li key={`${item.type}-${item.id}`}>
+                  <a
+                    href={`/projects/${item.project_id}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                  >
+                    <span className={`pill ${item.due_date && new Date(item.due_date) < new Date() ? "pill-danger" : "pill-warn"} shrink-0`}>
+                      {item.type.replace("_", " ")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-900 truncate">{item.title}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {item.project_name || "Project"} · {item.status || "Open"}
+                      </p>
+                    </div>
+                    {item.due_date && (
+                      <span className="text-xs text-gray-500 shrink-0 mono-label">
+                        {(() => {
+                          const d = new Date(item.due_date);
+                          const now = new Date();
+                          const days = Math.floor((d.getTime() - now.getTime()) / 86_400_000);
+                          if (days < 0) return `${Math.abs(days)}d overdue`;
+                          if (days === 0) return "Due today";
+                          return `Due ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+                        })()}
+                      </span>
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {/* Recent Activity */}
         <div className="mt-12">

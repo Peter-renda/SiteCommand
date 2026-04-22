@@ -66,16 +66,175 @@ export async function GET() {
   // Limit to 5 total
   tasks = tasks.slice(0, 5);
 
-  if (tasks.length === 0) {
-    return NextResponse.json({ tasks: [] });
+  type OpenItem = {
+    id: string;
+    title: string;
+    type:
+      | "task"
+      | "rfi"
+      | "submittal"
+      | "change_event"
+      | "change_order"
+      | "commitment"
+      | "prime_contract";
+    status: string;
+    due_date: string | null;
+    project_id: string;
+  };
+
+  const openItems: OpenItem[] = [];
+  const nowIsoDate = new Date().toISOString().slice(0, 10);
+
+  // Open RFIs created by current user
+  try {
+    const { data } = await supabase
+      .from("rfis")
+      .select("id, subject, status, due_date, project_id")
+      .eq("created_by", session.id)
+      .neq("status", "closed")
+      .limit(20);
+    for (const row of data || []) {
+      openItems.push({
+        id: row.id,
+        title: row.subject || "Untitled RFI",
+        type: "rfi",
+        status: row.status || "",
+        due_date: row.due_date || null,
+        project_id: row.project_id,
+      });
+    }
+  } catch {}
+
+  // Open Submittals created by current user
+  try {
+    const { data } = await supabase
+      .from("submittals")
+      .select("id, title, status, final_due_date, project_id")
+      .eq("created_by", session.id)
+      .neq("status", "closed")
+      .limit(20);
+    for (const row of data || []) {
+      openItems.push({
+        id: row.id,
+        title: row.title || "Untitled Submittal",
+        type: "submittal",
+        status: row.status || "",
+        due_date: row.final_due_date || null,
+        project_id: row.project_id,
+      });
+    }
+  } catch {}
+
+  // Tasks assigned to user (the same set shown in hero)
+  for (const row of tasks) {
+    openItems.push({
+      id: row.id,
+      title: row.title || "Untitled Task",
+      type: "task",
+      status: row.status || "",
+      due_date: row.due_date || null,
+      project_id: row.project_id,
+    });
   }
 
-  // Fetch project names
-  const projectIds = [...new Set(tasks.map((t) => t.project_id))];
-  const { data: projectsData } = await supabase
-    .from("projects")
-    .select("id, name")
-    .in("id", projectIds);
+  // Change Events past due (uses due_date if present in current schema)
+  try {
+    const { data } = await supabase
+      .from("change_events")
+      .select("id, title, status, due_date, project_id")
+      .eq("created_by", session.id)
+      .lt("due_date", nowIsoDate)
+      .neq("status", "Closed")
+      .limit(20);
+    for (const row of data || []) {
+      openItems.push({
+        id: row.id,
+        title: row.title || "Untitled Change Event",
+        type: "change_event",
+        status: row.status || "",
+        due_date: row.due_date || null,
+        project_id: row.project_id,
+      });
+    }
+  } catch {}
+
+  // Change Orders past due (if created_by exists in current schema)
+  try {
+    const { data } = await supabase
+      .from("change_orders")
+      .select("id, title, status, due_date, project_id")
+      .eq("created_by", session.id)
+      .lt("due_date", nowIsoDate)
+      .neq("status", "Closed")
+      .limit(20);
+    for (const row of data || []) {
+      openItems.push({
+        id: row.id,
+        title: row.title || "Untitled Change Order",
+        type: "change_order",
+        status: row.status || "",
+        due_date: row.due_date || null,
+        project_id: row.project_id,
+      });
+    }
+  } catch {}
+
+  // Commitments past due (delivery_date)
+  try {
+    const { data } = await supabase
+      .from("commitments")
+      .select("id, title, status, delivery_date, project_id")
+      .eq("created_by", session.id)
+      .lt("delivery_date", nowIsoDate)
+      .neq("status", "closed")
+      .limit(20);
+    for (const row of data || []) {
+      openItems.push({
+        id: row.id,
+        title: row.title || "Untitled Commitment",
+        type: "commitment",
+        status: row.status || "",
+        due_date: row.delivery_date || null,
+        project_id: row.project_id,
+      });
+    }
+  } catch {}
+
+  // Prime Contracts past due (estimated completion date)
+  try {
+    const { data } = await supabase
+      .from("prime_contracts")
+      .select("id, title, status, estimated_completion_date, project_id")
+      .eq("created_by", session.id)
+      .lt("estimated_completion_date", nowIsoDate)
+      .neq("status", "closed")
+      .limit(20);
+    for (const row of data || []) {
+      openItems.push({
+        id: row.id,
+        title: row.title || "Untitled Prime Contract",
+        type: "prime_contract",
+        status: row.status || "",
+        due_date: row.estimated_completion_date || null,
+        project_id: row.project_id,
+      });
+    }
+  } catch {}
+
+  // Deduplicate and normalize status filtering for non-closed items.
+  const dedupedOpenItems = Array.from(
+    new Map(
+      openItems
+        .filter((item) => String(item.status || "").trim().toLowerCase() !== "closed")
+        .map((item) => [`${item.type}:${item.id}`, item])
+    ).values()
+  );
+
+  // Fetch project names for all returned entities.
+  const projectIds = [...new Set([...tasks.map((t) => t.project_id), ...dedupedOpenItems.map((i) => i.project_id)])];
+  const { data: projectsData } = projectIds.length
+    ? await supabase.from("projects").select("id, name").in("id", projectIds)
+    : { data: [] as { id: string; name: string }[] };
 
   const projectMap = new Map((projectsData || []).map((p: { id: string; name: string }) => [p.id, p.name]));
 
@@ -84,5 +243,17 @@ export async function GET() {
     project_name: projectMap.get(t.project_id) ?? "",
   }));
 
-  return NextResponse.json({ tasks: result });
+  const openItemsResult = dedupedOpenItems
+    .map((item) => ({
+      ...item,
+      project_name: projectMap.get(item.project_id) ?? "",
+    }))
+    .sort((a, b) => {
+      const aDue = a.due_date ? new Date(a.due_date).getTime() : Number.POSITIVE_INFINITY;
+      const bDue = b.due_date ? new Date(b.due_date).getTime() : Number.POSITIVE_INFINITY;
+      return aDue - bDue;
+    })
+    .slice(0, 50);
+
+  return NextResponse.json({ tasks: result, open_items: openItemsResult });
 }
