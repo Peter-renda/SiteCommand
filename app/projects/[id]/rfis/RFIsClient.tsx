@@ -399,6 +399,18 @@ function formatDateTime(d: string | null): string {
   return new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+const RFI_STATUS_PILL: Record<string, string> = {
+  open: "pill-open",
+  closed: "pill-coc",
+  draft: "pill-warn",
+};
+
+function RFIStatusPill({ status }: { status: string }) {
+  const cls = RFI_STATUS_PILL[status] ?? "pill-post";
+  const label = status.charAt(0).toUpperCase() + status.slice(1);
+  return <span className={`pill ${cls}`}>{label}</span>;
+}
+
 async function exportRFIsPDF(
   projectId: string,
   rfis: RFI[],
@@ -691,8 +703,18 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
             </button>
           </div>
         )}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">RFIs</h1>
+        <div className="flex items-end justify-between mb-6 gap-4 flex-wrap">
+          <div>
+            <p className="eyebrow mb-2">Project · Coordination</p>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">RFIs</h1>
+            {!loading && rfis.length > 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                <span className="mono-label">{rfis.length} TOTAL</span>
+                <span className="mx-2 text-gray-300">·</span>
+                <span className="mono-label">{rfis.filter((r) => r.status === "open").length} OPEN</span>
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <div ref={columnRef} className="relative">
               <button onClick={() => setShowColumnConfig((o) => !o)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
@@ -761,18 +783,21 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                 </div>
               )}
             </div>
-            <button onClick={() => setShowCreate(true)} disabled={creating} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
+            <button onClick={() => setShowCreate(true)} disabled={creating} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors disabled:opacity-50">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              {creating ? "Creating..." : "Create new RFI"}
+              {creating ? "Creating..." : "New RFI"}
             </button>
           </div>
         </div>
 
         {selectedRfiIds.length > 0 && (
-          <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 flex flex-wrap items-end gap-3">
-            <p className="text-sm text-gray-700 font-medium">{selectedRfiIds.length} selected</p>
+          <div className="mb-4 bg-white border hairline rounded-lg p-3 flex flex-wrap items-end gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <div className="pr-3 border-r hairline">
+              <p className="mono-label">SELECTED</p>
+              <p className="font-display text-lg leading-none text-[color:var(--ink)] tabular-nums">{selectedRfiIds.length}</p>
+            </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Status</label>
+              <label className="block mono-label mb-1">STATUS</label>
               <select value={bulkStatus} onChange={(e) => setBulkStatus((e.target.value as "" | "draft" | "open" | "closed"))} className="px-2.5 py-2 border border-gray-200 rounded text-sm bg-white">
                 <option value="">No change</option>
                 <option value="draft">Draft</option>
@@ -781,11 +806,11 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Due Date</label>
+              <label className="block mono-label mb-1">DUE DATE</label>
               <input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} className="px-2.5 py-2 border border-gray-200 rounded text-sm" />
             </div>
-            <button onClick={applyBulkUpdate} disabled={applyingBulk} className="px-3 py-2 text-sm text-white bg-gray-900 rounded hover:bg-gray-700 disabled:opacity-50">
-              {applyingBulk ? "Applying..." : "Apply Bulk Edit"}
+            <button onClick={applyBulkUpdate} disabled={applyingBulk} className="px-3 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded hover:bg-black disabled:opacity-50">
+              {applyingBulk ? "Applying..." : "Apply bulk edit"}
             </button>
             <button onClick={() => setSelectedRfiIds([])} className="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded hover:bg-gray-50">Clear</button>
           </div>
@@ -806,11 +831,11 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
             />
           </div>
         ) : (
-          <div className="bg-white border border-gray-100 rounded-xl overflow-x-auto">
+          <div className="bg-white border hairline rounded-xl overflow-x-auto">
             <table className="w-full min-w-[800px]">
               <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider w-12">
+                <tr className="border-b hairline bg-[color:var(--surface-sunken)]">
+                  <th className="text-left px-4 py-3 w-12">
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -819,8 +844,8 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                     />
                   </th>
                   {visibleColumns.map((key) => (
-                    <th key={key} className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      {COLUMN_LABELS[key as typeof COLUMN_KEYS[number]]}
+                    <th key={key} className="text-left px-4 py-3 mono-label whitespace-nowrap">
+                      {COLUMN_LABELS[key as typeof COLUMN_KEYS[number]].toUpperCase()}
                     </th>
                   ))}
                 </tr>
@@ -830,7 +855,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                   <tr
                     key={rfi.id}
                     onClick={(e) => { if ((e.target as HTMLElement).closest("button")) return; window.location.href = `/projects/${projectId}/rfis/${rfi.id}`; }}
-                    className="border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-b-0 cursor-pointer"
+                    className="border-b border-gray-50 hover:bg-[color:var(--surface-sunken)] transition-colors last:border-b-0 cursor-pointer"
                   >
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
@@ -852,16 +877,16 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                     {visibleColumns.map((key) => {
                       let cell: React.ReactNode = "—";
                       switch (key) {
-                        case "rfi_number": cell = <span className="font-mono text-gray-700">{rfi.rfi_number}</span>; break;
-                        case "subject": cell = <span className="text-sm text-gray-900">{(rfi.subject ?? "").slice(0, 60)}{(rfi.subject ?? "").length > 60 ? "…" : ""}</span>; break;
-                        case "due_date": cell = <span className="text-xs text-gray-500">{formatDate(rfi.due_date)}</span>; break;
-                        case "status": cell = <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${rfi.status === "open" ? "bg-blue-50 text-blue-700" : rfi.status === "closed" ? "bg-gray-100 text-gray-600" : "bg-amber-50 text-amber-700"}`}>{rfi.status}</span>; break;
+                        case "rfi_number": cell = <span className="font-mono text-[color:var(--ink)] tabular-nums">#{rfi.rfi_number}</span>; break;
+                        case "subject": cell = <span className="text-sm text-gray-900 font-medium">{(rfi.subject ?? "").slice(0, 60)}{(rfi.subject ?? "").length > 60 ? "…" : ""}</span>; break;
+                        case "due_date": cell = <span className="text-xs text-gray-500 tabular-nums">{formatDate(rfi.due_date)}</span>; break;
+                        case "status": cell = <RFIStatusPill status={rfi.status} />; break;
                         case "rfi_manager": cell = getContactNameById(directory, rfi.rfi_manager_id); break;
                         case "received_from": cell = getContactNameById(directory, rfi.received_from_id); break;
                         case "assignees": cell = (rfi.assignees ?? []).map((a) => a.name).join(", ") || "—"; break;
                         case "distribution": cell = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
                         case "responsible_contractor": cell = getContactNameById(directory, rfi.responsible_contractor_id); break;
-                        case "date_initiated": cell = formatDate(rfi.created_at); break;
+                        case "date_initiated": cell = <span className="tabular-nums">{formatDate(rfi.created_at)}</span>; break;
                       }
                       return <td key={key} className="px-4 py-3 text-sm text-gray-600">{cell}</td>;
                     })}
