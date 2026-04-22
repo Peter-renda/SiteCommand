@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import { Eyebrow, Pill } from "@/components/design-system/Primitives";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2233,12 +2234,13 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
       <ProjectNav projectId={projectId} />
 
       <main className="max-w-7xl mx-auto px-6 py-6">
-        <div className="flex items-start justify-between mb-5">
+        <div className="flex items-start justify-between mb-5 rounded-xl border border-[var(--border-base)] bg-white p-4">
           <div>
-            <p className="text-xs text-gray-400">Project 360 Reporting</p>
-            <p className="text-xs text-gray-500 mt-1">Create reports, clone reports, then build and share dashboards from your visual library.</p>
+            <Eyebrow quiet>Project 360 Reporting</Eyebrow>
+            <p className="text-xs text-gray-500 mt-2">Create reports, clone reports, then build and share dashboards from your visual library.</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Pill className="pill-open">{activeTab === "reports" ? "reports" : "dashboards"}</Pill>
             <TabButton active={activeTab === "reports"} label="Reports" onClick={() => setActiveTab("reports")} />
             <TabButton active={activeTab === "dashboards"} label="Dashboards" onClick={() => setActiveTab("dashboards")} />
             <button
