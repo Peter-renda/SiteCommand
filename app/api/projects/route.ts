@@ -20,7 +20,21 @@ export async function GET() {
       .select("*")
       .eq("company_id", session.company_id)
       .order("created_at", { ascending: false });
-    return NextResponse.json(data || []);
+    const projects = Array.isArray(data) ? data : [];
+    if (projects.length === 0) return NextResponse.json([]);
+
+    const { data: schedules } = await supabase
+      .from("project_schedules")
+      .select("project_id")
+      .in("project_id", projects.map((p: { id: string }) => p.id));
+    const scheduledProjectIds = new Set((schedules ?? []).map((row: { project_id: string }) => row.project_id));
+
+    return NextResponse.json(
+      projects.map((project: { id: string }) => ({
+        ...project,
+        has_schedule: scheduledProjectIds.has(project.id),
+      }))
+    );
   }
 
   // Standard members and external collaborators: only projects explicitly assigned
@@ -45,8 +59,21 @@ export async function GET() {
   }
 
   const { data } = await projectQuery;
+  const projects = Array.isArray(data) ? data : [];
+  if (projects.length === 0) return NextResponse.json([]);
 
-  return NextResponse.json(data || []);
+  const { data: schedules } = await supabase
+    .from("project_schedules")
+    .select("project_id")
+    .in("project_id", projects.map((p: { id: string }) => p.id));
+  const scheduledProjectIds = new Set((schedules ?? []).map((row: { project_id: string }) => row.project_id));
+
+  return NextResponse.json(
+    projects.map((project: { id: string }) => ({
+      ...project,
+      has_schedule: scheduledProjectIds.has(project.id),
+    }))
+  );
 }
 
 export async function POST(req: NextRequest) {
