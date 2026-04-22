@@ -107,6 +107,11 @@ type Project = {
   value: number;
   status: string;
   created_at: string;
+  start_date?: string | null;
+  actual_start_date?: string | null;
+  completion_date?: string | null;
+  projected_finish_date?: string | null;
+  has_schedule?: boolean;
   project_number?: string | null;
   sector?: string | null;
   members?: Member[];
@@ -139,6 +144,24 @@ function progressForStatus(status: string): number {
     case "warranty": return 1;
     default: return 0;
   }
+}
+
+function scheduleProgressForProject(project: Project): number | null {
+  if (!project.has_schedule) return null;
+
+  const startRaw = project.actual_start_date || project.start_date;
+  const finishRaw = project.completion_date || project.projected_finish_date;
+  if (!startRaw || !finishRaw) return null;
+
+  const start = new Date(startRaw);
+  const finish = new Date(finishRaw);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(finish.getTime()) || finish <= start) return null;
+
+  const today = new Date();
+  const dayMs = 86_400_000;
+  const totalDays = Math.max(1, Math.ceil((finish.getTime() - start.getTime()) / dayMs));
+  const elapsedDays = Math.max(0, Math.min(totalDays, Math.floor((today.getTime() - start.getTime()) / dayMs)));
+  return elapsedDays / totalDays;
 }
 
 function formatCurrencyDisplay(n: number): string {
@@ -809,8 +832,10 @@ export default function DashboardClient({ username, email, role, companyRole, us
             {projects.map((project) => {
               const pillClass = STATUS_PILL[project.status] ?? "pill-post";
               const statusLabel = STATUS_LABEL[project.status] ?? project.status;
-              const progress = progressForStatus(project.status);
+              const scheduleProgress = scheduleProgressForProject(project);
+              const progress = scheduleProgress ?? progressForStatus(project.status);
               const isActive = project.status === "course of construction";
+              const progressLabel = scheduleProgress == null ? "Not available" : `${Math.round(progress * 100)}%`;
               return (
                 <a
                   key={project.id}
@@ -854,12 +879,12 @@ export default function DashboardClient({ username, email, role, companyRole, us
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="mono-label">PROGRESS</span>
-                      <span className="mono-label">{Math.round(progress * 100)}%</span>
+                      <span className="mono-label">{progressLabel}</span>
                     </div>
                     <div className="spark-track">
                       <div
                         className={`spark-fill ${isActive ? "brand" : ""}`}
-                        style={{ width: `${Math.max(3, progress * 100)}%` }}
+                        style={{ width: scheduleProgress == null ? "0%" : `${Math.max(3, progress * 100)}%` }}
                       />
                     </div>
                   </div>
