@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import { Brand, Eyebrow, Pill } from "@/components/design-system/Primitives";
 
 type ProjectAdmin = {
   id: string;
@@ -359,8 +360,8 @@ export default function AdminClient({
   return (
     <div className="min-h-screen bg-[#f3f4f6]">
       <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 transition-colors hover:text-gray-600">
-          SiteCommand
+        <a href="/dashboard" className="hover:opacity-80 transition-opacity">
+          <Brand />
         </a>
         <div className="flex items-center gap-5">
           <span className="text-sm text-gray-500">{username}</span>
@@ -377,15 +378,18 @@ export default function AdminClient({
           <p className="text-sm text-gray-500">Loading...</p>
         ) : (
           <>
-            <div className="mb-5 flex items-start justify-between rounded-lg border border-gray-200 bg-white p-5">
+            <div className="mb-5 flex items-start justify-between rounded-lg border border-[var(--border-base)] bg-white p-5">
               <div>
-                <h1 className="text-4xl font-semibold text-gray-900">Project Admin</h1>
-                <p className="mt-1 text-3xl text-gray-700">{data?.name || "Untitled Project"}</p>
+                <Eyebrow quiet>Project Workspace</Eyebrow>
+                <h1 className="mt-2 text-2xl font-semibold text-gray-900">Project Admin</h1>
+                <p className="mt-1 text-base text-gray-700">{data?.name || "Untitled Project"}</p>
                 {!isAdmin ? (
                   <p className="mt-1 text-xs text-gray-500">View only — contact a project administrator to make changes.</p>
                 ) : null}
               </div>
               {isAdmin ? (
+                <div className="flex flex-col items-end gap-2">
+                  <Pill className="pill-open">Admin controls</Pill>
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -393,6 +397,7 @@ export default function AdminClient({
                 >
                   {saved ? "Saved" : saving ? "Saving..." : "Save Changes"}
                 </button>
+                </div>
               ) : null}
             </div>
 

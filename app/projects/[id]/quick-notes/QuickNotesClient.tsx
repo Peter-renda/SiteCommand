@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import { Eyebrow, Pill } from "@/components/design-system/Primitives";
 
 type Note = {
   id: string;
@@ -210,6 +211,14 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
       <ProjectNav projectId={projectId} />
 
       <main className="mx-auto max-w-[1400px] px-4 py-6">
+        <div className="mb-4 rounded-xl border border-[var(--border-base)] bg-white p-4">
+          <Eyebrow quiet>Project Workspace</Eyebrow>
+          <div className="mt-2 flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-gray-900">Quick Notes</h1>
+            <Pill className="pill-open">{notes.length} notes</Pill>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
           <aside className="bg-white border border-gray-200 rounded-xl p-3 h-[calc(100vh-120px)] overflow-hidden flex flex-col">
             <button
@@ -228,7 +237,7 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
                   onClick={() => { setActiveId(note.id); setIsEditing(false); }}
                   className={`w-full text-left p-2.5 rounded-md border transition ${
                     note.id === activeId
-                      ? "bg-blue-50 border-blue-200"
+                      ? "bg-gray-50 border-gray-300"
                       : "bg-white border-gray-200 hover:bg-gray-50"
                   }`}
                 >
