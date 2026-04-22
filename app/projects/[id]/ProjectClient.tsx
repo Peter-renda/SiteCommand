@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import { Brand, Eyebrow, Pill, WeatherGlyph } from "@/components/design-system/Primitives";
 
 type Member = { id: string; username: string; email: string };
 
@@ -82,16 +83,16 @@ function timeAgo(timestamp: string): string {
   return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function weatherInfo(code: number): { label: string; icon: string } {
-  if (code === 0) return { label: "Clear", icon: "☀️" };
-  if (code <= 3) return { label: "Partly cloudy", icon: "⛅" };
-  if (code <= 48) return { label: "Foggy", icon: "🌫️" };
-  if (code <= 55) return { label: "Drizzle", icon: "🌦️" };
-  if (code <= 65) return { label: "Rain", icon: "🌧️" };
-  if (code <= 75) return { label: "Snow", icon: "❄️" };
-  if (code <= 82) return { label: "Showers", icon: "🌦️" };
-  if (code <= 99) return { label: "Thunderstorm", icon: "⛈️" };
-  return { label: "Unknown", icon: "🌡️" };
+function weatherInfo(code: number): { label: string; glyph: "sun" | "cloud" | "rain" | "snow" | "storm" | "fog" | "unknown" } {
+  if (code === 0) return { label: "Clear", glyph: "sun" };
+  if (code <= 3) return { label: "Partly cloudy", glyph: "cloud" };
+  if (code <= 48) return { label: "Foggy", glyph: "fog" };
+  if (code <= 55) return { label: "Drizzle", glyph: "rain" };
+  if (code <= 65) return { label: "Rain", glyph: "rain" };
+  if (code <= 75) return { label: "Snow", glyph: "snow" };
+  if (code <= 82) return { label: "Showers", glyph: "rain" };
+  if (code <= 99) return { label: "Thunderstorm", glyph: "storm" };
+  return { label: "Unknown", glyph: "unknown" };
 }
 
 function buildRainAlert(days: WeatherDay[]): string | null {
@@ -168,12 +169,12 @@ function WeatherWidget({ zipCode, onDays }: { zipCode: string; onDays?: (days: W
       {location && <p className="text-xs text-gray-400 mb-3">{location}</p>}
       <div className="space-y-1.5">
         {days.map((day) => {
-          const { icon } = weatherInfo(day.code);
+          const { glyph } = weatherInfo(day.code);
           const dayName = new Date(day.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
           return (
             <div key={day.date} className="flex items-center justify-between py-1.5 px-3 bg-gray-50 rounded-lg">
               <span className="text-xs font-medium text-gray-600 w-9">{dayName}</span>
-              <span className="text-base">{icon}</span>
+              <WeatherGlyph kind={glyph} />
               <div className="flex items-center gap-2 text-xs">
                 <span className="w-10 text-right text-blue-500 font-medium">
                   {day.precip > 0 ? `${day.precip.toFixed(1)}"` : ""}
@@ -697,8 +698,8 @@ export default function ProjectClient({
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors shrink-0">
-          SiteCommand
+        <a href="/dashboard" className="hover:opacity-80 transition-opacity shrink-0">
+          <Brand />
         </a>
         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
           <span className="hidden sm:block text-sm text-gray-400 truncate max-w-[120px]">{username}</span>
@@ -719,7 +720,7 @@ export default function ProjectClient({
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <span className="text-lg ml-8">🌧️</span>
+          <span className="text-sky-100 ml-8"><WeatherGlyph kind="rain" /></span>
           <p className="text-sm font-medium text-white">{rainAlert}</p>
         </div>
       )}
@@ -747,7 +748,11 @@ export default function ProjectClient({
           <>
             {/* Centered project name */}
             <div className="text-center mb-6 sm:mb-10">
+              <Eyebrow>Project Home</Eyebrow>
               <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-gray-900">{project.name}</h1>
+              <div className="mt-2">
+                <Pill className="pill-coc">{project.status || "active"}</Pill>
+              </div>
             </div>
 
             {/* Two-column layout */}

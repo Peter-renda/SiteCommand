@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, ChangeEvent } from "re
 // Note: useRef/useCallback used by other parts of this file (folder tree, modals)
 import { Hand } from "lucide-react";
 import ProjectNav from "@/components/ProjectNav";
+import { Brand, Eyebrow, Pill } from "@/components/design-system/Primitives";
 
 type DocItem = {
   id: string;
@@ -2057,8 +2058,8 @@ export default function DocumentsClient({
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
-          SiteCommand
+        <a href="/dashboard" className="hover:opacity-80 transition-opacity">
+          <Brand />
         </a>
         <div className="flex items-center gap-5">
           <span className="text-sm text-gray-400">{username}</span>
@@ -2089,7 +2090,9 @@ export default function DocumentsClient({
         {/* Page title + breadcrumb + add button */}
         <div className="flex items-center justify-between mb-6">
           <div>
+            <Eyebrow quiet>Project workspace</Eyebrow>
             <h1 className="text-xl font-semibold text-gray-900">Documents</h1>
+            <div className="mt-1"><Pill className="pill-open">{items.length} items</Pill></div>
             <nav className="flex items-center gap-1 mt-1">
               {breadcrumb.map((crumb, i) => (
                 <span key={i} className="flex items-center gap-1">
