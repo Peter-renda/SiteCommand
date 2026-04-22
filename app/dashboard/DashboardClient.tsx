@@ -184,6 +184,24 @@ function scheduleProgressFromTasks(tasks: ScheduleTask[]): number | null {
   return elapsedDays / totalDays;
 }
 
+function scheduleProgressForProject(project: Project): number | null {
+  if (!project.has_schedule) return null;
+
+  const startRaw = project.actual_start_date || project.start_date;
+  const finishRaw = project.completion_date || project.projected_finish_date;
+  if (!startRaw || !finishRaw) return null;
+
+  const start = new Date(startRaw);
+  const finish = new Date(finishRaw);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(finish.getTime()) || finish <= start) return null;
+
+  const today = new Date();
+  const dayMs = 86_400_000;
+  const totalDays = Math.max(1, Math.ceil((finish.getTime() - start.getTime()) / dayMs));
+  const elapsedDays = Math.max(0, Math.min(totalDays, Math.floor((today.getTime() - start.getTime()) / dayMs)));
+  return elapsedDays / totalDays;
+}
+
 function formatCurrencyDisplay(n: number): string {
   if (!n) return "$0";
   if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}B`;
