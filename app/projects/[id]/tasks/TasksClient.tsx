@@ -848,7 +848,7 @@ export default function TasksClient({
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-end mb-6">
           <div className="flex items-center gap-2">
             {/* Export dropdown */}
             <div ref={exportRef} className="relative">
