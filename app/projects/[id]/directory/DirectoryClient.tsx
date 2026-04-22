@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import { Brand, Eyebrow, Pill } from "@/components/design-system/Primitives";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -815,8 +816,8 @@ export default function DirectoryClient({
     <div className="min-h-screen bg-gray-50">
       {/* App header */}
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
-          SiteCommand
+        <a href="/dashboard" className="hover:opacity-80 transition-opacity">
+          <Brand />
         </a>
         <div className="flex items-center gap-5">
           <span className="text-sm text-gray-400">{username}</span>
@@ -828,6 +829,14 @@ export default function DirectoryClient({
 
       <main className="max-w-screen-xl mx-auto px-6 py-6">
         {/* Toolbar */}
+        <div className="mb-4 rounded-xl border border-[var(--border-base)] bg-white p-4">
+          <Eyebrow quiet>Project Workspace</Eyebrow>
+          <div className="mt-2 flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-gray-900">Directory</h1>
+            <Pill className="pill-open">{totalCount} contacts</Pill>
+          </div>
+        </div>
+
         <div className="flex items-center gap-3 mb-4">
           {/* Search */}
           <div className="relative">

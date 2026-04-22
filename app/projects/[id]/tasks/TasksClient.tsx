@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, ChangeEvent } from "react";
 import ProjectNav from "@/components/ProjectNav";
 import EmptyState from "@/app/components/EmptyState";
 import { SkeletonTable } from "@/app/components/Skeleton";
+import { Brand, Eyebrow, Pill } from "@/components/design-system/Primitives";
 
 type DistributionContact = { id: string; name: string; email: string | null };
 
@@ -826,8 +827,8 @@ export default function TasksClient({
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
-          SiteCommand
+        <a href="/dashboard" className="hover:opacity-80 transition-opacity">
+          <Brand />
         </a>
         <div className="flex items-center gap-5">
           <span className="text-sm text-gray-400">{username}</span>
@@ -839,8 +840,15 @@ export default function TasksClient({
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Title + actions */}
+        <div className="mb-6 rounded-xl border border-[var(--border-base)] bg-white p-4">
+          <Eyebrow quiet>Project Workspace</Eyebrow>
+          <div className="mt-2 flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-gray-900">Tasks</h1>
+            <Pill className="pill-open">{tasks.length} open items</Pill>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">Tasks</h1>
           <div className="flex items-center gap-2">
             {/* Export dropdown */}
             <div ref={exportRef} className="relative">
