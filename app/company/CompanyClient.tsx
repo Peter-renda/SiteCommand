@@ -29,6 +29,12 @@ type Company = {
   billing_owner_id: string | null;
 } | null;
 
+type Project = {
+  id: string;
+  name: string;
+  status: string | null;
+  created_at: string;
+};
 
 function roleBadgeClass(role: string) {
   if (role === "super_admin") return "bg-amber-50 text-amber-700";
@@ -46,17 +52,19 @@ export default function CompanyClient({
   company,
   members: initialMembers,
   invites: initialInvites,
+  projects,
   currentUserId,
   isSuperAdmin,
 }: {
   company: Company;
   members: Member[];
   invites: Invite[];
+  projects: Project[];
   currentUserId: string;
   isSuperAdmin: boolean;
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"team" | "developer">("team");
+  const [activeTab, setActiveTab] = useState<"team" | "projects" | "developer">("team");
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
 
@@ -180,7 +188,7 @@ const seatCount = members.length;
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 mb-6">
-          {(["team", "developer"] as const).map((tab) => (
+          {(["team", "projects", "developer"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -190,7 +198,7 @@ const seatCount = members.length;
                   : "border-transparent text-gray-400 hover:text-gray-700"
               }`}
             >
-              {tab === "team" ? "Team" : "Developer"}
+              {tab === "team" ? "Team" : tab === "projects" ? "Projects" : "Developer"}
             </button>
           ))}
         </div>
@@ -381,6 +389,48 @@ const seatCount = members.length;
         </div>
 
         </>}
+
+        {activeTab === "projects" && (
+          <div className="bg-white rounded-xl border border-gray-100 px-6 py-5">
+            <div className="mb-4">
+              <h2 className="text-sm font-semibold text-gray-900">Projects</h2>
+              <p className="text-xs text-gray-400 mt-1">
+                {projects.length} total project{projects.length === 1 ? "" : "s"}
+              </p>
+            </div>
+
+            {projects.length === 0 ? (
+              <p className="text-sm text-gray-400 mb-4">No projects yet.</p>
+            ) : (
+              <div className="space-y-1 mb-5">
+                {projects.map((project) => (
+                  <a
+                    key={project.id}
+                    href={`/projects/${project.id}`}
+                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{project.name}</p>
+                      <p className="text-xs text-gray-400 capitalize truncate">
+                        {project.status || "No status"}
+                      </p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </a>
+                ))}
+              </div>
+            )}
+
+            <a
+              href="/dashboard"
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-md hover:bg-gray-700 transition-colors"
+            >
+              + New Project
+            </a>
+          </div>
+        )}
 
       </main>
 

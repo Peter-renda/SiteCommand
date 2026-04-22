@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { isCompanyAdmin } from "@/lib/project-access";
 import CompanyClient from "./CompanyClient";
 
+type OrgMemberRow = {
+  role: string;
+  users: { id: string; username: string; email: string; created_at: string } | null;
+};
+
 export default async function CompanyPage() {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -27,10 +32,10 @@ export default async function CompanyPage() {
     .eq("org_id", session.company_id)
     .order("created_at", { ascending: true });
 
-  const members = (memberRows ?? []).map((row: any) => {
-    const u = row.users as { id: string; username: string; email: string; created_at: string } | null;
+  const members = ((memberRows ?? []) as OrgMemberRow[]).map((row) => {
+    const u = row.users;
     return { id: u?.id, username: u?.username, email: u?.email, created_at: u?.created_at, company_role: row.role };
-  }).filter((m: any) => m.id);
+  }).filter((m) => m.id);
 
   const { data: invites } = await supabase
     .from("invitations")
@@ -41,6 +46,12 @@ export default async function CompanyPage() {
     .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false });
 
+  const { data: projects } = await supabase
+    .from("projects")
+    .select("id, name, status, created_at")
+    .eq("company_id", session.company_id)
+    .order("created_at", { ascending: false });
+
   const isSuperAdmin = session.company_role === "super_admin";
 
   return (
@@ -48,6 +59,7 @@ export default async function CompanyPage() {
       company={company ?? null}
       members={(members ?? []) as { id: string; username: string; email: string; company_role: string; created_at: string }[]}
       invites={(invites ?? []) as { id: string; email: string; invited_role: string; created_at: string; expires_at: string }[]}
+      projects={(projects ?? []) as { id: string; name: string; status: string | null; created_at: string }[]}
       currentUserId={session.id}
       isSuperAdmin={isSuperAdmin}
     />
