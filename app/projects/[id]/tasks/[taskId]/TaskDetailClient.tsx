@@ -153,6 +153,7 @@ export default function TaskDetailClient({
   const [status, setStatus] = useState("open");
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/tasks/${taskId}`).then(async (res) => {
@@ -175,6 +176,7 @@ export default function TaskDetailClient({
     if (res.ok) {
       const updated = await res.json();
       setTask((prev) => prev ? { ...prev, status: updated.status } : prev);
+      setIsEditing(false);
     }
     setSaving(false);
   }
@@ -224,19 +226,39 @@ export default function TaskDetailClient({
                 All Tasks
               </a>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-50 transition-colors"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
+                {isEditing ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setStatus(task.status);
+                        setIsEditing(false);
+                      }}
+                      className="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-50 transition-colors"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+                    >
+                      {saving ? "Saving..." : "Save Changes"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
+                  >
+                    Edit
+                  </button>
+                )}
               </div>
             </div>
 
@@ -260,7 +282,8 @@ export default function TaskDetailClient({
                       <select
                         value={status}
                         onChange={(e) => setStatus(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                       >
                         {STATUSES.map((s) => (
                           <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
