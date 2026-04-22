@@ -33,6 +33,7 @@ type MyOpenItem = {
   due_date: string | null;
   project_id: string;
   project_name: string;
+  href?: string;
 };
 
 const ALL_TYPES = ["rfi", "submittal", "document", "daily_log", "task", "drawing"];
@@ -188,30 +189,36 @@ function scheduleProgressFromTasks(tasks: ScheduleTask[]): number | null {
   return elapsedDays / totalDays;
 }
 
-function scheduleProgressForProject(project: Project): number | null {
-  if (!project.has_schedule) return null;
-
-  const startRaw = project.actual_start_date || project.start_date;
-  const finishRaw = project.completion_date || project.projected_finish_date;
-  if (!startRaw || !finishRaw) return null;
-
-  const start = new Date(startRaw);
-  const finish = new Date(finishRaw);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(finish.getTime()) || finish <= start) return null;
-
-  const today = new Date();
-  const dayMs = 86_400_000;
-  const totalDays = Math.max(1, Math.ceil((finish.getTime() - start.getTime()) / dayMs));
-  const elapsedDays = Math.max(0, Math.min(totalDays, Math.floor((today.getTime() - start.getTime()) / dayMs)));
-  return elapsedDays / totalDays;
-}
-
 function formatCurrencyDisplay(n: number): string {
   if (!n) return "$0";
   if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}B`;
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
   return `$${n.toLocaleString()}`;
+}
+
+function openItemHref(item: MyOpenItem): string {
+  if (item.href) return item.href;
+
+  const projectBase = `/projects/${item.project_id}`;
+  switch (item.type) {
+    case "task":
+      return `${projectBase}/tasks/${item.id}`;
+    case "rfi":
+      return `${projectBase}/rfis/${item.id}`;
+    case "submittal":
+      return `${projectBase}/submittals/${item.id}`;
+    case "change_event":
+      return `${projectBase}/change-events/${item.id}`;
+    case "change_order":
+      return `${projectBase}/change-orders/${item.id}`;
+    case "commitment":
+      return `${projectBase}/commitments/${item.id}`;
+    case "prime_contract":
+      return `${projectBase}/prime-contracts/${item.id}`;
+    default:
+      return projectBase;
+  }
 }
 
 function MemberPicker({
@@ -1027,7 +1034,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
               {myOpenItems.map((item) => (
                 <li key={`${item.type}-${item.id}`}>
                   <a
-                    href={`/projects/${item.project_id}`}
+                    href={openItemHref(item)}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                   >
                     <span className={`pill ${item.due_date && new Date(item.due_date) < new Date() ? "pill-danger" : "pill-warn"} shrink-0`}>
