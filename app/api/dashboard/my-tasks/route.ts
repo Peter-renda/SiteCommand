@@ -75,6 +75,7 @@ export async function GET() {
       | "submittal"
       | "change_event"
       | "change_order"
+      | "budget"
       | "commitment"
       | "prime_contract";
     status: string;
@@ -137,14 +138,13 @@ export async function GET() {
     });
   }
 
-  // Change Events past due (uses due_date if present in current schema)
+  // Change Events created by this user that are past due and not draft.
   try {
     const { data } = await supabase
       .from("change_events")
       .select("id, title, status, due_date, project_id")
       .eq("created_by", session.id)
       .lt("due_date", nowIsoDate)
-      .neq("status", "Closed")
       .limit(20);
     for (const row of data || []) {
       openItems.push({
@@ -158,14 +158,13 @@ export async function GET() {
     }
   } catch {}
 
-  // Change Orders past due (if created_by exists in current schema)
+  // Change Orders created by this user that are past due and not draft.
   try {
     const { data } = await supabase
       .from("change_orders")
       .select("id, title, status, due_date, project_id")
       .eq("created_by", session.id)
       .lt("due_date", nowIsoDate)
-      .neq("status", "Closed")
       .limit(20);
     for (const row of data || []) {
       openItems.push({
@@ -179,14 +178,34 @@ export async function GET() {
     }
   } catch {}
 
-  // Commitments past due (delivery_date)
+  // Budget snapshots created by this user that are past due and not draft
+  // (query is schema-tolerant; skips if due_date/created_by columns are unavailable).
+  try {
+    const { data } = await supabase
+      .from("budget_snapshots")
+      .select("id, name, status, due_date, project_id")
+      .eq("created_by", session.id)
+      .lt("due_date", nowIsoDate)
+      .limit(20);
+    for (const row of data || []) {
+      openItems.push({
+        id: row.id,
+        title: row.name || "Untitled Budget Snapshot",
+        type: "budget",
+        status: row.status || "",
+        due_date: row.due_date || null,
+        project_id: row.project_id,
+      });
+    }
+  } catch {}
+
+  // Commitments created by this user that are past due and not draft.
   try {
     const { data } = await supabase
       .from("commitments")
       .select("id, title, status, delivery_date, project_id")
       .eq("created_by", session.id)
       .lt("delivery_date", nowIsoDate)
-      .neq("status", "closed")
       .limit(20);
     for (const row of data || []) {
       openItems.push({
@@ -200,14 +219,13 @@ export async function GET() {
     }
   } catch {}
 
-  // Prime Contracts past due (estimated completion date)
+  // Prime Contracts created by this user that are past due and not draft.
   try {
     const { data } = await supabase
       .from("prime_contracts")
       .select("id, title, status, estimated_completion_date, project_id")
       .eq("created_by", session.id)
       .lt("estimated_completion_date", nowIsoDate)
-      .neq("status", "closed")
       .limit(20);
     for (const row of data || []) {
       openItems.push({
@@ -222,10 +240,24 @@ export async function GET() {
   } catch {}
 
   // Deduplicate and normalize status filtering for non-closed items.
+  const isPastDueAndNotDraft = (item: OpenItem) => {
+    const status = String(item.status || "").trim().toLowerCase();
+    if (status === "draft") return false;
+    if (!item.due_date) return false;
+    return new Date(item.due_date).getTime() < new Date(nowIsoDate).getTime();
+  };
+
   const dedupedOpenItems = Array.from(
     new Map(
       openItems
-        .filter((item) => String(item.status || "").trim().toLowerCase() !== "closed")
+        .filter((item) => {
+          // For contract/budget/change entities, keep only past-due + non-draft.
+          if (item.type === "prime_contract" || item.type === "budget" || item.type === "commitment" || item.type === "change_order" || item.type === "change_event") {
+            return isPastDueAndNotDraft(item);
+          }
+          // RFIs/Submittals/Tasks should still exclude closed rows.
+          return String(item.status || "").trim().toLowerCase() !== "closed";
+        })
         .map((item) => [`${item.type}:${item.id}`, item])
     ).values()
   );

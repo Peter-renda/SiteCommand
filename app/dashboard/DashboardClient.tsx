@@ -28,7 +28,7 @@ type MyTask = {
 type MyOpenItem = {
   id: string;
   title: string;
-  type: "task" | "rfi" | "submittal" | "change_event" | "change_order" | "commitment" | "prime_contract";
+  type: "task" | "rfi" | "submittal" | "change_event" | "change_order" | "budget" | "commitment" | "prime_contract";
   status: string;
   due_date: string | null;
   project_id: string;
