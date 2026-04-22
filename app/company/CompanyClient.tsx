@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiKeysTab, WebhooksTab, DocumentationTab } from "@/app/settings/developer/DeveloperSettingsClient";
+import IntegrationsClient from "@/app/settings/integrations/IntegrationsClient";
 
 type Member = {
   id: string;
@@ -64,7 +65,7 @@ export default function CompanyClient({
   isSuperAdmin: boolean;
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"team" | "projects" | "developer">("team");
+  const [activeTab, setActiveTab] = useState<"team" | "projects" | "integrations" | "developer">("team");
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
 
@@ -188,7 +189,7 @@ const seatCount = members.length;
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 mb-6">
-          {(["team", "projects", "developer"] as const).map((tab) => (
+          {(["team", "projects", "integrations", "developer"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -198,10 +199,16 @@ const seatCount = members.length;
                   : "border-transparent text-gray-400 hover:text-gray-700"
               }`}
             >
-              {tab === "team" ? "Team" : tab === "projects" ? "Projects" : "Developer"}
+              {tab === "team" ? "Team" : tab === "projects" ? "Projects" : tab === "integrations" ? "Integrations" : "Developer"}
             </button>
           ))}
         </div>
+
+        {activeTab === "integrations" && (
+          <div className="space-y-6">
+            <IntegrationsClient isSiteAdmin={false} />
+          </div>
+        )}
 
         {activeTab === "developer" && (
           <div className="space-y-6">
