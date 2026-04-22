@@ -32,6 +32,12 @@ type RFI = {
   responsible_contractor_id: string | null;
   specification_id: string | null;
   drawing_number: string | null;
+  schedule_impact: string | null;
+  cost_impact: string | null;
+  cost_code: string | null;
+  sub_job: string | null;
+  rfi_stage: string | null;
+  private: boolean;
   attachments: { name: string; url: string }[];
   ball_in_court_id: string | null;
   created_by: string | null;
@@ -223,6 +229,12 @@ function CreateRFIModal({
     responsible_contractor_id: string | null;
     specification_id: string | null;
     drawing_number: string;
+    schedule_impact: string;
+    cost_impact: string;
+    cost_code: string;
+    sub_job: string;
+    rfi_stage: string;
+    private: boolean;
     attachmentFiles: File[];
   }) => void;
   onCancel: () => void;
@@ -238,6 +250,12 @@ function CreateRFIModal({
   const [responsibleContractorId, setResponsibleContractorId] = useState<string | null>(null);
   const [specificationId, setSpecificationId] = useState<string | null>(null);
   const [drawingNumber, setDrawingNumber] = useState("");
+  const [scheduleImpact, setScheduleImpact] = useState("");
+  const [costImpact, setCostImpact] = useState("");
+  const [costCode, setCostCode] = useState("");
+  const [subJob, setSubJob] = useState("");
+  const [rfiStage, setRfiStage] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -373,10 +391,43 @@ function CreateRFIModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Schedule Impact</label>
+              <input type="text" value={scheduleImpact} onChange={(e) => setScheduleImpact(e.target.value)} placeholder="Schedule impact" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Cost Impact</label>
+              <input type="text" value={costImpact} onChange={(e) => setCostImpact(e.target.value)} placeholder="Cost impact" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Cost Code</label>
+              <input type="text" value={costCode} onChange={(e) => setCostCode(e.target.value)} placeholder="Cost code" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Sub Job</label>
+              <input type="text" value={subJob} onChange={(e) => setSubJob(e.target.value)} placeholder="Sub job" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 items-end">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">RFI Stage</label>
+              <input type="text" value={rfiStage} onChange={(e) => setRfiStage(e.target.value)} placeholder="RFI stage" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            </div>
+            <label className="inline-flex items-center gap-2 pb-2">
+              <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} className="rounded border-gray-300 text-gray-900" />
+              <span className="text-sm text-gray-700">Private (only creator can view)</span>
+            </label>
+          </div>
+
           <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
             <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "draft", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFiles })} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create as Draft</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "open", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, attachmentFiles })} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create as Open</button>
+            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "draft", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, schedule_impact: scheduleImpact, cost_impact: costImpact, cost_code: costCode, sub_job: subJob, rfi_stage: rfiStage, private: isPrivate, attachmentFiles })} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create as Draft</button>
+            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "open", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, schedule_impact: scheduleImpact, cost_impact: costImpact, cost_code: costCode, sub_job: subJob, rfi_stage: rfiStage, private: isPrivate, attachmentFiles })} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create as Open</button>
           </div>
         </div>
       </div>
@@ -588,6 +639,12 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
     responsible_contractor_id: string | null;
     specification_id: string | null;
     drawing_number: string;
+    schedule_impact: string;
+    cost_impact: string;
+    cost_code: string;
+    sub_job: string;
+    rfi_stage: string;
+    private: boolean;
     attachmentFiles: File[];
   }) {
     setShowCreate(false);
@@ -608,6 +665,12 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
         responsible_contractor_id: data.responsible_contractor_id,
         specification_id: data.specification_id,
         drawing_number: data.drawing_number || null,
+        schedule_impact: data.schedule_impact || null,
+        cost_impact: data.cost_impact || null,
+        cost_code: data.cost_code || null,
+        sub_job: data.sub_job || null,
+        rfi_stage: data.rfi_stage || null,
+        private: data.private ?? false,
         attachments: [],
       }),
     });
@@ -890,6 +953,12 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                         case "distribution": cell = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
                         case "responsible_contractor": cell = getContactNameById(directory, rfi.responsible_contractor_id); break;
                         case "date_initiated": cell = <span className="tabular-nums">{formatDate(rfi.created_at)}</span>; break;
+                        case "schedule_impact": cell = rfi.schedule_impact || "—"; break;
+                        case "cost_impact": cell = rfi.cost_impact || "—"; break;
+                        case "cost_code": cell = rfi.cost_code || "—"; break;
+                        case "sub_job": cell = rfi.sub_job || "—"; break;
+                        case "rfi_stage": cell = rfi.rfi_stage || "—"; break;
+                        case "private": cell = rfi.private ? "Yes" : "No"; break;
                       }
                       return <td key={key} className="px-4 py-3 text-sm text-gray-600">{cell}</td>;
                     })}

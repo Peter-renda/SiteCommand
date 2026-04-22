@@ -15,6 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from("rfis")
     .select("*")
     .eq("project_id", projectId)
+    .or(`private.eq.false,created_by.eq.${session.id}`)
     .order("rfi_number", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -51,6 +52,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     responsible_contractor_id,
     specification_id,
     drawing_number,
+    schedule_impact,
+    cost_impact,
+    cost_code,
+    sub_job,
+    rfi_stage,
+    private: isPrivate,
     attachments,
   } = body;
 
@@ -70,6 +77,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       responsible_contractor_id: responsible_contractor_id || null,
       specification_id: specification_id || null,
       drawing_number: drawing_number || null,
+      schedule_impact: schedule_impact || null,
+      cost_impact: cost_impact || null,
+      cost_code: cost_code || null,
+      sub_job: sub_job || null,
+      rfi_stage: rfi_stage || null,
+      private: isPrivate ?? false,
       attachments: attachments ?? [],
       created_by: session.id,
     })
