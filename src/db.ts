@@ -238,6 +238,12 @@ export function initDb() {
       responsible_contractor_id TEXT,
       specification_id TEXT,
       drawing_number TEXT,
+      schedule_impact TEXT,
+      cost_impact TEXT,
+      cost_code TEXT,
+      sub_job TEXT,
+      rfi_stage TEXT,
+      private BOOLEAN DEFAULT 0,
       attachments TEXT, -- JSON
       created_by TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -420,6 +426,19 @@ export function initDb() {
   ensureBudgetColumn("actual_labor_cost", "REAL NOT NULL DEFAULT 0");
   ensureBudgetColumn("is_gst", "INTEGER NOT NULL DEFAULT 0");
   ensureBudgetColumn("is_partial", "INTEGER NOT NULL DEFAULT 0");
+  const rfiColumns = db.prepare("PRAGMA table_info(rfis)").all() as Array<{ name: string }>;
+  const existingRfiColumns = new Set(rfiColumns.map((column) => column.name));
+  const ensureRfiColumn = (name: string, definition: string) => {
+    if (!existingRfiColumns.has(name)) {
+      db.exec(`ALTER TABLE rfis ADD COLUMN ${name} ${definition}`);
+    }
+  };
+  ensureRfiColumn("schedule_impact", "TEXT");
+  ensureRfiColumn("cost_impact", "TEXT");
+  ensureRfiColumn("cost_code", "TEXT");
+  ensureRfiColumn("sub_job", "TEXT");
+  ensureRfiColumn("rfi_stage", "TEXT");
+  ensureRfiColumn("private", "BOOLEAN DEFAULT 0");
   // Create default admin user if not exists
   const adminEmail = "ptrenda1@gmail.com";
   const existingAdmin = db.prepare("SELECT * FROM users WHERE email = ?").get(adminEmail);

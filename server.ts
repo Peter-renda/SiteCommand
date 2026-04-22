@@ -235,9 +235,53 @@ async function startServer() {
     res.json(task);
   });
   // --- RFIs Routes ---
-  app.get("/api/projects/:id/rfis", authenticate, (req, res) => {
-    const rfis = db.prepare("SELECT * FROM rfis WHERE project_id = ? ORDER BY rfi_number ASC").all(req.params.id);
+  app.get("/api/projects/:id/rfis", authenticate, (req: any, res) => {
+    const rfis = db.prepare(`
+      SELECT * FROM rfis
+      WHERE project_id = ?
+      AND (COALESCE(private, 0) = 0 OR created_by = ?)
+      ORDER BY rfi_number ASC
+    `).all(req.params.id, req.user.id);
     res.json(rfis);
+  });
+  app.post("/api/projects/:id/rfis", authenticate, (req: any, res) => {
+    const {
+      subject,
+      question,
+      status,
+      schedule_impact,
+      cost_impact,
+      cost_code,
+      sub_job,
+      rfi_stage,
+      private: isPrivate,
+    } = req.body;
+    const max = db.prepare("SELECT MAX(rfi_number) as max FROM rfis WHERE project_id = ?").get(req.params.id) as any;
+    const rfi_number = (max?.max || 0) + 1;
+    const id = uuidv4();
+    db.prepare(`
+      INSERT INTO rfis (
+        id, project_id, rfi_number, subject, question, status,
+        schedule_impact, cost_impact, cost_code, sub_job, rfi_stage, private, created_by
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      req.params.id,
+      rfi_number,
+      subject,
+      question,
+      status || "draft",
+      schedule_impact,
+      cost_impact,
+      cost_code,
+      sub_job,
+      rfi_stage,
+      isPrivate ? 1 : 0,
+      req.user.id
+    );
+    const rfi = db.prepare("SELECT * FROM rfis WHERE id = ?").get(id);
+    res.json(rfi);
   });
   // --- Submittals Routes ---
   app.get("/api/projects/:id/submittals", authenticate, (req, res) => {
