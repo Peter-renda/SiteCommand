@@ -4,12 +4,8 @@ import { usePathname } from "next/navigation";
 
 export default function SettingsNav({
   isSiteAdmin,
-  isSuperAdmin,
-  isAdmin,
 }: {
   isSiteAdmin: boolean;
-  isSuperAdmin: boolean;
-  isAdmin: boolean;
 }) {
   const pathname = usePathname();
 
@@ -33,8 +29,6 @@ export default function SettingsNav({
   return (
     <nav className="w-44 shrink-0 space-y-0.5">
       {navItem("/settings/account", "Account")}
-      {isSuperAdmin && navItem("/settings/integrations", "Integrations")}
-      {isAdmin && navItem("/settings/developer", "Developer")}
       {isSiteAdmin && navItem("/settings/platform", "Platform")}
     </nav>
   );
