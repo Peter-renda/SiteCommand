@@ -33,6 +33,7 @@ type RFI = {
   specification_id: string | null;
   drawing_number: string | null;
   attachments: { name: string; url: string }[];
+  ball_in_court_id: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -488,6 +489,7 @@ async function exportRFIsPDF(
         case "rfi_manager": value = getContactNameById(directory, rfi.rfi_manager_id); break;
         case "received_from": value = getContactNameById(directory, rfi.received_from_id); break;
         case "assignees": value = (rfi.assignees ?? []).map((a) => a.name).join(", ") || "—"; break;
+        case "ball_in_court": value = getContactNameById(directory, rfi.ball_in_court_id); break;
         case "distribution": value = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
         case "responsible_contractor": value = getContactNameById(directory, rfi.responsible_contractor_id); break;
         case "date_initiated": value = formatDate(rfi.created_at); break;
@@ -884,6 +886,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                         case "rfi_manager": cell = getContactNameById(directory, rfi.rfi_manager_id); break;
                         case "received_from": cell = getContactNameById(directory, rfi.received_from_id); break;
                         case "assignees": cell = (rfi.assignees ?? []).map((a) => a.name).join(", ") || "—"; break;
+                        case "ball_in_court": cell = getContactNameById(directory, rfi.ball_in_court_id); break;
                         case "distribution": cell = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
                         case "responsible_contractor": cell = getContactNameById(directory, rfi.responsible_contractor_id); break;
                         case "date_initiated": cell = <span className="tabular-nums">{formatDate(rfi.created_at)}</span>; break;
