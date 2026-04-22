@@ -367,6 +367,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
     loadActivities();
     loadMyTasks();
     loadCompanies();
+    loadUsers();
     // Read last-visited project from localStorage to scope task alerts
     try {
       const stored = localStorage.getItem("current_project_id");
@@ -448,11 +449,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
       try { localStorage.setItem("activity_filter", JSON.stringify(next)); } catch {}
       return next;
     });
-  }
-
-  function openModal() {
-    loadUsers();
-    setShowModal(true);
   }
 
   function closeModal() {
@@ -734,19 +730,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
                       <div className="text-xs text-gray-400 italic">You&rsquo;re all caught up.</div>
                     )}
 
-                    {canManageProjects && (
-                      <div className="mt-6">
-                        <button
-                          onClick={openModal}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-[color:var(--ink)] text-white text-sm font-semibold rounded-md hover:bg-black transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                          </svg>
-                          New project
-                        </button>
-                      </div>
-                    )}
                   </div>
 
                   {/* Right: portfolio snapshot */}
@@ -819,7 +802,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
                   ? "Create your first project to get started."
                   : "You haven't been added to any projects yet."
               }
-              action={canManageProjects ? { label: "New Project", onClick: openModal } : undefined}
             />
           </div>
         ) : (
