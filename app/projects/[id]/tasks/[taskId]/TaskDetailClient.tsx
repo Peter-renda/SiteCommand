@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
 type DistributionContact = { id: string; name: string; email: string | null };
@@ -151,19 +151,46 @@ export default function TaskDetailClient({
   const [notFound, setNotFound] = useState(false);
 
   const [status, setStatus] = useState("open");
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [distributionList, setDistributionList] = useState<DistributionContact[]>([]);
+  const [assignees, setAssignees] = useState<DistributionContact[]>([]);
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/projects/${projectId}/tasks/${taskId}`).then(async (res) => {
-      if (!res.ok) { setNotFound(true); setLoading(false); return; }
-      const taskData = await res.json();
+    Promise.all([
+      fetch(`/api/projects/${projectId}/tasks/${taskId}`),
+      fetch(`/api/projects/${projectId}/directory`),
+    ]).then(async ([taskRes, directoryRes]) => {
+      if (!taskRes.ok) { setNotFound(true); setLoading(false); return; }
+      const taskData = await taskRes.json();
+      const directoryData = directoryRes.ok ? await directoryRes.json() : [];
       setTask(taskData);
-      setStatus(taskData.status);
+      setDirectory(Array.isArray(directoryData) ? directoryData : []);
+      setStatus(taskData.status ?? "initiated");
+      setTitle(taskData.title ?? "");
+      setCategory(taskData.category ?? "");
+      setDueDate(taskData.due_date ?? "");
+      setDescription(taskData.description ?? "");
+      setDistributionList(taskData.distribution_list ?? []);
+      setAssignees(taskData.assignees ?? []);
       setLoading(false);
     });
   }, [projectId, taskId]);
+
+  function resetEditState(source: Task) {
+    setStatus(source.status ?? "initiated");
+    setTitle(source.title ?? "");
+    setCategory(source.category ?? "");
+    setDueDate(source.due_date ?? "");
+    setDescription(source.description ?? "");
+    setDistributionList(source.distribution_list ?? []);
+    setAssignees(source.assignees ?? []);
+  }
 
   async function handleSave() {
     if (!task) return;
@@ -171,11 +198,20 @@ export default function TaskDetailClient({
     const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({
+        title: title.trim(),
+        status,
+        category: category || null,
+        due_date: dueDate || null,
+        description: description.trim() || null,
+        distribution_list: distributionList,
+        assignees,
+      }),
     });
     if (res.ok) {
       const updated = await res.json();
-      setTask((prev) => prev ? { ...prev, status: updated.status } : prev);
+      setTask(updated);
+      resetEditState(updated);
       setIsEditing(false);
     }
     setSaving(false);
@@ -230,7 +266,7 @@ export default function TaskDetailClient({
                   <>
                     <button
                       onClick={() => {
-                        setStatus(task.status);
+                        resetEditState(task);
                         setIsEditing(false);
                       }}
                       className="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
@@ -265,15 +301,59 @@ export default function TaskDetailClient({
             {/* Task header */}
             <div className="mb-6">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Task #{task.task_number}</p>
-              <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
+              {isEditing ? (
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              ) : (
+                <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
+              )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
               {/* Left column */}
               <div className="lg:col-span-2 space-y-5">
+                {/* Meta */}
+                <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Info</h2>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Status</span>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[status] ?? "bg-gray-100 text-gray-500"}`}>
+                        {status}
+                      </span>
+                    </div>
+                    {(assignees ?? []).length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-gray-400">Assignees</span>
+                        <div className="flex flex-wrap gap-1">
+                          {assignees.map((a) => (
+                            <span key={a.id} className="px-2 py-0.5 bg-gray-100 text-xs text-gray-700 rounded-full">{a.name}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {dueDate && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Due</span>
+                        <span className="text-gray-700 font-medium">
+                          {new Date(dueDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Created</span>
+                      <span className="text-gray-700">
+                        {new Date(task.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                {/* Status (editable) + read-only fields */}
+                {/* Editable fields */}
                 <div className="bg-white border border-gray-100 rounded-xl p-5">
                   <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Details</h2>
                   <div className="grid grid-cols-3 gap-4">
@@ -291,42 +371,79 @@ export default function TaskDetailClient({
                       </select>
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1.5">Category</p>
-                      <p className="text-sm text-gray-700 py-2">{task.category || "—"}</p>
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5">Category</label>
+                      <select
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                      >
+                        <option value="">Select category</option>
+                        {CATEGORIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1.5">Due Date</p>
-                      <p className="text-sm text-gray-700 py-2">
-                        {task.due_date
-                          ? new Date(task.due_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                          : "—"}
-                      </p>
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5">Due Date</label>
+                      <input
+                        type="date"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                      />
                     </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Assignees</label>
+                    {isEditing ? (
+                      <DistributionPicker directory={directory} selected={assignees} onChange={setAssignees} />
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(assignees ?? []).length > 0
+                          ? assignees.map((a) => (
+                              <span key={a.id} className="px-2.5 py-1 bg-gray-100 text-xs text-gray-700 rounded-full">{a.name}</span>
+                            ))
+                          : <p className="text-sm text-gray-500">—</p>}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Description */}
-                {task.description && (
-                  <div className="bg-white border border-gray-100 rounded-xl p-5">
-                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Description</h2>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{task.description}</p>
-                  </div>
-                )}
+                <div className="bg-white border border-gray-100 rounded-xl p-5">
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Description</h2>
+                  {isEditing ? (
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{description || "—"}</p>
+                  )}
+                </div>
 
                 {/* Distribution list */}
-                {(task.distribution_list ?? []).length > 0 && (
-                  <div className="bg-white border border-gray-100 rounded-xl p-5">
-                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Distribution List</h2>
+                <div className="bg-white border border-gray-100 rounded-xl p-5">
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Distribution List</h2>
+                  {isEditing ? (
+                    <DistributionPicker directory={directory} selected={distributionList} onChange={setDistributionList} />
+                  ) : (
                     <div className="flex flex-wrap gap-1.5">
-                      {task.distribution_list.map((d) => (
-                        <span key={d.id} className="px-2.5 py-1 bg-gray-100 text-xs text-gray-700 rounded-full">{d.name}</span>
-                      ))}
+                      {(distributionList ?? []).length > 0
+                        ? distributionList.map((d) => (
+                            <span key={d.id} className="px-2.5 py-1 bg-gray-100 text-xs text-gray-700 rounded-full">{d.name}</span>
+                          ))
+                        : <p className="text-sm text-gray-500">—</p>}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              {/* Right column: photo + meta */}
+              {/* Right column: photo */}
               <div className="space-y-5">
 
                 {/* Photo */}
@@ -335,43 +452,6 @@ export default function TaskDetailClient({
                     <img src={task.photo_url} alt="Task photo" className="w-full h-44 object-cover" />
                   </div>
                 )}
-
-                {/* Meta */}
-                <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
-                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Info</h2>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Status</span>
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[status] ?? "bg-gray-100 text-gray-500"}`}>
-                        {status}
-                      </span>
-                    </div>
-                    {(task.assignees ?? []).length > 0 && (
-                      <div className="flex flex-col gap-1">
-                        <span className="text-gray-400">Assignees</span>
-                        <div className="flex flex-wrap gap-1">
-                          {task.assignees.map((a) => (
-                            <span key={a.id} className="px-2 py-0.5 bg-gray-100 text-xs text-gray-700 rounded-full">{a.name}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {task.due_date && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Due</span>
-                        <span className="text-gray-700 font-medium">
-                          {new Date(task.due_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Created</span>
-                      <span className="text-gray-700">
-                        {new Date(task.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </>
