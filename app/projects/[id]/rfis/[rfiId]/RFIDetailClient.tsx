@@ -56,6 +56,22 @@ type ChangeHistoryEntry = {
   created_at: string;
 };
 
+type RelatedItemInstance = { id: string; label: string };
+type RelatedItemTypeConfig = {
+  endpoint?: string;
+  query?: string;
+  buildLabel?: (row: Record<string, unknown>) => string;
+};
+
+function pickString(row: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "string" && value.trim().length > 0) return value;
+    if (typeof value === "number") return String(value);
+  }
+  return null;
+}
+
 function contactDisplayName(c: DirectoryContact): string {
   if (c.type === "company") return c.company ?? "Unnamed Company";
   if (c.type === "distribution_group") return c.group_name ?? "Unnamed Group";
@@ -79,6 +95,89 @@ function formatDateTime(d: string | null): string {
   if (!d) return "—";
   return new Date(d).toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
 }
+
+const RELATED_ITEM_OPTIONS = [
+  { value: "change_event", label: "Change Event" },
+  { value: "change_order_request", label: "Change Order Request" },
+  { value: "commitment_contract", label: "Commitment Contract" },
+  { value: "commitment_contract_change_order", label: "Commitment Contract Change Order" },
+  { value: "company", label: "Company" },
+  { value: "contact", label: "Contact" },
+  { value: "cost_code", label: "Cost Code" },
+  { value: "cover_letters", label: "Cover Letters" },
+  { value: "drawing", label: "Drawing" },
+  { value: "drawing_revision", label: "Drawing Revision" },
+  { value: "email", label: "Email" },
+  { value: "field_order", label: "Field Order" },
+  { value: "image", label: "Image" },
+  { value: "location", label: "Location" },
+  { value: "meeting", label: "Meeting" },
+  { value: "meeting_item", label: "Meeting Item" },
+  { value: "owner_invoice", label: "Owner Invoice" },
+  { value: "potential_change_order", label: "Potential Change Order" },
+  { value: "prime_contract", label: "Prime Contract" },
+  { value: "prime_contract_change_order", label: "Prime Contract Change Order" },
+  { value: "punch_item", label: "Punch Item" },
+  { value: "purchase_order_contract", label: "Purchase Order Contract" },
+  { value: "rfi", label: "RFI" },
+  { value: "request_for_quote", label: "Request For Quote" },
+  { value: "schedule_task", label: "Schedule Task" },
+  { value: "specification_section", label: "Specification Section" },
+  { value: "specification_section_revision", label: "Specification Section Revision" },
+  { value: "subcontractor_invoice", label: "Subcontractor Invoice" },
+  { value: "submittal_package", label: "Submittal Package" },
+  { value: "submittals", label: "Submittals" },
+  { value: "task_item", label: "Task Item" },
+  { value: "transmittals", label: "Transmittals" },
+] as const;
+
+const DAILY_LOG_RELATED_ITEM_OPTIONS = [
+  { value: "accidents_log", label: "Accidents Log" },
+  { value: "delays_log", label: "Delays Log" },
+  { value: "deliveries_log", label: "Deliveries Log" },
+  { value: "inspections_log", label: "Inspections Log" },
+  { value: "manpower_log", label: "Manpower Log" },
+  { value: "notes_log", label: "Notes Log" },
+  { value: "observed_weather_conditions_log", label: "Observed Weather Conditions Log" },
+  { value: "safety_violations_log", label: "Safety Violations Log" },
+  { value: "visitors_log", label: "Visitors Log" },
+] as const;
+
+const ATTACH_FILES_RELATED_ITEM_OPTIONS = [
+  { value: "documents", label: "Documents" },
+  { value: "drawings", label: "Drawings" },
+  { value: "photos", label: "Photos" },
+] as const;
+
+const RELATED_ITEM_TYPE_CONFIGS: Record<string, RelatedItemTypeConfig> = {
+  change_event: { endpoint: "change-events", buildLabel: (row) => `${pickString(row, ["number"]) ? `CE #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title"]) ?? "Change Event"}` },
+  change_order_request: { endpoint: "change-orders", buildLabel: (row) => `${pickString(row, ["number"]) ? `COR #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title", "subject"]) ?? "Change Order Request"}` },
+  commitment_contract: { endpoint: "commitments", buildLabel: (row) => `${pickString(row, ["number"]) ? `Commitment #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title", "description"]) ?? "Commitment Contract"}` },
+  company: { endpoint: "directory", buildLabel: (row) => pickString(row, ["company", "company_name", "name"]) ?? "Company" },
+  contact: { endpoint: "directory", buildLabel: (row) => pickString(row, ["full_name", "name", "first_name", "email"]) ?? "Contact" },
+  drawing: { endpoint: "drawings", buildLabel: (row) => pickString(row, ["title", "number", "name"]) ?? "Drawing" },
+  meeting: { endpoint: "meetings", buildLabel: (row) => pickString(row, ["title", "subject", "name"]) ?? "Meeting" },
+  prime_contract: { endpoint: "prime-contracts", buildLabel: (row) => `${pickString(row, ["number"]) ? `Prime #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title", "name"]) ?? "Prime Contract"}` },
+  punch_item: { endpoint: "punch-list", buildLabel: (row) => `${pickString(row, ["number"]) ? `Punch #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title", "description"]) ?? "Punch Item"}` },
+  rfi: { endpoint: "rfis", buildLabel: (row) => `${pickString(row, ["rfi_number", "number"]) ? `RFI #${pickString(row, ["rfi_number", "number"])}: ` : ""}${pickString(row, ["subject", "title"]) ?? "RFI"}` },
+  schedule_task: { endpoint: "schedule", buildLabel: (row) => pickString(row, ["name", "title"]) ?? "Schedule Task" },
+  specification_section: { endpoint: "specifications", buildLabel: (row) => pickString(row, ["section_number", "number", "title", "name"]) ?? "Specification Section" },
+  submittal_package: { endpoint: "submittal-packages", buildLabel: (row) => `${pickString(row, ["number"]) ? `Package #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title", "name"]) ?? "Submittal Package"}` },
+  submittals: { endpoint: "submittals", buildLabel: (row) => `${pickString(row, ["number"]) ? `Submittal #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title", "subject"]) ?? "Submittal"}` },
+  task_item: { endpoint: "tasks", buildLabel: (row) => pickString(row, ["title", "name", "description"]) ?? "Task Item" },
+  documents: { endpoint: "documents", buildLabel: (row) => pickString(row, ["file_name", "name", "title"]) ?? "Document" },
+  drawings: { endpoint: "drawings", buildLabel: (row) => pickString(row, ["title", "number", "name"]) ?? "Drawing" },
+  photos: { endpoint: "photos", buildLabel: (row) => pickString(row, ["name", "title", "file_name"]) ?? "Photo" },
+  accidents_log: { endpoint: "daily-log", query: "category=accidents", buildLabel: (row) => pickString(row, ["title", "summary", "description", "date"]) ?? "Accidents Log" },
+  delays_log: { endpoint: "daily-log", query: "category=delays", buildLabel: (row) => pickString(row, ["title", "summary", "description", "date"]) ?? "Delays Log" },
+  deliveries_log: { endpoint: "daily-log", query: "category=deliveries", buildLabel: (row) => pickString(row, ["title", "summary", "description", "date"]) ?? "Deliveries Log" },
+  inspections_log: { endpoint: "daily-log", query: "category=inspections", buildLabel: (row) => pickString(row, ["title", "summary", "description", "date"]) ?? "Inspections Log" },
+  manpower_log: { endpoint: "daily-log", query: "category=manpower", buildLabel: (row) => pickString(row, ["title", "summary", "description", "date"]) ?? "Manpower Log" },
+  notes_log: { endpoint: "daily-log", query: "category=notes", buildLabel: (row) => pickString(row, ["title", "summary", "description", "date"]) ?? "Notes Log" },
+  observed_weather_conditions_log: { endpoint: "daily-log", query: "category=weather", buildLabel: (row) => pickString(row, ["title", "summary", "description", "date"]) ?? "Observed Weather Conditions Log" },
+  safety_violations_log: { endpoint: "daily-log", query: "category=safety", buildLabel: (row) => pickString(row, ["title", "summary", "description", "date"]) ?? "Safety Violations Log" },
+  visitors_log: { endpoint: "daily-log", query: "category=visitors", buildLabel: (row) => pickString(row, ["title", "summary", "description", "date"]) ?? "Visitors Log" },
+};
 
 function ChevronDown({ open }: { open: boolean }) {
   return (
@@ -129,9 +228,14 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [savingOfficialResponseId, setSavingOfficialResponseId] = useState<string | null>(null);
   const [deletingResponseId, setDeletingResponseId] = useState<string | null>(null);
   const [relatedItemType, setRelatedItemType] = useState("change_event");
+  const [relatedItemInstanceId, setRelatedItemInstanceId] = useState("");
+  const [relatedItemInstances, setRelatedItemInstances] = useState<RelatedItemInstance[]>([]);
+  const [loadingRelatedItemInstances, setLoadingRelatedItemInstances] = useState(false);
   const [relatedItemLabel, setRelatedItemLabel] = useState("");
   const [relatedItemHref, setRelatedItemHref] = useState("");
+  const [showRelatedItemsMenu, setShowRelatedItemsMenu] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
+  const relatedItemsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -174,6 +278,9 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
         setShowActionsMenu(false);
       }
+      if (relatedItemsMenuRef.current && !relatedItemsMenuRef.current.contains(e.target as Node)) {
+        setShowRelatedItemsMenu(false);
+      }
     }
 
     document.addEventListener("mousedown", onDocumentMouseDown);
@@ -181,6 +288,51 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   }, []);
 
   const canEdit = rfi && rfi.created_by === userId;
+
+  useEffect(() => {
+    const config = RELATED_ITEM_TYPE_CONFIGS[relatedItemType];
+    if (!config?.endpoint) {
+      queueMicrotask(() => {
+        setRelatedItemInstances([]);
+        setRelatedItemInstanceId("");
+      });
+      return;
+    }
+
+    queueMicrotask(() => {
+      setLoadingRelatedItemInstances(true);
+    });
+    const url = `/api/projects/${projectId}/${config.endpoint}${config.query ? `?${config.query}` : ""}`;
+    fetch(url)
+      .then(async (res) => {
+        if (!res.ok) return [];
+        const payload = await res.json();
+        const rows = Array.isArray(payload)
+          ? payload
+          : (Array.isArray(payload?.items) ? payload.items : []);
+        return rows as Record<string, unknown>[];
+      })
+      .then((rows) => {
+        const next = rows
+          .map((row) => {
+            const rawId = row.id ?? row.uuid ?? row.number;
+            if (rawId === null || rawId === undefined) return null;
+            const label = config.buildLabel ? config.buildLabel(row) : (pickString(row, ["title", "name", "subject"]) ?? String(rawId));
+            return { id: String(rawId), label };
+          })
+          .filter((item): item is RelatedItemInstance => item !== null);
+        setRelatedItemInstances(next);
+        setRelatedItemInstanceId(next[0]?.id ?? "");
+        if (next[0]) setRelatedItemLabel(next[0].label);
+      })
+      .catch(() => {
+        setRelatedItemInstances([]);
+        setRelatedItemInstanceId("");
+      })
+      .finally(() => {
+        setLoadingRelatedItemInstances(false);
+      });
+  }, [projectId, relatedItemType]);
 
   async function handleCloseRFI() {
     if (!rfi) return;
@@ -505,15 +657,104 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
               </ul>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-3 border-t border-gray-100">
-              <select value={relatedItemType} onChange={(e) => setRelatedItemType(e.target.value)} className="px-3 py-2 border border-gray-200 rounded text-sm">
-                <option value="change_event">Change Event</option>
-                <option value="potential_change_order">Potential Change Order</option>
-                <option value="instruction">Instruction</option>
-                <option value="correspondence">Correspondence</option>
-                <option value="drawing">Drawing</option>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-3 border-t border-gray-100">
+              <div className="relative" ref={relatedItemsMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowRelatedItemsMenu((s) => !s)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm text-left flex items-center justify-between hover:bg-gray-50"
+                >
+                  Link Related Items
+                  <svg className={`h-4 w-4 text-gray-500 transition-transform ${showRelatedItemsMenu ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                {showRelatedItemsMenu && (
+                  <div className="absolute left-0 top-full z-20 mt-1 w-[340px] max-h-96 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                    <div className="px-3 py-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Related Items</p>
+                    </div>
+                    {RELATED_ITEM_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setRelatedItemType(option.value);
+                          setRelatedItemInstanceId("");
+                          setRelatedItemLabel("");
+                          setShowRelatedItemsMenu(false);
+                        }}
+                        className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${relatedItemType === option.value ? "bg-gray-50 text-gray-900" : "text-gray-700"}`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                    <div className="px-3 py-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Daily Log</p>
+                    </div>
+                    {DAILY_LOG_RELATED_ITEM_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setRelatedItemType(option.value);
+                          setRelatedItemInstanceId("");
+                          setRelatedItemLabel("");
+                          setShowRelatedItemsMenu(false);
+                        }}
+                        className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${relatedItemType === option.value ? "bg-gray-50 text-gray-900" : "text-gray-700"}`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                    <div className="px-3 py-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Attach Files</p>
+                    </div>
+                    {ATTACH_FILES_RELATED_ITEM_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setRelatedItemType(option.value);
+                          setRelatedItemInstanceId("");
+                          setRelatedItemLabel("");
+                          setShowRelatedItemsMenu(false);
+                        }}
+                        className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${relatedItemType === option.value ? "bg-gray-50 text-gray-900" : "text-gray-700"}`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                    <div className="border-t border-gray-100 px-3 py-2 text-[11px] text-gray-400">
+                      <p>Terms of ServicePrivacy Policy</p>
+                      <p>Powered ByProcore Company Logo</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <select
+                value={relatedItemInstanceId}
+                onChange={(e) => {
+                  setRelatedItemInstanceId(e.target.value);
+                  const selected = relatedItemInstances.find((x) => x.id === e.target.value);
+                  if (selected) setRelatedItemLabel(selected.label);
+                }}
+                disabled={loadingRelatedItemInstances || relatedItemInstances.length === 0}
+                className="px-3 py-2 border border-gray-200 rounded text-sm disabled:bg-gray-50 disabled:text-gray-400"
+              >
+                {loadingRelatedItemInstances ? (
+                  <option value="">Loading…</option>
+                ) : relatedItemInstances.length === 0 ? (
+                  <option value="">No project items in this category</option>
+                ) : (
+                  relatedItemInstances.map((instance) => (
+                    <option key={instance.id} value={instance.id}>
+                      {instance.label}
+                    </option>
+                  ))
+                )}
               </select>
-              <input value={relatedItemLabel} onChange={(e) => setRelatedItemLabel(e.target.value)} placeholder="Item label" className="px-3 py-2 border border-gray-200 rounded text-sm" />
+              <input value={relatedItemLabel} onChange={(e) => setRelatedItemLabel(e.target.value)} placeholder="Item label" className="px-3 py-2 border border-gray-200 rounded text-sm md:col-span-1" />
               <input value={relatedItemHref} onChange={(e) => setRelatedItemHref(e.target.value)} placeholder="Optional link URL" className="px-3 py-2 border border-gray-200 rounded text-sm md:col-span-2" />
             </div>
             <div className="flex justify-end">
