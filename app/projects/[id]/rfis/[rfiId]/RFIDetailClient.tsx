@@ -34,7 +34,7 @@ type RFI = {
   created_at: string;
   ball_in_court_id: string | null;
   official_response_id: string | null;
-  related_items: { id: string; type: string; label: string; href?: string | null }[];
+  related_items: { id: string; type: string; label: string; href?: string | null; notes?: string | null }[];
 };
 
 type RFIResponse = {
@@ -231,11 +231,8 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [relatedItemInstanceId, setRelatedItemInstanceId] = useState("");
   const [relatedItemInstances, setRelatedItemInstances] = useState<RelatedItemInstance[]>([]);
   const [loadingRelatedItemInstances, setLoadingRelatedItemInstances] = useState(false);
-  const [relatedItemLabel, setRelatedItemLabel] = useState("");
-  const [relatedItemHref, setRelatedItemHref] = useState("");
-  const [showRelatedItemsMenu, setShowRelatedItemsMenu] = useState(false);
+  const [relatedItemNotes, setRelatedItemNotes] = useState("");
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
-  const relatedItemsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -278,9 +275,6 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
         setShowActionsMenu(false);
       }
-      if (relatedItemsMenuRef.current && !relatedItemsMenuRef.current.contains(e.target as Node)) {
-        setShowRelatedItemsMenu(false);
-      }
     }
 
     document.addEventListener("mousedown", onDocumentMouseDown);
@@ -322,8 +316,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
           })
           .filter((item): item is RelatedItemInstance => item !== null);
         setRelatedItemInstances(next);
-        setRelatedItemInstanceId(next[0]?.id ?? "");
-        if (next[0]) setRelatedItemLabel(next[0].label);
+        setRelatedItemInstanceId("");
       })
       .catch(() => {
         setRelatedItemInstances([]);
@@ -630,6 +623,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                     <div>
                       <p className="text-sm text-gray-900">{item.label}</p>
                       <p className="text-xs text-gray-500 uppercase tracking-wide">{item.type.replaceAll("_", " ")}</p>
+                      {item.notes ? <p className="text-xs text-gray-500 mt-1">{item.notes}</p> : null}
                     </div>
                     <div className="flex items-center gap-2">
                       {item.href ? (
@@ -657,112 +651,71 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
               </ul>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-3 border-t border-gray-100">
-              <div className="relative" ref={relatedItemsMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowRelatedItemsMenu((s) => !s)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm text-left flex items-center justify-between hover:bg-gray-50"
-                >
+            <div className="pt-3 border-t border-gray-100">
+              <div className="rounded border border-gray-200 bg-gray-50 p-3 space-y-3">
+                <label className="block text-xs font-medium text-gray-700">
                   Link Related Items
-                  <svg className={`h-4 w-4 text-gray-500 transition-transform ${showRelatedItemsMenu ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                {showRelatedItemsMenu && (
-                  <div className="absolute left-0 top-full z-20 mt-1 w-[340px] max-h-96 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
-                    <div className="px-3 py-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Related Items</p>
-                    </div>
+                  <select
+                    value={relatedItemType}
+                    onChange={(e) => {
+                      setRelatedItemType(e.target.value);
+                      setRelatedItemInstanceId("");
+                    }}
+                    className="mt-1 w-full px-3 py-2 border border-gray-200 rounded text-sm bg-white"
+                  >
                     {RELATED_ITEM_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          setRelatedItemType(option.value);
-                          setRelatedItemInstanceId("");
-                          setRelatedItemLabel("");
-                          setShowRelatedItemsMenu(false);
-                        }}
-                        className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${relatedItemType === option.value ? "bg-gray-50 text-gray-900" : "text-gray-700"}`}
-                      >
-                        {option.label}
-                      </button>
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
-                    <div className="px-3 py-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Daily Log</p>
-                    </div>
-                    {DAILY_LOG_RELATED_ITEM_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          setRelatedItemType(option.value);
-                          setRelatedItemInstanceId("");
-                          setRelatedItemLabel("");
-                          setShowRelatedItemsMenu(false);
-                        }}
-                        className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${relatedItemType === option.value ? "bg-gray-50 text-gray-900" : "text-gray-700"}`}
-                      >
-                        {option.label}
-                      </button>
+                    <optgroup label="Daily Log">
+                      {DAILY_LOG_RELATED_ITEM_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Attach Files">
+                      {ATTACH_FILES_RELATED_ITEM_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </label>
+                <label className="block text-xs font-medium text-gray-700">
+                  {`Select the ${RELATED_ITEM_OPTIONS.find((o) => o.value === relatedItemType)?.label ?? "Item"}`}
+                  <select
+                    value={relatedItemInstanceId}
+                    onChange={(e) => setRelatedItemInstanceId(e.target.value)}
+                    disabled={loadingRelatedItemInstances || relatedItemInstances.length === 0}
+                    className="mt-1 w-full px-3 py-2 border border-gray-200 rounded text-sm disabled:bg-gray-50 disabled:text-gray-400 bg-white"
+                  >
+                    <option value="">{loadingRelatedItemInstances ? "Loading…" : "Select…"}</option>
+                    {relatedItemInstances.map((instance) => (
+                      <option key={instance.id} value={instance.id}>
+                        {instance.label}
+                      </option>
                     ))}
-                    <div className="px-3 py-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Attach Files</p>
-                    </div>
-                    {ATTACH_FILES_RELATED_ITEM_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          setRelatedItemType(option.value);
-                          setRelatedItemInstanceId("");
-                          setRelatedItemLabel("");
-                          setShowRelatedItemsMenu(false);
-                        }}
-                        className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${relatedItemType === option.value ? "bg-gray-50 text-gray-900" : "text-gray-700"}`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                    <div className="border-t border-gray-100 px-3 py-2 text-[11px] text-gray-400">
-                      <p>Terms of ServicePrivacy Policy</p>
-                      <p>Powered ByProcore Company Logo</p>
-                    </div>
-                  </div>
+                  </select>
+                </label>
+                {relatedItemInstanceId && (
+                  <label className="block text-xs font-medium text-gray-700">
+                    Add Comment
+                    <textarea
+                      value={relatedItemNotes}
+                      onChange={(e) => setRelatedItemNotes(e.target.value)}
+                      placeholder="Add comment..."
+                      rows={2}
+                      className="mt-1 w-full px-3 py-2 border border-gray-200 rounded text-sm bg-white"
+                    />
+                  </label>
                 )}
               </div>
-              <select
-                value={relatedItemInstanceId}
-                onChange={(e) => {
-                  setRelatedItemInstanceId(e.target.value);
-                  const selected = relatedItemInstances.find((x) => x.id === e.target.value);
-                  if (selected) setRelatedItemLabel(selected.label);
-                }}
-                disabled={loadingRelatedItemInstances || relatedItemInstances.length === 0}
-                className="px-3 py-2 border border-gray-200 rounded text-sm disabled:bg-gray-50 disabled:text-gray-400"
-              >
-                {loadingRelatedItemInstances ? (
-                  <option value="">Loading…</option>
-                ) : relatedItemInstances.length === 0 ? (
-                  <option value="">No project items in this category</option>
-                ) : (
-                  relatedItemInstances.map((instance) => (
-                    <option key={instance.id} value={instance.id}>
-                      {instance.label}
-                    </option>
-                  ))
-                )}
-              </select>
-              <input value={relatedItemLabel} onChange={(e) => setRelatedItemLabel(e.target.value)} placeholder="Item label" className="px-3 py-2 border border-gray-200 rounded text-sm md:col-span-1" />
-              <input value={relatedItemHref} onChange={(e) => setRelatedItemHref(e.target.value)} placeholder="Optional link URL" className="px-3 py-2 border border-gray-200 rounded text-sm md:col-span-2" />
             </div>
             <div className="flex justify-end">
               <button
                 type="button"
                 onClick={async () => {
-                  if (!rfi || !relatedItemLabel.trim()) return;
-                  const nextItem = { id: `${Date.now()}`, type: relatedItemType, label: relatedItemLabel.trim(), href: relatedItemHref.trim() || null };
+                  if (!rfi || !relatedItemInstanceId) return;
+                  const selected = relatedItemInstances.find((x) => x.id === relatedItemInstanceId);
+                  if (!selected) return;
+                  const nextItem = { id: `${Date.now()}`, type: relatedItemType, label: selected.label, notes: relatedItemNotes.trim() || null };
                   const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -770,8 +723,8 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                   });
                   if (res.ok) {
                     setRfi(await res.json());
-                    setRelatedItemLabel("");
-                    setRelatedItemHref("");
+                    setRelatedItemInstanceId("");
+                    setRelatedItemNotes("");
                   }
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700"

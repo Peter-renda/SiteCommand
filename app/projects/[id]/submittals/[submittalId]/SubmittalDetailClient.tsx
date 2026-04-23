@@ -52,7 +52,7 @@ type Submittal = {
     comments?: string | null;
     attachments?: { name: string; url: string }[];
   }[];
-  related_items: { type: string; title: string; href: string }[];
+  related_items: { type: string; title: string; href?: string | null; notes?: string | null }[];
   distributed_at: string | null;
   closed_at: string | null;
   created_by: string | null;
@@ -188,6 +188,10 @@ export default function SubmittalDetailClient({
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [newRelatedType, setNewRelatedType] = useState("Change Event");
+  const [newRelatedTitle, setNewRelatedTitle] = useState("");
+  const [newRelatedNotes, setNewRelatedNotes] = useState("");
+  const [savingRelated, setSavingRelated] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editValues, setEditValues] = useState<EditableSubmittalFields | null>(null);
@@ -521,12 +525,81 @@ export default function SubmittalDetailClient({
               <ul className="space-y-2">
                 {(submittal.related_items ?? []).map((item, idx) => (
                   <li key={`${item.href}-${idx}`} className="text-sm">
-                    <a href={item.href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{item.title || item.href}</a>
+                    <span className="text-gray-900">{item.title || "Untitled item"}</span>
                     <span className="text-gray-500"> · {item.type || "link"}</span>
+                    {item.notes ? <span className="text-gray-500"> · {item.notes}</span> : null}
                   </li>
                 ))}
               </ul>
             )}
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <div className="rounded border border-gray-200 bg-gray-50 p-3 space-y-3">
+                <label className="block text-xs font-medium text-gray-700">
+                  Link Related Items
+                  <select
+                    value={newRelatedType}
+                    onChange={(e) => {
+                      setNewRelatedType(e.target.value);
+                      setNewRelatedTitle("");
+                    }}
+                    className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm bg-white"
+                  >
+                    <option>Change Event</option>
+                    <option>RFI</option>
+                    <option>Submittal</option>
+                    <option>Transmittal</option>
+                    <option>Punch Item</option>
+                    <option>Meeting</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-medium text-gray-700">
+                  {`Select the ${newRelatedType}`}
+                  <input
+                    value={newRelatedTitle}
+                    onChange={(e) => setNewRelatedTitle(e.target.value)}
+                    className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                    placeholder="Enter related item"
+                  />
+                </label>
+                {newRelatedTitle.trim() && (
+                  <label className="block text-xs font-medium text-gray-700">
+                    Add Comment
+                    <textarea
+                      value={newRelatedNotes}
+                      onChange={(e) => setNewRelatedNotes(e.target.value)}
+                      className="mt-1 min-h-16 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                      placeholder="Add comment..."
+                    />
+                  </label>
+                )}
+              </div>
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  disabled={savingRelated || !newRelatedTitle.trim()}
+                  onClick={async () => {
+                    if (!newRelatedTitle.trim()) return;
+                    setSavingRelated(true);
+                    const next = [...(submittal.related_items ?? []), { type: newRelatedType, title: newRelatedTitle.trim(), notes: newRelatedNotes.trim() || null }];
+                    const res = await fetch(`/api/projects/${projectId}/submittals/${submittalId}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ related_items: next }),
+                    });
+                    if (res.ok) {
+                      const updated = await res.json();
+                      setSubmittal(updated);
+                      setNewRelatedTitle("");
+                      setNewRelatedNotes("");
+                    }
+                    setSavingRelated(false);
+                  }}
+                  className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+                >
+                  {savingRelated ? "Adding..." : "Add Related Item"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

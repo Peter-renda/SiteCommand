@@ -192,7 +192,6 @@ export default function ChangeOrderDetailClient({
   const [relatedItemsLoading, setRelatedItemsLoading] = useState(false);
   const [newItemType, setNewItemType] = useState("");
   const [newItemLabel, setNewItemLabel] = useState("");
-  const [newItemDate, setNewItemDate] = useState("");
   const [newItemNotes, setNewItemNotes] = useState("");
   const [addingItem, setAddingItem] = useState(false);
 
@@ -334,7 +333,6 @@ export default function ChangeOrderDetailClient({
           body: JSON.stringify({
             item_type: newItemType,
             item_label: newItemLabel || null,
-            item_date: newItemDate || null,
             notes: newItemNotes || null,
             sort_order: relatedItems.length,
           }),
@@ -345,7 +343,6 @@ export default function ChangeOrderDetailClient({
         setRelatedItems((prev) => [...prev, item]);
         setNewItemType("");
         setNewItemLabel("");
-        setNewItemDate("");
         setNewItemNotes("");
       }
     } finally {
@@ -743,52 +740,50 @@ export default function ChangeOrderDetailClient({
               {isAdmin && (
                 <div className="border border-gray-200 rounded p-4 bg-gray-50">
                   <h4 className="text-xs font-semibold text-gray-700 mb-3">Add Related Item</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Type *</label>
+                  <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
+                    <label className="block text-xs font-medium text-gray-700">
+                      Link Related Items
                       <select
                         value={newItemType}
-                        onChange={(e) => setNewItemType(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                        onChange={(e) => {
+                          setNewItemType(e.target.value);
+                          setNewItemLabel("");
+                        }}
+                        className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-xs"
                       >
                         <option value="">Select type…</option>
                         {RELATED_ITEM_TYPES.map((t) => (
                           <option key={t}>{t}</option>
                         ))}
                       </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Description</label>
-                      <input
-                        value={newItemLabel}
-                        onChange={(e) => setNewItemLabel(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
-                        placeholder="e.g. RFI #003 — Footing depth"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Date</label>
-                      <input
-                        type="date"
-                        value={newItemDate}
-                        onChange={(e) => setNewItemDate(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Notes</label>
-                      <input
-                        value={newItemNotes}
-                        onChange={(e) => setNewItemNotes(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
-                        placeholder="Optional notes"
-                      />
-                    </div>
+                    </label>
+                    {newItemType && (
+                      <label className="block text-xs font-medium text-gray-700">
+                        {`Select the ${newItemType}`}
+                        <input
+                          value={newItemLabel}
+                          onChange={(e) => setNewItemLabel(e.target.value)}
+                          className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-xs"
+                          placeholder="Enter related item name"
+                        />
+                      </label>
+                    )}
+                    {newItemLabel.trim() && (
+                      <label className="block text-xs font-medium text-gray-700">
+                        Add Comment
+                        <textarea
+                          value={newItemNotes}
+                          onChange={(e) => setNewItemNotes(e.target.value)}
+                          className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-xs min-h-16"
+                          placeholder="Add comment..."
+                        />
+                      </label>
+                    )}
                   </div>
                   <div className="mt-3 flex justify-end">
                     <button
                       onClick={handleAddRelatedItem}
-                      disabled={addingItem || !newItemType}
+                      disabled={addingItem || !newItemType || !newItemLabel.trim()}
                       className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50"
                     >
                       {addingItem ? "Adding…" : "Add Item"}
