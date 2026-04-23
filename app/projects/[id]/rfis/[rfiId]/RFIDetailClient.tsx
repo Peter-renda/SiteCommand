@@ -741,6 +741,9 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                           if (res.ok) {
                             setResponses((prev) => prev.filter((r) => r.id !== resp.id));
                             if (rfi.official_response_id === resp.id) setRfi({ ...rfi, official_response_id: null });
+                          } else {
+                            const err = await res.json().catch(() => ({}));
+                            window.alert(err.error || "Failed to delete response.");
                           }
                           setDeletingResponseId(null);
                         }} disabled={deletingResponseId === resp.id} className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-40" title="Delete response">
