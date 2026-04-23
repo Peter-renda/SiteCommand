@@ -800,8 +800,8 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                   <dd className="mt-0.5 text-gray-900">{rfi.drawing_number || "—"}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Created</dt>
-                  <dd className="mt-0.5 text-gray-900">{formatDate(rfi.created_at)}</dd>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Date Initiated</dt>
+                  <dd className="mt-0.5 text-gray-900">{formatDateTime(rfi.created_at)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Ball In Court</dt>
