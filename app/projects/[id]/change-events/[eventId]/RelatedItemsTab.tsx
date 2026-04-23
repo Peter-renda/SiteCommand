@@ -259,7 +259,7 @@ export default function RelatedItemsTab({
         setLoadingTypes((prev) => ({ ...prev, [type]: false }));
       }
     },
-    [projectId, instanceCache, loadingTypes],
+    [projectId, instanceCache],
   );
 
   useEffect(() => {
@@ -352,11 +352,6 @@ export default function RelatedItemsTab({
     void patchServer(id, { item_id: instanceId, item_label: instanceLabel });
   }
 
-  function handleDateChange(id: string, date: string) {
-    patchLocal(id, { date });
-    void patchServer(id, { item_date: date });
-  }
-
   function handleNotesChange(id: string, notes: string) {
     patchLocal(id, { notes });
     const timers = notesDebounceRef.current;
@@ -394,42 +389,30 @@ export default function RelatedItemsTab({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-gray-100 border-b border-gray-300 text-gray-700 font-medium">
-              <th className="px-3 py-2 text-left whitespace-nowrap w-1/4">Type</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap w-2/5">Description</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap w-32">Date</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Notes</th>
-              <th className="px-3 py-2 w-10"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-sm italic text-gray-400">
-                  Loading…
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-sm italic text-gray-500">
-                  {canWrite ? "No related items. Click \"Add an Item\" to get started." : "No related items."}
-                </td>
-              </tr>
-            ) : (
-              items.map((row) => {
-                const cfg = row.type ? TYPE_CONFIG_MAP[row.type] : undefined;
-                const instances = instanceCache[row.type] ?? [];
-                const isLoading = loadingTypes[row.type];
-                return (
-                  <tr key={row.id} className="border-b border-gray-200 align-top">
-                    <td className="px-3 py-2">
+        {loading ? (
+          <div className="px-3 py-6 text-center text-sm text-gray-500">Loading…</div>
+        ) : items.length === 0 ? (
+          <div className="px-3 py-6 text-center text-sm text-gray-500">
+            {canWrite ? "No related items. Click \"Add an Item\" to get started." : "No related items."}
+          </div>
+        ) : (
+          <div className="space-y-3 p-3">
+            {items.map((row) => {
+              const cfg = row.type ? TYPE_CONFIG_MAP[row.type] : undefined;
+              const instances = instanceCache[row.type] ?? [];
+              const isLoading = loadingTypes[row.type];
+              const showSecondBox = Boolean(row.type);
+              const showThirdBox = Boolean(row.instanceId);
+              return (
+                <div key={row.id} className="rounded border border-gray-200 bg-gray-50 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="block flex-1 text-xs font-medium text-gray-700">
+                      Link Related Items
                       <select
                         value={row.type}
                         onChange={(e) => handleTypeChange(row.id, e.target.value)}
                         disabled={!canWrite}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
                       >
                         <option value="">Select an Item:</option>
                         <option value="Change Event">Change Event</option>
@@ -473,26 +456,42 @@ export default function RelatedItemsTab({
                           ))}
                         </optgroup>
                       </select>
-                    </td>
-                    <td className="px-3 py-2">
-                      {!row.type ? (
-                        <span className="text-xs italic text-gray-400">Select a type first</span>
-                      ) : isLoading ? (
-                        <span className="text-xs italic text-gray-400">Loading…</span>
+                    </label>
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={() => removeRow(row.id)}
+                        aria-label="Remove related item"
+                        className="self-end text-gray-400 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {showSecondBox && (
+                    <label className="mt-3 block text-xs font-medium text-gray-700">
+                      {`Select the ${row.type}`}
+                      {isLoading ? (
+                        <div className="mt-1 rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-500">
+                          Loading…
+                        </div>
                       ) : instances.length === 0 ? (
                         row.instanceLabel ? (
-                          <span className="text-sm text-gray-700">{row.instanceLabel}</span>
+                          <div className="mt-1 rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700">
+                            {row.instanceLabel}
+                          </div>
                         ) : (
-                          <span className="text-xs italic text-gray-400">
+                          <div className="mt-1 rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-500">
                             {cfg?.endpoint ? "No items available" : "Not available for this type"}
-                          </span>
+                          </div>
                         )
                       ) : (
                         <select
                           value={row.instanceId}
                           onChange={(e) => handleInstanceChange(row.id, e.target.value)}
                           disabled={!canWrite}
-                          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
+                          className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
                         >
                           <option value="">Select…</option>
                           {instances.map((inst) => (
@@ -502,45 +501,28 @@ export default function RelatedItemsTab({
                           ))}
                         </select>
                       )}
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="date"
-                        value={row.date}
-                        onChange={(e) => handleDateChange(row.id, e.target.value)}
-                        disabled={!canWrite}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
+                    </label>
+                  )}
+
+                  {showThirdBox && (
+                    <label className="mt-3 block text-xs font-medium text-gray-700">
+                      Add Comment
                       <textarea
                         value={row.notes}
                         onChange={(e) => handleNotesChange(row.id, e.target.value)}
                         onBlur={(e) => handleNotesBlur(row.id, e.target.value)}
-                        placeholder="Add notes…"
-                        rows={1}
+                        placeholder="Add comment..."
+                        rows={2}
                         disabled={!canWrite}
-                        className="w-full min-h-[34px] resize-y border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="mt-1 w-full min-h-[68px] resize-y border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
                       />
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      {canWrite && (
-                        <button
-                          type="button"
-                          onClick={() => removeRow(row.id)}
-                          aria-label="Remove related item"
-                          className="text-gray-400 hover:text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                    </label>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
