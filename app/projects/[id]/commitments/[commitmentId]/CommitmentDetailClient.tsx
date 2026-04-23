@@ -477,6 +477,10 @@ export default function CommitmentDetailClient({
   const [changeHistory, setChangeHistory] = useState<ChangeHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [relatedItems, setRelatedItems] = useState<Array<{ id: string; type: string; label: string; notes: string }>>([]);
+  const [relatedType, setRelatedType] = useState("Change Event");
+  const [relatedLabel, setRelatedLabel] = useState("");
+  const [relatedNotes, setRelatedNotes] = useState("");
 
   async function handleDelete() {
     setDeleting(true);
@@ -780,7 +784,7 @@ export default function CommitmentDetailClient({
         )}
 
         {/* ── Placeholder tabs ── */}
-        {(activeTab === "change_orders" || activeTab === "invoices" || activeTab === "payments_issued" || activeTab === "related_items" || activeTab === "emails") && (
+        {(activeTab === "change_orders" || activeTab === "invoices" || activeTab === "payments_issued" || activeTab === "emails") && (
           <div className="py-16 text-center">
             <p className="text-sm text-gray-400">
               {activeTab === "change_orders" && "Change Orders"}
@@ -792,6 +796,78 @@ export default function CommitmentDetailClient({
             </p>
             <p className="text-xs text-gray-300 mt-1">This section will appear here when available.</p>
           </div>
+        )}
+
+        {activeTab === "related_items" && (
+          <Section title="Related Items">
+            {relatedItems.length === 0 ? (
+              <p className="text-sm text-gray-500 mb-4">No related items yet.</p>
+            ) : (
+              <ul className="mb-4 space-y-2">
+                {relatedItems.map((item) => (
+                  <li key={item.id} className="rounded border border-gray-100 px-3 py-2 text-sm">
+                    <p className="text-gray-900">{item.label}</p>
+                    <p className="text-xs text-gray-500">{item.type}</p>
+                    {item.notes ? <p className="text-xs text-gray-500 mt-1">{item.notes}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="rounded border border-gray-200 bg-gray-50 p-3 space-y-3">
+              <label className="block text-xs font-medium text-gray-700">
+                Link Related Items
+                <select
+                  value={relatedType}
+                  onChange={(e) => {
+                    setRelatedType(e.target.value);
+                    setRelatedLabel("");
+                  }}
+                  className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm bg-white"
+                >
+                  <option>Change Event</option>
+                  <option>RFI</option>
+                  <option>Submittal</option>
+                  <option>Transmittal</option>
+                  <option>Punch Item</option>
+                </select>
+              </label>
+              <label className="block text-xs font-medium text-gray-700">
+                {`Select the ${relatedType}`}
+                <input
+                  value={relatedLabel}
+                  onChange={(e) => setRelatedLabel(e.target.value)}
+                  className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  placeholder={`Select the ${relatedType}`}
+                />
+              </label>
+              {relatedLabel.trim() && (
+                <label className="block text-xs font-medium text-gray-700">
+                  Add Comment
+                  <textarea
+                    value={relatedNotes}
+                    onChange={(e) => setRelatedNotes(e.target.value)}
+                    className="mt-1 w-full min-h-16 rounded border border-gray-300 px-2 py-1.5 text-sm"
+                    placeholder="Add comment..."
+                  />
+                </label>
+              )}
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                disabled={!relatedLabel.trim()}
+                onClick={() => {
+                  if (!relatedLabel.trim()) return;
+                  setRelatedItems((prev) => [...prev, { id: `${Date.now()}`, type: relatedType, label: relatedLabel.trim(), notes: relatedNotes.trim() }]);
+                  setRelatedLabel("");
+                  setRelatedNotes("");
+                }}
+                className="rounded bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+              >
+                Add Related Item
+              </button>
+            </div>
+          </Section>
         )}
 
         {/* ── Change History Tab ── */}
