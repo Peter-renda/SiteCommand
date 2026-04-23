@@ -210,12 +210,14 @@ function SingleContactPicker({
 
 function CreateRFIModal({
   nextNumber,
+  initiatedAt,
   directory,
   specifications,
   onConfirm,
   onCancel,
 }: {
   nextNumber: number;
+  initiatedAt: string;
   directory: DirectoryContact[];
   specifications: Specification[];
   onConfirm: (data: {
@@ -242,7 +244,12 @@ function CreateRFIModal({
 }) {
   const [subject, setSubject] = useState("");
   const [question, setQuestion] = useState("");
-  const [dueDate, setDueDate] = useState(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState(() => {
+    const baseline = new Date(initiatedAt);
+    if (Number.isNaN(baseline.getTime())) return "";
+    baseline.setDate(baseline.getDate() + 14);
+    return baseline.toISOString().split("T")[0];
+  });
   const [status, setStatus] = useState("open");
   const [rfiManagerId, setRfiManagerId] = useState<string | null>(null);
   const [receivedFromId, setReceivedFromId] = useState<string | null>(null);
@@ -300,9 +307,19 @@ function CreateRFIModal({
               <input type="text" readOnly value={nextNumber} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Due Date</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
+              <label className="block text-xs font-medium text-gray-500 mb-1">Date Initiated</label>
+              <input
+                type="text"
+                readOnly
+                value={formatDateTime(initiatedAt)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+              />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Due Date</label>
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
           </div>
 
           <div>
@@ -544,7 +561,7 @@ async function exportRFIsPDF(
         case "ball_in_court": value = getContactNameById(directory, rfi.ball_in_court_id); break;
         case "distribution": value = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
         case "responsible_contractor": value = getContactNameById(directory, rfi.responsible_contractor_id); break;
-        case "date_initiated": value = formatDate(rfi.created_at); break;
+        case "date_initiated": value = formatDateTime(rfi.created_at); break;
       }
       const label = COLUMN_LABELS[key as typeof COLUMN_KEYS[number]] ?? key;
       writeWrapped(`${label}: ${value}`);
@@ -585,6 +602,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
   const [specifications, setSpecifications] = useState<Specification[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [createInitiatedAt, setCreateInitiatedAt] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -624,6 +642,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
 
   useEffect(() => {
     if (searchParams.get("create") === "1") {
+      setCreateInitiatedAt(new Date().toISOString());
       setShowCreate(true);
     }
   }, [searchParams]);
@@ -828,7 +847,14 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                 </div>
               )}
             </div>
-            <button onClick={() => setShowCreate(true)} disabled={creating} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors disabled:opacity-50">
+            <button
+              onClick={() => {
+                setCreateInitiatedAt(new Date().toISOString());
+                setShowCreate(true);
+              }}
+              disabled={creating}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors disabled:opacity-50"
+            >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
               {creating ? "Creating..." : "New RFI"}
             </button>
@@ -982,7 +1008,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                         case "ball_in_court": cell = getContactNameById(directory, rfi.ball_in_court_id); break;
                         case "distribution": cell = (rfi.distribution_list ?? []).map((d) => d.name).join(", ") || "—"; break;
                         case "responsible_contractor": cell = getContactNameById(directory, rfi.responsible_contractor_id); break;
-                        case "date_initiated": cell = <span className="tabular-nums">{formatDate(rfi.created_at)}</span>; break;
+                        case "date_initiated": cell = <span className="tabular-nums">{formatDateTime(rfi.created_at)}</span>; break;
                         case "schedule_impact": cell = rfi.schedule_impact || "—"; break;
                         case "cost_impact": cell = rfi.cost_impact || "—"; break;
                         case "cost_code": cell = rfi.cost_code || "—"; break;
@@ -1001,7 +1027,14 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
       </main>
 
       {showCreate && (
-        <CreateRFIModal nextNumber={nextNumber} directory={directory} specifications={specifications} onConfirm={handleCreate} onCancel={() => setShowCreate(false)} />
+        <CreateRFIModal
+          nextNumber={nextNumber}
+          initiatedAt={createInitiatedAt ?? ""}
+          directory={directory}
+          specifications={specifications}
+          onConfirm={handleCreate}
+          onCancel={() => setShowCreate(false)}
+        />
       )}
     </div>
   );
