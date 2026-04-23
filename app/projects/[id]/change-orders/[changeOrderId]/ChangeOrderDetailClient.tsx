@@ -592,7 +592,7 @@ export default function ChangeOrderDetailClient({
 
         {/* Page title */}
         <div className="px-6 py-3 shrink-0 flex items-center justify-between">
-          <h1 className="text-2xl font-normal text-gray-900">
+          <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">
             {isCommitment ? "Commitment Change Order" : "Potential Change Order"} #{co.number}
           </h1>
           <div className="flex items-center gap-2">

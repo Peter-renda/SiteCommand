@@ -557,7 +557,7 @@ export default function ChangeEventDetailClient({
 
       <div className="px-4 pt-3 pb-0 border-b border-gray-200 bg-white">
         <div className="flex items-start justify-between gap-3">
-          <h1 className="text-base font-semibold text-gray-900">
+          <h1 className="font-display text-[20px] leading-tight text-[color:var(--ink)]">
             Change Event #{String(event.number).padStart(3, "0")}: {event.title}
           </h1>
           <div className="flex items-center gap-2">

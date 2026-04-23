@@ -309,7 +309,7 @@ export default function ChangeOrdersClient({
 
       {/* Page header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white shrink-0">
-        <h1 className="text-sm font-semibold text-gray-900">Change Orders</h1>
+        <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">Change Orders</h1>
         <button
           onClick={exportListAsCsv}
           className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"

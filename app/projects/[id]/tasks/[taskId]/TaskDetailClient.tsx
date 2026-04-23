@@ -308,7 +308,7 @@ export default function TaskDetailClient({
                   className="w-full px-3 py-2 border border-gray-200 rounded-md text-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               ) : (
-                <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
+                <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">{task.title}</h1>
               )}
             </div>
 

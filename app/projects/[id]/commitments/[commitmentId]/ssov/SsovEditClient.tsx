@@ -345,7 +345,7 @@ export default function SsovEditClient({
             ← #{commitment.number}
           </a>
           <span className="text-gray-200">/</span>
-          <h1 className="text-sm font-semibold text-gray-900">Subcontractor SOV</h1>
+          <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">Subcontractor SOV</h1>
         </div>
         <div className="flex items-center gap-2">
           <a

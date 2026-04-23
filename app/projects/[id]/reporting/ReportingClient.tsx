@@ -2234,6 +2234,11 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
       <ProjectNav projectId={projectId} />
 
       <main className="max-w-7xl mx-auto px-6 py-6">
+        <div className="mb-5">
+          <p className="eyebrow mb-2">Project · Analytics</p>
+          <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)] mb-1">Reporting</h1>
+          <p className="text-sm text-gray-500">360 Reporting — create reports, clone reports, then build and share dashboards from your visual library.</p>
+        </div>
         <div className="flex items-start justify-between mb-5 rounded-xl border border-[var(--border-base)] bg-white p-4">
           <div>
             <Eyebrow quiet>Project 360 Reporting</Eyebrow>

@@ -214,7 +214,8 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
         <div className="mb-4 rounded-xl border border-[var(--border-base)] bg-white p-4">
           <Eyebrow quiet>Project Workspace</Eyebrow>
           <div className="mt-2 flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-gray-900">Quick Notes</h1>
+            <p className="eyebrow mb-2">Project · Coordination</p>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Quick Notes</h1>
             <Pill className="pill-open">{notes.length} notes</Pill>
           </div>
         </div>

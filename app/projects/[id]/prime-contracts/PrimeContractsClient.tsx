@@ -477,7 +477,7 @@ export default function PrimeContractsClient({
           >
             <Settings className="w-4 h-4" />
           </button>
-          <h1 className="text-sm font-semibold text-gray-900">Prime Contracts</h1>
+          <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">Prime Contracts</h1>
         </div>
         <div className="flex items-center gap-2">
           <div ref={exportRef} className="relative">

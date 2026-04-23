@@ -508,7 +508,7 @@ export default function MeetingDetailClient({
         {/* Page title row */}
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">
               Meeting Agenda for {meeting.title}
             </h1>
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusColor}`}>

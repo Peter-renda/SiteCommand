@@ -298,7 +298,7 @@ export default function EditPrimeContractClient({
               Contract #{contractNumber}{formData.title ? ` — ${formData.title}` : ""}
             </span>
             <span className="text-gray-300">/</span>
-            <h1 className="text-sm font-bold text-gray-900">Edit</h1>
+            <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">Edit</h1>
           </div>
 
           {saveError && (

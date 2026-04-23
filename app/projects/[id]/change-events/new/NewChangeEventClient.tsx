@@ -1079,7 +1079,7 @@ export default function NewChangeEventClient({
           <ChevronRight className="w-3 h-3" />
           <span className="text-gray-700">New Change Event</span>
         </nav>
-        <h1 className="text-xl font-semibold text-gray-900">Create New Change Event</h1>
+        <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">Create New Change Event</h1>
       </div>
 
       {/* ── Scrollable content ────────────────────────────────────────────────── */}

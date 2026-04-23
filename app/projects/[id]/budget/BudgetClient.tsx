@@ -2180,7 +2180,8 @@ export default function BudgetClient({
         {/* Title + actions */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Budget</h1>
+            <p className="eyebrow mb-2">Project · Financials</p>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Budget</h1>
             {snapshots.length > 0 && (
               <p className="text-xs text-gray-400 mt-0.5">
                 {snapshots.length} snapshot{snapshots.length !== 1 ? "s" : ""} saved

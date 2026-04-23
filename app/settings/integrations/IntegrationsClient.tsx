@@ -1122,7 +1122,8 @@ export default function IntegrationsClient({ isSiteAdmin }: { isSiteAdmin: boole
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-gray-900">Integrations</h1>
+        <p className="eyebrow mb-2">Settings · Integrations</p>
+        <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Integrations</h1>
         <p className="text-sm text-gray-500 mt-1">
           {isSiteAdmin
             ? "Configure platform-level third-party service credentials."

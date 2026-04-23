@@ -221,7 +221,8 @@ export default function SendRFQsClient({
       <ProjectNav projectId={projectId} />
       <div className="max-w-[1600px] mx-auto px-6 py-6">
         <p className="text-xs text-gray-500 mb-1">Change Events &gt; Send RFQs</p>
-        <h1 className="text-3xl text-orange-500 font-medium mb-8">Send RFQs</h1>
+        <p className="eyebrow mb-2">Project · Financials</p>
+        <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)] mb-8">Send RFQs</h1>
 
         {loading ? (
           <div className="text-sm text-gray-500">Loading…</div>

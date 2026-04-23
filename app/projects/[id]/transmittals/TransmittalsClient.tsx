@@ -152,7 +152,7 @@ export default function TransmittalsClient({
         {/* Page header row */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <span className="text-lg font-semibold text-gray-900">Transmittals</span>
+            <span className="font-display text-[18px] leading-tight text-[color:var(--ink)]">Transmittals</span>
             {/* Tabs */}
             <div className="flex items-end gap-1 ml-1">
               <button

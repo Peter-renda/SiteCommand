@@ -632,7 +632,7 @@ export default function CommitmentDetailClient({
               ← Commitments
             </a>
             <span className="text-gray-200">/</span>
-            <h1 className="text-sm font-semibold text-gray-900">
+            <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">
               #{commitment.number} — {commitment.title || typeLabel}
             </h1>
             <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">

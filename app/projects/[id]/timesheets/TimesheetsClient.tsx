@@ -248,7 +248,8 @@ export default function TimesheetsClient({
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-4">
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-          <h1 className="text-xl font-semibold text-gray-900">Timesheets</h1>
+          <p className="eyebrow mb-2">Project · Workforce</p>
+          <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Timesheets</h1>
 
           <div className="grid md:grid-cols-6 gap-2">
             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm" />

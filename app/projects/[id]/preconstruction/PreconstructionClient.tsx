@@ -645,7 +645,8 @@ export default function PreconstructionClient({
         {/* Page header */}
         <div className="flex items-start justify-between mb-6 gap-4">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-semibold text-gray-900 mb-3">Preconstruction</h1>
+            <p className="eyebrow mb-2">Project · Preconstruction</p>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)] mb-3">Preconstruction</h1>
             {/* Progress bar */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden max-w-xs">

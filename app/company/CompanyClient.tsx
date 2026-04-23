@@ -158,7 +158,8 @@ const seatCount = members.length;
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-8">
-          <h1 className="text-xl font-semibold text-gray-900">{company?.name ?? "Team"}</h1>
+          <p className="eyebrow mb-2">Company · Team</p>
+          <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">{company?.name ?? "Team"}</h1>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <span className="text-sm text-gray-500 capitalize">
               {company?.subscription_plan ?? "No plan"} plan

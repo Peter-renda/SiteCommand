@@ -356,6 +356,11 @@ export default function PhotosClient({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
         >
+          {/* Page heading */}
+          <div className="bg-white border-b border-gray-100 px-6 py-4 shrink-0">
+            <p className="eyebrow mb-2">Project · Coordination</p>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Photos</h1>
+          </div>
           {/* Toolbar */}
           <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">

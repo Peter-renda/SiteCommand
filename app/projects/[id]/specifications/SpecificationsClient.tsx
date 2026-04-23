@@ -165,7 +165,8 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 text-[30px] font-bold text-gray-800">
             <Settings className="h-6 w-6" />
-            <h1 className="text-[34px] font-semibold tracking-tight">Specifications</h1>
+            <p className="eyebrow mb-2">Project · Coordination</p>
+            <h1 className="font-display text-[34px] leading-tight text-[color:var(--ink)]">Specifications</h1>
           </div>
 
           <div className="flex items-center gap-2 text-sm">

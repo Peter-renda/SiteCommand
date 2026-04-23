@@ -2091,7 +2091,7 @@ export default function DocumentsClient({
         <div className="flex items-center justify-between mb-6">
           <div>
             <Eyebrow quiet>Project workspace</Eyebrow>
-            <h1 className="text-xl font-semibold text-gray-900">Documents</h1>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Documents</h1>
             <div className="mt-1"><Pill className="pill-open">{items.length} items</Pill></div>
             <nav className="flex items-center gap-1 mt-1">
               {breadcrumb.map((crumb, i) => (

@@ -273,7 +273,7 @@ export default function EditRFIClient({ projectId, rfiId, userId, role }: { proj
       <ProjectNav projectId={projectId} role={role} />
       <main className="max-w-5xl mx-auto px-4 md:px-8 py-8">
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">Edit RFI #{rfi.rfi_number}</h1>
+          <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">Edit RFI #{rfi.rfi_number}</h1>
           <p className="text-sm text-gray-500 mt-1">Update and save all RFI fields.</p>
         </div>
 

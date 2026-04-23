@@ -561,7 +561,7 @@ export default function NewSubmittalPackageClient({
               </svg>
               <span className="text-gray-800 font-medium">New Submittal Package</span>
             </nav>
-            <h1 className="text-xl font-semibold text-gray-900">New Submittal Package</h1>
+            <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">New Submittal Package</h1>
           </div>
 
           {error && (

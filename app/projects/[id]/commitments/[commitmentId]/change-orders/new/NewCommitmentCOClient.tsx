@@ -341,7 +341,7 @@ export default function NewCommitmentCOClient({
 
         {/* Page title */}
         <div className="px-6 py-3 shrink-0">
-          <h1 className="text-2xl font-normal text-gray-900">New Commitment Change Order</h1>
+          <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">New Commitment Change Order</h1>
         </div>
 
         {/* Tab bar */}

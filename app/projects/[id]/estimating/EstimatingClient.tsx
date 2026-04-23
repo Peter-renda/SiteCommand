@@ -588,7 +588,8 @@ export default function EstimatingClient({ projectId }: { projectId: string }) {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Estimating</h1>
+            <p className="eyebrow mb-2">Project · Preconstruction</p>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Estimating</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               Build and organize your project cost estimate by CSI division
             </p>
