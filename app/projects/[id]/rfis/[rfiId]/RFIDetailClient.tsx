@@ -716,15 +716,20 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                   const selected = relatedItemInstances.find((x) => x.id === relatedItemInstanceId);
                   if (!selected) return;
                   const nextItem = { id: `${Date.now()}`, type: relatedItemType, label: selected.label, notes: relatedItemNotes.trim() || null };
+                  const nextRelatedItems = [nextItem, ...(rfi.related_items ?? [])];
+                  const previousRfi = rfi;
+                  setRfi({ ...rfi, related_items: nextRelatedItems });
                   const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ related_items: [nextItem, ...(rfi.related_items ?? [])] }),
+                    body: JSON.stringify({ related_items: nextRelatedItems }),
                   });
                   if (res.ok) {
                     setRfi(await res.json());
                     setRelatedItemInstanceId("");
                     setRelatedItemNotes("");
+                  } else {
+                    setRfi(previousRfi);
                   }
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700"
