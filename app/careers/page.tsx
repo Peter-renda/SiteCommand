@@ -45,7 +45,6 @@ export default function CareersPage() {
           <h1
             className="text-5xl sm:text-6xl font-bold leading-[1.05] mb-5 animate-fade-up"
             style={{
-              ,
               letterSpacing: "-0.03em",
               color: "#111110",
               animationDelay: "100ms",
