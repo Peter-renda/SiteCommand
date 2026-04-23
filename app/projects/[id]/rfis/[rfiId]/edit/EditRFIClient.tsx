@@ -315,7 +315,7 @@ export default function EditRFIClient({ projectId, rfiId, userId, role }: { proj
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Received From</label>
-              <SingleContactPicker directory={directory} selectedId={receivedFromId} onChange={setReceivedFromId} placeholder="Select contact..." />
+              <SingleContactPicker directory={directory} selectedId={receivedFromId} onChange={setReceivedFromId} filterType="user" placeholder="Select user..." />
             </div>
           </div>
 
