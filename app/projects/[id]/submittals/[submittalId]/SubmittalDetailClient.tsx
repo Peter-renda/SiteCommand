@@ -439,7 +439,7 @@ export default function SubmittalDetailClient({
             All Submittals
           </a>
           <span className="text-gray-300">/</span>
-          <h1 className="text-sm font-semibold text-gray-900 truncate">
+          <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)] truncate">
             Submittal #{submittal.submittal_number} Revision {submittal.revision ?? "0"}: {submittal.title}
           </h1>
           {submittal.private && (

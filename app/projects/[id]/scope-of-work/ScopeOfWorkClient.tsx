@@ -412,7 +412,7 @@ export default function ScopeOfWorkClient({ projectId }: { projectId: string }) 
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-orange-500" />
-          <h1 className="text-base font-semibold text-gray-900">Scope of Work</h1>
+          <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">Scope of Work</h1>
         </div>
         <button
           onClick={handleExportPDF}

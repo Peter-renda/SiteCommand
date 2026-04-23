@@ -165,7 +165,7 @@ export default function CommitmentSettingsClient({
             ← Commitments
           </a>
           <span className="text-gray-200">/</span>
-          <h1 className="text-sm font-semibold text-gray-900">Advanced Settings</h1>
+          <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">Advanced Settings</h1>
         </div>
         <button
           onClick={save}

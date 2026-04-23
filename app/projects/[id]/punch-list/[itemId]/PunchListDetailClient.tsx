@@ -153,7 +153,7 @@ export default function PunchListDetailClient({ projectId, itemId, role, usernam
                   {item.type && <span className="ml-2 text-gray-400">· {item.type}</span>}
                   {item.private && <span className="ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">Private</span>}
                 </p>
-                <h1 className="text-xl font-semibold text-gray-900">{item.title}</h1>
+                <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">{item.title}</h1>
                 {item.location && <p className="text-sm text-gray-500 mt-1">{item.location}</p>}
               </div>
               <div className="flex items-center gap-2 shrink-0">

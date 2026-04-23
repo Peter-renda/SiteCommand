@@ -37,7 +37,8 @@ export default function PrequalificationClient({
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-semibold text-gray-900">Prequalification</h1>
+          <p className="eyebrow mb-2">Project · Preconstruction</p>
+          <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Prequalification</h1>
         </div>
 
         <div className="bg-white border border-dashed border-gray-200 rounded-xl px-6 py-16 flex flex-col items-center text-center">

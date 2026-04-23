@@ -489,7 +489,7 @@ export default function ChangeEventsClient({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Settings className="w-4 h-4 text-orange-500" />
-            <h1 className="text-sm font-semibold text-gray-900">Change Events</h1>
+            <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">Change Events</h1>
           </div>
           <div className="flex items-center ml-2">
             {(["detail", "summary", "rfqs", "recycle_bin"] as Tab[]).map((tab) => (

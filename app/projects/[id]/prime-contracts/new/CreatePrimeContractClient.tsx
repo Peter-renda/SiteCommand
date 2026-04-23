@@ -375,7 +375,7 @@ export default function CreatePrimeContractClient({ projectId }: { projectId: st
         <div className="flex-1 space-y-3 py-3">
 
           <div className="bg-white px-8 py-4">
-            <h1 className="text-xl font-bold text-gray-900">Create Prime Contract</h1>
+            <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">Create Prime Contract</h1>
           </div>
 
           {error && (

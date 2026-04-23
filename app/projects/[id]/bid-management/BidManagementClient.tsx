@@ -545,7 +545,7 @@ export default function BidManagementClient({
               <div className="bg-white rounded-xl border border-gray-100 px-6 py-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <h1 className="text-lg font-semibold text-gray-900 truncate">{selectedPackage.name}</h1>
+                    <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)] truncate">{selectedPackage.name}</h1>
                     {selectedPackage.description && (
                       <p className="text-sm text-gray-500 mt-0.5">{selectedPackage.description}</p>
                     )}

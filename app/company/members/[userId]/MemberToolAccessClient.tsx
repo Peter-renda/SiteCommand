@@ -185,7 +185,7 @@ export default function MemberToolAccessClient({
         {/* User info */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-xl font-semibold text-gray-900">{member.username}</h1>
+            <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">{member.username}</h1>
             <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${roleBadgeClass(member.company_role)}`}>
               {roleLabel(member.company_role)}
             </span>

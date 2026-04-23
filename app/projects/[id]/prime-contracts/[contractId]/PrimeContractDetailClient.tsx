@@ -478,7 +478,7 @@ export default function PrimeContractDetailClient({
       {/* Contract title + status */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-gray-900">{contract.title || `Prime Contract #${contract.contract_number}`}</h1>
+          <h1 className="font-display text-[20px] leading-tight text-[color:var(--ink)]">{contract.title || `Prime Contract #${contract.contract_number}`}</h1>
           <StatusBadge status={contract.status} />
         </div>
       </div>

@@ -862,7 +862,8 @@ export default function CommitmentsClient({
       <main className="px-6 py-8">
         {/* Title + actions */}
         <div className="flex items-center justify-between mb-5">
-          <h1 className="text-xl font-semibold text-gray-900">Commitments</h1>
+          <p className="eyebrow mb-2">Project · Financials</p>
+          <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Commitments</h1>
 
           <div className="flex items-center gap-2">
             {/* Export dropdown */}

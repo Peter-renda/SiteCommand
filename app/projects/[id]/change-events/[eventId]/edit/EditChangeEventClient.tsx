@@ -812,7 +812,7 @@ export default function EditChangeEventClient({
           <ChevronRight className="w-3 h-3" />
           <span className="text-gray-700">Edit</span>
         </nav>
-        <h1 className="text-xl font-semibold text-gray-900">Edit Change Event #{eventNumber}</h1>
+        <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">Edit Change Event #{eventNumber}</h1>
       </div>
 
       {/* ── Scrollable content ────────────────────────────────────────────────── */}

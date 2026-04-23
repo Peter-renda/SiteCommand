@@ -832,7 +832,8 @@ export default function DirectoryClient({
         <div className="mb-4 rounded-xl border border-[var(--border-base)] bg-white p-4">
           <Eyebrow quiet>Project Workspace</Eyebrow>
           <div className="mt-2 flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-gray-900">Directory</h1>
+            <p className="eyebrow mb-2">Project · People</p>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Directory</h1>
             <Pill className="pill-open">{totalCount} contacts</Pill>
           </div>
         </div>

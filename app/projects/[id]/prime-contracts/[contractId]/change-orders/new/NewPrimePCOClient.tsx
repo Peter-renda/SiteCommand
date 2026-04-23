@@ -287,7 +287,7 @@ export default function NewPrimePCOClient({
         </div>
 
         <div className="px-6 py-3 shrink-0">
-          <h1 className="text-4xl font-normal text-gray-700">New Potential Change Order</h1>
+          <h1 className="font-display text-[40px] leading-tight text-[color:var(--ink)]">New Potential Change Order</h1>
         </div>
 
         <div className="px-6 border-b border-gray-200 shrink-0">

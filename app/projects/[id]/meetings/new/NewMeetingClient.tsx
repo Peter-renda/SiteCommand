@@ -510,7 +510,7 @@ export default function NewMeetingClient({
             </nav>
 
             {/* Page title */}
-            <h1 className="text-2xl font-bold text-gray-900">New Meeting: No Template</h1>
+            <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">New Meeting: No Template</h1>
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md px-4 py-3 text-sm text-red-700">

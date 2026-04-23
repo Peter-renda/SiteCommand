@@ -491,7 +491,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
       {/* RFI title bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between gap-4">
-        <h1 className="text-lg font-bold text-gray-900 truncate">
+        <h1 className="font-display text-[20px] leading-tight text-[color:var(--ink)] truncate">
           RFI #{rfi.rfi_number}: {rfi.subject || "No subject"}
         </h1>
         <div className="flex items-center gap-2 flex-shrink-0">

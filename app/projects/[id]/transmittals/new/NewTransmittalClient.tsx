@@ -495,7 +495,7 @@ export default function NewTransmittalClient({
           <span className="text-gray-600">New Transmittal</span>
         </div>
 
-        <h1 className="text-2xl font-semibold text-gray-900 mb-5">New Transmittal</h1>
+        <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)] mb-5">New Transmittal</h1>
 
         {/* Tab */}
         <div className="border-b border-gray-200 mb-6">

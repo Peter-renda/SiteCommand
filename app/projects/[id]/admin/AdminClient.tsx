@@ -381,7 +381,8 @@ export default function AdminClient({
             <div className="mb-5 flex items-start justify-between rounded-lg border border-[var(--border-base)] bg-white p-5">
               <div>
                 <Eyebrow quiet>Project Workspace</Eyebrow>
-                <h1 className="mt-2 text-2xl font-semibold text-gray-900">Project Admin</h1>
+                <p className="eyebrow mb-2">Project · Setup</p>
+                <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Project Admin</h1>
                 <p className="mt-1 text-base text-gray-700">{data?.name || "Untitled Project"}</p>
                 {!isAdmin ? (
                   <p className="mt-1 text-xs text-gray-500">View only — contact a project administrator to make changes.</p>

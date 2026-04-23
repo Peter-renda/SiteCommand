@@ -305,7 +305,7 @@ export default function BIMClient({
           {/* Sidebar header */}
           <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
-              <h1 className="text-sm font-semibold text-gray-900">BIM Viewer</h1>
+              <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">BIM Viewer</h1>
               <p className="text-xs text-gray-400 mt-0.5">
                 {models.length} model{models.length !== 1 ? "s" : ""}
               </p>

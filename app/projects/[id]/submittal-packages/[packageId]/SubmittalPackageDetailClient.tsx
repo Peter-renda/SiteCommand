@@ -170,7 +170,7 @@ export default function SubmittalPackageDetailClient({ projectId, packageId, use
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-500">Package #{pkg.package_number}</p>
-            <h1 className="text-xl font-semibold text-gray-900">{pkg.title}</h1>
+            <h1 className="font-display text-[24px] leading-tight text-[color:var(--ink)]">{pkg.title}</h1>
           </div>
           <div className="flex gap-2">
             <button onClick={addExisting} className="px-3 py-2 text-xs border rounded">Add Existing Submittal</button>

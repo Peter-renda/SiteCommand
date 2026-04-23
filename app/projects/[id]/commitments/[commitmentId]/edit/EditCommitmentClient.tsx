@@ -1180,7 +1180,7 @@ export default function EditCommitmentClient({
             ← #{contractNumber}
           </a>
           <span className="text-gray-200">/</span>
-          <h1 className="text-sm font-semibold text-gray-900">Edit {typeLabel}</h1>
+          <h1 className="font-display text-[18px] leading-tight text-[color:var(--ink)]">Edit {typeLabel}</h1>
         </div>
         <div className="flex items-center gap-2">
           <button
