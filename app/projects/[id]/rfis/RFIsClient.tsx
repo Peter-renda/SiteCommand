@@ -74,6 +74,7 @@ const COLUMN_KEYS = [
   "distribution",
   "private",
 ] as const;
+type ColumnKey = typeof COLUMN_KEYS[number];
 const COLUMN_LABELS: Record<typeof COLUMN_KEYS[number], string> = {
   subject: "Subject",
   rfi_number: "Number",
@@ -589,7 +590,9 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<readonly string[]>(() => [...COLUMN_KEYS]);
+  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(() => [...COLUMN_KEYS]);
+  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(() => [...COLUMN_KEYS]);
   const [selectedRfiIds, setSelectedRfiIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<"" | "draft" | "open" | "closed">("");
   const [bulkDueDate, setBulkDueDate] = useState("");
@@ -708,8 +711,27 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
     window.location.href = "/";
   }
 
-  function toggleColumn(key: string) {
-    setVisibleColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  const orderedVisibleColumns = columnOrder.filter((key) => visibleColumns.includes(key));
+
+  function toggleColumn(key: ColumnKey) {
+    setVisibleColumns((prev) => {
+      if (prev.includes(key)) return prev.filter((k) => k !== key);
+      return columnOrder.filter((k) => k === key || prev.includes(k));
+    });
+  }
+
+  function handleColumnDrop(targetKey: ColumnKey) {
+    if (!draggedColumn || draggedColumn === targetKey) return;
+    setColumnOrder((prev) => {
+      const next = [...prev];
+      const from = next.indexOf(draggedColumn);
+      const to = next.indexOf(targetKey);
+      if (from === -1 || to === -1) return prev;
+      next.splice(from, 1);
+      next.splice(to, 0, draggedColumn);
+      return next;
+    });
+    setDraggedColumn(null);
   }
 
   const allSelected = rfis.length > 0 && selectedRfiIds.length === rfis.length;
@@ -781,51 +803,9 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
             )}
           </div>
           <div className="flex items-center gap-2">
-            <div ref={columnRef} className="relative">
-              <button onClick={() => setShowColumnConfig((o) => !o)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
-                Configure columns
-                <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showColumnConfig ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-              </button>
-              {showColumnConfig && (
-                <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-[80vh] overflow-y-auto">
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
-                    <h3 className="text-base font-semibold text-gray-900">Table Settings</h3>
-                    <button type="button" onClick={() => setShowColumnConfig(false)} className="text-gray-400 hover:text-gray-600">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                  </div>
-                  <div className="px-6 pt-4 pb-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-semibold text-gray-900">Configure Columns</h4>
-                      <button type="button" onClick={() => setVisibleColumns([...COLUMN_KEYS])} className="text-sm font-medium text-blue-600 hover:text-blue-700">Show All</button>
-                    </div>
-                    <div className="space-y-1.5">
-                      {COLUMN_KEYS.map((key) => {
-                        const on = visibleColumns.includes(key);
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => toggleColumn(key)}
-                            role="switch"
-                            aria-checked={on}
-                            className="w-full flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors text-left"
-                          >
-                            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${on ? "bg-blue-500" : "bg-gray-300"}`}>
-                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-[18px]" : "translate-x-0.5"}`} />
-                            </span>
-                            <span className="text-sm text-gray-800">{COLUMN_LABELS[key]}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
             <div ref={exportRef} className="relative">
                 <button onClick={() => setShowExportMenu((o) => !o)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
-                {exportingPdf ? "Exporting PDF..." : "Export RFI as PDF"}
+                {exportingPdf ? "Exporting PDF..." : "Export"}
                 <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showExportMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
               </button>
               {showExportMenu && (
@@ -836,7 +816,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                       setShowExportMenu(false);
                       setExportingPdf(true);
                       try {
-                        await exportRFIsPDF(projectId, rfis, directory, specifications, visibleColumns);
+                        await exportRFIsPDF(projectId, rfis, directory, specifications, orderedVisibleColumns);
                       } finally {
                         setExportingPdf(false);
                       }
@@ -852,6 +832,56 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
               {creating ? "Creating..." : "New RFI"}
             </button>
+            <div ref={columnRef} className="relative">
+              <button onClick={() => setShowColumnConfig((o) => !o)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors">
+                Configure
+                <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showColumnConfig ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {showColumnConfig && (
+                <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-[80vh] overflow-y-auto">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
+                    <h3 className="text-base font-semibold text-gray-900">Table Settings</h3>
+                    <button type="button" onClick={() => setShowColumnConfig(false)} className="text-gray-400 hover:text-gray-600">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                  <div className="px-6 pt-4 pb-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-gray-900">Configure Columns</h4>
+                      <button type="button" onClick={() => setVisibleColumns([...columnOrder])} className="text-sm font-medium text-blue-600 hover:text-blue-700">Show All</button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {columnOrder.map((key) => {
+                        const on = visibleColumns.includes(key);
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            draggable
+                            onDragStart={() => setDraggedColumn(key)}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={() => handleColumnDrop(key)}
+                            onDragEnd={() => setDraggedColumn(null)}
+                            onClick={() => toggleColumn(key)}
+                            role="switch"
+                            aria-checked={on}
+                            className="w-full flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors text-left"
+                          >
+                            <span className="text-gray-400 cursor-grab" aria-hidden>
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01" /></svg>
+                            </span>
+                            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${on ? "bg-blue-500" : "bg-gray-300"}`}>
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+                            </span>
+                            <span className="text-sm text-gray-800">{COLUMN_LABELS[key]}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -908,9 +938,9 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                       className="rounded border-gray-300"
                     />
                   </th>
-                  {visibleColumns.map((key) => (
+                  {orderedVisibleColumns.map((key) => (
                     <th key={key} className="text-left px-4 py-3 mono-label whitespace-nowrap">
-                      {COLUMN_LABELS[key as typeof COLUMN_KEYS[number]].toUpperCase()}
+                      {COLUMN_LABELS[key].toUpperCase()}
                     </th>
                   ))}
                 </tr>
@@ -939,7 +969,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                         ) : null}
                       </div>
                     </td>
-                    {visibleColumns.map((key) => {
+                    {orderedVisibleColumns.map((key) => {
                       let cell: React.ReactNode = "—";
                       switch (key) {
                         case "rfi_number": cell = <span className="font-mono text-[color:var(--ink)] tabular-nums">#{rfi.rfi_number}</span>; break;
