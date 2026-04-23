@@ -282,6 +282,10 @@ export default function MeetingDetailClient({
   const [directory, setDirectory] = useState<DirContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("details");
+  const [relatedItems, setRelatedItems] = useState<Array<{ id: string; type: string; label: string; notes: string }>>([]);
+  const [relatedType, setRelatedType] = useState("Change Event");
+  const [relatedLabel, setRelatedLabel] = useState("");
+  const [relatedNotes, setRelatedNotes] = useState("");
   const [creatingChangeEvent, setCreatingChangeEvent] = useState(false);
 
   // Section collapse state
@@ -535,7 +539,7 @@ export default function MeetingDetailClient({
         <div className="flex items-center gap-0 border-b border-gray-200 mb-6 bg-white -mx-6 px-6">
           {[
             { key: "details", label: "Meeting Details" },
-            { key: "related", label: "Related Items (0)" },
+            { key: "related", label: `Related Items (${relatedItems.length})` },
             { key: "emails", label: "Emails (0)" },
             { key: "history", label: "Change History (0)" },
           ].map((tab) => (
@@ -553,7 +557,80 @@ export default function MeetingDetailClient({
           ))}
         </div>
 
-        <div className="space-y-4 max-w-7xl">
+        {activeTab === "related" && (
+          <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">Related Items</h3>
+            {relatedItems.length === 0 ? (
+              <p className="text-sm text-gray-500">No related items yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {relatedItems.map((item) => (
+                  <li key={item.id} className="rounded border border-gray-100 px-3 py-2 text-sm">
+                    <div className="font-medium text-gray-900">{item.label}</div>
+                    <div className="text-xs text-gray-500">{item.type}</div>
+                    {item.notes ? <div className="text-xs text-gray-500 mt-1">{item.notes}</div> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="rounded border border-gray-200 bg-gray-50 p-3 space-y-3">
+              <label className="block text-xs font-medium text-gray-700">
+                Link Related Items
+                <select
+                  value={relatedType}
+                  onChange={(e) => {
+                    setRelatedType(e.target.value);
+                    setRelatedLabel("");
+                  }}
+                  className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm bg-white"
+                >
+                  <option>Change Event</option>
+                  <option>RFI</option>
+                  <option>Submittal</option>
+                  <option>Transmittal</option>
+                  <option>Punch Item</option>
+                </select>
+              </label>
+              <label className="block text-xs font-medium text-gray-700">
+                {`Select the ${relatedType}`}
+                <input
+                  value={relatedLabel}
+                  onChange={(e) => setRelatedLabel(e.target.value)}
+                  className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  placeholder={`Select the ${relatedType}`}
+                />
+              </label>
+              {relatedLabel.trim() && (
+                <label className="block text-xs font-medium text-gray-700">
+                  Add Comment
+                  <textarea
+                    value={relatedNotes}
+                    onChange={(e) => setRelatedNotes(e.target.value)}
+                    className="mt-1 w-full min-h-16 rounded border border-gray-300 px-2 py-1.5 text-sm"
+                    placeholder="Add comment..."
+                  />
+                </label>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                disabled={!relatedLabel.trim()}
+                onClick={() => {
+                  if (!relatedLabel.trim()) return;
+                  setRelatedItems((prev) => [...prev, { id: `${Date.now()}`, type: relatedType, label: relatedLabel.trim(), notes: relatedNotes.trim() }]);
+                  setRelatedLabel("");
+                  setRelatedNotes("");
+                }}
+                className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+              >
+                Add Related Item
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "details" && <div className="space-y-4 max-w-7xl">
           {/* ── Meeting Information ──────────────────────────────────────── */}
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -919,7 +996,7 @@ export default function MeetingDetailClient({
               </div>
             )}
           </div>
-        </div>
+        </div>}
       </main>
     </div>
   );
