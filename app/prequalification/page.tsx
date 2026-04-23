@@ -119,7 +119,7 @@ export default function PrequalificationPage() {
 
           <h1
             className="text-5xl md:text-6xl leading-[1.08] tracking-tight mb-6 animate-fade-up delay-100"
-            style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+            style={{ color: "#111110" }}
           >
             Construction prequalification
             <br />
@@ -156,7 +156,7 @@ export default function PrequalificationPage() {
             <div key={s.value}>
               <p
                 className="text-5xl mb-2"
-                style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+                style={{ color: "#111110" }}
               >
                 {s.value}
               </p>
@@ -172,7 +172,7 @@ export default function PrequalificationPage() {
           <div className="mb-14">
             <h2
               className="text-4xl mb-4"
-              style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+              style={{ color: "#111110" }}
             >
               A smarter way to vet your subcontractors
             </h2>
@@ -208,7 +208,7 @@ export default function PrequalificationPage() {
           <div className="mb-14">
             <h2
               className="text-4xl mb-4"
-              style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+              style={{ color: "#111110" }}
             >
               How it works
             </h2>
@@ -237,7 +237,7 @@ export default function PrequalificationPage() {
         <div className="max-w-3xl mx-auto">
           <h2
             className="text-4xl mb-12"
-            style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+            style={{ color: "#111110" }}
           >
             Frequently asked questions
           </h2>
@@ -291,7 +291,7 @@ export default function PrequalificationPage() {
             >
               <h2
                 className="text-3xl md:text-4xl text-white mb-4"
-                style={{ fontFamily: "var(--font-dm-serif)" }}
+               
               >
                 Build a subcontractor base you can trust
               </h2>

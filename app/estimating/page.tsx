@@ -112,7 +112,7 @@ export default function EstimatingPage() {
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
               <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Preconstruction</span>
             </div>
-            <h1 className="animate-fade-up delay-100" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em", fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
+            <h1 className="font-display animate-fade-up delay-100" style={{ fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
               Construction takeoff &amp;<br />
               <em className="not-italic" style={{ color: "#C0C0BC" }}>estimating software.</em>
             </h1>
@@ -134,7 +134,7 @@ export default function EstimatingPage() {
       <section className="py-24 px-6 sm:px-10" style={{ background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto">
           <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-950 mb-4" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
+            <h2 className="text-3xl font-display text-gray-950 mb-4">
               Reduce rework, protect your margins, and win more profitable work
             </h2>
             <p className="text-lg text-gray-500 max-w-2xl leading-relaxed">
@@ -163,7 +163,7 @@ export default function EstimatingPage() {
       <section className="py-24 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
         <div className="max-w-7xl mx-auto">
           <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-950 mb-4" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>How it works</h2>
+            <h2 className="text-3xl font-display text-gray-950 mb-4">How it works</h2>
             <p className="text-lg text-gray-500 leading-relaxed">
               From the first drawing to the final proposal — a connected process that gets you to bid day faster.
             </p>
@@ -186,7 +186,7 @@ export default function EstimatingPage() {
       {/* FAQ */}
       <section className="py-24 px-6 sm:px-10" style={{ background: "#FAFAF9" }}>
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-950 mb-12" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
+          <h2 className="text-3xl font-display text-gray-950 mb-12">
             Frequently asked questions
           </h2>
           <div className="space-y-3">
@@ -223,7 +223,7 @@ export default function EstimatingPage() {
         <div className="max-w-3xl mx-auto">
           <div className="rounded-2xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "1.5px" }}>
             <div className="rounded-[14px] px-10 py-14 text-center" style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
-              <h2 className="text-3xl font-bold mb-4" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em", color: "#111110" }}>
+              <h2 className="text-3xl font-bold mb-4" style={{ letterSpacing: "-0.02em", color: "#111110" }}>
                 Ready to estimate smarter?
               </h2>
               <p className="text-gray-500 mb-10 text-lg leading-relaxed max-w-lg mx-auto">
@@ -244,7 +244,7 @@ export default function EstimatingPage() {
       {/* Footer */}
       <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
             <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>

@@ -440,7 +440,7 @@ export default function PrimeContractDetailClient({
           <div className="relative">
             <button
               onClick={() => setCreateMenuOpen((open) => !open)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-600 text-white rounded hover:bg-orange-500 transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded hover:bg-gray-700 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               Create
@@ -671,7 +671,7 @@ export default function PrimeContractDetailClient({
               <h2 className="text-sm font-semibold text-gray-900">Change Orders</h2>
               <button
                 onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/change-orders/new`)}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-600 text-white rounded hover:bg-orange-500 transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded hover:bg-gray-700 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 New Change Order

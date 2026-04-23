@@ -98,7 +98,7 @@ export default function BIMPage() {
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
               <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Preconstruction</span>
             </div>
-            <h1 className="animate-fade-up delay-100" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em", fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
+            <h1 className="font-display animate-fade-up delay-100" style={{ fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
               BIM for construction<br />
               <em className="not-italic" style={{ color: "#C0C0BC" }}>management.</em>
             </h1>
@@ -121,7 +121,7 @@ export default function BIMPage() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           {stats.map((s) => (
             <div key={s.value}>
-              <p className="text-4xl font-bold text-gray-950 mb-1 tabular-nums" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>{s.value}</p>
+              <p className="text-4xl font-display text-gray-950 mb-1 tabular-nums">{s.value}</p>
               <p className="text-sm text-gray-400 leading-relaxed">{s.label}</p>
             </div>
           ))}
@@ -135,7 +135,7 @@ export default function BIMPage() {
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
             <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Overview</span>
           </div>
-          <h2 className="text-3xl font-bold text-gray-950 mb-6" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>What is BIM?</h2>
+          <h2 className="text-3xl font-display text-gray-950 mb-6">What is BIM?</h2>
           <p className="text-lg text-gray-500 leading-relaxed mb-6">
             Building Information Modeling (BIM) is a 3D model-based process that gives architecture, engineering, and construction professionals insights and tools to more efficiently plan, design, construct, and manage buildings and infrastructure.
           </p>
@@ -149,7 +149,7 @@ export default function BIMPage() {
       <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto">
           <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Features</span>
-          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-14" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Build with confidence</h2>
+          <h2 className="mt-3 text-3xl font-display text-gray-950 mb-14">Build with confidence</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {features.map((f) => (
               <div key={f.title} className="rounded-2xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "1.5px" }}>
@@ -175,7 +175,7 @@ export default function BIMPage() {
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
             <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Impact</span>
           </div>
-          <h2 className="text-3xl font-bold text-gray-950 mb-6" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>How BIM is transforming construction</h2>
+          <h2 className="text-3xl font-display text-gray-950 mb-6">How BIM is transforming construction</h2>
           <p className="text-lg text-gray-500 leading-relaxed mb-6">
             BIM transforms construction by fundamentally changing how projects are planned, executed, and managed. The technology enables teams to virtually build and optimize structures before construction begins, significantly reducing the rework that accounts for roughly 30% of total project cost on traditional builds.
           </p>
@@ -189,7 +189,7 @@ export default function BIMPage() {
       <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-3xl mx-auto">
           <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">FAQ</span>
-          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-12" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Frequently asked questions</h2>
+          <h2 className="mt-3 text-3xl font-display text-gray-950 mb-12">Frequently asked questions</h2>
           <div className="space-y-2">
             {faqs.map((faq, i) => (
               <div key={i} className="rounded-xl overflow-hidden" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
@@ -224,7 +224,7 @@ export default function BIMPage() {
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
                   <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Get started today</span>
                 </span>
-                <h2 className="text-4xl sm:text-5xl font-bold text-gray-950 leading-tight" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Ready to build smarter?</h2>
+                <h2 className="text-4xl sm:text-5xl font-display text-gray-950 leading-tight">Ready to build smarter?</h2>
                 <p className="mt-5 text-lg text-gray-400 max-w-md mx-auto">
                   Give every member of your team — from the design studio to the field — access to the same intelligent model.
                 </p>
@@ -244,7 +244,7 @@ export default function BIMPage() {
       {/* Footer */}
       <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
             <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>

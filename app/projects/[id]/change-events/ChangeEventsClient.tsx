@@ -538,7 +538,7 @@ export default function ChangeEventsClient({
           {canWrite && (
             <button
               onClick={() => router.push(`/projects/${projectId}/change-events/new`)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors font-medium"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded hover:bg-gray-700 transition-colors font-medium"
             >
               <Plus className="w-3.5 h-3.5" /> Create
             </button>
@@ -1839,7 +1839,7 @@ export default function ChangeEventsClient({
             <button
               onClick={saveRomPopup}
               disabled={romSaving}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-50 font-medium"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded hover:bg-gray-700 transition-colors disabled:opacity-50 font-medium"
             >
               <Check className="w-3 h-3" />
               {romSaving ? "Saving…" : "Save"}

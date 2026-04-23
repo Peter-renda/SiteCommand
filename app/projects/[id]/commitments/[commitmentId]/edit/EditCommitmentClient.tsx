@@ -273,7 +273,7 @@ function SovTable({
                 <tr>
                   <td colSpan={method === "unit_quantity" ? 9 : 6} className="py-12 text-center">
                     <p className="text-sm text-gray-400 mb-3">No line items yet</p>
-                    <button type="button" onClick={onAdd} className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors">
+                    <button type="button" onClick={onAdd} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors">
                       Add Line
                     </button>
                   </td>
@@ -398,7 +398,7 @@ function SovTable({
           </table>
         </div>
         <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-200">
-          <button type="button" onClick={onAdd} className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors">
+          <button type="button" onClick={onAdd} className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors">
             Add Line
           </button>
           <div className="flex items-center gap-4 text-xs font-medium text-gray-700">
@@ -534,7 +534,7 @@ function EmailContractModal({
           <button onClick={onClose} disabled={sending} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60">
             Cancel
           </button>
-          <button onClick={handleSend} disabled={sending} className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 disabled:opacity-60">
+          <button onClick={handleSend} disabled={sending} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 disabled:opacity-60">
             {sending ? "Sending…" : "Send"}
           </button>
         </div>
@@ -1199,7 +1199,7 @@ export default function EditCommitmentClient({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors disabled:opacity-60"
+            className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-60"
           >
             {saving ? "Saving…" : `Save ${typeLabel}`}
           </button>
@@ -1636,7 +1636,7 @@ export default function EditCommitmentClient({
               <button
                 type="button"
                 onClick={handleSovImport}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded hover:bg-orange-600"
+                className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded hover:bg-gray-700"
               >
                 Import
               </button>

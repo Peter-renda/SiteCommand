@@ -109,7 +109,7 @@ export default function QualityAndSafetyPage() {
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
               <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Construction · Quality &amp; Safety</span>
             </div>
-            <h1 className="animate-fade-up delay-100" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em", fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
+            <h1 className="font-display animate-fade-up delay-100" style={{ fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
               Build safer.<br /><em className="not-italic" style={{ color: "#C0C0BC" }}>Deliver quality.</em>
             </h1>
             <p className="animate-fade-up delay-200 mt-7 text-lg text-gray-500 max-w-md leading-relaxed">
@@ -135,7 +135,7 @@ export default function QualityAndSafetyPage() {
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
           {stats.map((s) => (
             <div key={s.label} className="flex flex-col gap-1">
-              <span className="text-3xl font-bold tabular-nums text-gray-950" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>{s.value}</span>
+              <span className="text-3xl font-display tabular-nums text-gray-950">{s.value}</span>
               <span className="text-sm text-gray-400">{s.label}</span>
             </div>
           ))}
@@ -146,7 +146,7 @@ export default function QualityAndSafetyPage() {
       <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           <div>
-            <h2 className="text-4xl font-bold text-gray-950 leading-tight mb-6" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
+            <h2 className="text-4xl font-display text-gray-950 leading-tight mb-6">
               Understand, predict,<br />and correct — in real time.
             </h2>
             <p className="text-lg text-gray-500 leading-relaxed mb-4">
@@ -186,7 +186,7 @@ export default function QualityAndSafetyPage() {
       <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto">
           <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Core capabilities</span>
-          <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-gray-950 mb-14" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
+          <h2 className="mt-3 text-3xl sm:text-4xl font-display text-gray-950 mb-14">
             Everything you need to protect your people and your project
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -211,7 +211,7 @@ export default function QualityAndSafetyPage() {
       <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
         <div className="max-w-7xl mx-auto">
           <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">How it works</span>
-          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-14 max-w-lg" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
+          <h2 className="mt-3 text-3xl font-display text-gray-950 mb-14 max-w-lg">
             From first inspection to final sign-off
           </h2>
           <div className="grid md:grid-cols-3 gap-10">
@@ -249,7 +249,7 @@ export default function QualityAndSafetyPage() {
       <section className="py-16 px-6 sm:px-10" style={{ background: "#F5F0EC", borderTop: "1px solid rgba(0,0,0,0.06)", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
           <div className="max-w-xl">
-            <h2 className="text-2xl font-bold text-gray-950 mb-2" style={{ fontFamily: "var(--font-dm-serif)" }}>See SiteCommand on your next project</h2>
+            <h2 className="text-2xl font-display text-gray-950 mb-2">See SiteCommand on your next project</h2>
             <p className="text-sm text-gray-500">Schedule a 20-minute walkthrough. No slides — just live software on a real project.</p>
           </div>
           <div className="flex gap-3 flex-wrap shrink-0">
@@ -266,7 +266,7 @@ export default function QualityAndSafetyPage() {
       <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
         <div className="max-w-3xl mx-auto">
           <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">FAQ</span>
-          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-12" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Common questions</h2>
+          <h2 className="mt-3 text-3xl font-display text-gray-950 mb-12">Common questions</h2>
           <div className="divide-y" style={{ borderColor: "rgba(0,0,0,0.06)" }}>
             {faqs.map((faq) => (
               <div key={faq.q} className="py-6">
@@ -289,7 +289,7 @@ export default function QualityAndSafetyPage() {
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
                   <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Get started today</span>
                 </span>
-                <h2 className="text-4xl sm:text-5xl font-bold text-gray-950 leading-tight" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Build safer projects, starting today</h2>
+                <h2 className="text-4xl sm:text-5xl font-display text-gray-950 leading-tight">Build safer projects, starting today</h2>
                 <p className="mt-5 text-lg text-gray-400 max-w-md mx-auto">
                   Join hundreds of contractors who've moved from paper forms and
                   email chains to one platform built for the field.
@@ -310,7 +310,7 @@ export default function QualityAndSafetyPage() {
       {/* Footer */}
       <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
             <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>

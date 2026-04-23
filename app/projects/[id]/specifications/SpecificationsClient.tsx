@@ -172,7 +172,7 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
             <button
               type="button"
               onClick={() => setShowUploadModal(true)}
-              className="rounded bg-orange-500 px-4 py-2 font-medium text-white hover:bg-orange-600"
+              className="rounded bg-gray-900 px-4 py-2 font-medium text-white hover:bg-gray-700"
             >
               Upload
             </button>

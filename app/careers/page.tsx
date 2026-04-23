@@ -45,7 +45,7 @@ export default function CareersPage() {
           <h1
             className="text-5xl sm:text-6xl font-bold leading-[1.05] mb-5 animate-fade-up"
             style={{
-              fontFamily: "var(--font-dm-serif)",
+              ,
               letterSpacing: "-0.03em",
               color: "#111110",
               animationDelay: "100ms",
@@ -111,7 +111,7 @@ export default function CareersPage() {
       {/* Footer */}
       <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
             <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>

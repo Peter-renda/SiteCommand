@@ -86,7 +86,7 @@ export default function TMTicketsClient({ projectId, username }: { projectId: st
               </div>
             </div>
 
-            <a href={`/projects/${projectId}/tm-tickets/new`} className="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-sm transition-colors">
+            <a href={`/projects/${projectId}/tm-tickets/new`} className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-sm transition-colors">
               <span className="text-base leading-none">+</span>
               <span>Create</span>
             </a>

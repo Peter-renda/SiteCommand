@@ -463,7 +463,7 @@ export default function EstimatingClient({ projectId }: { projectId: string }) {
               <button
                 onClick={handlePushToBudget}
                 disabled={pushLoading}
-                className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 {pushLoading ? "Pushing..." : "Push to Budget"}
               </button>
@@ -488,7 +488,7 @@ export default function EstimatingClient({ projectId }: { projectId: string }) {
             <div className="overflow-y-auto px-6 py-5 space-y-5">
               {/* Preview */}
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
+                <p className="eyebrow mb-2">
                   Preview (first 3 rows)
                 </p>
                 <div className="overflow-x-auto border border-gray-200 rounded-lg">
@@ -525,7 +525,7 @@ export default function EstimatingClient({ projectId }: { projectId: string }) {
 
               {/* Mapping dropdowns */}
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+                <p className="eyebrow mb-3">
                   Column Mapping
                 </p>
                 <div className="grid grid-cols-2 gap-4">
@@ -651,7 +651,7 @@ export default function EstimatingClient({ projectId }: { projectId: string }) {
           <button
             onClick={() => setShowPushConfirm(true)}
             disabled={pushLoading || items.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 ml-auto"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 ml-auto"
           >
             <ArrowRightCircle className="w-4 h-4" />
             {pushLoading ? "Pushing..." : "Push to Budget"}

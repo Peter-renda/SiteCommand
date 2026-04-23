@@ -1388,7 +1388,7 @@ function PersonRow({
               onClick={() => onInvite(c)}
               disabled={sending}
               className={`px-3 py-1 text-xs font-semibold rounded text-white transition-colors disabled:opacity-60 ${
-                alreadyInvited ? "bg-orange-500 hover:bg-orange-600" : "bg-orange-500 hover:bg-orange-600"
+                alreadyInvited ? "bg-gray-900 hover:bg-gray-700" : "bg-gray-900 hover:bg-gray-700"
               }`}
             >
               {sending ? "Sending…" : "Re-Invite"}

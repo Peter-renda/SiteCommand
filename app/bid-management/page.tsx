@@ -112,7 +112,7 @@ export default function BidManagementPage() {
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
               <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Preconstruction</span>
             </div>
-            <h1 className="animate-fade-up delay-100" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em", fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
+            <h1 className="font-display animate-fade-up delay-100" style={{ fontSize: "clamp(2.8rem,6.5vw,5rem)", lineHeight: "0.96" }}>
               Construction bid<br />
               <em className="not-italic" style={{ color: "#C0C0BC" }}>management software.</em>
             </h1>
@@ -134,7 +134,7 @@ export default function BidManagementPage() {
       <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto">
           <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Features</span>
-          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-14" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Everything you need to run a better bid process</h2>
+          <h2 className="mt-3 text-3xl font-display text-gray-950 mb-14">Everything you need to run a better bid process</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {features.map((f) => (
               <div key={f.title} className="rounded-2xl" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset", padding: "1.5px" }}>
@@ -157,7 +157,7 @@ export default function BidManagementPage() {
       <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FFFFFF" }}>
         <div className="max-w-7xl mx-auto">
           <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Process</span>
-          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-14" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>How it works</h2>
+          <h2 className="mt-3 text-3xl font-display text-gray-950 mb-14">How it works</h2>
           <p className="text-base text-gray-500 mb-14 max-w-lg -mt-10">
             A streamlined three-step process from scope definition to contract award.
           </p>
@@ -180,7 +180,7 @@ export default function BidManagementPage() {
       <section className="py-20 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-3xl mx-auto">
           <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">FAQ</span>
-          <h2 className="mt-3 text-3xl font-bold text-gray-950 mb-12" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Frequently asked questions</h2>
+          <h2 className="mt-3 text-3xl font-display text-gray-950 mb-12">Frequently asked questions</h2>
           <div className="space-y-2">
             {faqs.map((faq, i) => (
               <div key={i} className="rounded-xl overflow-hidden" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)", border: "1px solid rgba(0,0,0,0.055)", boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
@@ -215,7 +215,7 @@ export default function BidManagementPage() {
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
                   <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Get started today</span>
                 </span>
-                <h2 className="text-4xl sm:text-5xl font-bold text-gray-950 leading-tight" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Ready to modernize your bid process?</h2>
+                <h2 className="text-4xl sm:text-5xl font-display text-gray-950 leading-tight">Ready to modernize your bid process?</h2>
                 <p className="mt-5 text-lg text-gray-400 max-w-md mx-auto">
                   Join construction teams that have cut bid cycle time and built stronger subcontractor relationships.
                 </p>
@@ -235,7 +235,7 @@ export default function BidManagementPage() {
       {/* Footer */}
       <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
             <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>

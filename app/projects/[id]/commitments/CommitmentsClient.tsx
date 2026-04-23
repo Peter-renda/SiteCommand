@@ -422,7 +422,7 @@ function CommitmentModal({
             </Field>
           </div>
 
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">
+          <p className="eyebrow pt-1">
             Amounts
           </p>
 
@@ -463,7 +463,7 @@ function CommitmentModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
             >
               {isEdit ? "Save Changes" : `Create ${typeLabel}`}
             </button>
@@ -953,7 +953,7 @@ export default function CommitmentsClient({
             <div ref={createRef} className="relative">
               <button
                 onClick={() => setShowCreateMenu((o) => !o)}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
               >
                 <svg
                   className="w-4 h-4"
@@ -1102,7 +1102,7 @@ export default function CommitmentsClient({
               </svg>
               Filters
               {(filterType || filterStatus || filterExecuted || filterCompany) && (
-                <span className="ml-0.5 w-4 h-4 rounded-full bg-orange-500 text-white text-[10px] flex items-center justify-center font-medium">
+                <span className="ml-0.5 w-4 h-4 rounded-full bg-gray-900 text-white text-[10px] flex items-center justify-center font-medium">
                   {[filterType, filterStatus, filterExecuted, filterCompany].filter(Boolean).length}
                 </span>
               )}
@@ -1124,7 +1124,7 @@ export default function CommitmentsClient({
               <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-lg z-20 p-4 space-y-4">
                 {/* Row Height */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Row Height</p>
+                  <p className="eyebrow mb-2">Row Height</p>
                   <div className="flex gap-2">
                     {(["small", "medium", "large"] as const).map((h) => (
                       <button
@@ -1145,7 +1145,7 @@ export default function CommitmentsClient({
                 {/* Column Visibility */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Columns</p>
+                    <p className="eyebrow">Columns</p>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setHiddenCols(new Set())}

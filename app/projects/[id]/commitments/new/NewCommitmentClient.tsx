@@ -458,7 +458,7 @@ function SovTable({
                       <button
                         type="button"
                         onClick={onAdd}
-                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+                        className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors"
                       >
                         Add Line
                       </button>
@@ -665,7 +665,7 @@ function SovTable({
             <button
               type="button"
               onClick={onAdd}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors"
             >
               Add Line
             </button>
@@ -1077,7 +1077,7 @@ export default function NewCommitmentClient({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors disabled:opacity-60"
+            className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-60"
           >
             {saving ? "Saving…" : `Create ${typeLabel}`}
           </button>

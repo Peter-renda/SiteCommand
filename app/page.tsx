@@ -81,11 +81,7 @@ export default function Home() {
 
                 {/* Headline — DM Serif Display for editorial luxury */}
                 <h1
-                  className="animate-fade-up delay-100 text-[clamp(2.8rem,6.5vw,5.2rem)] leading-[0.96] tracking-tight text-gray-950"
-                  style={{
-                    fontFamily: "var(--font-dm-serif)",
-                    letterSpacing: "-0.02em",
-                  }}
+                  className="font-display animate-fade-up delay-100 text-[clamp(2.8rem,6.5vw,5.2rem)] leading-[0.96] text-gray-950"
                 >
                   Take command
                   <br />
@@ -360,13 +356,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((s) => (
               <div key={s.label} className="flex flex-col gap-1">
-                <span
-                  className="text-3xl font-bold tracking-tight text-gray-950 tabular-nums"
-                  style={{
-                    fontFamily: "var(--font-dm-serif)",
-                    letterSpacing: "-0.02em",
-                  }}
-                >
+                <span className="font-display text-3xl text-gray-950 tabular-nums">
                   {s.value}
                 </span>
                 <span className="text-sm text-gray-400">{s.label}</span>
@@ -381,17 +371,8 @@ export default function Home() {
             {/* Section header */}
             <div className="mb-14 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
               <div>
-                <span className="inline-flex items-center gap-2 mb-3">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
-                  <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Platform</span>
-                </span>
-                <h2
-                  className="text-4xl sm:text-5xl font-bold text-gray-950"
-                  style={{
-                    fontFamily: "var(--font-dm-serif)",
-                    letterSpacing: "-0.02em",
-                  }}
-                >
+                <span className="eyebrow mb-3">Platform</span>
+                <h2 className="font-display text-4xl sm:text-5xl text-gray-950 mt-2">
                   Everything your
                   <br />
                   crew needs
@@ -475,11 +456,7 @@ export default function Home() {
                   <Eyebrow className="mb-6">Get started today</Eyebrow>
 
                   <h2
-                    className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-950 leading-tight"
-                    style={{
-                      fontFamily: "var(--font-dm-serif)",
-                      letterSpacing: "-0.02em",
-                    }}
+                    className="font-display text-4xl sm:text-5xl md:text-6xl text-gray-950 leading-tight"
                   >
                     Ready to take command?
                   </h2>
@@ -518,10 +495,7 @@ export default function Home() {
         style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}
       >
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span
-            className="text-sm font-semibold text-gray-900"
-            style={{ fontFamily: "var(--font-dm-serif)" }}
-          >
+          <span className="font-display text-sm text-gray-900">
             SiteCommand
           </span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">

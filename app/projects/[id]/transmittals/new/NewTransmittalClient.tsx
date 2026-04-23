@@ -729,7 +729,7 @@ export default function NewTransmittalClient({
                         <button
                           type="button"
                           onClick={addItem}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+                          className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
                         >
                           Add
                         </button>
@@ -763,7 +763,7 @@ export default function NewTransmittalClient({
             type="button"
             onClick={() => handleSave(true)}
             disabled={saveAction !== null}
-            className="px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50"
+            className="px-5 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
           >
             {saveAction === "email" ? "Creating & Emailing..." : "Create and Email"}
           </button>
@@ -771,7 +771,7 @@ export default function NewTransmittalClient({
             type="button"
             onClick={() => handleSave(false)}
             disabled={saveAction !== null}
-            className="px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50"
+            className="px-5 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
           >
             {saveAction === "create" ? "Creating..." : "Create"}
           </button>

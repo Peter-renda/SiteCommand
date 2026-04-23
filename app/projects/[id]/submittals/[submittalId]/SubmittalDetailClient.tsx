@@ -452,7 +452,7 @@ export default function SubmittalDetailClient({
           </span>
           {canEdit && (
             <>
-              <button onClick={() => runAction("redistribute")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors disabled:opacity-50">Redistribute</button>
+              <button onClick={() => runAction("redistribute")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-50">Redistribute</button>
               <button className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors">Export</button>
               {!isEditing ? (
                 <button onClick={startEdit} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors">Edit</button>

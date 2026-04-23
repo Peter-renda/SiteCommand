@@ -358,7 +358,7 @@ function SsovPanel({
                   ? "Submit is disabled until Remaining to Allocate is $0.00"
                   : undefined
               }
-              className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded hover:bg-orange-600 disabled:opacity-60"
+              className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded hover:bg-gray-700 disabled:opacity-60"
             >
               Submit
             </button>
@@ -694,7 +694,7 @@ export default function CommitmentDetailClient({
 
             <a
               href={`/projects/${projectId}/commitments/${commitmentId}/edit`}
-              className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+              className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors"
             >
               Edit
             </a>
@@ -775,7 +775,7 @@ export default function CommitmentDetailClient({
             <div className="mt-4">
               <a
                 href={`/projects/${projectId}/commitments/${commitmentId}/change-orders/new`}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors"
               >
                 Create Change Order with Markup
               </a>
@@ -862,7 +862,7 @@ export default function CommitmentDetailClient({
                   setRelatedLabel("");
                   setRelatedNotes("");
                 }}
-                className="rounded bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+                className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
               >
                 Add Related Item
               </button>

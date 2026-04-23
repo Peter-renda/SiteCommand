@@ -347,7 +347,7 @@ function SpecificationPicker({
               </div>
               <div className="flex gap-2 justify-end">
                 <button type="button" onClick={() => setShowCreate(false)} className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50">Cancel</button>
-                <button type="button" onClick={handleCreateSpec} disabled={saving || !newName.trim()} className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 disabled:opacity-50">
+                <button type="button" onClick={handleCreateSpec} disabled={saving || !newName.trim()} className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 disabled:opacity-50">
                   {saving ? "Saving..." : "Save"}
                 </button>
               </div>
@@ -358,7 +358,7 @@ function SpecificationPicker({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setShowCreate(true)}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                 Create New Specification

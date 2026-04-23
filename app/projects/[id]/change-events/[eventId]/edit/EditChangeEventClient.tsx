@@ -1015,7 +1015,7 @@ export default function EditChangeEventClient({
             type="button"
             onClick={handleSave}
             disabled={saving || !title.trim()}
-            className="px-6 py-2 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-50 font-medium"
+            className="px-6 py-2 text-sm bg-gray-900 text-white rounded hover:bg-gray-700 transition-colors disabled:opacity-50 font-medium"
           >
             {saving ? "Saving…" : "Save Changes"}
           </button>
