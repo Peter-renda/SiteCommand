@@ -721,13 +721,20 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Mark Official</p>
                         <input type="checkbox" checked={rfi.official_response_id === resp.id} onChange={async (e) => {
+                          if (!e.target.checked) return;
+                          const previousOfficialResponseId = rfi.official_response_id;
+                          setRfi({ ...rfi, official_response_id: resp.id });
                           setSavingOfficialResponseId(resp.id);
                           const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
                             method: "PATCH",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ official_response_id: e.target.checked ? resp.id : null }),
+                            body: JSON.stringify({ official_response_id: resp.id }),
                           });
-                          if (res.ok) setRfi(await res.json());
+                          if (res.ok) {
+                            setRfi(await res.json());
+                          } else {
+                            setRfi({ ...rfi, official_response_id: previousOfficialResponseId });
+                          }
                           setSavingOfficialResponseId(null);
                         }} disabled={savingOfficialResponseId === resp.id} className="w-4 h-4 rounded border-gray-300 text-gray-900 cursor-pointer" />
                       </div>

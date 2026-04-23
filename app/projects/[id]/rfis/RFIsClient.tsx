@@ -40,6 +40,7 @@ type RFI = {
   private: boolean;
   attachments: { name: string; url: string }[];
   ball_in_court_id: string | null;
+  official_response_id: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -486,7 +487,8 @@ async function exportRFIsPDF(
   rfis: RFI[],
   directory: DirectoryContact[],
   specifications: Specification[],
-  visibleColumns: readonly string[]
+  visibleColumns: readonly string[],
+  responseFilter: "all" | "official-only" = "all"
 ) {
   const { default: jsPDF } = await import("jspdf");
 
@@ -575,11 +577,17 @@ async function exportRFIsPDF(
     writeWrapped("Responses:");
     doc.setFont("helvetica", "normal");
 
-    if (responses.length === 0) {
+    const exportedResponses =
+      responseFilter === "official-only"
+        ? responses.filter((response) => response.id === rfi.official_response_id)
+        : responses;
+
+    if (exportedResponses.length === 0) {
       writeWrapped("No responses.", 10);
     } else {
-      responses.forEach((response, idx) => {
-        writeWrapped(`${idx + 1}. ${response.created_by_name ?? "Unknown"} — ${formatDateTime(response.created_at)}`, 10);
+      exportedResponses.forEach((response, idx) => {
+        const officialTag = response.id === rfi.official_response_id ? " (Official)" : "";
+        writeWrapped(`${idx + 1}. ${response.created_by_name ?? "Unknown"} — ${formatDateTime(response.created_at)}${officialTag}`, 10);
         writeWrapped(response.body || "—", 20);
         y += 4;
       });
@@ -835,7 +843,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                       setShowExportMenu(false);
                       setExportingPdf(true);
                       try {
-                        await exportRFIsPDF(projectId, rfis, directory, specifications, orderedVisibleColumns);
+                        await exportRFIsPDF(projectId, rfis, directory, specifications, orderedVisibleColumns, "all");
                       } finally {
                         setExportingPdf(false);
                       }
@@ -843,6 +851,21 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50"
                   >
                     Export all as PDF
+                  </button>
+                  <button
+                    disabled={exportingPdf}
+                    onClick={async () => {
+                      setShowExportMenu(false);
+                      setExportingPdf(true);
+                      try {
+                        await exportRFIsPDF(projectId, rfis, directory, specifications, orderedVisibleColumns, "official-only");
+                      } finally {
+                        setExportingPdf(false);
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    Export official responses (PDF)
                   </button>
                 </div>
               )}
