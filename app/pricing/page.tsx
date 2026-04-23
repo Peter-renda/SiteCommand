@@ -82,8 +82,7 @@ export default function PricingPage() {
           </div>
 
           <h1
-            className="text-5xl text-gray-950 animate-fade-up delay-100"
-            style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.01em" }}
+            className="font-display text-5xl text-gray-950 animate-fade-up delay-100"
           >
             Simple, transparent pricing
           </h1>
@@ -141,17 +140,13 @@ export default function PricingPage() {
                     </p>
                     <h2
                       className="text-2xl text-gray-950"
-                      style={{ fontFamily: "var(--font-dm-serif)" }}
+                     
                     >
                       {plan.name}
                     </h2>
                     <div className="mt-4 flex items-end gap-1">
                       <span
-                        className="text-4xl tabular-nums text-gray-950"
-                        style={{
-                          fontFamily: "var(--font-dm-serif)",
-                          letterSpacing: "-0.02em",
-                        }}
+                        className="font-display text-4xl tabular-nums text-gray-950"
                       >
                         {plan.price}
                       </span>
@@ -241,7 +236,7 @@ export default function PricingPage() {
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <span
             className="text-sm font-semibold text-gray-900"
-            style={{ fontFamily: "var(--font-dm-serif)" }}
+           
           >
             SiteCommand
           </span>

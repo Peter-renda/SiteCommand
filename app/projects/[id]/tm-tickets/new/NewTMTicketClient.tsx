@@ -113,7 +113,7 @@ export default function NewTMTicketClient({ projectId, username }: { projectId: 
           </div>
         </section>
 
-        <div className="h-px bg-orange-500 my-7" />
+        <div className="h-px bg-gray-900 my-7" />
 
         <div className="space-y-6">
           <ItemTable title="LABOR (0)" columns={["Employee *", "Classification", "Time Type", "Hours *"]} />

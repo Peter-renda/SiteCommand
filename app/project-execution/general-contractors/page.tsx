@@ -43,7 +43,7 @@ export default function ProjectExecutionGeneralContractorsPage() {
             <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-5">Project Execution</p>
             <h1
               className="text-[clamp(2.4rem,6vw,4.6rem)] leading-[0.96] text-gray-950"
-              style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}
+             
             >
               Built for general contractors to execute with confidence.
             </h1>
@@ -75,7 +75,7 @@ export default function ProjectExecutionGeneralContractorsPage() {
         <section className="px-6 sm:px-10 pb-20">
           <div className="max-w-7xl mx-auto grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
             <div className="rounded-2xl border border-gray-200 bg-white p-8">
-              <h2 className="text-3xl text-gray-950" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
+              <h2 className="text-3xl text-gray-950">
                 One execution hub for every project phase.
               </h2>
               <p className="mt-4 text-gray-500 leading-relaxed">
@@ -95,7 +95,7 @@ export default function ProjectExecutionGeneralContractorsPage() {
 
             <div className="rounded-2xl border border-gray-200 bg-white p-8 h-fit">
               <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Expected outcomes</p>
-              <h2 className="mt-3 text-2xl text-gray-950" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>
+              <h2 className="mt-3 text-2xl text-gray-950">
                 Better execution across office and field.
               </h2>
 

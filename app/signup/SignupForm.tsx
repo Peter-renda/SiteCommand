@@ -59,7 +59,7 @@ function SignupFormInner() {
       <div className="w-full max-w-sm">
         {/* Brand link */}
         <a href="/" className="inline-block mb-10">
-          <span className="text-lg font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <span className="font-display text-lg text-gray-900">SiteCommand</span>
         </a>
 
         {/* Outer bezel */}
@@ -74,7 +74,7 @@ function SignupFormInner() {
             background: "#FFFFFF",
             boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
           }}>
-            <h1 style={{ fontFamily: "var(--font-dm-serif)" }} className="text-2xl font-bold text-gray-950 mb-2">Create an account</h1>
+            <h1 className="font-display text-2xl text-gray-950 mb-2">Create an account</h1>
             <p className="text-sm text-gray-400 mb-8">
               Already have an account?{" "}
               <Link href="/login" className="text-gray-900 font-medium hover:underline">

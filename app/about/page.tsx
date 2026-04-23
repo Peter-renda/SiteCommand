@@ -52,8 +52,8 @@ export default function AboutPage() {
             <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">About SiteCommand</span>
           </span>
           <h1
-            className="text-6xl sm:text-7xl font-bold tracking-tight leading-[1.05] animate-fade-up"
-            style={{ letterSpacing: "-0.03em", fontFamily: "var(--font-dm-serif)", color: "#111110", animationDelay: "100ms" }}
+            className="font-display text-6xl sm:text-7xl leading-[1.05] animate-fade-up"
+            style={{ letterSpacing: "-0.03em", color: "#111110", animationDelay: "100ms" }}
           >
             Software built by<br />
             <em className="not-italic" style={{ color: "#C0C0BC" }}>people who build.</em>
@@ -76,7 +76,7 @@ export default function AboutPage() {
             </span>
             <h2
               className="text-4xl font-bold leading-tight mb-6"
-              style={{ letterSpacing: "-0.02em", fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+              style={{ letterSpacing: "-0.02em", color: "#111110" }}
             >
               Save general contractors<br />$1 billion — together.
             </h2>
@@ -111,7 +111,7 @@ export default function AboutPage() {
               <div>
                 <span
                   className="text-5xl font-bold text-white block mb-2"
-                  style={{ letterSpacing: "-0.03em", fontFamily: "var(--font-dm-serif)" }}
+                  style={{ letterSpacing: "-0.03em" }}
                 >
                   $1B
                 </span>
@@ -139,7 +139,7 @@ export default function AboutPage() {
           </span>
           <h2
             className="text-3xl font-bold mb-14"
-            style={{ letterSpacing: "-0.02em", fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+            style={{ letterSpacing: "-0.02em", color: "#111110" }}
           >
             Three ideas that drive everything we build
           </h2>
@@ -185,7 +185,7 @@ export default function AboutPage() {
           </span>
           <h2
             className="text-3xl font-bold mb-8"
-            style={{ letterSpacing: "-0.02em", fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+            style={{ letterSpacing: "-0.02em", color: "#111110" }}
           >
             We've been on your jobsite.
           </h2>
@@ -233,7 +233,7 @@ export default function AboutPage() {
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D4500A" }} />
                   <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Get started today</span>
                 </span>
-                <h2 className="text-4xl sm:text-5xl font-bold text-gray-950 leading-tight" style={{ fontFamily: "var(--font-dm-serif)", letterSpacing: "-0.02em" }}>Ready to simplify your next project?</h2>
+                <h2 className="text-4xl sm:text-5xl font-display text-gray-950 leading-tight">Ready to simplify your next project?</h2>
                 <p className="mt-5 text-lg text-gray-400 max-w-md mx-auto leading-relaxed">Join hundreds of contractors who've replaced scattered tools with one platform built for the field.</p>
                 <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
                   <Link href="/pricing" className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden transition-all active:scale-[0.98]" style={{ background: "#111110" }}>
@@ -251,7 +251,7 @@ export default function AboutPage() {
       {/* Footer */}
       <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "var(--font-dm-serif)" }}>SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
             <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>

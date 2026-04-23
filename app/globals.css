@@ -191,7 +191,7 @@ p           { text-wrap: pretty; }
 }
 
 /* Display & mono font-family helpers */
-.font-display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; }
+.font-display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.02em; }
 .font-mono    { font-family: var(--font-mono); }
 
 /* DM Serif italic for accents (e.g. "need your attention" break) */

@@ -497,14 +497,14 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
         <div className="flex items-center gap-2 flex-shrink-0">
           <a
             href={`/projects/${projectId}/change-events/new?sourceType=rfi&sourceId=${rfi.id}`}
-            className="px-3 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+            className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors"
           >
             + Create Change Event
           </a>
           <button
             onClick={handleCloseRFI}
             disabled={closingRFI}
-            className={`px-3 py-1.5 text-sm font-medium rounded transition-colors disabled:opacity-50 ${rfi.status === "closed" ? "bg-gray-600 text-white hover:bg-gray-700" : "bg-orange-500 text-white hover:bg-orange-600"}`}
+            className={`px-3 py-1.5 text-sm font-medium rounded transition-colors disabled:opacity-50 ${rfi.status === "closed" ? "bg-gray-600 text-white hover:bg-gray-700" : "bg-gray-900 text-white hover:bg-gray-700"}`}
           >
             {closingRFI ? "..." : rfi.status === "closed" ? "Reopen RFI" : "Close RFI"}
           </button>

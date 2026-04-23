@@ -367,7 +367,7 @@ export default function SsovEditClient({
                 onClick={submit}
                 disabled={saving || !canSubmit}
                 title={!canSubmit ? "Submit is disabled until Remaining to Allocate is $0.00" : undefined}
-                className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 disabled:opacity-60"
+                className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 disabled:opacity-60"
               >
                 Submit
               </button>
@@ -438,7 +438,7 @@ export default function SsovEditClient({
                     {!readOnly && (
                       <button
                         onClick={addLine}
-                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600"
+                        className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700"
                       >
                         Add Detail Line
                       </button>
@@ -532,7 +532,7 @@ export default function SsovEditClient({
             <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-200">
               <button
                 onClick={addLine}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded hover:bg-orange-600"
+                className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded hover:bg-gray-700"
               >
                 Add Detail Line
               </button>
@@ -631,7 +631,7 @@ export default function SsovEditClient({
               <button
                 onClick={handleImport}
                 disabled={!importFile}
-                className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 disabled:opacity-60"
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 disabled:opacity-60"
               >
                 Import
               </button>

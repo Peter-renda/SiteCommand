@@ -389,7 +389,7 @@ export default function CreatePrimeContract() {
                           <button
                             type="button"
                             onClick={addLine}
-                            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors"
+                            className="bg-gray-900 hover:bg-gray-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors"
                           >
                             Add Line
                           </button>
@@ -428,7 +428,7 @@ export default function CreatePrimeContract() {
 
               {/* SOV footer */}
               <div className="flex items-center border-t border-gray-200 px-4 py-2.5 bg-gray-50">
-                <button type="button" onClick={addLine} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors">
+                <button type="button" onClick={addLine} className="bg-gray-900 hover:bg-gray-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors">
                   Add Line
                 </button>
                 <button type="button" className="flex items-center gap-1 ml-2 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50 text-gray-700">
@@ -539,7 +539,7 @@ export default function CreatePrimeContract() {
             <button
               type="submit"
               disabled={loading}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50"
+              className="bg-gray-900 hover:bg-gray-700 text-white px-6 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create"}
             </button>

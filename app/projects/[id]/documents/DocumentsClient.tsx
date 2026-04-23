@@ -1465,7 +1465,7 @@ function ItemInfoPanel({
         <div className="flex-1 overflow-y-auto">
           {/* General Information */}
           <div className="px-4 py-4 border-b border-gray-100">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">General Information</h3>
+            <h3 className="eyebrow mb-3">General Information</h3>
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Title</p>

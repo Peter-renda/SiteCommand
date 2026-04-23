@@ -1989,7 +1989,7 @@ function Create360CategoryModal({
           </button>
           <button
             onClick={onContinue}
-            className="px-5 py-2 text-sm font-medium bg-orange-500 text-white rounded-md hover:bg-orange-600"
+            className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-md hover:bg-gray-700"
           >
             Continue
           </button>

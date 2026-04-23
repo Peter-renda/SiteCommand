@@ -251,7 +251,7 @@ export default function PrimeContracts() {
           />
           <button
             onClick={() => navigate(`/projects/${id}/prime-contracts/new`)}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded font-medium transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 hover:bg-gray-700 text-white rounded font-medium transition-colors"
           >
             <Plus className="w-3 h-3" />
             Create
@@ -482,7 +482,7 @@ export default function PrimeContracts() {
               <button
                 onClick={handleCreateFromImport}
                 disabled={importState === "creating"}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded font-medium transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-900 hover:bg-gray-700 text-white rounded font-medium transition-colors disabled:opacity-50"
               >
                 {importState === "creating" && <Loader2 className="w-3 h-3 animate-spin" />}
                 Create Contract

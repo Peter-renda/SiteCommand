@@ -29,7 +29,10 @@
       "Bash(cat:*)",
       "Bash(taskkill:*)",
       "Bash(cmd:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(cp \"/root/.claude/projects/-home-user-SiteCommand/66fcf324-ac75-470b-9a53-8ed5919a88ad/tool-results/webfetch-1776972698670-prdx0y.bin\" /tmp/design.gz)",
+      "Bash(gunzip -c /tmp/design.gz)",
+      "Read(//tmp/**)"
     ]
   }
 }

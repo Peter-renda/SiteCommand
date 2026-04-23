@@ -170,7 +170,7 @@ export default function CommitmentSettingsClient({
         <button
           onClick={save}
           disabled={saving}
-          className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 disabled:opacity-60"
+          className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save"}
         </button>

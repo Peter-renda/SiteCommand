@@ -419,7 +419,7 @@ function CreateSubmittalModal({
             type="button"
             onClick={handleCreate}
             disabled={saving}
-            className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors disabled:opacity-60"
+            className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-60"
           >
             {saving ? "Creating…" : "Create Submittal"}
           </button>
@@ -839,7 +839,7 @@ export default function NewSubmittalPackageClient({
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors disabled:opacity-60"
+            className="px-5 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-60"
           >
             {saving ? "Saving…" : "Create Package"}
           </button>

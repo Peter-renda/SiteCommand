@@ -189,7 +189,7 @@ function BudgetCodeDropdown({
                     setNewCode("");
                     setNewDesc("");
                   }}
-                  className="flex-1 px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded font-medium disabled:opacity-50"
+                  className="flex-1 px-2 py-1 text-xs bg-gray-900 hover:bg-gray-700 text-white rounded font-medium disabled:opacity-50"
                 >
                   {saving ? "Saving…" : "Save"}
                 </button>
@@ -199,7 +199,7 @@ function BudgetCodeDropdown({
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium transition-colors rounded-b"
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-xs font-medium transition-colors rounded-b"
             >
               <Plus className="w-3.5 h-3.5" />
               Create
@@ -1285,7 +1285,7 @@ export default function NewChangeEventClient({
             type="button"
             onClick={handleSave}
             disabled={saving || !title.trim()}
-            className="px-6 py-2 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-50 font-medium"
+            className="px-6 py-2 text-sm bg-gray-900 text-white rounded hover:bg-gray-700 transition-colors disabled:opacity-50 font-medium"
           >
             {saving ? "Creating…" : "Create"}
           </button>

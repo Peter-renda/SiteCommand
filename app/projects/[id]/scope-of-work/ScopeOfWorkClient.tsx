@@ -417,7 +417,7 @@ export default function ScopeOfWorkClient({ projectId }: { projectId: string }) 
         <button
           onClick={handleExportPDF}
           disabled={exportLoading || items.length === 0}
-          className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 text-white text-sm font-medium rounded-md hover:bg-orange-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Download className="w-4 h-4" />
           {exportLoading ? "Exporting..." : "Export PDF"}
@@ -428,7 +428,7 @@ export default function ScopeOfWorkClient({ projectId }: { projectId: string }) 
         {/* ── Sidebar ────────────────────────────────────────────────────── */}
         <aside className="w-64 shrink-0 bg-white border-r border-gray-200 overflow-y-auto">
           <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+            <p className="eyebrow">
               CSI Divisions
             </p>
           </div>
@@ -714,7 +714,7 @@ function AddCard({
         <button
           onClick={onSave}
           disabled={addForm.saving}
-          className="px-4 py-1.5 bg-orange-500 text-white text-sm font-medium rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50"
+          className="px-4 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
         >
           {addForm.saving ? "Saving..." : "Save"}
         </button>
@@ -816,7 +816,7 @@ function EditCard({
         <button
           onClick={onSave}
           disabled={editForm.saving}
-          className="px-4 py-1.5 bg-orange-500 text-white text-sm font-medium rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50"
+          className="px-4 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
         >
           {editForm.saving ? "Saving..." : "Save Changes"}
         </button>

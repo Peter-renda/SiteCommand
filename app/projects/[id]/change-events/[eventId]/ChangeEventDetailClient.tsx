@@ -635,7 +635,7 @@ export default function ChangeEventDetailClient({
           <>
             <section className="rounded border border-gray-200 bg-white">
           <div className="px-4 py-3 border-b border-gray-200">
-            <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">General Information</h2>
+            <h2 className="eyebrow">General Information</h2>
           </div>
 
           <div className="px-4 py-4 space-y-7">
@@ -669,7 +669,7 @@ export default function ChangeEventDetailClient({
 
             <section className="rounded border border-gray-200 bg-white">
           <div className="px-4 py-3 border-b border-gray-200">
-            <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Line Items</h2>
+            <h2 className="eyebrow mb-2">Line Items</h2>
             <div className="flex flex-wrap items-center gap-2">
               {canWrite && (
                 <div className="relative">
@@ -809,7 +809,7 @@ export default function ChangeEventDetailClient({
         {activeTab === "Comments" && (
           <section className="rounded border border-gray-200 bg-white">
             <div className="px-4 py-3 border-b border-gray-200">
-              <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Comments</h2>
+              <h2 className="eyebrow">Comments</h2>
             </div>
 
             <div className="px-4 py-4 space-y-4">
@@ -899,7 +899,7 @@ export default function ChangeEventDetailClient({
         {activeTab === "Change History" && (
           <section className="rounded border border-gray-200 bg-white overflow-hidden">
             <div className="border-b border-gray-200 px-4 py-3">
-              <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Change History</h2>
+              <h2 className="eyebrow">Change History</h2>
             </div>
             {!historyLoaded ? (
               <p className="px-4 py-6 text-sm text-gray-400">Loading...</p>

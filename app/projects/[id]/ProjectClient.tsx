@@ -749,7 +749,7 @@ export default function ProjectClient({
             {/* Centered project name */}
             <div className="text-center mb-6 sm:mb-10">
               <Eyebrow>Project Home</Eyebrow>
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-gray-900">{project.name}</h1>
+              <h1 className="font-display text-2xl sm:text-4xl lg:text-5xl text-[color:var(--ink)]">{project.name}</h1>
               <div className="mt-2">
                 <Pill className="pill-coc">{project.status || "active"}</Pill>
               </div>
@@ -1246,7 +1246,7 @@ export default function ProjectClient({
                 </div>
               </div>
 
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Dates</p>
+              <p className="eyebrow pt-1">Dates</p>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

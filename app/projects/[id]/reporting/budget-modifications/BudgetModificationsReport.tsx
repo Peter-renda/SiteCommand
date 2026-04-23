@@ -228,7 +228,7 @@ export default function BudgetModificationsReport({ projectId }: { projectId: st
 
         {/* Right filter panel */}
         <aside className="w-64 flex-shrink-0 bg-gray-100 border-l border-gray-200 px-4 py-6">
-          <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-4">
+          <h2 className="eyebrow mb-4">
             Filter Modifications By
           </h2>
 
@@ -300,7 +300,7 @@ export default function BudgetModificationsReport({ projectId }: { projectId: st
             </button>
             <button
               onClick={handleFilter}
-              className="px-4 py-1.5 text-sm font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors"
+              className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors"
             >
               Filter
             </button>

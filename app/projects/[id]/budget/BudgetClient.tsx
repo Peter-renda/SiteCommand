@@ -585,7 +585,7 @@ function LineItemModal({
             </Field>
           </div>
 
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Unit-Based Fields</p>
+          <p className="eyebrow pt-1">Unit-Based Fields</p>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Manual Calculation">
               <select
@@ -648,7 +648,7 @@ function LineItemModal({
             </label>
           </div>
 
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Budget</p>
+          <p className="eyebrow pt-1">Budget</p>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Original Budget Amount">
               <MoneyInput
@@ -675,7 +675,7 @@ function LineItemModal({
             </Field>
           </div>
 
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Costs</p>
+          <p className="eyebrow pt-1">Costs</p>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Committed Costs">
               <MoneyInput value={form.committed_costs} onChange={(v) => set("committed_costs", v)} />
@@ -691,7 +691,7 @@ function LineItemModal({
             </Field>
           </div>
 
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Advanced Forecasting Curve</p>
+          <p className="eyebrow pt-1">Advanced Forecasting Curve</p>
           <div className="grid grid-cols-3 gap-4">
             <Field label="Start Date">
               <input
@@ -2194,7 +2194,7 @@ export default function BudgetClient({
               <div ref={createMenuRef} className="relative">
                 <button
                   onClick={() => setShowCreateMenu((o) => !o)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
                 >
                   + Create
                   <svg
@@ -3424,13 +3424,13 @@ export default function BudgetClient({
                 setLineItemDefaults(undefined);
                 setShowLineItemModal(true);
               }}
-              className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
+              className="w-full px-3 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors text-left"
             >
               + Create Budget Line Item
             </button>
             <button
               onClick={() => setShowSnapshotModal(true)}
-              className="w-full px-3 py-2.5 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors text-left"
+              className="w-full px-3 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors text-left"
             >
               + Create Snapshot
             </button>
@@ -3440,7 +3440,7 @@ export default function BudgetClient({
               className={`w-full px-3 py-2.5 text-sm font-medium rounded-md transition-colors text-left ${
                 isBudgetLocked
                   ? "bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed"
-                  : "text-white bg-orange-600 hover:bg-orange-700"
+                  : "text-white bg-gray-900 hover:bg-gray-700"
               }`}
             >
               {isBudgetLocked ? "Budget Locked" : "Lock Budget"}
@@ -3855,7 +3855,7 @@ function CreateForecastViewModal({
             type="button"
             disabled={!name.trim()}
             onClick={() => onConfirm(name.trim())}
-            className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Create View
           </button>

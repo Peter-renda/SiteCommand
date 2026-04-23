@@ -42,7 +42,7 @@ export default function CaseStudiesPage() {
 
           <h1
             className="text-5xl md:text-6xl leading-[1.08] tracking-tight mb-6 animate-fade-up delay-100"
-            style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+            style={{ color: "#111110" }}
           >
             Real results from
             <br />
@@ -78,7 +78,7 @@ export default function CaseStudiesPage() {
                 <div className="mb-3">
                   <p
                     className="text-3xl tracking-tight"
-                    style={{ fontFamily: "var(--font-dm-serif)", color: "#111110" }}
+                    style={{ color: "#111110" }}
                   >
                     {study.headlineStat}
                   </p>
@@ -128,7 +128,7 @@ export default function CaseStudiesPage() {
             >
               <h2
                 className="text-3xl md:text-4xl text-white mb-4"
-                style={{ fontFamily: "var(--font-dm-serif)" }}
+               
               >
                 Ready to see results like these?
               </h2>
