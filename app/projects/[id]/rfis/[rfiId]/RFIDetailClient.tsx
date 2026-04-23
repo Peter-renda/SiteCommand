@@ -719,7 +719,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                   const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ related_items: [...(rfi.related_items ?? []), nextItem] }),
+                    body: JSON.stringify({ related_items: [nextItem, ...(rfi.related_items ?? [])] }),
                   });
                   if (res.ok) {
                     setRfi(await res.json());
