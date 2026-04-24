@@ -178,8 +178,8 @@ function ContractSummaryTile({
                   <p className="text-xs font-semibold text-gray-800 mb-0.5">{item.label}</p>
                   <p className="text-sm text-gray-700">
                     {item.pct
-                      ? `${item.value.toFixed(1)}%`
-                      : `$ ${item.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      ? `${(item.value ?? 0).toFixed(1)}%`
+                      : `$ ${(item.value ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   </p>
                 </div>
               ))}
@@ -318,12 +318,13 @@ export default function PrimeContractDetailClient({
 
   const revised = (contract.original_contract_amount ?? 0) + (contract.approved_change_orders ?? 0);
   const pendingRevised = (contract.original_contract_amount ?? 0) + (contract.pending_change_orders ?? 0);
-  const pctPaid = revised > 0 ? ((contract.payments_received / revised) * 100).toFixed(1) : "0.0";
+  const pctPaid = revised > 0 ? (((contract.payments_received ?? 0) / revised) * 100).toFixed(1) : "0.0";
   const remaining = revised - (contract.payments_received ?? 0);
 
-  const sovTotal = contract.sov_items.reduce((s, x) => s + (x.scheduled_value ?? 0), 0);
-  const sovBilled = contract.sov_items.reduce((s, x) => s + (x.billed_to_date ?? 0), 0);
-  const sovRetainage = contract.sov_items.reduce((s, x) => s + (x.retainage_amount ?? 0), 0);
+  const sovItems = contract.sov_items ?? [];
+  const sovTotal = sovItems.reduce((s, x) => s + (x.scheduled_value ?? 0), 0);
+  const sovBilled = sovItems.reduce((s, x) => s + (x.billed_to_date ?? 0), 0);
+  const sovRetainage = sovItems.reduce((s, x) => s + (x.retainage_amount ?? 0), 0);
   const sovRemaining = sovTotal - sovBilled;
 
   function toggleChangeOrderSort(key: ChangeOrderSortKey) {
@@ -610,7 +611,7 @@ export default function PrimeContractDetailClient({
               />
 
               {/* Schedule of Values */}
-              <SovSection sovItems={contract.sov_items} />
+              <SovSection sovItems={sovItems} />
 
               {/* Inclusions & Exclusions */}
               <div id="inclusions-exclusions" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">

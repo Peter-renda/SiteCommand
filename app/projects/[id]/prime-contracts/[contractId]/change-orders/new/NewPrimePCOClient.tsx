@@ -262,7 +262,7 @@ export default function NewPrimePCOClient({
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white">
-      <ProjectNav projectId={projectId} role={role} />
+      <ProjectNav projectId={projectId} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="px-6 pt-4 pb-1 text-xs text-gray-500 flex items-center gap-1.5 shrink-0">
           <button

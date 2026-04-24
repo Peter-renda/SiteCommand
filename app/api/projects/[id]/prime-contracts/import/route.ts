@@ -105,6 +105,7 @@ ${pdfText.slice(0, 10000)}`;
     });
 
     // Strip markdown code fences if present
+    let text = (result.text ?? "").trim();
     text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
 
     const fields = JSON.parse(text);

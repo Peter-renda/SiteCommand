@@ -305,7 +305,7 @@ export default function PrimeContractsClient({
   }
 
   const ownerClientOptions = Array.from(new Set(contracts.map((c) => c.owner_client).filter(Boolean))).sort();
-  const erpStatusOptions = Array.from(new Set(contracts.map((c) => c.erp_status).filter(Boolean))).sort();
+  const erpStatusOptions = Array.from(new Set(contracts.map((c) => c.erp_status).filter((s): s is string => Boolean(s)))).sort();
   const statusOptions = Array.from(new Set(contracts.map((c) => c.status).filter(Boolean))).sort();
 
   const filtered = contracts.filter((c) => {
