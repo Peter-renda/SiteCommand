@@ -199,7 +199,12 @@ export default function EditRFIClient({ projectId, rfiId, userId, role }: { proj
       .finally(() => setLoading(false));
   }, [projectId, rfiId]);
 
-  const canEdit = useMemo(() => Boolean(rfi && rfi.created_by === userId), [rfi, userId]);
+  const canEdit = useMemo(() => Boolean(rfi && (
+    rfi.created_by === null ||
+    rfi.created_by === userId ||
+    role === "admin" ||
+    role === "super_admin"
+  )), [rfi, userId, role]);
 
   async function handleSave() {
     if (!rfi) return;
