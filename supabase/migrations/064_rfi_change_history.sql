@@ -11,5 +11,5 @@ CREATE TABLE IF NOT EXISTS rfi_change_history (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_rfi_change_history_rfi_id ON rfi_change_history(rfi_id);
-CREATE INDEX idx_rfi_change_history_created_at ON rfi_change_history(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rfi_change_history_rfi_id ON rfi_change_history(rfi_id);
+CREATE INDEX IF NOT EXISTS idx_rfi_change_history_created_at ON rfi_change_history(created_at DESC);

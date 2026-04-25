@@ -77,7 +77,7 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  logRFIChange(supabase, session, rfiId, projectId, "Added Discussion Response", null, body.trim());
+  await logRFIChange(supabase, session, rfiId, projectId, "Added Discussion Response", null, body.trim());
 
   // Send email notifications to distribution list, RFI manager, and assignees
   try {

@@ -223,6 +223,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   const [returningCourt, setReturningCourt] = useState(false);
   const [history, setHistory] = useState<ChangeHistoryEntry[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [processingAction, setProcessingAction] = useState<"email" | "delete" | null>(null);
   const [savingOfficialResponseId, setSavingOfficialResponseId] = useState<string | null>(null);
@@ -259,19 +260,26 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     });
   }, [projectId, rfiId]);
 
+  async function loadHistory() {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/history`);
+      const data = await res.json();
+      setHistory(Array.isArray(data) ? data : []);
+      setHistoryLoaded(true);
+    } catch {
+      setHistory([]);
+      setHistoryLoaded(true);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (historyLoaded) return;
-    fetch(`/api/projects/${projectId}/rfis/${rfiId}/history`)
-      .then((r) => r.json())
-      .then((d) => {
-        setHistory(Array.isArray(d) ? d : []);
-        setHistoryLoaded(true);
-      })
-      .catch(() => {
-        setHistory([]);
-        setHistoryLoaded(true);
-      });
-  }, [historyLoaded, projectId, rfiId]);
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, rfiId]);
 
   useEffect(() => {
     function onDocumentMouseDown(e: MouseEvent) {
@@ -602,7 +610,10 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (tab.id === "history") loadHistory();
+              }}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? "border-gray-900 text-gray-900"
@@ -757,7 +768,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
         {activeTab === "history" && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            {!historyLoaded ? (
+            {historyLoading && !historyLoaded ? (
               <p className="px-6 py-8 text-sm text-gray-400">Loading...</p>
             ) : history.length === 0 ? (
               <p className="px-6 py-8 text-sm text-gray-400">No change history yet.</p>
