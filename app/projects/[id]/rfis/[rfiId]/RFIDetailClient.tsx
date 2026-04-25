@@ -543,6 +543,13 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
             {showActionsMenu && (
               <div className="absolute right-0 top-10 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-20">
+                <a
+                  href={`/projects/${projectId}/rfis/${rfi.id}/edit`}
+                  onClick={() => setShowActionsMenu(false)}
+                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  Edit
+                </a>
                 <button
                   type="button"
                   onClick={handleEmailRFI}
