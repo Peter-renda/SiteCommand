@@ -388,9 +388,21 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
   async function handleReturnCourt() {
     if (!rfi) return;
-    setReturningCourt(true);
+
     const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
     const newBallInCourtId = ballIsWithAssignee ? rfi.rfi_manager_id : ((rfi.assignees ?? [])[0]?.id ?? null);
+
+    if (!newBallInCourtId) {
+      window.alert("Unable to return court because no recipient is assigned.");
+      return;
+    }
+
+    if (rfi.ball_in_court_id !== userId) {
+      window.alert("Only the current ball-in-court user can return court.");
+      return;
+    }
+
+    setReturningCourt(true);
     const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1040,7 +1052,13 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
               {rfi.status !== "closed" && (() => {
                 const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
-                const targetName = ballIsWithAssignee ? getContactNameById(directory, rfi.rfi_manager_id) : ((rfi.assignees ?? [])[0]?.name ?? "Assignee");
+                const canReturnCourt = rfi.ball_in_court_id === userId;
+                if (!canReturnCourt) return null;
+
+                const targetName = ballIsWithAssignee
+                  ? getContactNameById(directory, rfi.rfi_manager_id)
+                  : ((rfi.assignees ?? [])[0]?.name ?? "Assignee");
+
                 return (
                   <div className="flex justify-end mt-6 pt-4 border-t border-gray-100">
                     <button
