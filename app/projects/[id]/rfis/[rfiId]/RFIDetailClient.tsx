@@ -291,6 +291,23 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     role === "super_admin"
   );
 
+
+  const normalizedUserEmail = userEmail.trim().toLowerCase();
+  const currentUserDirectoryContactIds = directory
+    .filter((contact) => {
+      if (contact.id === userId) return true;
+      if (!normalizedUserEmail || !contact.email) return false;
+      return contact.email.trim().toLowerCase() === normalizedUserEmail;
+    })
+    .map((contact) => contact.id);
+
+  const canCurrentUserReturnCourt = rfi
+    ? (
+      rfi.ball_in_court_id === userId ||
+      (rfi.ball_in_court_id !== null && currentUserDirectoryContactIds.includes(rfi.ball_in_court_id))
+    )
+    : false;
+
   useEffect(() => {
     const config = RELATED_ITEM_TYPE_CONFIGS[relatedItemType];
     if (!config?.endpoint) {
@@ -397,7 +414,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       return;
     }
 
-    if (rfi.ball_in_court_id !== userId) {
+    if (!canCurrentUserReturnCourt) {
       window.alert("Only the current ball-in-court user can return court.");
       return;
     }
@@ -1052,7 +1069,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
               {rfi.status !== "closed" && (() => {
                 const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
-                const canReturnCourt = rfi.ball_in_court_id === userId;
+                const canReturnCourt = canCurrentUserReturnCourt;
                 if (!canReturnCourt) return null;
 
                 const targetName = ballIsWithAssignee
