@@ -253,6 +253,9 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       setSpecifications(Array.isArray(specData) ? specData : []);
       setResponses(Array.isArray(respData) ? respData : []);
       setLoading(false);
+    }).catch(() => {
+      setNotFound(true);
+      setLoading(false);
     });
   }, [projectId, rfiId]);
 
@@ -382,7 +385,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     if (!rfi) return;
     setReturningCourt(true);
     const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
-    const newBallInCourtId = ballIsWithAssignee ? rfi.rfi_manager_id : (rfi.assignees[0]?.id ?? null);
+    const newBallInCourtId = ballIsWithAssignee ? rfi.rfi_manager_id : ((rfi.assignees ?? [])[0]?.id ?? null);
     const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -943,15 +946,20 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                         <button onClick={async () => {
                           if (!window.confirm("Delete this response?")) return;
                           setDeletingResponseId(resp.id);
-                          const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${resp.id}`, { method: "DELETE" });
-                          if (res.ok) {
-                            setResponses((prev) => prev.filter((r) => r.id !== resp.id));
-                            if (rfi.official_response_id === resp.id) setRfi({ ...rfi, official_response_id: null });
-                          } else {
-                            const err = await res.json().catch(() => ({}));
-                            window.alert(err.error || "Failed to delete response.");
+                          try {
+                            const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${resp.id}`, { method: "DELETE" });
+                            if (res.ok) {
+                              setResponses((prev) => prev.filter((r) => r.id !== resp.id));
+                              if (rfi.official_response_id === resp.id) setRfi((prev) => prev ? { ...prev, official_response_id: null } : prev);
+                            } else {
+                              const err = await res.json().catch(() => ({}));
+                              window.alert(err.error || "Failed to delete response.");
+                            }
+                          } catch {
+                            window.alert("Network error. Failed to delete response.");
+                          } finally {
+                            setDeletingResponseId(null);
                           }
-                          setDeletingResponseId(null);
                         }} disabled={deletingResponseId === resp.id} className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-40" title="Delete response">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1020,7 +1028,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
               {rfi.status !== "closed" && (() => {
                 const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
-                const targetName = ballIsWithAssignee ? getContactNameById(directory, rfi.rfi_manager_id) : (rfi.assignees[0]?.name ?? "Assignee");
+                const targetName = ballIsWithAssignee ? getContactNameById(directory, rfi.rfi_manager_id) : ((rfi.assignees ?? [])[0]?.name ?? "Assignee");
                 return (
                   <div className="flex justify-end mt-6 pt-4 border-t border-gray-100">
                     <button
