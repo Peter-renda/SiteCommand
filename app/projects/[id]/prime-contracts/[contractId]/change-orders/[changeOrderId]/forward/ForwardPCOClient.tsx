@@ -206,7 +206,7 @@ export default function ForwardPCOClient({
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white">
-      <ProjectNav projectId={projectId} role={role} />
+      <ProjectNav projectId={projectId} />
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* ── Breadcrumb ── */}
