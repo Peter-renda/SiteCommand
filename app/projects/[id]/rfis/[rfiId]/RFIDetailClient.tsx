@@ -436,8 +436,12 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
       return;
     }
 
-    const confirmed = window.confirm("Delete this RFI? This action cannot be undone.");
-    if (!confirmed) return;
+    setShowActionsMenu(false);
+
+    const typed = window.prompt(
+      `To permanently delete RFI #${rfi?.rfi_number}, type its number and press OK.\n\nThis cannot be undone.`,
+    );
+    if (typed?.trim() !== String(rfi?.rfi_number)) return;
 
     setProcessingAction("delete");
     const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, { method: "DELETE" });
@@ -564,7 +568,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                   disabled={processingAction !== null || !canEdit}
                   className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                 >
-                  {processingAction === "delete" ? "Deleting..." : "Delete"}
+                  {processingAction === "delete" ? "Deleting..." : "Delete RFI"}
                 </button>
                 <a
                   href={`/projects/${projectId}/rfis?create=1`}
@@ -943,7 +947,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
                       {/* Delete */}
                       <div className="flex justify-center pt-0.5">
-                        <button onClick={async () => {
+                        <button type="button" onClick={async () => {
                           if (!window.confirm("Delete this response?")) return;
                           setDeletingResponseId(resp.id);
                           try {
