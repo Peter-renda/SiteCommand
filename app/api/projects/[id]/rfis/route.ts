@@ -37,9 +37,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .limit(1)
     .single();
 
-  const nextNumber = (maxRow?.rfi_number ?? 0) + 1;
+  const autoNumber = (maxRow?.rfi_number ?? 0) + 1;
 
   const body = await req.json();
+  const customNumber = typeof body.rfi_number === "number" && Number.isInteger(body.rfi_number) && body.rfi_number > 0 ? body.rfi_number : null;
+  const nextNumber = customNumber ?? autoNumber;
+
   const subject = (body.subject ?? "").toString().slice(0, 200);
   const {
     question,

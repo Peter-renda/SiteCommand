@@ -222,6 +222,7 @@ function CreateRFIModal({
   directory: DirectoryContact[];
   specifications: Specification[];
   onConfirm: (data: {
+    rfi_number: number;
     subject: string;
     question: string;
     due_date: string;
@@ -243,6 +244,8 @@ function CreateRFIModal({
   }) => void;
   onCancel: () => void;
 }) {
+  const [rfiNumber, setRfiNumber] = useState<number>(nextNumber);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [subject, setSubject] = useState("");
   const [question, setQuestion] = useState("");
   const [dueDate, setDueDate] = useState(() => {
@@ -305,7 +308,13 @@ function CreateRFIModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">RFI Number</label>
-              <input type="text" readOnly value={nextNumber} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
+              <input
+                type="number"
+                min={1}
+                value={rfiNumber}
+                onChange={(e) => setRfiNumber(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Date Initiated</label>
@@ -444,9 +453,22 @@ function CreateRFIModal({
           </div>
 
           <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
+            {validationError && <p className="text-sm text-red-600 flex-1 self-center">{validationError}</p>}
             <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "draft", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, schedule_impact: scheduleImpact, cost_impact: costImpact, cost_code: costCode, sub_job: subJob, rfi_stage: rfiStage, private: isPrivate, attachmentFiles })} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create as Draft</button>
-            <button type="button" onClick={() => onConfirm({ subject, question, due_date: dueDate, status: "open", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, schedule_impact: scheduleImpact, cost_impact: costImpact, cost_code: costCode, sub_job: subJob, rfi_stage: rfiStage, private: isPrivate, attachmentFiles })} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors">Create as Open</button>
+            <button type="button" onClick={() => onConfirm({ rfi_number: rfiNumber, subject, question, due_date: dueDate, status: "draft", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, schedule_impact: scheduleImpact, cost_impact: costImpact, cost_code: costCode, sub_job: subJob, rfi_stage: rfiStage, private: isPrivate, attachmentFiles })} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">Create as Draft</button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!subject.trim()) { setValidationError("Subject is required."); return; }
+                if (!question.trim()) { setValidationError("Question is required."); return; }
+                if (assignees.length === 0) { setValidationError("At least one assignee is required."); return; }
+                setValidationError(null);
+                onConfirm({ rfi_number: rfiNumber, subject, question, due_date: dueDate, status: "open", rfi_manager_id: rfiManagerId, received_from_id: receivedFromId, assignees, distribution_list: distributionList, responsible_contractor_id: responsibleContractorId, specification_id: specificationId, drawing_number: drawingNumber, schedule_impact: scheduleImpact, cost_impact: costImpact, cost_code: costCode, sub_job: subJob, rfi_stage: rfiStage, private: isPrivate, attachmentFiles });
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Create as Open
+            </button>
           </div>
         </div>
       </div>
@@ -623,6 +645,8 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
   const [bulkStatus, setBulkStatus] = useState<"" | "draft" | "open" | "closed">("");
   const [bulkDueDate, setBulkDueDate] = useState("");
   const [applyingBulk, setApplyingBulk] = useState(false);
+  const [rowMenuOpen, setRowMenuOpen] = useState<string | null>(null);
+  const rowMenuRef = useRef<HTMLDivElement | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const columnRef = useRef<HTMLDivElement>(null);
 
@@ -630,6 +654,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
     function handleClick(e: MouseEvent) {
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExportMenu(false);
       if (columnRef.current && !columnRef.current.contains(e.target as Node)) setShowColumnConfig(false);
+      if (rowMenuRef.current && !rowMenuRef.current.contains(e.target as Node)) setRowMenuOpen(null);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -655,9 +680,11 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
     }
   }, [searchParams]);
 
-  const nextNumber = rfis.length > 0 ? Math.max(...rfis.map((r) => r.rfi_number)) + 1 : 1;
+  const validRfiNums = rfis.map((r) => Number(r.rfi_number)).filter(Number.isFinite);
+  const nextNumber = validRfiNums.length > 0 ? Math.max(...validRfiNums) + 1 : 1;
 
   async function handleCreate(data: {
+    rfi_number: number;
     subject: string;
     question: string;
     due_date: string;
@@ -684,6 +711,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        rfi_number: data.rfi_number,
         subject: data.subject.slice(0, 200),
         question: data.question || null,
         due_date: data.due_date || null,
@@ -992,6 +1020,7 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                       {COLUMN_LABELS[key].toUpperCase()}
                     </th>
                   ))}
+                  <th className="w-10" />
                 </tr>
               </thead>
               <tbody>
@@ -1041,6 +1070,33 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
                       }
                       return <td key={key} className="px-4 py-3 text-sm text-gray-600">{cell}</td>;
                     })}
+                    <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                      <div
+                        ref={rowMenuOpen === rfi.id ? rowMenuRef : null}
+                        className="relative flex justify-end"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setRowMenuOpen(rowMenuOpen === rfi.id ? null : rfi.id)}
+                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                          aria-label="More options"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
+                        </button>
+                        {rowMenuOpen === rfi.id && (
+                          <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-20">
+                            <a
+                              href={`/projects/${projectId}/rfis/${rfi.id}/edit`}
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                              Edit
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
