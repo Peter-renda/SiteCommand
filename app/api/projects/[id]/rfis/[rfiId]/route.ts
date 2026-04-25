@@ -204,6 +204,21 @@ export async function PATCH(
     }
   }
 
+  // Log Ball In Court change to history (independently of email so the entry is always recorded)
+  if ("ball_in_court_id" in update && prevRfi && prevRfi.ball_in_court_id !== data.ball_in_court_id) {
+    const prevAssignees = Array.isArray(prevRfi.assignees) ? prevRfi.assignees as { id: string }[] : [];
+    const newAssignees = Array.isArray(data.assignees) ? data.assignees as { id: string }[] : [];
+    const labelFor = (ballId: string | null, managerId: string | null, assignees: { id: string }[]): string | null => {
+      if (!ballId) return null;
+      if (ballId === managerId) return "RFI Manager";
+      if (assignees.some((a) => a.id === ballId)) return "Assignees";
+      return "Other";
+    };
+    const fromLabel = labelFor(prevRfi.ball_in_court_id as string | null, prevRfi.rfi_manager_id as string | null, prevAssignees);
+    const toLabel = labelFor(data.ball_in_court_id as string | null, data.rfi_manager_id as string | null, newAssignees);
+    historyPromises.push(logRFIChange(supabase, session, rfiId, projectId, "Ball In Court", fromLabel, toLabel));
+  }
+
   // Send ball-in-court email notification when ball_in_court_id is set
   if ("ball_in_court_id" in update && data.ball_in_court_id) {
     try {
@@ -230,14 +245,6 @@ export async function PATCH(
         const rfiUrl = `${appUrl}/projects/${projectId}/rfis/${rfiId}`;
         await sendRFIBallInCourtEmail(recipientEmail, recipientName, senderName, data.rfi_number, data.subject, projectName, rfiUrl);
       }
-
-      // Determine descriptive from/to labels for history
-      const prevAssignees = Array.isArray(prevRfi?.assignees) ? prevRfi.assignees as { id: string }[] : [];
-      const prevBallWithAssignee = prevRfi?.ball_in_court_id !== null && prevRfi?.ball_in_court_id !== prevRfi?.rfi_manager_id;
-      const fromLabel = prevRfi?.ball_in_court_id == null ? null : (prevBallWithAssignee ? "Assignees" : "RFI Manager");
-      const newBallWithAssignee = data.ball_in_court_id !== data.rfi_manager_id && prevAssignees.some((a) => a.id === data.ball_in_court_id);
-      const toLabel = newBallWithAssignee ? "Assignees" : "RFI Manager";
-      historyPromises.push(logRFIChange(supabase, session, rfiId, projectId, "ball_in_court_role", fromLabel, toLabel));
     } catch {
       // Email failure should not block the response
     }

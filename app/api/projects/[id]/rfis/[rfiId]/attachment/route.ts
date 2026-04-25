@@ -48,6 +48,6 @@ export async function POST(
     .single();
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
-  logRFIChange(supabase, session, rfiId, projectId, "Attachment Added", null, file.name);
+  await logRFIChange(supabase, session, rfiId, projectId, "Attachment Added", null, file.name);
   return NextResponse.json(updated);
 }
