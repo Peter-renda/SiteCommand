@@ -291,6 +291,23 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     role === "super_admin"
   );
 
+
+  const normalizedUserEmail = userEmail.trim().toLowerCase();
+  const currentUserDirectoryContactIds = directory
+    .filter((contact) => {
+      if (contact.id === userId) return true;
+      if (!normalizedUserEmail || !contact.email) return false;
+      return contact.email.trim().toLowerCase() === normalizedUserEmail;
+    })
+    .map((contact) => contact.id);
+
+  const currentUserIds = [userId, ...currentUserDirectoryContactIds];
+  const effectiveBallInCourtId = rfi?.ball_in_court_id ?? rfi?.rfi_manager_id ?? null;
+
+  const canCurrentUserReturnCourt = effectiveBallInCourtId
+    ? currentUserIds.includes(effectiveBallInCourtId)
+    : false;
+
   useEffect(() => {
     const config = RELATED_ITEM_TYPE_CONFIGS[relatedItemType];
     if (!config?.endpoint) {
@@ -388,9 +405,22 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
   async function handleReturnCourt() {
     if (!rfi) return;
-    setReturningCourt(true);
-    const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
+
+    const currentBallInCourtId = rfi.ball_in_court_id ?? rfi.rfi_manager_id;
+    const ballIsWithAssignee = currentBallInCourtId !== null && currentBallInCourtId !== rfi.rfi_manager_id;
     const newBallInCourtId = ballIsWithAssignee ? rfi.rfi_manager_id : ((rfi.assignees ?? [])[0]?.id ?? null);
+
+    if (!newBallInCourtId) {
+      window.alert("Unable to return court because no recipient is assigned.");
+      return;
+    }
+
+    if (!canCurrentUserReturnCourt) {
+      window.alert("Only the current ball-in-court user can return court.");
+      return;
+    }
+
+    setReturningCourt(true);
     const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1039,8 +1069,15 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
               </dl>
 
               {rfi.status !== "closed" && (() => {
-                const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
-                const targetName = ballIsWithAssignee ? getContactNameById(directory, rfi.rfi_manager_id) : ((rfi.assignees ?? [])[0]?.name ?? "Assignee");
+                const currentBallInCourtId = rfi.ball_in_court_id ?? rfi.rfi_manager_id;
+                const ballIsWithAssignee = currentBallInCourtId !== null && currentBallInCourtId !== rfi.rfi_manager_id;
+                const canReturnCourt = canCurrentUserReturnCourt;
+                if (!canReturnCourt) return null;
+
+                const targetName = ballIsWithAssignee
+                  ? getContactNameById(directory, rfi.rfi_manager_id)
+                  : ((rfi.assignees ?? [])[0]?.name ?? "Assignee");
+
                 return (
                   <div className="flex justify-end mt-6 pt-4 border-t border-gray-100">
                     <button
