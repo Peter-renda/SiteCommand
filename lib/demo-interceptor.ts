@@ -330,6 +330,28 @@ export function installDemoFetchInterceptor(): void {
     }
 
     // ── DELETE ────────────────────────────────────────────────────────────────
+    if (method === "DELETE" && itemId && subAction?.startsWith("responses/")) {
+      const [, responseId] = subAction.split("/");
+      if (!responseId) return makeResponse({ success: false }, 400);
+
+      const collection = toCollection(loadData(collectionUrl));
+      const idx = collection.findIndex((i) => i.id === itemId);
+      if (idx >= 0) {
+        const item = collection[idx];
+        const existingResponses = Array.isArray(item.responses) ? item.responses : [];
+        const nextResponses = existingResponses.filter((r) => {
+          return !r || typeof r !== "object" || (r as { id?: unknown }).id !== responseId;
+        });
+        const nextItem = { ...item, responses: nextResponses };
+        if (item.official_response_id === responseId) {
+          nextItem.official_response_id = null;
+        }
+        collection[idx] = nextItem;
+        saveData(collectionUrl, collection);
+      }
+      return makeResponse({ success: true });
+    }
+
     if (method === "DELETE" && itemId) {
       const collection = toCollection(loadData(collectionUrl));
       saveData(collectionUrl, collection.filter((i) => i.id !== itemId));
