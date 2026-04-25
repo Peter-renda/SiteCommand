@@ -86,15 +86,48 @@ export async function GET() {
   const openItems: OpenItem[] = [];
   const nowIsoDate = new Date().toISOString().slice(0, 10);
 
-  // Open RFIs created by current user
+  const sessionEmail = String(session.email || "").trim().toLowerCase();
+
+  // Open RFIs created by current user, or assigned to them.
   try {
+    const { data: memberships } = await supabase
+      .from("project_memberships")
+      .select("project_id")
+      .eq("user_id", session.id);
+
+    const memberProjectIds = Array.from(new Set((memberships || []).map((m) => m.project_id).filter(Boolean)));
+
     const { data } = await supabase
       .from("rfis")
-      .select("id, subject, status, due_date, project_id")
-      .eq("created_by", session.id)
+      .select("id, subject, status, due_date, project_id, created_by, assignees, assignee_id")
+      .in("project_id", memberProjectIds.length > 0 ? memberProjectIds : ["00000000-0000-0000-0000-000000000000"])
       .neq("status", "closed")
-      .limit(20);
+      .limit(200);
+
     for (const row of data || []) {
+      const assignees = Array.isArray(row.assignees) ? row.assignees : [];
+
+      const assignedByEmail = !!sessionEmail && assignees.some(
+        (assignee) =>
+          assignee &&
+          typeof assignee === "object" &&
+          "email" in assignee &&
+          typeof (assignee as { email?: unknown }).email === "string" &&
+          (assignee as { email: string }).email.trim().toLowerCase() === sessionEmail
+      );
+
+      const assignedByUserId = assignees.some(
+        (assignee) =>
+          assignee &&
+          typeof assignee === "object" &&
+          "id" in assignee &&
+          typeof (assignee as { id?: unknown }).id === "string" &&
+          (assignee as { id: string }).id === session.id
+      );
+
+      const isRelevant = row.created_by === session.id || assignedByEmail || assignedByUserId || row.assignee_id === session.id;
+      if (!isRelevant) continue;
+
       openItems.push({
         id: row.id,
         title: row.subject || "Untitled RFI",
