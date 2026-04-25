@@ -301,11 +301,11 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     })
     .map((contact) => contact.id);
 
-  const canCurrentUserReturnCourt = rfi
-    ? (
-      rfi.ball_in_court_id === userId ||
-      (rfi.ball_in_court_id !== null && currentUserDirectoryContactIds.includes(rfi.ball_in_court_id))
-    )
+  const currentUserIds = [userId, ...currentUserDirectoryContactIds];
+  const effectiveBallInCourtId = rfi?.ball_in_court_id ?? rfi?.rfi_manager_id ?? null;
+
+  const canCurrentUserReturnCourt = effectiveBallInCourtId
+    ? currentUserIds.includes(effectiveBallInCourtId)
     : false;
 
   useEffect(() => {
@@ -406,7 +406,8 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   async function handleReturnCourt() {
     if (!rfi) return;
 
-    const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
+    const currentBallInCourtId = rfi.ball_in_court_id ?? rfi.rfi_manager_id;
+    const ballIsWithAssignee = currentBallInCourtId !== null && currentBallInCourtId !== rfi.rfi_manager_id;
     const newBallInCourtId = ballIsWithAssignee ? rfi.rfi_manager_id : ((rfi.assignees ?? [])[0]?.id ?? null);
 
     if (!newBallInCourtId) {
@@ -1068,7 +1069,8 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
               </dl>
 
               {rfi.status !== "closed" && (() => {
-                const ballIsWithAssignee = rfi.ball_in_court_id !== null && rfi.ball_in_court_id !== rfi.rfi_manager_id;
+                const currentBallInCourtId = rfi.ball_in_court_id ?? rfi.rfi_manager_id;
+                const ballIsWithAssignee = currentBallInCourtId !== null && currentBallInCourtId !== rfi.rfi_manager_id;
                 const canReturnCourt = canCurrentUserReturnCourt;
                 if (!canReturnCourt) return null;
 
