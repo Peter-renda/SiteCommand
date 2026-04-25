@@ -323,18 +323,6 @@ export async function DELETE(
   const { id: projectId, rfiId } = await params;
   const supabase = getSupabase();
 
-  const { data: rfi } = await supabase
-    .from("rfis")
-    .select("id, created_by")
-    .eq("id", rfiId)
-    .eq("project_id", projectId)
-    .single();
-
-  if (!rfi) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
-  if (rfi.created_by !== session.id) {
-    return NextResponse.json({ error: "Only the RFI creator can delete this RFI." }, { status: 403 });
-  }
-
   const { error } = await supabase.from("rfis").delete().eq("id", rfiId).eq("project_id", projectId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
