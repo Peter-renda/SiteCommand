@@ -34,8 +34,17 @@ export async function DELETE(
     return NextResponse.json({ error: "Only the response creator or RFI creator can delete this response." }, { status: 403 });
   }
 
-  if (rfi.official_response_id === responseId) {
-    await supabase.from("rfis").update({ official_response_id: null }).eq("id", rfiId).eq("project_id", projectId);
+  const { error: clearOfficialError, count: clearedCount } = await supabase
+    .from("rfis")
+    .update({ official_response_id: null }, { count: "exact" })
+    .eq("project_id", projectId)
+    .eq("official_response_id", responseId);
+
+  if (clearOfficialError) {
+    return NextResponse.json({ error: clearOfficialError.message }, { status: 500 });
+  }
+
+  if ((clearedCount ?? 0) > 0) {
     await logRFIChange(supabase, session, rfiId, projectId, "Official Response", "Set", "Cleared");
   }
 
