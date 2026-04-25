@@ -284,7 +284,12 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     return () => document.removeEventListener("mousedown", onDocumentMouseDown);
   }, []);
 
-  const canEdit = rfi && rfi.created_by === userId;
+  const canEdit = rfi && (
+    rfi.created_by === null ||
+    rfi.created_by === userId ||
+    role === "admin" ||
+    role === "super_admin"
+  );
 
   useEffect(() => {
     const config = RELATED_ITEM_TYPE_CONFIGS[relatedItemType];
