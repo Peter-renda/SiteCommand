@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { canAccessProject } from "@/lib/project-access";
 import { sendRFIBallInCourtEmail, sendRFIClosedEmail, sendRFIReopenedEmail } from "@/lib/email";
 import { logRFIChange } from "@/lib/rfi-history";
 
@@ -48,6 +49,11 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, rfiId } = await params;
+
+  if (!(await canAccessProject(projectId, session))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const supabase = getSupabase();
 
   const { data, error } = await supabase
