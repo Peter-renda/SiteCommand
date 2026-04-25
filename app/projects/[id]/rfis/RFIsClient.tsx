@@ -448,7 +448,7 @@ function CreateRFIModal({
             </div>
             <label className="inline-flex items-center gap-2 pb-2">
               <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} className="rounded border-gray-300 text-gray-900" />
-              <span className="text-sm text-gray-700">Private (only creator can view)</span>
+              <span className="text-sm text-gray-700">Mark as private</span>
             </label>
           </div>
 

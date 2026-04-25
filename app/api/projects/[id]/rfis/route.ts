@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { canAccessProject } from "@/lib/project-access";
 import { dispatchWebhookEvent } from "@/lib/webhook-dispatch";
 import { logRFIChange } from "@/lib/rfi-history";
 
@@ -9,13 +10,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId } = await params;
+
+  if (!(await canAccessProject(projectId, session))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const supabase = getSupabase();
 
   const { data, error } = await supabase
     .from("rfis")
     .select("*")
     .eq("project_id", projectId)
-    .or(`private.eq.false,created_by.eq.${session.id}`)
     .order("rfi_number", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
