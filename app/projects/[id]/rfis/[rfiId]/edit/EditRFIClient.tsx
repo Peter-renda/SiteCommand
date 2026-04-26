@@ -151,7 +151,9 @@ function SingleContactPicker({
   );
 }
 
-export default function EditRFIClient({ projectId, rfiId, userId, role }: { projectId: string; rfiId: string; userId: string; role: string }) {
+type ToolLevel = "none" | "read_only" | "standard" | "admin";
+
+export default function EditRFIClient({ projectId, rfiId, userId, role, toolLevel }: { projectId: string; rfiId: string; userId: string; role: string; toolLevel: ToolLevel }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -200,11 +202,12 @@ export default function EditRFIClient({ projectId, rfiId, userId, role }: { proj
   }, [projectId, rfiId]);
 
   const canEdit = useMemo(() => Boolean(rfi && (
-    rfi.created_by === null ||
-    rfi.created_by === userId ||
+    toolLevel === "admin" ||
+    toolLevel === "standard" ||
     role === "admin" ||
-    role === "super_admin"
-  )), [rfi, userId, role]);
+    role === "super_admin" ||
+    (toolLevel === "read_only" && (rfi.created_by === null || rfi.created_by === userId))
+  )), [rfi, userId, role, toolLevel]);
 
   async function handleSave() {
     if (!rfi) return;
@@ -266,7 +269,7 @@ export default function EditRFIClient({ projectId, rfiId, userId, role }: { proj
       <>
         <ProjectNav projectId={projectId} role={role} />
         <main className="px-6 py-8">
-          <p className="text-sm text-red-600">Only the creator of this RFI can edit it.</p>
+          <p className="text-sm text-red-600">You don&apos;t have permission to edit this RFI.</p>
           <a href={`/projects/${projectId}/rfis/${rfiId}`} className="inline-block mt-4 text-sm text-gray-700 underline">Back to RFI</a>
         </main>
       </>

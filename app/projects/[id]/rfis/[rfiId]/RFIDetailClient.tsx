@@ -201,7 +201,9 @@ function AttachmentLink({ att }: { att: { name: string; url: string } }) {
   );
 }
 
-export default function RFIDetailClient({ projectId, rfiId, role, username, userId, userEmail }: { projectId: string; rfiId: string; role: string; username: string; userId: string; userEmail: string }) {
+type ToolLevel = "none" | "read_only" | "standard" | "admin";
+
+export default function RFIDetailClient({ projectId, rfiId, role, username, userId, userEmail, toolLevel }: { projectId: string; rfiId: string; role: string; username: string; userId: string; userEmail: string; toolLevel: ToolLevel }) {
   const [rfi, setRfi] = useState<RFI | null>(null);
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
   const [specifications, setSpecifications] = useState<Specification[]>([]);
@@ -293,10 +295,11 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
   }, []);
 
   const canEdit = rfi && (
-    rfi.created_by === null ||
-    rfi.created_by === userId ||
+    toolLevel === "admin" ||
+    toolLevel === "standard" ||
     role === "admin" ||
-    role === "super_admin"
+    role === "super_admin" ||
+    (toolLevel === "read_only" && (rfi.created_by === null || rfi.created_by === userId))
   );
 
 
