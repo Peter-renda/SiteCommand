@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/project-access";
-import { getToolLevel, requireToolLevel } from "@/lib/tool-permissions";
+import { getToolLevel } from "@/lib/tool-permissions";
 import { sendRFIBallInCourtEmail, sendRFIClosedEmail, sendRFIReopenedEmail } from "@/lib/email";
 import { logRFIChange } from "@/lib/rfi-history";
 
@@ -98,6 +98,8 @@ export async function PATCH(
 
   // Permission gate:
   //   - Admins on the RFIs tool may update anything.
+  //   - The RFI creator may update anything on their own RFI (creator carve-out
+  //     so they retain the same affordances as an admin on records they own).
   //   - All other callers (including assignees) may only update `ball_in_court_id`,
   //     and only when they are the current ball-in-court holder. This preserves the
   //     "Return to X's Court" workflow primitive without letting non-admins close,
@@ -106,38 +108,43 @@ export async function PATCH(
   const ballInCourtOnly = updateKeys.length > 0 && updateKeys.every((k) => k === "ball_in_court_id");
   const toolLevel = await getToolLevel(session, projectId, "rfis");
   if (toolLevel !== "admin") {
-    if (!ballInCourtOnly) {
-      return NextResponse.json(
-        { error: "Insufficient rfis permission (admin required)." },
-        { status: 403 },
-      );
-    }
-    const { data: courtRfi } = await supabase
+    const { data: gateRfi } = await supabase
       .from("rfis")
-      .select("ball_in_court_id, rfi_manager_id")
+      .select("created_by, ball_in_court_id, rfi_manager_id")
       .eq("id", rfiId)
       .eq("project_id", projectId)
       .single();
-    if (!courtRfi) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
+    if (!gateRfi) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
 
-    const currentHolderId = courtRfi.ball_in_court_id ?? courtRfi.rfi_manager_id;
-    let isHolder = currentHolderId === session.id;
-    if (!isHolder && currentHolderId && session.email) {
-      const { data: holderContact } = await supabase
-        .from("directory_contacts")
-        .select("id, email")
-        .eq("project_id", projectId)
-        .eq("id", currentHolderId)
-        .single();
-      if (holderContact?.email && holderContact.email.toLowerCase() === session.email.toLowerCase()) {
-        isHolder = true;
-      }
-    }
-    if (!isHolder) {
+    const isCreator = gateRfi.created_by === session.id;
+
+    if (!isCreator && !ballInCourtOnly) {
       return NextResponse.json(
-        { error: "Only the current ball-in-court holder or an RFI admin can return court." },
+        { error: "Insufficient rfis permission (admin or RFI creator required)." },
         { status: 403 },
       );
+    }
+
+    if (!isCreator) {
+      const currentHolderId = gateRfi.ball_in_court_id ?? gateRfi.rfi_manager_id;
+      let isHolder = currentHolderId === session.id;
+      if (!isHolder && currentHolderId && session.email) {
+        const { data: holderContact } = await supabase
+          .from("directory_contacts")
+          .select("id, email")
+          .eq("project_id", projectId)
+          .eq("id", currentHolderId)
+          .single();
+        if (holderContact?.email && holderContact.email.toLowerCase() === session.email.toLowerCase()) {
+          isHolder = true;
+        }
+      }
+      if (!isHolder) {
+        return NextResponse.json(
+          { error: "Only the current ball-in-court holder, an RFI admin, or the RFI creator can update this RFI." },
+          { status: 403 },
+        );
+      }
     }
   }
 
@@ -380,11 +387,26 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, rfiId } = await params;
-
-  const denied = await requireToolLevel(session, projectId, "rfis", "admin");
-  if (denied) return denied;
-
   const supabase = getSupabase();
+
+  // Admins on the RFIs tool may delete any RFI; the RFI creator may delete the
+  // RFI they own.
+  const toolLevel = await getToolLevel(session, projectId, "rfis");
+  if (toolLevel !== "admin") {
+    const { data: existing } = await supabase
+      .from("rfis")
+      .select("created_by")
+      .eq("id", rfiId)
+      .eq("project_id", projectId)
+      .single();
+    if (!existing) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
+    if (existing.created_by !== session.id) {
+      return NextResponse.json(
+        { error: "Only an RFI admin or the RFI creator can delete this RFI." },
+        { status: 403 },
+      );
+    }
+  }
 
   const { error } = await supabase.from("rfis").delete().eq("id", rfiId).eq("project_id", projectId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -298,8 +298,15 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
   // mark a response official, delete comments, or create change events from an
   // RFI. Standard users (including assignees) can still respond to the RFI and
   // return ball-in-court, but cannot mutate the record itself.
+  //
+  // The user who created the RFI is treated as a co-manager on that one record:
+  // they keep the same affordances as an admin (Edit / Close / Delete /
+  // Mark Official / Delete Response / Related Items / Create Change Event)
+  // even if they are not on the admin tier.
   const isAdmin = toolLevel === "admin";
-  const canEdit = Boolean(rfi && isAdmin);
+  const isCreator = Boolean(rfi && rfi.created_by && rfi.created_by === userId);
+  const canManage = Boolean(rfi && (isAdmin || isCreator));
+  const canEdit = canManage;
 
 
   const normalizedUserEmail = userEmail.trim().toLowerCase();
@@ -477,7 +484,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
 
   async function handleDeleteRFI() {
     if (!canEdit) {
-      window.alert("Only an RFI admin can delete this RFI.");
+      window.alert("Only an RFI admin or the RFI creator can delete this RFI.");
       return;
     }
 
@@ -543,7 +550,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
           RFI #{rfi.rfi_number}: {rfi.subject || "No subject"}
         </h1>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {isAdmin && (
+          {canManage && (
             <a
               href={`/projects/${projectId}/change-events/new?sourceType=rfi&sourceId=${rfi.id}`}
               className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors"
@@ -551,7 +558,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
               + Create Change Event
             </a>
           )}
-          {isAdmin && (
+          {canManage && (
             <button
               onClick={handleCloseRFI}
               disabled={closingRFI}
@@ -592,7 +599,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
 
             {showActionsMenu && (
               <div className="absolute right-0 top-10 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-20">
-                {isAdmin && (
+                {canManage && (
                   <a
                     href={`/projects/${projectId}/rfis/${rfi.id}/edit`}
                     onClick={() => setShowActionsMenu(false)}
@@ -609,7 +616,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
                 >
                   {processingAction === "email" ? "Emailing..." : "Email"}
                 </button>
-                {isAdmin && (
+                {canManage && (
                   <a
                     href={`/projects/${projectId}/change-events/new?sourceType=rfi&sourceId=${rfi.id}`}
                     onClick={() => setShowActionsMenu(false)}
@@ -618,7 +625,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
                     Create Change Event
                   </a>
                 )}
-                {isAdmin && (
+                {canManage && (
                   <button
                     type="button"
                     onClick={handleDeleteRFI}
@@ -628,7 +635,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
                     {processingAction === "delete" ? "Deleting..." : "Delete"}
                   </button>
                 )}
-                {isAdmin && (
+                {canManage && (
                   <a
                     href={`/projects/${projectId}/rfis?create=1`}
                     onClick={() => setShowActionsMenu(false)}
@@ -699,7 +706,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
                       {item.href ? (
                         <a href={item.href} className="text-xs text-blue-600 hover:text-blue-800">Open</a>
                       ) : null}
-                      {isAdmin && (
+                      {canManage && (
                         <button
                           type="button"
                           onClick={async () => {
@@ -723,7 +730,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
               </ul>
             )}
 
-            {isAdmin && (
+            {canManage && (
             <>
             <div className="pt-3 border-t border-gray-100">
               <div className="rounded border border-gray-200 bg-gray-50 p-3 space-y-3">
@@ -995,7 +1002,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
                       {/* Mark Official */}
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Mark Official</p>
-                        {isAdmin ? (
+                        {canManage ? (
                           <input type="checkbox" checked={rfi.official_response_id === resp.id} onChange={async (e) => {
                             if (!e.target.checked) return;
                             const previousOfficialResponseId = rfi.official_response_id;
@@ -1020,7 +1027,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
 
                       {/* Delete */}
                       <div className="flex justify-center pt-0.5">
-                        {isAdmin && (
+                        {canManage && (
                           <button onClick={async () => {
                             if (!window.confirm("Delete this response?")) return;
                             setDeletingResponseId(resp.id);
