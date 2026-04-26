@@ -77,7 +77,22 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logRFIChange(supabase, session, rfiId, projectId, "Added Discussion Response", null, body.trim());
+  // Compute the position of this newly-inserted response (chronological order)
+  // so we can label the history entry "Added Response #N".
+  const { count: responseCount } = await supabase
+    .from("rfi_responses")
+    .select("id", { count: "exact", head: true })
+    .eq("rfi_id", rfiId);
+  const responseNumber = responseCount ?? 0;
+  await logRFIChange(
+    supabase,
+    session,
+    rfiId,
+    projectId,
+    responseNumber > 0 ? `Added Response #${responseNumber}` : "Added Response",
+    null,
+    body.trim(),
+  );
 
   // Send email notifications to distribution list, RFI manager, and assignees
   try {

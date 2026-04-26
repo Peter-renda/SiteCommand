@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: existing } = await supabase
     .from("rfis")
-    .select("id, status, due_date")
+    .select("id, status, due_date, assignees")
     .eq("project_id", projectId)
     .in("id", ids);
 
@@ -53,6 +53,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  type Member = { id?: string | null; name?: string | null };
+  const memberKey = (m: Member): string | null => m?.id?.trim() || m?.name?.trim() || null;
+  const memberLabel = (m: Member): string => m?.name?.trim() || m?.id?.trim() || "Unknown";
+
   const previousById = new Map((existing ?? []).map((row) => [row.id, row]));
   const historyJobs: Promise<unknown>[] = [];
 
@@ -61,13 +65,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!previous) continue;
 
     if ("status" in updates && previous.status !== rfi.status) {
-      historyJobs.push(logRFIChange(supabase, session, rfi.id, projectId, "Status", previous.status, rfi.status));
+      const fromLabel = previous.status ? previous.status.charAt(0).toUpperCase() + previous.status.slice(1) : null;
+      const toLabel = rfi.status ? rfi.status.charAt(0).toUpperCase() + rfi.status.slice(1) : null;
+      historyJobs.push(logRFIChange(supabase, session, rfi.id, projectId, "Status", fromLabel, toLabel));
     }
     if ("due_date" in updates && previous.due_date !== rfi.due_date) {
       historyJobs.push(logRFIChange(supabase, session, rfi.id, projectId, "Due Date", previous.due_date, rfi.due_date));
     }
     if ("assignees" in updates) {
-      historyJobs.push(logRFIChange(supabase, session, rfi.id, projectId, "Assignees", "Updated", "Updated"));
+      const prevList: Member[] = Array.isArray(previous.assignees) ? (previous.assignees as Member[]) : [];
+      const nextList: Member[] = Array.isArray(rfi.assignees) ? (rfi.assignees as Member[]) : [];
+      const prevKeys = new Set(prevList.map(memberKey).filter((k): k is string => Boolean(k)));
+      const nextKeys = new Set(nextList.map(memberKey).filter((k): k is string => Boolean(k)));
+      for (const m of nextList) {
+        const k = memberKey(m);
+        if (k && !prevKeys.has(k)) {
+          historyJobs.push(logRFIChange(supabase, session, rfi.id, projectId, "Added Assignee", null, memberLabel(m)));
+        }
+      }
+      for (const m of prevList) {
+        const k = memberKey(m);
+        if (k && !nextKeys.has(k)) {
+          historyJobs.push(logRFIChange(supabase, session, rfi.id, projectId, "Removed Assignee", memberLabel(m), null));
+        }
+      }
     }
   }
 
