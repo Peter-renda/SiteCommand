@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { calculateSubmittalSchedule } from "@/lib/submittalSchedule";
+import { logSubmittalDiff } from "@/lib/submittal-history";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -131,5 +132,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logSubmittalDiff(
+    supabase,
+    session,
+    data.id,
+    projectId,
+    null,
+    data as Record<string, unknown>,
+  );
   return NextResponse.json(data);
 }

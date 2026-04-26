@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { calculateSubmittalSchedule } from "@/lib/submittalSchedule";
+import { logSubmittalDiff } from "@/lib/submittal-history";
 
 export async function GET(
   _req: NextRequest,
@@ -62,6 +63,14 @@ export async function PATCH(
   }
 
   const supabase = getSupabase();
+  const { data: previous } = await supabase
+    .from("submittals")
+    .select("*")
+    .eq("id", submittalId)
+    .eq("project_id", projectId)
+    .eq("is_deleted", false)
+    .single();
+
   const { data, error } = await supabase
     .from("submittals")
     .update(update)
@@ -72,6 +81,14 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logSubmittalDiff(
+    supabase,
+    session,
+    submittalId,
+    projectId,
+    (previous ?? null) as Record<string, unknown> | null,
+    data as Record<string, unknown>,
+  );
   return NextResponse.json(data);
 }
 
