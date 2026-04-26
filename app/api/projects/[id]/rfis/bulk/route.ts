@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { requireToolLevel } from "@/lib/tool-permissions";
 import { logRFIChange } from "@/lib/rfi-history";
 
 type BulkBody = {
@@ -17,6 +18,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId } = await params;
+
+  const denied = await requireToolLevel(session, projectId, "rfis", "admin");
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const body = (await req.json()) as BulkBody;

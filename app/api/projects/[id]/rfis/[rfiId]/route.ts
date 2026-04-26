@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/project-access";
+import { getToolLevel, requireToolLevel } from "@/lib/tool-permissions";
 import { sendRFIBallInCourtEmail, sendRFIClosedEmail, sendRFIReopenedEmail } from "@/lib/email";
 import { logRFIChange } from "@/lib/rfi-history";
 
@@ -94,6 +95,51 @@ export async function PATCH(
   }
 
   const supabase = getSupabase();
+
+  // Permission gate:
+  //   - Admins on the RFIs tool may update anything.
+  //   - All other callers (including assignees) may only update `ball_in_court_id`,
+  //     and only when they are the current ball-in-court holder. This preserves the
+  //     "Return to X's Court" workflow primitive without letting non-admins close,
+  //     edit, mark-official, or otherwise mutate the RFI.
+  const updateKeys = Object.keys(update);
+  const ballInCourtOnly = updateKeys.length > 0 && updateKeys.every((k) => k === "ball_in_court_id");
+  const toolLevel = await getToolLevel(session, projectId, "rfis");
+  if (toolLevel !== "admin") {
+    if (!ballInCourtOnly) {
+      return NextResponse.json(
+        { error: "Insufficient rfis permission (admin required)." },
+        { status: 403 },
+      );
+    }
+    const { data: courtRfi } = await supabase
+      .from("rfis")
+      .select("ball_in_court_id, rfi_manager_id")
+      .eq("id", rfiId)
+      .eq("project_id", projectId)
+      .single();
+    if (!courtRfi) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
+
+    const currentHolderId = courtRfi.ball_in_court_id ?? courtRfi.rfi_manager_id;
+    let isHolder = currentHolderId === session.id;
+    if (!isHolder && currentHolderId && session.email) {
+      const { data: holderContact } = await supabase
+        .from("directory_contacts")
+        .select("id, email")
+        .eq("project_id", projectId)
+        .eq("id", currentHolderId)
+        .single();
+      if (holderContact?.email && holderContact.email.toLowerCase() === session.email.toLowerCase()) {
+        isHolder = true;
+      }
+    }
+    if (!isHolder) {
+      return NextResponse.json(
+        { error: "Only the current ball-in-court holder or an RFI admin can return court." },
+        { status: 403 },
+      );
+    }
+  }
 
   // Fetch current RFI state before updating so we can detect transitions
   const { data: prevRfi } = await supabase
@@ -334,6 +380,10 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, rfiId } = await params;
+
+  const denied = await requireToolLevel(session, projectId, "rfis", "admin");
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const { error } = await supabase.from("rfis").delete().eq("id", rfiId).eq("project_id", projectId);

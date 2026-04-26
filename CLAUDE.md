@@ -1246,3 +1246,40 @@ Change event line items cannot be added to a commitment when:
 - UI: `SsovPanel` in `CommitmentDetailClient.tsx` surfaces **Send SSOV Notification** (when editable + contact assigned), **Edit Subcontractor SOV**, **Submit**, **Return to Revise & Resubmit**, and **Approve**. The review buttons only appear while status is `under_review` (`canReview`).
 - Migration: `101_commitment_ssov_approved_at.sql` adds `commitments.ssov_approved_at` TIMESTAMPTZ.
 - SiteCommand uses a single **invoice contact** on the commitment (`subcontractor_contact`) rather than a distribution list; notifications are sent to that contact only.
+
+## RFI Tool – Admin-Only Mutations
+
+### Overview
+The RFIs tool restricts every mutation that changes RFI state to users with **Admin** level on the RFIs tool. Assignees, the distribution list, and the ball-in-court holder can still respond to the RFI (and return court) but cannot create, edit, close, delete, mark a response official, delete comments, or create change events from an RFI.
+
+### Required Permission
+- **Admin** on the RFIs tool. Per `getToolLevel`, that resolves to:
+  - **Site Command Admin** acting in support context (when granted),
+  - **Company Super Admin / Company Admin** on a project owned by their company,
+  - **Project Admin** members,
+  - or any user with an explicit `admin` row in `project_tool_permissions` for `tool = "rfis"`.
+- Company Members default to **Standard** and External Collaborators default to **Read Only**; both are blocked from the actions below.
+
+### Admin-Only Actions
+- **Create an RFI** (`POST /api/projects/[id]/rfis`).
+- **Edit an RFI** (`PATCH /api/projects/[id]/rfis/[rfiId]`) — every field except a ball-in-court-only update is admin-only.
+- **Delete an RFI** (`DELETE /api/projects/[id]/rfis/[rfiId]`).
+- **Close / Reopen an RFI** — implemented as a status PATCH; admin-only.
+- **Bulk update RFIs** (`POST /api/projects/[id]/rfis/bulk`) — bulk status/due-date/assignee changes are admin-only.
+- **Mark a response as Official** — PATCH of `official_response_id`; admin-only.
+- **Delete a comment / response** (`DELETE /api/projects/[id]/rfis/[rfiId]/responses/[responseId]`) — admin-only (no longer allowed to the response creator or RFI creator).
+- **Add / remove Related Items** on an RFI — backed by PATCH `related_items`; admin-only.
+- **Create a Change Event from an RFI** — the "Create Change Event" entry points on the RFI page are hidden from non-admins; the change-events tool retains its own permission gate at the API level.
+
+### Non-Admin Actions Still Permitted
+- **View** the RFI list and detail (subject to existing read access).
+- **Add a response / comment** to the RFI (`POST /api/projects/[id]/rfis/[rfiId]/responses`).
+- **Return Ball in Court** when the user is the current ball-in-court holder. Implemented as a `ball_in_court_id`-only PATCH with a server-side check that the caller matches the current holder (or is an admin).
+- Email the distribution list (`POST /api/projects/[id]/rfis/[rfiId]/notify`) — notification, not a mutation of RFI state.
+
+### Implementation Notes (SiteCommand)
+- Permission helper: `requireToolLevel(session, projectId, "rfis", "admin")` from `lib/tool-permissions.ts` is called at the top of `POST /api/projects/[id]/rfis`, `DELETE /api/projects/[id]/rfis/[rfiId]`, `POST /api/projects/[id]/rfis/bulk`, and `DELETE /api/projects/[id]/rfis/[rfiId]/responses/[responseId]`.
+- `PATCH /api/projects/[id]/rfis/[rfiId]` resolves the tool level and short-circuits non-admins unless the request body only contains `ball_in_court_id`, in which case it additionally verifies the caller is the current ball-in-court holder (matched by `session.id` or by the holder contact's email).
+- The previous "response creator or RFI creator" rule on response deletion has been replaced by the admin gate; the route no longer reads `rfis.created_by` for that decision.
+- Client gates: `RFIDetailClient.tsx` derives `isAdmin = toolLevel === "admin"` and uses it to hide Edit, Delete, Close/Reopen, Create Change Event, Mark Official, Delete-Response, Related Item add/remove, and Create RFI affordances. `RFIsClient.tsx` uses the same `isAdmin` flag to hide the New RFI button, the row Edit icon, the row selection checkboxes, and the bulk-edit toolbar.
+- `app/projects/[id]/rfis/page.tsx` now resolves `getToolLevel(..., "rfis")` and passes it to `RFIsClient`.

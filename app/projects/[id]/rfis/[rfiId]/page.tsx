@@ -13,7 +13,6 @@ export default async function RFIDetailPage({ params }: { params: Promise<{ id: 
     <RFIDetailClient
       projectId={id}
       rfiId={rfiId}
-      role={session.role}
       username={session.username}
       userId={session.id}
       userEmail={session.email}
