@@ -203,7 +203,7 @@ function AttachmentLink({ att }: { att: { name: string; url: string } }) {
 
 type ToolLevel = "none" | "read_only" | "standard" | "admin";
 
-export default function RFIDetailClient({ projectId, rfiId, role, username, userId, userEmail, toolLevel }: { projectId: string; rfiId: string; role: string; username: string; userId: string; userEmail: string; toolLevel: ToolLevel }) {
+export default function RFIDetailClient({ projectId, rfiId, username, userId, userEmail, toolLevel }: { projectId: string; rfiId: string; username: string; userId: string; userEmail: string; toolLevel: ToolLevel }) {
   const [rfi, setRfi] = useState<RFI | null>(null);
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
   const [specifications, setSpecifications] = useState<Specification[]>([]);
@@ -294,13 +294,12 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
     return () => document.removeEventListener("mousedown", onDocumentMouseDown);
   }, []);
 
-  const canEdit = rfi && (
-    toolLevel === "admin" ||
-    toolLevel === "standard" ||
-    role === "admin" ||
-    role === "super_admin" ||
-    (toolLevel === "read_only" && (rfi.created_by === null || rfi.created_by === userId))
-  );
+  // Admin on the RFIs tool is the only role permitted to edit, close, delete,
+  // mark a response official, delete comments, or create change events from an
+  // RFI. Standard users (including assignees) can still respond to the RFI and
+  // return ball-in-court, but cannot mutate the record itself.
+  const isAdmin = toolLevel === "admin";
+  const canEdit = Boolean(rfi && isAdmin);
 
 
   const normalizedUserEmail = userEmail.trim().toLowerCase();
@@ -478,7 +477,7 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
   async function handleDeleteRFI() {
     if (!canEdit) {
-      window.alert("Only the RFI creator can delete this RFI.");
+      window.alert("Only an RFI admin can delete this RFI.");
       return;
     }
 
@@ -544,19 +543,23 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
           RFI #{rfi.rfi_number}: {rfi.subject || "No subject"}
         </h1>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <a
-            href={`/projects/${projectId}/change-events/new?sourceType=rfi&sourceId=${rfi.id}`}
-            className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors"
-          >
-            + Create Change Event
-          </a>
-          <button
-            onClick={handleCloseRFI}
-            disabled={closingRFI}
-            className={`px-3 py-1.5 text-sm font-medium rounded transition-colors disabled:opacity-50 ${rfi.status === "closed" ? "bg-gray-600 text-white hover:bg-gray-700" : "bg-gray-900 text-white hover:bg-gray-700"}`}
-          >
-            {closingRFI ? "..." : rfi.status === "closed" ? "Reopen RFI" : "Close RFI"}
-          </button>
+          {isAdmin && (
+            <a
+              href={`/projects/${projectId}/change-events/new?sourceType=rfi&sourceId=${rfi.id}`}
+              className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors"
+            >
+              + Create Change Event
+            </a>
+          )}
+          {isAdmin && (
+            <button
+              onClick={handleCloseRFI}
+              disabled={closingRFI}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors disabled:opacity-50 ${rfi.status === "closed" ? "bg-gray-600 text-white hover:bg-gray-700" : "bg-gray-900 text-white hover:bg-gray-700"}`}
+            >
+              {closingRFI ? "..." : rfi.status === "closed" ? "Reopen RFI" : "Close RFI"}
+            </button>
+          )}
           {canEdit && (
             <a
               href={`/projects/${projectId}/rfis/${rfi.id}/edit`}
@@ -589,13 +592,15 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
 
             {showActionsMenu && (
               <div className="absolute right-0 top-10 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-20">
-                <a
-                  href={`/projects/${projectId}/rfis/${rfi.id}/edit`}
-                  onClick={() => setShowActionsMenu(false)}
-                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                >
-                  Edit
-                </a>
+                {isAdmin && (
+                  <a
+                    href={`/projects/${projectId}/rfis/${rfi.id}/edit`}
+                    onClick={() => setShowActionsMenu(false)}
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    Edit
+                  </a>
+                )}
                 <button
                   type="button"
                   onClick={handleEmailRFI}
@@ -604,28 +609,34 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                 >
                   {processingAction === "email" ? "Emailing..." : "Email"}
                 </button>
-                <a
-                  href={`/projects/${projectId}/change-events/new?sourceType=rfi&sourceId=${rfi.id}`}
-                  onClick={() => setShowActionsMenu(false)}
-                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                >
-                  Create Change Event
-                </a>
-                <button
-                  type="button"
-                  onClick={handleDeleteRFI}
-                  disabled={processingAction !== null || !canEdit}
-                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                >
-                  {processingAction === "delete" ? "Deleting..." : "Delete"}
-                </button>
-                <a
-                  href={`/projects/${projectId}/rfis?create=1`}
-                  onClick={() => setShowActionsMenu(false)}
-                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                >
-                  Create RFI
-                </a>
+                {isAdmin && (
+                  <a
+                    href={`/projects/${projectId}/change-events/new?sourceType=rfi&sourceId=${rfi.id}`}
+                    onClick={() => setShowActionsMenu(false)}
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    Create Change Event
+                  </a>
+                )}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteRFI}
+                    disabled={processingAction !== null || !canEdit}
+                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {processingAction === "delete" ? "Deleting..." : "Delete"}
+                  </button>
+                )}
+                {isAdmin && (
+                  <a
+                    href={`/projects/${projectId}/rfis?create=1`}
+                    onClick={() => setShowActionsMenu(false)}
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    Create RFI
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -688,28 +699,32 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                       {item.href ? (
                         <a href={item.href} className="text-xs text-blue-600 hover:text-blue-800">Open</a>
                       ) : null}
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!rfi) return;
-                          const next = (rfi.related_items ?? []).filter((x) => x.id !== item.id);
-                          const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ related_items: next }),
-                          });
-                          if (res.ok) setRfi(await res.json());
-                        }}
-                        className="text-xs text-red-600 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!rfi) return;
+                            const next = (rfi.related_items ?? []).filter((x) => x.id !== item.id);
+                            const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ related_items: next }),
+                            });
+                            if (res.ok) setRfi(await res.json());
+                          }}
+                          className="text-xs text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}
               </ul>
             )}
 
+            {isAdmin && (
+            <>
             <div className="pt-3 border-t border-gray-100">
               <div className="rounded border border-gray-200 bg-gray-50 p-3 space-y-3">
                 <label className="block text-xs font-medium text-gray-700">
@@ -796,6 +811,8 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                 Add Related Item
               </button>
             </div>
+            </>
+            )}
           </div>
         )}
 
@@ -978,49 +995,55 @@ export default function RFIDetailClient({ projectId, rfiId, role, username, user
                       {/* Mark Official */}
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Mark Official</p>
-                        <input type="checkbox" checked={rfi.official_response_id === resp.id} onChange={async (e) => {
-                          if (!e.target.checked) return;
-                          const previousOfficialResponseId = rfi.official_response_id;
-                          setRfi({ ...rfi, official_response_id: resp.id });
-                          setSavingOfficialResponseId(resp.id);
-                          const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ official_response_id: resp.id }),
-                          });
-                          if (res.ok) {
-                            setRfi(await res.json());
-                          } else {
-                            setRfi({ ...rfi, official_response_id: previousOfficialResponseId });
-                          }
-                          setSavingOfficialResponseId(null);
-                        }} disabled={savingOfficialResponseId === resp.id} className="w-4 h-4 rounded border-gray-300 text-gray-900 cursor-pointer" />
+                        {isAdmin ? (
+                          <input type="checkbox" checked={rfi.official_response_id === resp.id} onChange={async (e) => {
+                            if (!e.target.checked) return;
+                            const previousOfficialResponseId = rfi.official_response_id;
+                            setRfi({ ...rfi, official_response_id: resp.id });
+                            setSavingOfficialResponseId(resp.id);
+                            const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ official_response_id: resp.id }),
+                            });
+                            if (res.ok) {
+                              setRfi(await res.json());
+                            } else {
+                              setRfi({ ...rfi, official_response_id: previousOfficialResponseId });
+                            }
+                            setSavingOfficialResponseId(null);
+                          }} disabled={savingOfficialResponseId === resp.id} className="w-4 h-4 rounded border-gray-300 text-gray-900 cursor-pointer" />
+                        ) : (
+                          <span className="text-xs text-gray-400">{rfi.official_response_id === resp.id ? "Yes" : "—"}</span>
+                        )}
                       </div>
 
                       {/* Delete */}
                       <div className="flex justify-center pt-0.5">
-                        <button onClick={async () => {
-                          if (!window.confirm("Delete this response?")) return;
-                          setDeletingResponseId(resp.id);
-                          try {
-                            const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${resp.id}`, { method: "DELETE" });
-                            if (res.ok) {
-                              setResponses((prev) => prev.filter((r) => r.id !== resp.id));
-                              if (rfi.official_response_id === resp.id) setRfi((prev) => prev ? { ...prev, official_response_id: null } : prev);
-                            } else {
-                              const err = await res.json().catch(() => ({}));
-                              window.alert(err.error || "Failed to delete response.");
+                        {isAdmin && (
+                          <button onClick={async () => {
+                            if (!window.confirm("Delete this response?")) return;
+                            setDeletingResponseId(resp.id);
+                            try {
+                              const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}/responses/${resp.id}`, { method: "DELETE" });
+                              if (res.ok) {
+                                setResponses((prev) => prev.filter((r) => r.id !== resp.id));
+                                if (rfi.official_response_id === resp.id) setRfi((prev) => prev ? { ...prev, official_response_id: null } : prev);
+                              } else {
+                                const err = await res.json().catch(() => ({}));
+                                window.alert(err.error || "Failed to delete response.");
+                              }
+                            } catch {
+                              window.alert("Network error. Failed to delete response.");
+                            } finally {
+                              setDeletingResponseId(null);
                             }
-                          } catch {
-                            window.alert("Network error. Failed to delete response.");
-                          } finally {
-                            setDeletingResponseId(null);
-                          }
-                        }} disabled={deletingResponseId === resp.id} className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-40" title="Delete response">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                          }} disabled={deletingResponseId === resp.id} className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-40" title="Delete response">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

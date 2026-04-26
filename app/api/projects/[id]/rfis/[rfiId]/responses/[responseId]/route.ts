@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { requireToolLevel } from "@/lib/tool-permissions";
 import { logRFIChange } from "@/lib/rfi-history";
 
 export async function DELETE(
@@ -11,11 +12,15 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, rfiId, responseId } = await params;
+
+  const denied = await requireToolLevel(session, projectId, "rfis", "admin");
+  if (denied) return denied;
+
   const supabase = getSupabase();
 
   const { data: rfi } = await supabase
     .from("rfis")
-    .select("id, created_by, official_response_id")
+    .select("id, official_response_id")
     .eq("id", rfiId)
     .eq("project_id", projectId)
     .single();
@@ -28,11 +33,6 @@ export async function DELETE(
     .eq("rfi_id", rfiId)
     .single();
   if (!response) return NextResponse.json({ error: "Response not found" }, { status: 404 });
-
-  const canDelete = response.created_by === session.id || rfi.created_by === session.id;
-  if (!canDelete) {
-    return NextResponse.json({ error: "Only the response creator or RFI creator can delete this response." }, { status: 403 });
-  }
 
   const { error: clearOfficialError, count: clearedCount } = await supabase
     .from("rfis")
