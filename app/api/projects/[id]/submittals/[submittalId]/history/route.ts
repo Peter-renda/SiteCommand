@@ -22,6 +22,18 @@ export async function GET(
 
   if (!submittal) return NextResponse.json({ error: "Submittal not found" }, { status: 404 });
 
+  const { data, error } = await supabase
+    .from("submittal_change_history")
+    .select("id, action, from_value, to_value, changed_by_name, changed_by_company, created_at")
+    .eq("submittal_id", submittalId)
+    .order("created_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const history = data ?? [];
+  const hasCreatedEntry = history.some((entry) => entry.action === "Created Submittal");
+  if (hasCreatedEntry) return NextResponse.json(history);
+
   let changedByName: string | null = null;
   let changedByCompany: string | null = null;
 
@@ -46,6 +58,7 @@ export async function GET(
   }
 
   return NextResponse.json([
+    ...history,
     {
       id: `synthetic-created-${submittal.id}`,
       action: "Created Submittal",
