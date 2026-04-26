@@ -3,23 +3,26 @@
 import { useEffect } from "react";
 import { installDemoFetchInterceptor } from "@/lib/demo-interceptor";
 
-/**
- * DemoProvider
- *
- * Mounts invisibly in the root layout. If the `demo_mode` cookie is present
- * (set at demo login), it installs the client-side fetch interceptor so all
- * API mutations are handled in sessionStorage instead of reaching the server.
- *
- * sessionStorage is cleared automatically by the browser when the tab closes,
- * so no demo data persists beyond the current browser tab.
- */
+function hasDemoCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.cookie
+    .split(";")
+    .some((c) => c.trim().startsWith("demo_mode="));
+}
+
+// Install the fetch interceptor as soon as this client module loads, before any
+// child component's useEffect can fire a fetch. React runs effects child-first,
+// so deferring install to DemoProvider's useEffect causes a race where the very
+// first page-load fetches bypass the interceptor and read empty data from the
+// real server, making demo data (like newly created RFIs) appear to vanish on
+// reload or after a logout/login cycle.
+if (typeof window !== "undefined" && hasDemoCookie()) {
+  installDemoFetchInterceptor();
+}
+
 export default function DemoProvider() {
   useEffect(() => {
-    const isDemo = document.cookie
-      .split(";")
-      .some((c) => c.trim().startsWith("demo_mode="));
-
-    if (isDemo) {
+    if (hasDemoCookie()) {
       installDemoFetchInterceptor();
     }
   }, []);

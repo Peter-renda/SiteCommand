@@ -205,8 +205,12 @@ const AUTH_PATHS = new Set([
   "/api/auth/signup",
 ]);
 
+let interceptorInstalled = false;
+
 export function installDemoFetchInterceptor(): void {
   if (typeof window === "undefined") return;
+  if (interceptorInstalled) return;
+  interceptorInstalled = true;
 
   const originalFetch = window.fetch.bind(window);
 
