@@ -63,6 +63,30 @@ type EditableSubmittalFields = Pick<
   Submittal,
   "title" | "revision" | "submittal_type" | "status" | "submit_by" | "issue_date" | "cost_code" | "linked_drawings" | "description"
 >;
+type RelatedItemInstance = { id: string; label: string };
+type RelatedItemTypeConfig = {
+  endpoint?: string;
+  query?: string;
+  buildLabel?: (row: Record<string, unknown>) => string;
+};
+type ChangeHistoryEntry = {
+  id: string;
+  action: string;
+  from_value: string | null;
+  to_value: string | null;
+  changed_by_name: string | null;
+  changed_by_company: string | null;
+  created_at: string;
+};
+
+function pickString(row: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "string" && value.trim().length > 0) return value;
+    if (typeof value === "number") return String(value);
+  }
+  return null;
+}
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -148,12 +172,29 @@ function DownloadIcon() {
 }
 
 const DIST_SHOW_LIMIT = 4;
-const tabs: { key: "general" | "related" | "emails" | "history"; label: string }[] = [
-  { key: "general", label: "General" },
-  { key: "related", label: "Related" },
-  { key: "emails", label: "Emails" },
-  { key: "history", label: "History" },
-];
+const RELATED_ITEM_OPTIONS = [
+  { value: "change_event", label: "Change Event" },
+  { value: "drawing", label: "Drawing" },
+  { value: "meeting", label: "Meeting" },
+  { value: "punch_item", label: "Punch Item" },
+  { value: "rfi", label: "RFI" },
+  { value: "submittals", label: "Submittal" },
+  { value: "submittal_package", label: "Submittal Package" },
+  { value: "task_item", label: "Task Item" },
+  { value: "transmittals", label: "Transmittal" },
+] as const;
+
+const RELATED_ITEM_TYPE_CONFIGS: Record<string, RelatedItemTypeConfig> = {
+  change_event: { endpoint: "change-events", buildLabel: (row) => `${pickString(row, ["number"]) ? `CE #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title"]) ?? "Change Event"}` },
+  drawing: { endpoint: "drawings", buildLabel: (row) => pickString(row, ["title", "number", "name"]) ?? "Drawing" },
+  meeting: { endpoint: "meetings", buildLabel: (row) => pickString(row, ["title", "subject", "name"]) ?? "Meeting" },
+  punch_item: { endpoint: "punch-list", buildLabel: (row) => `${pickString(row, ["number"]) ? `Punch #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title", "description"]) ?? "Punch Item"}` },
+  rfi: { endpoint: "rfis", buildLabel: (row) => `${pickString(row, ["rfi_number", "number"]) ? `RFI #${pickString(row, ["rfi_number", "number"])}: ` : ""}${pickString(row, ["subject", "title"]) ?? "RFI"}` },
+  submittal_package: { endpoint: "submittal-packages", buildLabel: (row) => `${pickString(row, ["number"]) ? `Package #${pickString(row, ["number"])}: ` : ""}${pickString(row, ["title", "name"]) ?? "Submittal Package"}` },
+  submittals: { endpoint: "submittals", buildLabel: (row) => `${pickString(row, ["submittal_number", "number"]) ? `Submittal #${pickString(row, ["submittal_number", "number"])}: ` : ""}${pickString(row, ["title", "subject"]) ?? "Submittal"}` },
+  task_item: { endpoint: "tasks", buildLabel: (row) => pickString(row, ["title", "name", "description"]) ?? "Task Item" },
+  transmittals: { endpoint: "transmittals", buildLabel: (row) => `${pickString(row, ["transmittal_number", "number"]) ? `Transmittal #${pickString(row, ["transmittal_number", "number"])}: ` : ""}${pickString(row, ["subject", "title"]) ?? "Transmittal"}` },
+};
 
 export default function SubmittalDetailClient({
   projectId,
@@ -188,10 +229,15 @@ export default function SubmittalDetailClient({
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [newRelatedType, setNewRelatedType] = useState("Change Event");
-  const [newRelatedTitle, setNewRelatedTitle] = useState("");
-  const [newRelatedNotes, setNewRelatedNotes] = useState("");
+  const [relatedItemType, setRelatedItemType] = useState("change_event");
+  const [relatedItemInstanceId, setRelatedItemInstanceId] = useState("");
+  const [relatedItemInstances, setRelatedItemInstances] = useState<RelatedItemInstance[]>([]);
+  const [loadingRelatedItemInstances, setLoadingRelatedItemInstances] = useState(false);
+  const [relatedItemNotes, setRelatedItemNotes] = useState("");
   const [savingRelated, setSavingRelated] = useState(false);
+  const [history, setHistory] = useState<ChangeHistoryEntry[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editValues, setEditValues] = useState<EditableSubmittalFields | null>(null);
@@ -369,6 +415,63 @@ export default function SubmittalDetailClient({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [menuOpen]);
 
+  async function loadHistory() {
+    if (historyLoading || historyLoaded) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/submittals/${submittalId}/history`);
+      const data = await res.json().catch(() => []);
+      setHistory(Array.isArray(data) ? data : []);
+      setHistoryLoaded(true);
+    } catch {
+      setHistory([]);
+      setHistoryLoaded(true);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const config = RELATED_ITEM_TYPE_CONFIGS[relatedItemType];
+    if (!config?.endpoint) {
+      setRelatedItemInstances([]);
+      setRelatedItemInstanceId("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingRelatedItemInstances(true);
+      try {
+        const qs = config.query ? `?${config.query}` : "";
+        const res = await fetch(`/api/projects/${projectId}/${config.endpoint}${qs}`);
+        const raw = await res.json().catch(() => []);
+        if (cancelled) return;
+        const rows = Array.isArray(raw) ? raw : [];
+        const next = rows
+          .map((row) => {
+            const obj = (row ?? {}) as Record<string, unknown>;
+            const id = pickString(obj, ["id"]);
+            if (!id) return null;
+            const label = config.buildLabel ? config.buildLabel(obj) : pickString(obj, ["title", "name", "number", "id"]) ?? id;
+            return { id, label };
+          })
+          .filter((item): item is RelatedItemInstance => item !== null);
+        setRelatedItemInstances(next);
+        setRelatedItemInstanceId("");
+      } catch {
+        if (!cancelled) {
+          setRelatedItemInstances([]);
+          setRelatedItemInstanceId("");
+        }
+      } finally {
+        if (!cancelled) setLoadingRelatedItemInstances(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, relatedItemType]);
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/");
@@ -487,10 +590,18 @@ export default function SubmittalDetailClient({
       {/* Tabs */}
       <div className="bg-white border-b border-gray-200 px-6">
         <nav className="flex gap-0 -mb-px">
-          {tabs.map((tab) => (
+          {[
+            { key: "general", label: "General" },
+            { key: "related", label: `Related Items (${(submittal.related_items ?? []).length})` },
+            { key: "emails", label: "Emails" },
+            { key: "history", label: `Change History (${history.length})` },
+          ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as "general" | "related" | "emails" | "history")}
+              onClick={() => {
+                setActiveTab(tab.key as "general" | "related" | "emails" | "history");
+                if (tab.key === "history") loadHistory();
+              }}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? "border-gray-900 text-gray-900"
@@ -511,8 +622,42 @@ export default function SubmittalDetailClient({
         )}
 
         {activeTab === "history" && (
-          <div className="bg-white border border-gray-200 rounded-lg px-6 py-12 text-center">
-            <p className="text-sm text-gray-400">Change history is coming soon.</p>
+          <div className="bg-white border border-gray-200 rounded-lg">
+            {historyLoading && !historyLoaded ? (
+              <p className="px-6 py-8 text-sm text-gray-400">Loading change history…</p>
+            ) : history.length === 0 ? (
+              <p className="px-6 py-8 text-sm text-gray-400">No change history yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[780px] text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">From</th>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">To</th>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Changed By</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((entry, idx) => (
+                      <tr key={entry.id} className={idx < history.length - 1 ? "border-b border-gray-100" : ""}>
+                        <td className="px-4 py-2 text-gray-700 whitespace-nowrap">
+                          {new Date(entry.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
+                        </td>
+                        <td className="px-4 py-2 text-gray-900">{entry.action}</td>
+                        <td className="px-4 py-2 text-gray-700">{entry.from_value ?? "—"}</td>
+                        <td className="px-4 py-2 text-gray-700">{entry.to_value ?? "—"}</td>
+                        <td className="px-4 py-2 text-gray-700">
+                          {entry.changed_by_name ?? "Unknown"}
+                          {entry.changed_by_company ? <span className="text-gray-500"> • {entry.changed_by_company}</span> : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -522,65 +667,83 @@ export default function SubmittalDetailClient({
             {(submittal.related_items ?? []).length === 0 ? (
               <p className="text-sm text-gray-500">No related items added.</p>
             ) : (
-              <ul className="space-y-2">
+              <div className="divide-y divide-gray-100 border border-gray-100 rounded-md bg-white">
                 {(submittal.related_items ?? []).map((item, idx) => (
-                  <li key={`${item.href}-${idx}`} className="text-sm">
-                    <span className="text-gray-900">{item.title || "Untitled item"}</span>
-                    <span className="text-gray-500"> · {item.type || "link"}</span>
-                    {item.notes ? <span className="text-gray-500"> · {item.notes}</span> : null}
-                  </li>
+                  <div key={`${item.href}-${idx}`} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div>
+                      <p className="text-sm text-gray-900">{item.title || "Untitled item"}</p>
+                      <p className="text-xs text-gray-500">{item.type || "link"}{item.notes ? ` • ${item.notes}` : ""}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-xs text-red-600 hover:text-red-700"
+                      onClick={async () => {
+                        const next = (submittal.related_items ?? []).filter((_, i) => i !== idx);
+                        const res = await fetch(`/api/projects/${projectId}/submittals/${submittalId}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ related_items: next }),
+                        });
+                        if (res.ok) setSubmittal(await res.json());
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
             <div className="mt-4 border-t border-gray-100 pt-4">
               <div className="rounded border border-gray-200 bg-gray-50 p-3 space-y-3">
                 <label className="block text-xs font-medium text-gray-700">
                   Link Related Items
                   <select
-                    value={newRelatedType}
+                    value={relatedItemType}
                     onChange={(e) => {
-                      setNewRelatedType(e.target.value);
-                      setNewRelatedTitle("");
+                      setRelatedItemType(e.target.value);
+                      setRelatedItemInstanceId("");
                     }}
                     className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm bg-white"
                   >
-                    <option>Change Event</option>
-                    <option>RFI</option>
-                    <option>Submittal</option>
-                    <option>Transmittal</option>
-                    <option>Punch Item</option>
-                    <option>Meeting</option>
+                    {RELATED_ITEM_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </label>
                 <label className="block text-xs font-medium text-gray-700">
-                  {`Select the ${newRelatedType}`}
-                  <input
-                    value={newRelatedTitle}
-                    onChange={(e) => setNewRelatedTitle(e.target.value)}
-                    className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                    placeholder="Enter related item"
+                  Select Existing
+                  <select
+                    value={relatedItemInstanceId}
+                    onChange={(e) => setRelatedItemInstanceId(e.target.value)}
+                    disabled={loadingRelatedItemInstances || relatedItemInstances.length === 0}
+                    className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm bg-white disabled:bg-gray-100"
+                  >
+                    <option value="">{loadingRelatedItemInstances ? "Loading…" : "Select…"}</option>
+                    {relatedItemInstances.map((item) => (
+                      <option key={item.id} value={item.id}>{item.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-xs font-medium text-gray-700">
+                  Add Comment
+                  <textarea
+                    value={relatedItemNotes}
+                    onChange={(e) => setRelatedItemNotes(e.target.value)}
+                    className="mt-1 min-h-16 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                    placeholder="Add comment..."
                   />
                 </label>
-                {newRelatedTitle.trim() && (
-                  <label className="block text-xs font-medium text-gray-700">
-                    Add Comment
-                    <textarea
-                      value={newRelatedNotes}
-                      onChange={(e) => setNewRelatedNotes(e.target.value)}
-                      className="mt-1 min-h-16 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                      placeholder="Add comment..."
-                    />
-                  </label>
-                )}
               </div>
               <div className="mt-3 flex justify-end">
                 <button
                   type="button"
-                  disabled={savingRelated || !newRelatedTitle.trim()}
+                  disabled={savingRelated || !relatedItemInstanceId}
                   onClick={async () => {
-                    if (!newRelatedTitle.trim()) return;
+                    if (!relatedItemInstanceId) return;
+                    const selected = relatedItemInstances.find((item) => item.id === relatedItemInstanceId);
+                    if (!selected) return;
                     setSavingRelated(true);
-                    const next = [...(submittal.related_items ?? []), { type: newRelatedType, title: newRelatedTitle.trim(), notes: newRelatedNotes.trim() || null }];
+                    const next = [...(submittal.related_items ?? []), { type: relatedItemType, title: selected.label, href: `/${relatedItemType}/${selected.id}`, notes: relatedItemNotes.trim() || null }];
                     const res = await fetch(`/api/projects/${projectId}/submittals/${submittalId}`, {
                       method: "PATCH",
                       headers: { "Content-Type": "application/json" },
@@ -589,8 +752,8 @@ export default function SubmittalDetailClient({
                     if (res.ok) {
                       const updated = await res.json();
                       setSubmittal(updated);
-                      setNewRelatedTitle("");
-                      setNewRelatedNotes("");
+                      setRelatedItemInstanceId("");
+                      setRelatedItemNotes("");
                     }
                     setSavingRelated(false);
                   }}
