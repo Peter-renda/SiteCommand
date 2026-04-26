@@ -4,16 +4,13 @@ import { getSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/project-access";
 import { dispatchWebhookEvent } from "@/lib/webhook-dispatch";
 import { logRFIChange } from "@/lib/rfi-history";
+import { getUserContactIds, isUserTaggedOnRfi } from "@/lib/rfi-access";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId } = await params;
-
-  if (!(await canAccessProject(projectId, session))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const supabase = getSupabase();
 
@@ -24,7 +21,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .order("rfi_number", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+
+  const hasProjectAccess = await canAccessProject(projectId, session);
+  if (hasProjectAccess) return NextResponse.json(data || []);
+
+  // No full project access — only return RFIs the user is tagged on
+  // (assignee, distribution list, RFI manager, or received-from contact).
+  const contactIds = await getUserContactIds(projectId, session);
+  const tagged = (data ?? []).filter((rfi) => isUserTaggedOnRfi(rfi, contactIds).isTagged);
+  if (tagged.length === 0) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return NextResponse.json(tagged);
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

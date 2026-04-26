@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/project-access";
 import { sendRFIBallInCourtEmail, sendRFIClosedEmail, sendRFIReopenedEmail } from "@/lib/email";
 import { logRFIChange } from "@/lib/rfi-history";
+import { getUserContactIds, isUserTaggedOnRfi } from "@/lib/rfi-access";
 
 type NamedContact = { id: string; first_name: string | null; last_name: string | null };
 type NamedSpecification = { id: string; name: string | null; code: string | null };
@@ -50,10 +51,6 @@ export async function GET(
 
   const { id: projectId, rfiId } = await params;
 
-  if (!(await canAccessProject(projectId, session))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   const supabase = getSupabase();
 
   const { data, error } = await supabase
@@ -64,6 +61,15 @@ export async function GET(
     .single();
 
   if (error || !data) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
+
+  const hasProjectAccess = await canAccessProject(projectId, session);
+  if (!hasProjectAccess) {
+    const contactIds = await getUserContactIds(projectId, session);
+    if (!isUserTaggedOnRfi(data, contactIds).isTagged) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   return NextResponse.json(data);
 }
 

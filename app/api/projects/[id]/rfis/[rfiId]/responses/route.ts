@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { canAccessProject } from "@/lib/project-access";
 import { logRFIChange } from "@/lib/rfi-history";
 import { sendRFIResponseEmail } from "@/lib/email";
+import { getUserContactIds, isUserTaggedOnRfi } from "@/lib/rfi-access";
 
 export async function GET(
   _req: NextRequest,
@@ -14,8 +16,21 @@ export async function GET(
   const { id: projectId, rfiId } = await params;
   const supabase = getSupabase();
 
-  const { data: rfi } = await supabase.from("rfis").select("id").eq("id", rfiId).eq("project_id", projectId).single();
+  const { data: rfi } = await supabase
+    .from("rfis")
+    .select("id, assignees, distribution_list, rfi_manager_id, received_from_id")
+    .eq("id", rfiId)
+    .eq("project_id", projectId)
+    .single();
   if (!rfi) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
+
+  const hasProjectAccess = await canAccessProject(projectId, session);
+  if (!hasProjectAccess) {
+    const contactIds = await getUserContactIds(projectId, session);
+    if (!isUserTaggedOnRfi(rfi, contactIds).isTagged) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
 
   const { data, error } = await supabase
     .from("rfi_responses")
@@ -63,8 +78,25 @@ export async function POST(
   const { id: projectId, rfiId } = await params;
   const supabase = getSupabase();
 
-  const { data: rfi } = await supabase.from("rfis").select("id").eq("id", rfiId).eq("project_id", projectId).single();
+  const { data: rfi } = await supabase
+    .from("rfis")
+    .select("id, assignees, distribution_list, rfi_manager_id, received_from_id")
+    .eq("id", rfiId)
+    .eq("project_id", projectId)
+    .single();
   if (!rfi) return NextResponse.json({ error: "RFI not found" }, { status: 404 });
+
+  const hasProjectAccess = await canAccessProject(projectId, session);
+  if (!hasProjectAccess) {
+    const contactIds = await getUserContactIds(projectId, session);
+    const flags = isUserTaggedOnRfi(rfi, contactIds);
+    if (!flags.isAssignee && !flags.isManager) {
+      return NextResponse.json(
+        { error: "Only project members or assignees may respond to this RFI." },
+        { status: 403 }
+      );
+    }
+  }
 
   const { body } = await req.json();
   if (!body || typeof body !== "string") return NextResponse.json({ error: "Body is required" }, { status: 400 });

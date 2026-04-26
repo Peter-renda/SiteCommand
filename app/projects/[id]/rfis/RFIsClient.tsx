@@ -625,7 +625,9 @@ async function exportRFIsPDF(
   doc.save("rfi_export.pdf");
 }
 
-export default function RFIsClient({ projectId, role, username, userId }: { projectId: string; role: string; username: string; userId: string }) {
+type ToolLevel = "none" | "read_only" | "standard" | "admin";
+
+export default function RFIsClient({ projectId, role, username, userId, toolLevel }: { projectId: string; role: string; username: string; userId: string; toolLevel: ToolLevel }) {
   const searchParams = useSearchParams();
   const [rfis, setRfis] = useState<RFI[]>([]);
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
@@ -758,7 +760,10 @@ export default function RFIsClient({ projectId, role, username, userId }: { proj
   }
 
   function canEditRfi(rfi: RFI): boolean {
-    return rfi.created_by === userId;
+    if (toolLevel === "admin" || toolLevel === "standard") return true;
+    if (role === "admin" || role === "super_admin") return true;
+    if (toolLevel === "read_only" && (rfi.created_by === null || rfi.created_by === userId)) return true;
+    return false;
   }
 
   async function handleLogout() {

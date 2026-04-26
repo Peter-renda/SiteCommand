@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { canAccessProject } from "@/lib/project-access";
+import { userIsTaggedOnAnyProjectRfi } from "@/lib/rfi-access";
 
 export default async function ProjectLayout({
   children,
@@ -18,7 +19,13 @@ export default async function ProjectLayout({
   if (session.user_type !== "demo") {
     const { id } = await params;
     const hasAccess = await canAccessProject(id, session);
-    if (!hasAccess) redirect("/dashboard");
+    if (!hasAccess) {
+      // Tagged collaborators (assignees, distribution list, RFI manager,
+      // received-from contacts) get scoped access so they can interact
+      // with the RFIs they're on, even without a full project membership.
+      const tagged = await userIsTaggedOnAnyProjectRfi(id, session);
+      if (!tagged) redirect("/dashboard");
+    }
   }
 
   return <>{children}</>;
