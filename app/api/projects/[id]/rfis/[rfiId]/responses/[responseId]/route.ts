@@ -28,11 +28,20 @@ export async function DELETE(
 
   const { data: response } = await supabase
     .from("rfi_responses")
-    .select("id, body, created_by")
+    .select("id, body, created_by, created_at")
     .eq("id", responseId)
     .eq("rfi_id", rfiId)
     .single();
   if (!response) return NextResponse.json({ error: "Response not found" }, { status: 404 });
+
+  // Position of the response being deleted, by chronological insertion order.
+  const { count: priorOrEqualCount } = await supabase
+    .from("rfi_responses")
+    .select("id", { count: "exact", head: true })
+    .eq("rfi_id", rfiId)
+    .lte("created_at", response.created_at);
+  const responseNumber = priorOrEqualCount ?? 0;
+  const responseLabel = responseNumber > 0 ? `Response #${responseNumber}` : null;
 
   const { error: clearOfficialError, count: clearedCount } = await supabase
     .from("rfis")
@@ -45,13 +54,21 @@ export async function DELETE(
   }
 
   if ((clearedCount ?? 0) > 0) {
-    await logRFIChange(supabase, session, rfiId, projectId, "Official Response", "Set", "Cleared");
+    await logRFIChange(supabase, session, rfiId, projectId, "Unmarked Official Response", responseLabel, null);
   }
 
   const { error } = await supabase.from("rfi_responses").delete().eq("id", responseId).eq("rfi_id", rfiId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logRFIChange(supabase, session, rfiId, projectId, "Deleted Discussion Response", response.body, null);
+  await logRFIChange(
+    supabase,
+    session,
+    rfiId,
+    projectId,
+    responseNumber > 0 ? `Deleted Response #${responseNumber}` : "Deleted Response",
+    response.body,
+    null,
+  );
 
   return NextResponse.json({ ok: true });
 }

@@ -8,7 +8,7 @@ import { logRFIChange } from "@/lib/rfi-history";
 
 type NamedContact = { id: string; first_name: string | null; last_name: string | null };
 type NamedSpecification = { id: string; name: string | null; code: string | null };
-type AssigneeLike = { id?: string | null; name?: string | null };
+type MemberLike = { id?: string | null; name?: string | null };
 
 function toComparable(value: unknown): string {
   return JSON.stringify(value ?? null);
@@ -34,12 +34,31 @@ function specNameById(specifications: NamedSpecification[], id: string | null): 
   return specification.code ? `${base} (${specification.code})` : base;
 }
 
-function listNames(value: unknown): string {
-  const items = Array.isArray(value) ? (value as AssigneeLike[]) : [];
-  const names = items
-    .map((item) => item?.name?.trim() || item?.id?.trim() || null)
-    .filter((name): name is string => Boolean(name));
-  return names.join(", ");
+function memberKey(member: MemberLike): string | null {
+  const id = member?.id?.trim();
+  if (id) return id;
+  const name = member?.name?.trim();
+  return name || null;
+}
+
+function memberLabel(member: MemberLike): string {
+  return member?.name?.trim() || member?.id?.trim() || "Unknown";
+}
+
+function diffMembers(prev: unknown, next: unknown): { added: MemberLike[]; removed: MemberLike[] } {
+  const prevList = Array.isArray(prev) ? (prev as MemberLike[]) : [];
+  const nextList = Array.isArray(next) ? (next as MemberLike[]) : [];
+  const prevKeys = new Set(prevList.map(memberKey).filter((k): k is string => Boolean(k)));
+  const nextKeys = new Set(nextList.map(memberKey).filter((k): k is string => Boolean(k)));
+  const added = nextList.filter((m) => {
+    const k = memberKey(m);
+    return k !== null && !prevKeys.has(k);
+  });
+  const removed = prevList.filter((m) => {
+    const k = memberKey(m);
+    return k !== null && !nextKeys.has(k);
+  });
+  return { added, removed };
 }
 
 export async function GET(
@@ -85,6 +104,7 @@ export async function PATCH(
     "ball_in_court_id",
     "official_response_id",
     "related_items",
+    "schedule_impact", "cost_impact", "cost_code", "sub_job", "rfi_stage", "private",
   ];
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
@@ -144,7 +164,7 @@ export async function PATCH(
   // Fetch current RFI state before updating so we can detect transitions
   const { data: prevRfi } = await supabase
     .from("rfis")
-    .select("subject, question, due_date, status, rfi_manager_id, received_from_id, assignees, distribution_list, responsible_contractor_id, specification_id, drawing_number, attachments, ball_in_court_id, official_response_id, related_items")
+    .select("subject, question, due_date, status, rfi_manager_id, received_from_id, assignees, distribution_list, responsible_contractor_id, specification_id, drawing_number, attachments, ball_in_court_id, official_response_id, related_items, schedule_impact, cost_impact, cost_code, sub_job, rfi_stage, private")
     .eq("id", rfiId)
     .eq("project_id", projectId)
     .single();
@@ -311,19 +331,29 @@ export async function PATCH(
     const contacts = (contactsRes.data ?? []) as NamedContact[];
     const specifications = (specsRes.data ?? []) as NamedSpecification[];
 
+    // Rich-text fields: log only that the field changed; do not store the
+    // before/after HTML in the audit log.
+    const RICH_TEXT_FIELDS = new Set(["question"]);
+
+    const stringDisplay = (v: unknown) => (typeof v === "string" && v ? v : null);
+    const boolDisplay = (v: unknown) => (typeof v === "boolean" ? (v ? "Yes" : "No") : null);
+
     const fieldChanges = [
-      { key: "subject", action: "Subject", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
-      { key: "question", action: "Question", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
-      { key: "due_date", action: "Due Date", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
+      { key: "subject", action: "Subject", toDisplay: stringDisplay },
+      { key: "question", action: "Question", toDisplay: stringDisplay },
+      { key: "due_date", action: "Due Date", toDisplay: stringDisplay },
       { key: "rfi_manager_id", action: "RFI Manager", toDisplay: (v: unknown) => contactNameById(contacts, typeof v === "string" ? v : null) },
       { key: "received_from_id", action: "Received From", toDisplay: (v: unknown) => contactNameById(contacts, typeof v === "string" ? v : null) },
-      { key: "assignees", action: "Assignees", toDisplay: (v: unknown) => listNames(v) || null },
-      { key: "distribution_list", action: "Distribution List", toDisplay: (v: unknown) => listNames(v) || null },
       { key: "responsible_contractor_id", action: "Responsible Contractor", toDisplay: (v: unknown) => contactNameById(contacts, typeof v === "string" ? v : null) },
       { key: "specification_id", action: "Specification", toDisplay: (v: unknown) => specNameById(specifications, typeof v === "string" ? v : null) },
-      { key: "drawing_number", action: "Drawing Number", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
-      { key: "official_response_id", action: "Official Response", toDisplay: (v: unknown) => (typeof v === "string" ? v : null) },
+      { key: "drawing_number", action: "Drawing Number", toDisplay: stringDisplay },
       { key: "related_items", action: "Related Items", toDisplay: (v: unknown) => (Array.isArray(v) ? `${v.length} items` : null) },
+      { key: "schedule_impact", action: "Schedule Impact", toDisplay: stringDisplay },
+      { key: "cost_impact", action: "Cost Impact", toDisplay: stringDisplay },
+      { key: "cost_code", action: "Cost Code", toDisplay: stringDisplay },
+      { key: "sub_job", action: "Sub Job", toDisplay: stringDisplay },
+      { key: "rfi_stage", action: "RFI Stage", toDisplay: stringDisplay },
+      { key: "private", action: "Private", toDisplay: boolDisplay },
     ];
 
     for (const change of fieldChanges) {
@@ -332,6 +362,7 @@ export async function PATCH(
       const newValue = (data as Record<string, unknown>)[change.key];
       if (isEqual(oldValue, newValue)) continue;
 
+      const isRichText = RICH_TEXT_FIELDS.has(change.key);
       historyPromises.push(
         logRFIChange(
           supabase,
@@ -339,10 +370,73 @@ export async function PATCH(
           rfiId,
           projectId,
           change.action,
-          change.toDisplay(oldValue),
-          change.toDisplay(newValue),
+          isRichText ? null : change.toDisplay(oldValue),
+          isRichText ? null : change.toDisplay(newValue),
         ),
       );
+    }
+
+    // Per-member diff for distribution list (one entry per added / removed member)
+    if ("distribution_list" in update && !isEqual(prevRfi.distribution_list, data.distribution_list)) {
+      const { added, removed } = diffMembers(prevRfi.distribution_list, data.distribution_list);
+      for (const m of added) {
+        historyPromises.push(
+          logRFIChange(supabase, session, rfiId, projectId, "Added Distribution Member", null, memberLabel(m)),
+        );
+      }
+      for (const m of removed) {
+        historyPromises.push(
+          logRFIChange(supabase, session, rfiId, projectId, "Removed Distribution Member", memberLabel(m), null),
+        );
+      }
+    }
+
+    // Per-member diff for assignees (one entry per added / removed member)
+    if ("assignees" in update && !isEqual(prevRfi.assignees, data.assignees)) {
+      const { added, removed } = diffMembers(prevRfi.assignees, data.assignees);
+      for (const m of added) {
+        historyPromises.push(
+          logRFIChange(supabase, session, rfiId, projectId, "Added Assignee", null, memberLabel(m)),
+        );
+      }
+      for (const m of removed) {
+        historyPromises.push(
+          logRFIChange(supabase, session, rfiId, projectId, "Removed Assignee", memberLabel(m), null),
+        );
+      }
+    }
+
+    // Official Response: log "Marked Response #N as Official" / "Unmarked Response #N as Official"
+    if ("official_response_id" in update && prevRfi.official_response_id !== data.official_response_id) {
+      const responseLabelFor = async (responseId: string | null): Promise<string | null> => {
+        if (!responseId) return null;
+        const { data: target } = await supabase
+          .from("rfi_responses")
+          .select("created_at")
+          .eq("id", responseId)
+          .eq("rfi_id", rfiId)
+          .single();
+        if (!target) return null;
+        const { count } = await supabase
+          .from("rfi_responses")
+          .select("id", { count: "exact", head: true })
+          .eq("rfi_id", rfiId)
+          .lte("created_at", target.created_at);
+        return count ? `Response #${count}` : null;
+      };
+
+      const prevLabel = await responseLabelFor(prevRfi.official_response_id as string | null);
+      const nextLabel = await responseLabelFor(data.official_response_id as string | null);
+
+      if (data.official_response_id) {
+        historyPromises.push(
+          logRFIChange(supabase, session, rfiId, projectId, "Marked Response as Official", prevLabel, nextLabel),
+        );
+      } else {
+        historyPromises.push(
+          logRFIChange(supabase, session, rfiId, projectId, "Unmarked Official Response", prevLabel, null),
+        );
+      }
     }
 
     if ("attachments" in update) {
@@ -354,12 +448,24 @@ export async function PATCH(
           .map((attachment: unknown) => (attachment && typeof attachment === "object" && "url" in attachment ? (attachment as { url?: string }).url : null))
           .filter((url): url is string => Boolean(url)),
       );
+      const newUrls = new Set(
+        newAttachments
+          .map((attachment: unknown) => (attachment && typeof attachment === "object" && "url" in attachment ? (attachment as { url?: string }).url : null))
+          .filter((url): url is string => Boolean(url)),
+      );
 
       for (const attachment of newAttachments) {
         const nextAttachment = attachment as { name?: string; url?: string };
         if (nextAttachment.url && prevUrls.has(nextAttachment.url)) continue;
         historyPromises.push(
           logRFIChange(supabase, session, rfiId, projectId, "Attachment Added", null, nextAttachment.name ?? "Attachment"),
+        );
+      }
+      for (const attachment of prevAttachments) {
+        const prevAttachment = attachment as { name?: string; url?: string };
+        if (prevAttachment.url && newUrls.has(prevAttachment.url)) continue;
+        historyPromises.push(
+          logRFIChange(supabase, session, rfiId, projectId, "Attachment Removed", prevAttachment.name ?? "Attachment", null),
         );
       }
     }
