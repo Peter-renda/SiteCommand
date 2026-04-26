@@ -1250,7 +1250,7 @@ Change event line items cannot be added to a commitment when:
 ## RFI Tool – Admin-Only Mutations
 
 ### Overview
-The RFIs tool restricts every mutation that changes RFI state to users with **Admin** level on the RFIs tool. Assignees, the distribution list, and the ball-in-court holder can still respond to the RFI (and return court) but cannot create, edit, close, delete, mark a response official, delete comments, or create change events from an RFI.
+The RFIs tool restricts every mutation that changes RFI state to users with **Admin** level on the RFIs tool, with one carve-out for the **RFI creator**: the user who created an RFI keeps the same management affordances on that single record (Edit, Close/Reopen, Delete, Mark Official, Delete Response, Add/Remove Related Items, Create Change Event from RFI) even if they are not on the admin tier. Assignees, the distribution list, and the ball-in-court holder can still respond to the RFI (and return court) but cannot create, edit, close, delete, mark a response official, delete comments, or create change events from an RFI they do not own.
 
 ### Required Permission
 - **Admin** on the RFIs tool. Per `getToolLevel`, that resolves to:
@@ -1258,18 +1258,18 @@ The RFIs tool restricts every mutation that changes RFI state to users with **Ad
   - **Company Super Admin / Company Admin** on a project owned by their company,
   - **Project Admin** members,
   - or any user with an explicit `admin` row in `project_tool_permissions` for `tool = "rfis"`.
-- Company Members default to **Standard** and External Collaborators default to **Read Only**; both are blocked from the actions below.
+- Company Members default to **Standard** and External Collaborators default to **Read Only**; both are blocked from the actions below **unless** they are the RFI creator (in which case the creator carve-out grants them admin-equivalent access on that one RFI).
 
-### Admin-Only Actions
-- **Create an RFI** (`POST /api/projects/[id]/rfis`).
-- **Edit an RFI** (`PATCH /api/projects/[id]/rfis/[rfiId]`) — every field except a ball-in-court-only update is admin-only.
-- **Delete an RFI** (`DELETE /api/projects/[id]/rfis/[rfiId]`).
-- **Close / Reopen an RFI** — implemented as a status PATCH; admin-only.
-- **Bulk update RFIs** (`POST /api/projects/[id]/rfis/bulk`) — bulk status/due-date/assignee changes are admin-only.
-- **Mark a response as Official** — PATCH of `official_response_id`; admin-only.
-- **Delete a comment / response** (`DELETE /api/projects/[id]/rfis/[rfiId]/responses/[responseId]`) — admin-only (no longer allowed to the response creator or RFI creator).
-- **Add / remove Related Items** on an RFI — backed by PATCH `related_items`; admin-only.
-- **Create a Change Event from an RFI** — the "Create Change Event" entry points on the RFI page are hidden from non-admins; the change-events tool retains its own permission gate at the API level.
+### Admin-Only Actions (admin OR RFI creator unless noted)
+- **Create an RFI** (`POST /api/projects/[id]/rfis`) — strictly admin-only (the creator concept does not apply to a brand-new record).
+- **Bulk update RFIs** (`POST /api/projects/[id]/rfis/bulk`) — strictly admin-only (the bulk endpoint can target RFIs across multiple creators, so it does not grant the creator carve-out).
+- **Edit an RFI** (`PATCH /api/projects/[id]/rfis/[rfiId]`) — admin or the RFI creator; non-creators may still send a ball-in-court-only PATCH if they are the current holder.
+- **Delete an RFI** (`DELETE /api/projects/[id]/rfis/[rfiId]`) — admin or the RFI creator.
+- **Close / Reopen an RFI** — implemented as a status PATCH; same gate as Edit.
+- **Mark a response as Official** — PATCH of `official_response_id`; same gate as Edit.
+- **Delete a comment / response** (`DELETE /api/projects/[id]/rfis/[rfiId]/responses/[responseId]`) — admin, the RFI creator, or the response author.
+- **Add / remove Related Items** on an RFI — backed by PATCH `related_items`; same gate as Edit.
+- **Create a Change Event from an RFI** — the "Create Change Event" entry points on the RFI page are hidden from users who are neither admin nor RFI creator; the change-events tool retains its own permission gate at the API level.
 
 ### Non-Admin Actions Still Permitted
 - **View** the RFI list and detail (subject to existing read access).
@@ -1278,8 +1278,9 @@ The RFIs tool restricts every mutation that changes RFI state to users with **Ad
 - Email the distribution list (`POST /api/projects/[id]/rfis/[rfiId]/notify`) — notification, not a mutation of RFI state.
 
 ### Implementation Notes (SiteCommand)
-- Permission helper: `requireToolLevel(session, projectId, "rfis", "admin")` from `lib/tool-permissions.ts` is called at the top of `POST /api/projects/[id]/rfis`, `DELETE /api/projects/[id]/rfis/[rfiId]`, `POST /api/projects/[id]/rfis/bulk`, and `DELETE /api/projects/[id]/rfis/[rfiId]/responses/[responseId]`.
-- `PATCH /api/projects/[id]/rfis/[rfiId]` resolves the tool level and short-circuits non-admins unless the request body only contains `ball_in_court_id`, in which case it additionally verifies the caller is the current ball-in-court holder (matched by `session.id` or by the holder contact's email).
-- The previous "response creator or RFI creator" rule on response deletion has been replaced by the admin gate; the route no longer reads `rfis.created_by` for that decision.
-- Client gates: `RFIDetailClient.tsx` derives `isAdmin = toolLevel === "admin"` and uses it to hide Edit, Delete, Close/Reopen, Create Change Event, Mark Official, Delete-Response, Related Item add/remove, and Create RFI affordances. `RFIsClient.tsx` uses the same `isAdmin` flag to hide the New RFI button, the row Edit icon, the row selection checkboxes, and the bulk-edit toolbar.
-- `app/projects/[id]/rfis/page.tsx` now resolves `getToolLevel(..., "rfis")` and passes it to `RFIsClient`.
+- Permission helper: `requireToolLevel(session, projectId, "rfis", "admin")` from `lib/tool-permissions.ts` is called at the top of the strictly-admin endpoints (`POST /api/projects/[id]/rfis`, `POST /api/projects/[id]/rfis/bulk`).
+- `PATCH /api/projects/[id]/rfis/[rfiId]`: resolves the tool level via `getToolLevel`. If `toolLevel !== "admin"`, it loads the RFI's `created_by` and lets the caller through when they are the creator (any field). Non-admin non-creators may still PATCH `ball_in_court_id` only, and only if they match the current holder (by `session.id` or by the holder contact's email).
+- `DELETE /api/projects/[id]/rfis/[rfiId]`: admin OR `rfi.created_by === session.id`.
+- `DELETE /api/projects/[id]/rfis/[rfiId]/responses/[responseId]`: admin OR RFI creator OR response author. The route reads `rfis.created_by` and `rfi_responses.created_by` to evaluate the gate.
+- Client gates: `RFIDetailClient.tsx` derives `isAdmin = toolLevel === "admin"`, `isCreator = rfi.created_by === userId`, and `canManage = isAdmin || isCreator`. The header buttons, three-dot actions menu, Mark Official checkbox, Delete-Response button, and Related-Item add/remove all use `canManage`, so the RFI creator keeps the full management surface on records they own. `RFIsClient.tsx` keeps `isAdmin` for the New RFI button, the row Edit icon, the row selection checkboxes, and the bulk-edit toolbar (the list view does not have per-row creator context).
+- `app/projects/[id]/rfis/page.tsx` resolves `getToolLevel(..., "rfis")` and passes it to `RFIsClient`. The detail page does the same and forwards both `toolLevel` and `userId` to `RFIDetailClient`.

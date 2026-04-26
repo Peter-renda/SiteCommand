@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
-import { requireToolLevel } from "@/lib/tool-permissions";
+import { getToolLevel } from "@/lib/tool-permissions";
 import { logRFIChange } from "@/lib/rfi-history";
 
 export async function DELETE(
@@ -12,15 +12,11 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, rfiId, responseId } = await params;
-
-  const denied = await requireToolLevel(session, projectId, "rfis", "admin");
-  if (denied) return denied;
-
   const supabase = getSupabase();
 
   const { data: rfi } = await supabase
     .from("rfis")
-    .select("id, official_response_id")
+    .select("id, created_by, official_response_id")
     .eq("id", rfiId)
     .eq("project_id", projectId)
     .single();
