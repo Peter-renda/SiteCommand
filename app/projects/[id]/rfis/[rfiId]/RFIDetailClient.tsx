@@ -235,6 +235,9 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
   const [relatedItemInstances, setRelatedItemInstances] = useState<RelatedItemInstance[]>([]);
   const [loadingRelatedItemInstances, setLoadingRelatedItemInstances] = useState(false);
   const [relatedItemNotes, setRelatedItemNotes] = useState("");
+  const [savingRelatedItem, setSavingRelatedItem] = useState(false);
+  const [relatedItemError, setRelatedItemError] = useState<string | null>(null);
+  const [removingRelatedItemId, setRemovingRelatedItemId] = useState<string | null>(null);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -709,19 +712,33 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
                       {canManage && (
                         <button
                           type="button"
+                          disabled={removingRelatedItemId === item.id}
                           onClick={async () => {
                             if (!rfi) return;
+                            setRemovingRelatedItemId(item.id);
+                            setRelatedItemError(null);
                             const next = (rfi.related_items ?? []).filter((x) => x.id !== item.id);
-                            const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ related_items: next }),
-                            });
-                            if (res.ok) setRfi(await res.json());
+                            try {
+                              const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ related_items: next }),
+                              });
+                              if (res.ok) {
+                                setRfi(await res.json());
+                              } else {
+                                const errBody = await res.json().catch(() => ({}));
+                                setRelatedItemError(errBody.error || `Failed to remove related item (${res.status}).`);
+                              }
+                            } catch {
+                              setRelatedItemError("Failed to remove related item. Check your connection and try again.");
+                            } finally {
+                              setRemovingRelatedItemId(null);
+                            }
                           }}
-                          className="text-xs text-red-600 hover:text-red-700"
+                          className="text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
                         >
-                          Remove
+                          {removingRelatedItemId === item.id ? "Removing…" : "Remove"}
                         </button>
                       )}
                     </div>
@@ -789,33 +806,45 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
                 )}
               </div>
             </div>
+            {relatedItemError && (
+              <p className="text-xs text-red-600">{relatedItemError}</p>
+            )}
             <div className="flex justify-end">
               <button
                 type="button"
+                disabled={savingRelatedItem || !relatedItemInstanceId}
                 onClick={async () => {
                   if (!rfi || !relatedItemInstanceId) return;
                   const selected = relatedItemInstances.find((x) => x.id === relatedItemInstanceId);
                   if (!selected) return;
                   const nextItem = { id: `${Date.now()}`, type: relatedItemType, label: selected.label, notes: relatedItemNotes.trim() || null };
                   const nextRelatedItems = [nextItem, ...(rfi.related_items ?? [])];
-                  const previousRfi = rfi;
-                  setRfi({ ...rfi, related_items: nextRelatedItems });
-                  const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ related_items: nextRelatedItems }),
-                  });
-                  if (res.ok) {
-                    setRfi(await res.json());
-                    setRelatedItemInstanceId("");
-                    setRelatedItemNotes("");
-                  } else {
-                    setRfi(previousRfi);
+                  setSavingRelatedItem(true);
+                  setRelatedItemError(null);
+                  try {
+                    const res = await fetch(`/api/projects/${projectId}/rfis/${rfiId}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ related_items: nextRelatedItems }),
+                    });
+                    if (res.ok) {
+                      const updated = await res.json();
+                      setRfi(Array.isArray(updated?.related_items) ? updated : { ...rfi, related_items: nextRelatedItems });
+                      setRelatedItemInstanceId("");
+                      setRelatedItemNotes("");
+                    } else {
+                      const errBody = await res.json().catch(() => ({}));
+                      setRelatedItemError(errBody.error || `Failed to add related item (${res.status}).`);
+                    }
+                  } catch {
+                    setRelatedItemError("Failed to add related item. Check your connection and try again.");
+                  } finally {
+                    setSavingRelatedItem(false);
                   }
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 disabled:opacity-50"
               >
-                Add Related Item
+                {savingRelatedItem ? "Adding…" : "Add Related Item"}
               </button>
             </div>
             </>
