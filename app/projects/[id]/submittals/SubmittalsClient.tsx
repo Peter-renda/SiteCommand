@@ -1026,17 +1026,21 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
       existing.total += 1;
       if (submittal.status === "closed") existing.closed += 1;
       else existing.open += 1;
+      if (!Array.isArray(existing.submittals)) existing.submittals = [];
       existing.submittals.push(submittal);
       acc.set(key, existing);
       return acc;
     }, new Map<string, { key: string; name: string; total: number; open: number; closed: number; submittals: Submittal[] }>())
   )
-    .map((group) => ({
-      ...group,
-      submittals: [...group.submittals].sort(
-        (a, b) => a.submittal_number - b.submittal_number || safeLocaleCompare(a.revision, b.revision, true)
-      ),
-    }))
+    .map((group) => {
+      const groupSubmittals = Array.isArray(group.submittals) ? group.submittals : [];
+      return {
+        ...group,
+        submittals: [...groupSubmittals].sort(
+          (a, b) => a.submittal_number - b.submittal_number || safeLocaleCompare(a.revision, b.revision, true)
+        ),
+      };
+    })
     .sort((a, b) => safeLocaleCompare(a.name, b.name));
 
   async function handleCreate(data: Record<string, unknown>, sendEmails: boolean) {
