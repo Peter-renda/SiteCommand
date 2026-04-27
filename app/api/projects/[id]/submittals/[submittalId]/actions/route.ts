@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { sendSubmittalCreatedEmail } from "@/lib/email";
+import { logSubmittalDiff } from "@/lib/submittal-history";
 
 type WorkflowStep = {
   step: number;
@@ -78,6 +79,29 @@ export async function POST(
     return NextResponse.json({ error: "Submittal not found" }, { status: 404 });
   }
 
+  const logUpdateHistory = async (updated: Record<string, unknown>) => {
+    await logSubmittalDiff(
+      supabase,
+      session,
+      submittalId,
+      projectId,
+      existing as Record<string, unknown>,
+      updated,
+    );
+  };
+
+  const logCreatedHistory = async (created: Record<string, unknown>) => {
+    const createdId = typeof created.id === "string" ? created.id : submittalId;
+    await logSubmittalDiff(
+      supabase,
+      session,
+      createdId,
+      projectId,
+      null,
+      created,
+    );
+  };
+
   if (action === "change_ball_in_court") {
     if (!("draft" === existing.status || "open" === existing.status)) {
       return NextResponse.json({ error: "Ball in Court can only be changed on Draft/Open submittals" }, { status: 400 });
@@ -91,6 +115,7 @@ export async function POST(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logUpdateHistory(data as Record<string, unknown>);
     return NextResponse.json(data);
   }
 
@@ -104,6 +129,7 @@ export async function POST(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logUpdateHistory(data as Record<string, unknown>);
     return NextResponse.json(data);
   }
 
@@ -126,6 +152,7 @@ export async function POST(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logUpdateHistory(data as Record<string, unknown>);
     return NextResponse.json(data);
   }
 
@@ -172,6 +199,7 @@ export async function POST(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logUpdateHistory(data as Record<string, unknown>);
     return NextResponse.json(data);
   }
 
@@ -211,6 +239,7 @@ export async function POST(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logUpdateHistory(data as Record<string, unknown>);
     return NextResponse.json(data);
   }
 
@@ -227,6 +256,7 @@ export async function POST(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logUpdateHistory(data as Record<string, unknown>);
 
     const workflowSteps = Array.isArray(existing.workflow_steps) ? (existing.workflow_steps as WorkflowStep[]) : [];
     const workflowIds = workflowSteps.map((step) => step.person_id).filter(Boolean) as string[];
@@ -297,6 +327,7 @@ export async function POST(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logUpdateHistory(data as Record<string, unknown>);
     return NextResponse.json(data);
   }
 
@@ -317,6 +348,7 @@ export async function POST(
       .select()
       .single();
     if (error || !closed) return NextResponse.json({ error: error?.message ?? "Failed to distribute" }, { status: 500 });
+    await logUpdateHistory(closed as Record<string, unknown>);
 
     if (payload?.create_revision_upon_distribution) {
       const nextNumber = await getNextSubmittalNumber(projectId);
@@ -340,6 +372,7 @@ export async function POST(
         .select()
         .single();
       if (revError) return NextResponse.json({ error: revError.message }, { status: 500 });
+      await logCreatedHistory(revision as Record<string, unknown>);
       return NextResponse.json({ distributed: closed, revision });
     }
 
@@ -370,6 +403,7 @@ export async function POST(
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logCreatedHistory(data as Record<string, unknown>);
     return NextResponse.json(data);
   }
 
