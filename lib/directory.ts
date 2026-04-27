@@ -45,12 +45,9 @@ export async function addUserToDirectory(
   }
 
   if (existing) {
-    // Update the company in case it was previously stored incorrectly
-    // (e.g. user was a member of a different company at insertion time)
-    await supabase
-      .from("directory_contacts")
-      .update({ company: companyName })
-      .eq("id", existing.id);
+    // Do not overwrite existing contacts during sync.
+    // Directory contacts can be manually edited in the UI, and forcing
+    // companyName here causes user edits to revert when the page reloads.
     return;
   }
 
