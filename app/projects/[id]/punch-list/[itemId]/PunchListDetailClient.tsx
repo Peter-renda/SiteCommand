@@ -228,7 +228,7 @@ export default function PunchListDetailClient({ projectId, itemId, role, usernam
 
   async function handleDelete() {
     if (!item) return;
-    const confirmed = window.confirm("Delete this punch list item? This action cannot be undone.");
+    const confirmed = window.confirm("Move this punch list item to the Recycle Bin?");
     if (!confirmed) return;
 
     const res = await fetch(`/api/projects/${projectId}/punch-list/${item.id}`, { method: "DELETE" });

@@ -4,21 +4,29 @@ import { getSession } from "@/lib/auth";
 import { canViewPunchListItem } from "@/lib/punch-list-access";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId, itemId } = await params;
+  const recycleBin = req.nextUrl.searchParams.get("recycle_bin") === "true";
   const supabase = getSupabase();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("punch_list_items")
     .select("*")
     .eq("id", itemId)
-    .eq("project_id", projectId)
-    .single();
+    .eq("project_id", projectId);
+
+  if (recycleBin) {
+    query = query.eq("is_deleted", true);
+  } else {
+    query = query.eq("is_deleted", false);
+  }
+
+  const { data, error } = await query.single();
 
   if (error || !data) return NextResponse.json({ error: "Item not found" }, { status: 404 });
   if (!canViewPunchListItem(data, session.id)) {
@@ -73,6 +81,7 @@ export async function PATCH(
     .update(update)
     .eq("id", itemId)
     .eq("project_id", projectId)
+    .eq("is_deleted", false)
     .select()
     .single();
 
@@ -92,9 +101,14 @@ export async function DELETE(
 
   const { error } = await supabase
     .from("punch_list_items")
-    .delete()
+    .update({
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+      deleted_by: session.id,
+    })
     .eq("id", itemId)
-    .eq("project_id", projectId);
+    .eq("project_id", projectId)
+    .eq("is_deleted", false);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
