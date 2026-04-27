@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
+import { CreateSubmittalModal } from "../../submittals/SubmittalsClient";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -310,267 +311,6 @@ function AddExistingSubmittalModal({
   );
 }
 
-// ── Create Submittal Modal (inline, saves immediately) ────────────────────────
-
-const SUBMITTAL_TYPES = [
-  "Document",
-  "Other",
-  "Pay Request",
-  "Payroll",
-  "Plans",
-  "Prints",
-  "Product Information",
-  "Product Manual",
-  "Sample",
-  "Shop Drawing",
-  "Specification",
-];
-
-function CreateSubmittalModal({
-  projectId,
-  nextNumber,
-  directory,
-  specifications,
-  onCreated,
-  onClose,
-}: {
-  projectId: string;
-  nextNumber: number;
-  directory: DirectoryContact[];
-  specifications: Specification[];
-  onCreated: (submittal: SubmittalRow) => void;
-  onClose: () => void;
-}) {
-  const today = new Date().toISOString().split("T")[0];
-  const [title, setTitle] = useState("");
-  const [revision, setRevision] = useState("A");
-  const [specificationId, setSpecificationId] = useState<string | null>(null);
-  const [submittalType, setSubmittalType] = useState("");
-  const [status, setStatus] = useState("draft");
-  const [responsibleContractorId, setResponsibleContractorId] = useState<string | null>(null);
-  const [receivedFromId, setReceivedFromId] = useState<string | null>(null);
-  const [submittalManagerId, setSubmittalManagerId] = useState<string | null>(null);
-  const [issueDate, setIssueDate] = useState(today);
-  const [finalDueDate, setFinalDueDate] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleCreate() {
-    if (!title.trim()) { setError("Title is required."); return; }
-    setSaving(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/projects/${projectId}/submittals`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          revision: revision || null,
-          specification_id: specificationId,
-          submittal_type: submittalType || null,
-          status,
-          responsible_contractor_id: responsibleContractorId,
-          received_from_id: receivedFromId,
-          submittal_manager_id: submittalManagerId,
-          issue_date: issueDate || null,
-          final_due_date: finalDueDate || null,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to create submittal.");
-        return;
-      }
-      const created = await res.json();
-      onCreated(created);
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-900">Create Submittal</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Submittal title"
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900"
-              autoFocus
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Number</label>
-              <input
-                type="text"
-                readOnly
-                value={nextNumber}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Revision</label>
-              <input
-                type="text"
-                value={revision}
-                onChange={(e) => setRevision(e.target.value)}
-                placeholder="A"
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Submittal Type</label>
-              <select
-                value={submittalType}
-                onChange={(e) => setSubmittalType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-              >
-                <option value="">Select type</option>
-                {SUBMITTAL_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Specification</label>
-            <select
-              value={specificationId ?? ""}
-              onChange={(e) => setSpecificationId(e.target.value || null)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-            >
-              <option value="">None</option>
-              {specifications.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.code ? `${s.code} — ${s.name}` : s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-              >
-                {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Submittal Manager</label>
-              <select
-                value={submittalManagerId ?? ""}
-                onChange={(e) => setSubmittalManagerId(e.target.value || null)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-              >
-                <option value="">Select...</option>
-                {directory.filter((c) => c.type === "user").map((c) => (
-                  <option key={c.id} value={c.id}>{contactDisplayName(c)}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Responsible Contractor</label>
-              <select
-                value={responsibleContractorId ?? ""}
-                onChange={(e) => setResponsibleContractorId(e.target.value || null)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-              >
-                <option value="">Select company...</option>
-                {directory.filter((c) => c.type === "company").map((c) => (
-                  <option key={c.id} value={c.id}>{contactDisplayName(c)}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Received From</label>
-              <select
-                value={receivedFromId ?? ""}
-                onChange={(e) => setReceivedFromId(e.target.value || null)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-              >
-                <option value="">Select...</option>
-                {directory.filter((c) => c.type === "user").map((c) => (
-                  <option key={c.id} value={c.id}>{contactDisplayName(c)}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Issue Date</label>
-              <input
-                type="date"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Final Due Date</label>
-              <input
-                type="date"
-                value={finalDueDate}
-                onChange={(e) => setFinalDueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-              />
-            </div>
-          </div>
-
-          {error && <p className="text-xs text-red-600">{error}</p>}
-        </div>
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={saving}
-            className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-60"
-          >
-            {saving ? "Creating…" : "Create Submittal"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function NewSubmittalPackageClient({
@@ -602,6 +342,7 @@ export default function NewSubmittalPackageClient({
 
   // UI state
   const [saving, setSaving] = useState(false);
+  const [creatingSubmittal, setCreatingSubmittal] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -668,6 +409,41 @@ export default function NewSubmittalPackageClient({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleCreateSubmittal(data: Record<string, unknown>, sendEmails: boolean) {
+    setCreatingSubmittal(true);
+    const { attachmentFiles, ...rest } = data;
+    const res = await fetch(`/api/projects/${projectId}/submittals`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rest),
+    });
+    if (res.ok) {
+      const newSubmittal = await res.json();
+      const files = Array.isArray(attachmentFiles) ? attachmentFiles.filter((f): f is File => f instanceof File) : [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const attRes = await fetch(`/api/projects/${projectId}/submittals/${newSubmittal.id}/attachment`, {
+          method: "POST",
+          body: formData,
+        });
+        if (attRes.ok) {
+          const updated = await attRes.json();
+          newSubmittal.attachments = updated.attachments ?? [];
+        }
+      }
+      setSubmittals((prev) => [...prev, newSubmittal]);
+      setNextSubmittalNumber((n) => n + 1);
+      if (sendEmails) {
+        await fetch(`/api/projects/${projectId}/submittals/${newSubmittal.id}/notify`, {
+          method: "POST",
+        });
+      }
+    }
+    setCreatingSubmittal(false);
+    setShowCreateSubmittal(false);
   }
 
   const addedIds = new Set(submittals.map((s) => s.id));
@@ -1007,8 +783,10 @@ export default function NewSubmittalPackageClient({
           nextNumber={nextSubmittalNumber}
           directory={directory}
           specifications={specifications}
-          onCreated={(s) => setSubmittals((prev) => [...prev, s])}
-          onClose={() => setShowCreateSubmittal(false)}
+          packages={[]}
+          onConfirm={handleCreateSubmittal}
+          onCancel={() => !creatingSubmittal && setShowCreateSubmittal(false)}
+          onSpecCreated={(spec) => setSpecifications((prev) => [...prev, spec])}
         />
       )}
       {showAddExisting && (

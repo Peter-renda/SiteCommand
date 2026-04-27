@@ -404,7 +404,7 @@ function SingleContactPicker({
   );
 }
 
-function CreateSubmittalModal({
+export function CreateSubmittalModal({
   projectId, nextNumber, directory, specifications, packages, onConfirm, onCancel, onSpecCreated,
 }: {
   projectId: string;
