@@ -8,12 +8,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId } = await params;
+  const recycleBin = _req.nextUrl.searchParams.get("recycle_bin") === "true";
   const supabase = getSupabase();
 
   const { data, error } = await supabase
     .from("punch_list_items")
     .select("*")
     .eq("project_id", projectId)
+    .eq("is_deleted", recycleBin)
     .order("item_number", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
