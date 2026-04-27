@@ -1032,6 +1032,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
       return acc;
     }, new Map<string, { key: string; name: string; total: number; open: number; closed: number; submittals: Submittal[] }>())
   )
+    .filter((group) => group.key !== "none")
     .map((group) => {
       const groupSubmittals = Array.isArray(group.submittals) ? group.submittals : [];
       return {
@@ -1282,23 +1283,36 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
             </div>
           ) : (
             <div className="bg-white border hairline rounded-xl overflow-x-auto">
-              <table className="w-full min-w-[1200px]">
+              <table className="w-full min-w-[2200px]">
                 <thead>
                   <tr className="border-b hairline bg-[color:var(--surface-sunken)]">
+                    <th className="text-left px-4 py-3 mono-label w-10"></th>
                     <th className="text-left px-4 py-3 mono-label whitespace-nowrap">#</th>
                     <th className="text-left px-4 py-3 mono-label whitespace-nowrap">REV.</th>
                     <th className="text-left px-4 py-3 mono-label whitespace-nowrap">TITLE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">TYPE</th>
                     <th className="text-left px-4 py-3 mono-label whitespace-nowrap">STATUS</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RESPONSIBLE CONTRACTOR</th>
                     <th className="text-left px-4 py-3 mono-label whitespace-nowrap">SUBMIT BY</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">FINAL DUE DATE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RECEIVED FROM</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RECEIVED DATE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">BALL IN COURT</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">APPROVERS</th>
                     <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RESPONSE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">SENT DATE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RETURNED DATE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">FINAL DUE DATE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">DISTRIBUTED DATE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">LOCATION</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">CREATED AT</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">SCHEDULE TASK</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ballInCourtGroups.map((group) => (
                     <Fragment key={group.key}>
                       <tr key={`${group.key}-header`} className="border-y border-gray-200 bg-gray-50/70">
-                        <td colSpan={7} className="px-4 py-2.5 text-sm font-semibold text-gray-900">
+                        <td colSpan={20} className="px-4 py-2.5 text-sm font-semibold text-gray-900">
                           {group.name}{" "}
                           <span className="text-xs text-gray-500 font-medium">
                             ({group.total} item{group.total === 1 ? "" : "s"} · {group.open} open · {group.closed} closed)
@@ -1310,20 +1324,47 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                         return (
                           <tr
                             key={submittal.id}
-                            onClick={() => { window.location.href = `/projects/${projectId}/submittals/${submittal.id}`; }}
+                            onClick={(e) => { if ((e.target as HTMLElement).closest("button,a,input")) return; window.location.href = `/projects/${projectId}/submittals/${submittal.id}`; }}
                             className="border-b border-gray-50 hover:bg-[color:var(--surface-sunken)] transition-colors cursor-pointer"
                           >
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.includes(submittal.id)}
+                                onChange={(e) =>
+                                  setSelectedIds((prev) =>
+                                    e.target.checked ? [...prev, submittal.id] : prev.filter((id) => id !== submittal.id)
+                                  )
+                                }
+                                className="mr-2"
+                              />
+                              <a href={`/projects/${projectId}/submittals/${submittal.id}`} className="inline-flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                              </a>
+                            </td>
                             <td className="px-4 py-3 text-sm font-mono text-[color:var(--ink)] tabular-nums">#{submittal.submittal_number}</td>
                             <td className="px-4 py-3 text-sm text-gray-700 tabular-nums">{submittal.revision ?? "—"}</td>
                             <td className="px-4 py-3 text-sm text-gray-900 font-medium">{submittal.title}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{submittal.submittal_type ?? "—"}</td>
                             <td className="px-4 py-3">
                               <span className={`pill ${STATUS_PILL[submittal.status] ?? "pill-post"}`}>
                                 {STATUS_LABELS[submittal.status] ?? submittal.status}
                               </span>
                             </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, submittal.responsible_contractor_id)}</td>
                             <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.submit_by)}</td>
-                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.final_due_date)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, submittal.received_from_id)}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.received_date)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, submittal.ball_in_court_id)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{summarizeApprovers(directory, submittal.workflow_steps)}</td>
                             <td className="px-4 py-3 text-sm text-gray-600">{latestResponse?.response ?? "—"}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(latestResponse?.sent_date ?? null)}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(latestResponse?.returned_date ?? null)}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.final_due_date)}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.distributed_at ? submittal.distributed_at.slice(0, 10) : null)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{submittal.location ?? "—"}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{new Date(submittal.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{submittal.schedule_task ?? "—"}</td>
                           </tr>
                         );
                       })}
