@@ -491,7 +491,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
       return;
     }
 
-    const confirmed = window.confirm("Delete this RFI? This action cannot be undone.");
+    const confirmed = window.confirm("Send this RFI to the Recycling Bin?");
     if (!confirmed) return;
 
     setProcessingAction("delete");
@@ -500,7 +500,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      window.alert(errorData.error || "Failed to delete the RFI.");
+      window.alert(errorData.error || "Failed to move the RFI to Recycling Bin.");
       return;
     }
 
@@ -635,7 +635,7 @@ export default function RFIDetailClient({ projectId, rfiId, username, userId, us
                     disabled={processingAction !== null || !canEdit}
                     className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                   >
-                    {processingAction === "delete" ? "Deleting..." : "Delete"}
+                    {processingAction === "delete" ? "Moving..." : "Move to Recycling Bin"}
                   </button>
                 )}
                 {canManage && (

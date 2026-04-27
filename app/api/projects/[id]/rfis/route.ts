@@ -11,6 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId } = await params;
+  const recycleBin = _req.nextUrl.searchParams.get("recycle_bin") === "true";
 
   if (!(await canAccessProject(projectId, session))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -22,6 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from("rfis")
     .select("*")
     .eq("project_id", projectId)
+    .eq("is_deleted", recycleBin)
     .order("rfi_number", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -43,6 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from("rfis")
     .select("rfi_number")
     .eq("project_id", projectId)
+    .eq("is_deleted", false)
     .order("rfi_number", { ascending: false })
     .limit(1)
     .single();

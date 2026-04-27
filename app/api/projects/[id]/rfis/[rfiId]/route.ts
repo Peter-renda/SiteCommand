@@ -514,7 +514,11 @@ export async function DELETE(
     }
   }
 
-  const { error } = await supabase.from("rfis").delete().eq("id", rfiId).eq("project_id", projectId);
+  const { error } = await supabase
+    .from("rfis")
+    .update({ is_deleted: true })
+    .eq("id", rfiId)
+    .eq("project_id", projectId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
