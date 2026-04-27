@@ -2,6 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { calculateSubmittalSchedule } from "@/lib/submittalSchedule";
+import { logSubmittalDiff } from "@/lib/submittal-history";
+
+async function logBulkSubmittalDiffs(
+  projectId: string,
+  session: Awaited<ReturnType<typeof getSession>>,
+  previousRows: Array<Record<string, unknown>>,
+  updatedRows: Array<Record<string, unknown>>,
+) {
+  if (!session) return;
+  const supabase = getSupabase();
+  const previousById = new Map(
+    previousRows
+      .map((row) => (typeof row.id === "string" ? [row.id, row] as const : null))
+      .filter((entry): entry is readonly [string, Record<string, unknown>] => entry !== null),
+  );
+
+  await Promise.all(
+    updatedRows.map((row) => {
+      const submittalId = typeof row.id === "string" ? row.id : null;
+      if (!submittalId) return Promise.resolve();
+      return logSubmittalDiff(
+        supabase,
+        session,
+        submittalId,
+        projectId,
+        previousById.get(submittalId) ?? null,
+        row,
+      );
+    })
+  );
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -17,64 +48,99 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = getSupabase();
 
   if (action === "mark_private" || action === "mark_public") {
+    const { data: previous } = await supabase
+      .from("submittals")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .in("id", submittalIds);
     const { data, error } = await supabase
       .from("submittals")
       .update({ private: action === "mark_private" })
       .eq("project_id", projectId)
       .eq("is_deleted", false)
       .in("id", submittalIds)
-      .select("id");
+      .select("*");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logBulkSubmittalDiffs(projectId, session, (previous ?? []) as Record<string, unknown>[], (data ?? []) as Record<string, unknown>[]);
     return NextResponse.json({ ok: true, updated: data?.length ?? 0 });
   }
 
   if (action === "delete") {
+    const { data: previous } = await supabase
+      .from("submittals")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .in("id", submittalIds);
     const { data, error } = await supabase
       .from("submittals")
       .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: session.id })
       .eq("project_id", projectId)
       .eq("is_deleted", false)
       .in("id", submittalIds)
-      .select("id");
+      .select("*");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logBulkSubmittalDiffs(projectId, session, (previous ?? []) as Record<string, unknown>[], (data ?? []) as Record<string, unknown>[]);
     return NextResponse.json({ ok: true, updated: data?.length ?? 0 });
   }
 
   if (action === "retrieve") {
+    const { data: previous } = await supabase
+      .from("submittals")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("is_deleted", true)
+      .in("id", submittalIds);
     const { data, error } = await supabase
       .from("submittals")
       .update({ is_deleted: false, deleted_at: null, deleted_by: null })
       .eq("project_id", projectId)
       .eq("is_deleted", true)
       .in("id", submittalIds)
-      .select("id");
+      .select("*");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logBulkSubmittalDiffs(projectId, session, (previous ?? []) as Record<string, unknown>[], (data ?? []) as Record<string, unknown>[]);
     return NextResponse.json({ ok: true, updated: data?.length ?? 0 });
   }
 
   if (action === "change_status") {
     const nextStatus = payload?.status as string | undefined;
     if (!nextStatus) return NextResponse.json({ error: "payload.status is required" }, { status: 400 });
+    const { data: previous } = await supabase
+      .from("submittals")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .in("id", submittalIds);
     const { data, error } = await supabase
       .from("submittals")
       .update({ status: nextStatus })
       .eq("project_id", projectId)
       .eq("is_deleted", false)
       .in("id", submittalIds)
-      .select("id");
+      .select("*");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logBulkSubmittalDiffs(projectId, session, (previous ?? []) as Record<string, unknown>[], (data ?? []) as Record<string, unknown>[]);
     return NextResponse.json({ ok: true, updated: data?.length ?? 0 });
   }
 
   if (action === "redistribute") {
+    const { data: previous } = await supabase
+      .from("submittals")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .in("id", submittalIds);
     const { data, error } = await supabase
       .from("submittals")
       .update({ distributed_at: new Date().toISOString(), distributed_by: session.id })
       .eq("project_id", projectId)
       .eq("is_deleted", false)
       .in("id", submittalIds)
-      .select("id");
+      .select("*");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logBulkSubmittalDiffs(projectId, session, (previous ?? []) as Record<string, unknown>[], (data ?? []) as Record<string, unknown>[]);
     return NextResponse.json({ ok: true, updated: data?.length ?? 0 });
   }
 
@@ -106,8 +172,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .eq("project_id", projectId)
       .eq("is_deleted", false)
       .in("id", eligibleIds)
-      .select("id");
+      .select("*");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logBulkSubmittalDiffs(projectId, session, eligible as Record<string, unknown>[], (data ?? []) as Record<string, unknown>[]);
     return NextResponse.json({ ok: true, updated: data?.length ?? 0, skipped: submittalIds.length - (data?.length ?? 0) });
   }
 
@@ -141,14 +208,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
 
+    const { data: previous } = await supabase
+      .from("submittals")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .in("id", submittalIds);
     const { data, error } = await supabase
       .from("submittals")
       .update(update)
       .eq("project_id", projectId)
       .eq("is_deleted", false)
       .in("id", submittalIds)
-      .select("id");
+      .select("*");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logBulkSubmittalDiffs(projectId, session, (previous ?? []) as Record<string, unknown>[], (data ?? []) as Record<string, unknown>[]);
     return NextResponse.json({ ok: true, updated: data?.length ?? 0 });
   }
 
