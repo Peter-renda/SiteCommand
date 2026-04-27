@@ -10,6 +10,7 @@ type BulkBody = {
     status?: "draft" | "open" | "closed";
     due_date?: string | null;
     assignees?: { id: string; name: string; email: string | null }[];
+    is_deleted?: boolean;
   };
 };
 
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (body.updates?.status && allowedStatuses.has(body.updates.status)) updates.status = body.updates.status;
   if ("due_date" in (body.updates ?? {})) updates.due_date = body.updates.due_date || null;
   if ("assignees" in (body.updates ?? {})) updates.assignees = body.updates.assignees ?? [];
+  if ("is_deleted" in (body.updates ?? {})) updates.is_deleted = Boolean(body.updates.is_deleted);
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No valid updates supplied." }, { status: 400 });

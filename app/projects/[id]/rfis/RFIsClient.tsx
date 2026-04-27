@@ -645,6 +645,7 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(() => [...COLUMN_KEYS]);
   const [selectedRfiIds, setSelectedRfiIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<"items" | "recycle_bin">("items");
   const [bulkStatus, setBulkStatus] = useState<"" | "draft" | "open" | "closed">("");
   const [bulkDueDate, setBulkDueDate] = useState("");
   const [applyingBulk, setApplyingBulk] = useState(false);
@@ -664,8 +665,9 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
   }, []);
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([
-      fetch(`/api/projects/${projectId}/rfis`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/rfis${activeTab === "recycle_bin" ? "?recycle_bin=true" : ""}`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/directory`).then((r) => r.json()),
       fetch(`/api/projects/${projectId}/specifications`).then((r) => r.json()),
     ]).then(([rfisData, dirData, specData]) => {
@@ -674,7 +676,7 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
       setSpecifications(Array.isArray(specData) ? specData : []);
       setLoading(false);
     });
-  }, [projectId]);
+  }, [projectId, activeTab]);
 
   useEffect(() => {
     if (searchParams.get("create") === "1") {
@@ -827,6 +829,37 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
     setApplyingBulk(false);
   }
 
+  async function applyRecycleBinAction(action: "delete" | "retrieve", ids = selectedRfiIds) {
+    if (ids.length === 0) return;
+    const confirmed = window.confirm(
+      action === "delete"
+        ? `Send ${ids.length} RFI(s) to Recycling Bin?`
+        : `Retrieve ${ids.length} RFI(s) from Recycling Bin?`,
+    );
+    if (!confirmed) return;
+
+    setApplyingBulk(true);
+    const res = await fetch(`/api/projects/${projectId}/rfis/bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ids,
+        updates: { is_deleted: action === "delete" },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      window.alert(err.error ?? `Failed to ${action} RFIs.`);
+      setApplyingBulk(false);
+      return;
+    }
+
+    setRfis((prev) => prev.filter((rfi) => !ids.includes(rfi.id)));
+    setSelectedRfiIds((prev) => prev.filter((id) => !ids.includes(id)));
+    setApplyingBulk(false);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
@@ -907,7 +940,7 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
                   setCreateInitiatedAt(new Date().toISOString());
                   setShowCreate(true);
                 }}
-                disabled={creating}
+                disabled={creating || activeTab === "recycle_bin"}
                 className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors disabled:opacity-50"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -966,6 +999,10 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
             </div>
           </div>
         </div>
+        <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden mb-4 bg-white">
+          <button onClick={() => { setActiveTab("items"); setSelectedRfiIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "items" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Items</button>
+          <button onClick={() => { setActiveTab("recycle_bin"); setSelectedRfiIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "recycle_bin" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Recycling Bin</button>
+        </div>
 
         {isAdmin && selectedRfiIds.length > 0 && (
           <div className="mb-4 bg-white border hairline rounded-lg p-3 flex flex-wrap items-end gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -975,7 +1012,7 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
             </div>
             <div>
               <label className="block mono-label mb-1">STATUS</label>
-              <select value={bulkStatus} onChange={(e) => setBulkStatus((e.target.value as "" | "draft" | "open" | "closed"))} className="px-2.5 py-2 border border-gray-200 rounded text-sm bg-white">
+              <select value={bulkStatus} onChange={(e) => setBulkStatus((e.target.value as "" | "draft" | "open" | "closed"))} disabled={activeTab === "recycle_bin"} className="px-2.5 py-2 border border-gray-200 rounded text-sm bg-white disabled:opacity-50">
                 <option value="">No change</option>
                 <option value="draft">Draft</option>
                 <option value="open">Open</option>
@@ -984,10 +1021,16 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
             </div>
             <div>
               <label className="block mono-label mb-1">DUE DATE</label>
-              <input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} className="px-2.5 py-2 border border-gray-200 rounded text-sm" />
+              <input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} disabled={activeTab === "recycle_bin"} className="px-2.5 py-2 border border-gray-200 rounded text-sm disabled:opacity-50" />
             </div>
-            <button onClick={applyBulkUpdate} disabled={applyingBulk} className="px-3 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded hover:bg-black disabled:opacity-50">
+            <button onClick={applyBulkUpdate} disabled={applyingBulk || activeTab === "recycle_bin"} className="px-3 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded hover:bg-black disabled:opacity-50">
               {applyingBulk ? "Applying..." : "Apply bulk edit"}
+            </button>
+            <button onClick={() => applyRecycleBinAction("delete")} disabled={applyingBulk || activeTab === "recycle_bin"} className="px-3 py-2 text-sm font-medium text-red-700 border border-red-200 rounded bg-white hover:bg-red-50 disabled:opacity-50">
+              Send to Recycling Bin
+            </button>
+            <button onClick={() => applyRecycleBinAction("retrieve")} disabled={applyingBulk || activeTab !== "recycle_bin"} className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded bg-white hover:bg-gray-50 disabled:opacity-50">
+              Retrieve
             </button>
             <button onClick={() => setSelectedRfiIds([])} className="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded hover:bg-gray-50">Clear</button>
           </div>
@@ -1003,8 +1046,8 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               }
-              title="No RFIs yet"
-              description="Click Create new RFI to add the first one."
+              title={activeTab === "recycle_bin" ? "Recycling Bin is empty" : "No RFIs yet"}
+              description={activeTab === "recycle_bin" ? "Deleted RFIs will appear here." : "Click Create new RFI to add the first one."}
             />
           </div>
         ) : (
@@ -1094,14 +1137,30 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
                         </button>
                         {rowMenuOpen === rfi.id && (
                           <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-20">
-                            <a
-                              href={`/projects/${projectId}/rfis/${rfi.id}/edit`}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                              Edit
-                            </a>
+                            {activeTab !== "recycle_bin" && (
+                              <a
+                                href={`/projects/${projectId}/rfis/${rfi.id}/edit`}
+                                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                Edit
+                              </a>
+                            )}
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRowMenuOpen(null);
+                                  void applyRecycleBinAction(activeTab === "recycle_bin" ? "retrieve" : "delete", [rfi.id]);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={activeTab === "recycle_bin" ? "M4 7h16M10 11v6m4-6v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" : "M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3M4 7h16"} /></svg>
+                                {activeTab === "recycle_bin" ? "Retrieve" : "Send to Bin"}
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
