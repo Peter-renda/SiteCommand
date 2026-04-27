@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { Fragment, useState, useEffect, useRef, ChangeEvent } from "react";
 import ProjectNav from "@/components/ProjectNav";
 
 type DirContact = { id: string; name: string; email: string | null };
@@ -1012,17 +1012,32 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
     }, new Map<string, { key: string; name: string; total: number; open: number; closed: number }>())
   ).sort((a, b) => safeLocaleCompare(a.name, b.name));
 
-  const ballInCourtRows = Array.from(
+  const ballInCourtGroups = Array.from(
     submittals.reduce((acc, submittal) => {
       const key = submittal.ball_in_court_id ?? "none";
-      const existing = acc.get(key) ?? { key, name: getContactNameById(directory, submittal.ball_in_court_id), total: 0, open: 0, closed: 0 };
+      const existing = acc.get(key) ?? {
+        key,
+        name: getContactNameById(directory, submittal.ball_in_court_id),
+        total: 0,
+        open: 0,
+        closed: 0,
+        submittals: [] as Submittal[],
+      };
       existing.total += 1;
       if (submittal.status === "closed") existing.closed += 1;
       else existing.open += 1;
+      existing.submittals.push(submittal);
       acc.set(key, existing);
       return acc;
-    }, new Map<string, { key: string; name: string; total: number; open: number; closed: number }>())
-  ).sort((a, b) => safeLocaleCompare(a.name, b.name));
+    }, new Map<string, { key: string; name: string; total: number; open: number; closed: number; submittals: Submittal[] }>())
+  )
+    .map((group) => ({
+      ...group,
+      submittals: [...group.submittals].sort(
+        (a, b) => a.submittal_number - b.submittal_number || safeLocaleCompare(a.revision, b.revision, true)
+      ),
+    }))
+    .sort((a, b) => safeLocaleCompare(a.name, b.name));
 
   async function handleCreate(data: Record<string, unknown>, sendEmails: boolean) {
     setShowCreate(false);
@@ -1256,30 +1271,59 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
             </div>
           )
         ) : activeTab === "ball_in_court" ? (
-          ballInCourtRows.length === 0 ? (
+          ballInCourtGroups.length === 0 ? (
             <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
               <p className="eyebrow eyebrow-quiet justify-center mb-3">Empty</p>
               <p className="font-display text-xl text-[color:var(--ink)] mb-1">No ball in court assignments yet</p>
             </div>
           ) : (
             <div className="bg-white border hairline rounded-xl overflow-x-auto">
-              <table className="w-full min-w-[800px]">
+              <table className="w-full min-w-[1200px]">
                 <thead>
                   <tr className="border-b hairline bg-[color:var(--surface-sunken)]">
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">BALL IN COURT</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">TOTAL SUBMITTALS</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">OPEN</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">CLOSED</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">#</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">REV.</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">TITLE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">STATUS</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">SUBMIT BY</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">FINAL DUE DATE</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RESPONSE</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {ballInCourtRows.map((row) => (
-                    <tr key={row.key} className="border-b border-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-900 font-medium">{row.name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.total}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.open}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.closed}</td>
-                    </tr>
+                  {ballInCourtGroups.map((group) => (
+                    <Fragment key={group.key}>
+                      <tr key={`${group.key}-header`} className="border-y border-gray-200 bg-gray-50/70">
+                        <td colSpan={7} className="px-4 py-2.5 text-sm font-semibold text-gray-900">
+                          {group.name}{" "}
+                          <span className="text-xs text-gray-500 font-medium">
+                            ({group.total} item{group.total === 1 ? "" : "s"} · {group.open} open · {group.closed} closed)
+                          </span>
+                        </td>
+                      </tr>
+                      {group.submittals.map((submittal) => {
+                        const latestResponse = latestWorkflowResponse(submittal.workflow_steps);
+                        return (
+                          <tr
+                            key={submittal.id}
+                            onClick={() => { window.location.href = `/projects/${projectId}/submittals/${submittal.id}`; }}
+                            className="border-b border-gray-50 hover:bg-[color:var(--surface-sunken)] transition-colors cursor-pointer"
+                          >
+                            <td className="px-4 py-3 text-sm font-mono text-[color:var(--ink)] tabular-nums">#{submittal.submittal_number}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 tabular-nums">{submittal.revision ?? "—"}</td>
+                            <td className="px-4 py-3 text-sm text-gray-900 font-medium">{submittal.title}</td>
+                            <td className="px-4 py-3">
+                              <span className={`pill ${STATUS_PILL[submittal.status] ?? "pill-post"}`}>
+                                {STATUS_LABELS[submittal.status] ?? submittal.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.submit_by)}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.final_due_date)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{latestResponse?.response ?? "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
