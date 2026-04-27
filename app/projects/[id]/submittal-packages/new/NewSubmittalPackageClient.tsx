@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
+import { CreateSubmittalModal } from "../../submittals/SubmittalsClient";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -310,125 +311,6 @@ function AddExistingSubmittalModal({
   );
 }
 
-// ── Create Submittal Modal (inline, saves immediately) ────────────────────────
-
-const SUBMITTAL_TYPES = [
-  "Document",
-  "Other",
-  "Pay Request",
-  "Payroll",
-  "Plans",
-  "Prints",
-  "Product Information",
-  "Product Manual",
-  "Sample",
-  "Shop Drawing",
-  "Specification",
-];
-
-function CreateSubmittalModal({
-  projectId,
-  onCreated,
-  onClose,
-}: {
-  projectId: string;
-  onCreated: (submittal: SubmittalRow) => void;
-  onClose: () => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [submittalType, setSubmittalType] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleCreate() {
-    if (!title.trim()) { setError("Title is required."); return; }
-    setSaving(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/projects/${projectId}/submittals`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), submittal_type: submittalType || null }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to create submittal.");
-        return;
-      }
-      const created = await res.json();
-      onCreated(created);
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-900">Create Submittal</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Submittal title"
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
-            <select
-              value={submittalType}
-              onChange={(e) => setSubmittalType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-            >
-              <option value="">Select type</option>
-              {SUBMITTAL_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
-        </div>
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={saving}
-            className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-60"
-          >
-            {saving ? "Creating…" : "Create Submittal"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function NewSubmittalPackageClient({
@@ -450,6 +332,7 @@ export default function NewSubmittalPackageClient({
 
   // Submittals in package
   const [submittals, setSubmittals] = useState<SubmittalRow[]>([]);
+  const [nextSubmittalNumber, setNextSubmittalNumber] = useState(1);
   const [showCreateSubmittal, setShowCreateSubmittal] = useState(false);
   const [showAddExisting, setShowAddExisting] = useState(false);
 
@@ -459,6 +342,7 @@ export default function NewSubmittalPackageClient({
 
   // UI state
   const [saving, setSaving] = useState(false);
+  const [creatingSubmittal, setCreatingSubmittal] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -469,6 +353,17 @@ export default function NewSubmittalPackageClient({
       if (Array.isArray(specs)) setSpecifications(specs);
       if (Array.isArray(dir)) setDirectory(dir);
     });
+
+    fetch(`/api/projects/${projectId}/submittals`)
+      .then((r) => r.json())
+      .then((rows: SubmittalRow[]) => {
+        if (!Array.isArray(rows) || rows.length === 0) {
+          setNextSubmittalNumber(1);
+          return;
+        }
+        setNextSubmittalNumber(Math.max(...rows.map((s) => s.submittal_number)) + 1);
+      })
+      .catch(() => setNextSubmittalNumber(1));
   }, [projectId]);
 
   async function handleLogout() {
@@ -514,6 +409,41 @@ export default function NewSubmittalPackageClient({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleCreateSubmittal(data: Record<string, unknown>, sendEmails: boolean) {
+    setCreatingSubmittal(true);
+    const { attachmentFiles, ...rest } = data;
+    const res = await fetch(`/api/projects/${projectId}/submittals`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rest),
+    });
+    if (res.ok) {
+      const newSubmittal = await res.json();
+      const files = Array.isArray(attachmentFiles) ? attachmentFiles.filter((f): f is File => f instanceof File) : [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const attRes = await fetch(`/api/projects/${projectId}/submittals/${newSubmittal.id}/attachment`, {
+          method: "POST",
+          body: formData,
+        });
+        if (attRes.ok) {
+          const updated = await attRes.json();
+          newSubmittal.attachments = updated.attachments ?? [];
+        }
+      }
+      setSubmittals((prev) => [...prev, newSubmittal]);
+      setNextSubmittalNumber((n) => n + 1);
+      if (sendEmails) {
+        await fetch(`/api/projects/${projectId}/submittals/${newSubmittal.id}/notify`, {
+          method: "POST",
+        });
+      }
+    }
+    setCreatingSubmittal(false);
+    setShowCreateSubmittal(false);
   }
 
   const addedIds = new Set(submittals.map((s) => s.id));
@@ -850,8 +780,13 @@ export default function NewSubmittalPackageClient({
       {showCreateSubmittal && (
         <CreateSubmittalModal
           projectId={projectId}
-          onCreated={(s) => setSubmittals((prev) => [...prev, s])}
-          onClose={() => setShowCreateSubmittal(false)}
+          nextNumber={nextSubmittalNumber}
+          directory={directory}
+          specifications={specifications}
+          packages={[]}
+          onConfirm={handleCreateSubmittal}
+          onCancel={() => !creatingSubmittal && setShowCreateSubmittal(false)}
+          onSpecCreated={(spec) => setSpecifications((prev) => [...prev, spec])}
         />
       )}
       {showAddExisting && (
