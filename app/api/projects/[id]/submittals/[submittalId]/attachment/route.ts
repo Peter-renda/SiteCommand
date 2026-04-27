@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { logSubmittalDiff } from "@/lib/submittal-history";
 
 export async function POST(
   req: NextRequest,
@@ -49,5 +50,13 @@ export async function POST(
     .single();
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  await logSubmittalDiff(
+    supabase,
+    session,
+    submittalId,
+    projectId,
+    submittal as Record<string, unknown>,
+    updated as Record<string, unknown>,
+  );
   return NextResponse.json(updated);
 }
