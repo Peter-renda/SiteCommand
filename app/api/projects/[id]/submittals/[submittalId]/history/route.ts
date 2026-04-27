@@ -28,9 +28,15 @@ export async function GET(
     .eq("submittal_id", submittalId)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const tableMissing =
+    !!error &&
+    (
+      (typeof (error as { code?: string }).code === "string" && (error as { code?: string }).code === "42P01") ||
+      error.message.toLowerCase().includes("submittal_change_history")
+    );
+  if (error && !tableMissing) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const history = data ?? [];
+  const history = tableMissing ? [] : (data ?? []);
   const hasCreatedEntry = history.some((entry) => entry.action === "Created Submittal");
   if (hasCreatedEntry) return NextResponse.json(history);
 
