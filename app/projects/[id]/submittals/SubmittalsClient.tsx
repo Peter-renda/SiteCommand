@@ -957,7 +957,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
   const [creating, setCreating] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"items" | "packages" | "recycle_bin">("items");
+  const [activeTab, setActiveTab] = useState<"items" | "packages" | "recycle_bin" | "spec_sections" | "ball_in_court">("items");
   const createMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -986,6 +986,29 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
   }, []);
 
   const nextNumber = submittals.length > 0 ? Math.max(...submittals.map((s) => s.submittal_number)) + 1 : 1;
+  const specSectionRows = Array.from(
+    submittals.reduce((acc, submittal) => {
+      const key = submittal.specification_id ?? "none";
+      const existing = acc.get(key) ?? { key, name: getSpecName(specifications, submittal.specification_id), total: 0, open: 0, closed: 0 };
+      existing.total += 1;
+      if (submittal.status === "closed") existing.closed += 1;
+      else existing.open += 1;
+      acc.set(key, existing);
+      return acc;
+    }, new Map<string, { key: string; name: string; total: number; open: number; closed: number }>())
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
+  const ballInCourtRows = Array.from(
+    submittals.reduce((acc, submittal) => {
+      const key = submittal.ball_in_court_id ?? "none";
+      const existing = acc.get(key) ?? { key, name: getContactNameById(directory, submittal.ball_in_court_id), total: 0, open: 0, closed: 0 };
+      existing.total += 1;
+      if (submittal.status === "closed") existing.closed += 1;
+      else existing.open += 1;
+      acc.set(key, existing);
+      return acc;
+    }, new Map<string, { key: string; name: string; total: number; open: number; closed: number }>())
+  ).sort((a, b) => a.name.localeCompare(b.name));
 
   async function handleCreate(data: Record<string, unknown>, sendEmails: boolean) {
     setShowCreate(false);
@@ -1089,6 +1112,8 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
             <div className="mt-3 inline-flex rounded-md border hairline overflow-hidden bg-white">
               <button onClick={() => { setActiveTab("items"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "items" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Items</button>
               <button onClick={() => { setActiveTab("packages"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "packages" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Packages</button>
+              <button onClick={() => { setActiveTab("spec_sections"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "spec_sections" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Spec Sections</button>
+              <button onClick={() => { setActiveTab("ball_in_court"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "ball_in_court" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Ball in court</button>
               <button onClick={() => { setActiveTab("recycle_bin"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "recycle_bin" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Recycle Bin</button>
             </div>
           </div>
@@ -1113,7 +1138,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
               <button
                 type="button"
                 onClick={() => setShowCreateMenu((o) => !o)}
-                disabled={creating || activeTab === "recycle_bin" || activeTab === "packages"}
+                disabled={creating || activeTab === "recycle_bin" || activeTab === "packages" || activeTab === "spec_sections" || activeTab === "ball_in_court"}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors disabled:opacity-50"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -1180,6 +1205,66 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                       <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{pkg.submittal_count}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{pkg.distributed_count}/{pkg.submittal_count}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{new Date(pkg.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : activeTab === "spec_sections" ? (
+          specSectionRows.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
+              <p className="eyebrow eyebrow-quiet justify-center mb-3">Empty</p>
+              <p className="font-display text-xl text-[color:var(--ink)] mb-1">No specification sections yet</p>
+            </div>
+          ) : (
+            <div className="bg-white border hairline rounded-xl overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                <thead>
+                  <tr className="border-b hairline bg-[color:var(--surface-sunken)]">
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">SPEC SECTION</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">TOTAL SUBMITTALS</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">OPEN</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">CLOSED</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {specSectionRows.map((row) => (
+                    <tr key={row.key} className="border-b border-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900 font-medium">{row.name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.total}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.open}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.closed}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : activeTab === "ball_in_court" ? (
+          ballInCourtRows.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
+              <p className="eyebrow eyebrow-quiet justify-center mb-3">Empty</p>
+              <p className="font-display text-xl text-[color:var(--ink)] mb-1">No ball in court assignments yet</p>
+            </div>
+          ) : (
+            <div className="bg-white border hairline rounded-xl overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                <thead>
+                  <tr className="border-b hairline bg-[color:var(--surface-sunken)]">
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">BALL IN COURT</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">TOTAL SUBMITTALS</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">OPEN</th>
+                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">CLOSED</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ballInCourtRows.map((row) => (
+                    <tr key={row.key} className="border-b border-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900 font-medium">{row.name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.total}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.open}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.closed}</td>
                     </tr>
                   ))}
                 </tbody>
