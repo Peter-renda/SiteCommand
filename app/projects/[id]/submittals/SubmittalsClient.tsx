@@ -127,6 +127,15 @@ function formatDate(d: string | null): string {
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+
+function safeText(value: unknown): string {
+  return typeof value === "string" ? value : value == null ? "" : String(value);
+}
+
+function safeLocaleCompare(a: unknown, b: unknown, numeric = false): number {
+  return safeText(a).localeCompare(safeText(b), undefined, { numeric });
+}
+
 function getContactNameById(directory: DirectoryContact[], id: string | null): string {
   if (!id) return "—";
   const c = directory.find((x) => x.id === id);
@@ -139,8 +148,13 @@ function getSpecName(specifications: Specification[], id: string | null): string
   return s ? s.name + (s.code ? ` (${s.code})` : "") : "—";
 }
 
+function normalizeWorkflowSteps(steps: Submittal["workflow_steps"]): NonNullable<Submittal["workflow_steps"]> {
+  if (!Array.isArray(steps)) return [];
+  return steps.filter((step): step is NonNullable<Submittal["workflow_steps"]>[number] => Boolean(step && typeof step === "object"));
+}
+
 function summarizeApprovers(directory: DirectoryContact[], steps: Submittal["workflow_steps"]): string {
-  const approverIds = (steps ?? [])
+  const approverIds = normalizeWorkflowSteps(steps)
     .filter((step) => step.person_id && step.role?.toLowerCase().includes("approver"))
     .map((step) => step.person_id as string);
   if (approverIds.length === 0) return "—";
@@ -152,7 +166,7 @@ function summarizeApprovers(directory: DirectoryContact[], steps: Submittal["wor
 }
 
 function latestWorkflowResponse(steps: Submittal["workflow_steps"]) {
-  const withResponse = (steps ?? []).filter((step) => step.response || step.sent_date || step.returned_date);
+  const withResponse = normalizeWorkflowSteps(steps).filter((step) => step.response || step.sent_date || step.returned_date);
   if (withResponse.length === 0) return null;
   return [...withResponse].sort((a, b) => (b.step ?? 0) - (a.step ?? 0))[0];
 }
@@ -469,7 +483,7 @@ function CreateSubmittalModal({
         const unique = rows
           .map((d) => ({ number: (d.drawing_no ?? "").trim(), title: (d.title ?? "").trim() }))
           .filter((d) => d.number && !seen.has(d.number) && seen.add(d.number))
-          .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
+          .sort((a, b) => safeLocaleCompare(a.number, b.number, true));
         setProjectDrawings(unique);
       })
       .catch(() => {});
@@ -996,7 +1010,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
       acc.set(key, existing);
       return acc;
     }, new Map<string, { key: string; name: string; total: number; open: number; closed: number }>())
-  ).sort((a, b) => a.name.localeCompare(b.name));
+  ).sort((a, b) => safeLocaleCompare(a.name, b.name));
 
   const ballInCourtRows = Array.from(
     submittals.reduce((acc, submittal) => {
@@ -1008,7 +1022,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
       acc.set(key, existing);
       return acc;
     }, new Map<string, { key: string; name: string; total: number; open: number; closed: number }>())
-  ).sort((a, b) => a.name.localeCompare(b.name));
+  ).sort((a, b) => safeLocaleCompare(a.name, b.name));
 
   async function handleCreate(data: Record<string, unknown>, sendEmails: boolean) {
     setShowCreate(false);
@@ -1375,7 +1389,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
           packages={packages}
           onConfirm={handleCreate}
           onCancel={() => setShowCreate(false)}
-          onSpecCreated={(spec) => setSpecifications((prev) => [...prev, spec].sort((a, b) => a.name.localeCompare(b.name)))}
+          onSpecCreated={(spec) => setSpecifications((prev) => [...prev, spec].sort((a, b) => safeLocaleCompare(a.name, b.name)))}
         />
       )}
     </div>
