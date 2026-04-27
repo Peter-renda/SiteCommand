@@ -242,7 +242,7 @@ export default function MeetingsClient({
                 : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
-            List
+            Meetings
           </button>
           <button
             onClick={() => { setActiveTab("recycle"); setPage(1); }}
