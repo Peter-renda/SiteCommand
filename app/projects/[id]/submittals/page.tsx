@@ -7,5 +7,5 @@ export default async function SubmittalsPage({ params }: { params: Promise<{ id:
   if (!session) redirect("/login");
 
   const { id } = await params;
-  return <SubmittalsClient projectId={id} role={session.role} username={session.username} userId={session.id} />;
+  return <SubmittalsClient projectId={id} role={session.role} username={session.username} userId={session.id} userType={session.user_type ?? "internal"} />;
 }

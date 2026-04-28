@@ -988,8 +988,8 @@ function exportSubmittalsPDF(submittals: Submittal[], directory: DirectoryContac
   if (win) { win.document.write(html); win.document.close(); }
 }
 
-export default function SubmittalsClient({ projectId, role, username, userId }: { projectId: string; role: string; username: string; userId: string }) {
-  const isExternalViewer = role === "external_viewer";
+export default function SubmittalsClient({ projectId, role, username, userId, userType }: { projectId: string; role: string; username: string; userId: string; userType: string }) {
+  const isExternalViewer = userType === "external";
   const router = useRouter();
   const searchParams = useSearchParams();
   const shouldPromptForSpecs = searchParams.get("createFromSpecs") === "1";
