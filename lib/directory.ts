@@ -57,7 +57,7 @@ export async function addUserToDirectory(
     first_name: user.first_name || null,
     last_name: user.last_name || null,
     email: user.email,
-    permission: "Company Employee",
+    permission: "Owner/Client",
     company: companyName,
   });
 }

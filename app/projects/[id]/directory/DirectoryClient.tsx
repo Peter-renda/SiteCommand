@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import ProjectNav from "@/components/ProjectNav";
 import { Brand, Eyebrow, Pill } from "@/components/design-system/Primitives";
+import { PERMISSION_TEMPLATE_ORDER } from "@/lib/permission-templates";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,12 +25,7 @@ type Contact = {
   created_at: string;
 };
 
-const PERMISSIONS = [
-  "Architect/Engineer",
-  "Owner/Client",
-  "Subcontractor",
-  "Company Employee",
-];
+const PERMISSIONS = PERMISSION_TEMPLATE_ORDER;
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
