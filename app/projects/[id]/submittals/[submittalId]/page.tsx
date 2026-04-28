@@ -14,6 +14,7 @@ export default async function SubmittalDetailPage({ params }: { params: Promise<
       role={session.role}
       username={session.username}
       userId={session.id}
+      userEmail={session.email}
     />
   );
 }
