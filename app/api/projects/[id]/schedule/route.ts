@@ -26,6 +26,26 @@ function parseDate(raw: unknown): string {
   return str.includes("T") ? str.split("T")[0] : str;
 }
 
+function normalizeXmlKey(key: string): string {
+  return key.split(":").pop()?.toLowerCase() ?? key.toLowerCase();
+}
+
+function getNode(obj: unknown, nodeName: string): unknown {
+  if (!obj || typeof obj !== "object") return undefined;
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (normalizeXmlKey(key) === nodeName.toLowerCase()) return value;
+  }
+  return undefined;
+}
+
+function getValue(obj: unknown, keyName: string): unknown {
+  if (!obj || typeof obj !== "object") return undefined;
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (normalizeXmlKey(key) === keyName.toLowerCase()) return value;
+  }
+  return undefined;
+}
+
 function parseTasks(xmlText: string): Task[] {
   const parser = new XMLParser({ ignoreAttributes: false, parseTagValue: true });
   const parsed = parser.parse(xmlText);
@@ -36,8 +56,8 @@ function parseTasks(xmlText: string): Task[] {
     parsed[Object.keys(parsed).find((k) => k.includes("Project")) ?? ""] ??
     {};
 
-  const tasksNode = root["Tasks"] ?? {};
-  const rawTasks = tasksNode["Task"];
+  const tasksNode = getNode(root, "Tasks") ?? getNode(parsed, "Tasks") ?? {};
+  const rawTasks = getNode(tasksNode, "Task");
 
   if (!rawTasks) return [];
 
@@ -45,29 +65,29 @@ function parseTasks(xmlText: string): Task[] {
 
   return taskArr
     .filter((t) => {
-      const uid = Number(t["UID"] ?? t["uid"] ?? -1);
+      const uid = Number(getValue(t, "UID") ?? -1);
       return uid !== 0; // skip project summary row
     })
     .map((t): Task => {
-      const predLink = t["PredecessorLink"];
+      const predLink = getNode(t, "PredecessorLink");
       let predecessorUids: number[] = [];
       if (predLink) {
         const links = Array.isArray(predLink) ? predLink : [predLink];
         predecessorUids = links
-          .map((l) => Number(l["PredecessorUID"] ?? l["predecessorUID"] ?? 0))
+          .map((l) => Number(getValue(l, "PredecessorUID") ?? 0))
           .filter((n) => n > 0);
       }
 
       return {
-        uid: Number(t["UID"] ?? t["uid"] ?? 0),
-        id: Number(t["ID"] ?? t["id"] ?? 0),
-        name: String(t["Name"] ?? t["name"] ?? ""),
-        outlineLevel: Number(t["OutlineLevel"] ?? t["outlineLevel"] ?? 0),
-        isSummary: Number(t["Summary"] ?? t["summary"] ?? 0) === 1,
-        isMilestone: Number(t["Milestone"] ?? t["milestone"] ?? 0) === 1,
-        start: parseDate(t["Start"] ?? t["start"]),
-        finish: parseDate(t["Finish"] ?? t["finish"]),
-        percentComplete: Number(t["PercentComplete"] ?? t["percentComplete"] ?? 0),
+        uid: Number(getValue(t, "UID") ?? 0),
+        id: Number(getValue(t, "ID") ?? 0),
+        name: String(getValue(t, "Name") ?? ""),
+        outlineLevel: Number(getValue(t, "OutlineLevel") ?? 0),
+        isSummary: Number(getValue(t, "Summary") ?? 0) === 1,
+        isMilestone: Number(getValue(t, "Milestone") ?? 0) === 1,
+        start: parseDate(getValue(t, "Start")),
+        finish: parseDate(getValue(t, "Finish")),
+        percentComplete: Number(getValue(t, "PercentComplete") ?? 0),
         predecessorUids,
       };
     });
