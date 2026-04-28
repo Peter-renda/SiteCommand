@@ -203,12 +203,14 @@ export default function SubmittalDetailClient({
   role,
   username,
   userId,
+  userEmail,
 }: {
   projectId: string;
   submittalId: string;
   role: string;
   username: string;
   userId: string;
+  userEmail: string;
 }) {
   const router = useRouter();
   const [submittal, setSubmittal] = useState<Submittal | null>(null);
@@ -517,6 +519,22 @@ export default function SubmittalDetailClient({
 
   const fromContact = getContactById(directory, submittal.received_from_id);
   const workflowSteps = (submittal.workflow_steps ?? []).slice().sort((a, b) => a.step - b.step);
+  const currentUserDirectoryContact =
+    directory.find((contact) => contact.type === "user" && contact.email?.toLowerCase() === userEmail.toLowerCase()) ?? null;
+  const currentUserWorkflowStep = currentUserDirectoryContact
+    ? workflowSteps.find((step) => step.person_id === currentUserDirectoryContact.id) ?? null
+    : null;
+  const isApproverBallInCourtReviewer =
+    Boolean(currentUserWorkflowStep?.person_id) &&
+    submittal.ball_in_court_id === currentUserWorkflowStep?.person_id;
+  const canRequiredApproverRespond = isApproverBallInCourtReviewer && Boolean(currentUserWorkflowStep?.required);
+  const canOptionalApproverSetBallInCourt = isApproverBallInCourtReviewer && !currentUserWorkflowStep?.required;
+  const ballInCourtTargets = Array.from(
+    new Set(
+      [submittal.submittal_manager_id, ...workflowSteps.map((step) => step.person_id)]
+        .filter((id): id is string => Boolean(id))
+    )
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -945,16 +963,18 @@ export default function SubmittalDetailClient({
                     </td>
                     <td colSpan={7} />
                     <td className="px-3 py-2.5 text-right">
-                      <button
-                        onClick={() => {
-                          const contactId = prompt("Set Ball in Court to contact ID:");
-                          if (!contactId) return;
-                          runAction("change_ball_in_court", { ball_in_court_id: contactId.trim() });
-                        }}
-                        className="px-3 py-1 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors whitespace-nowrap"
-                      >
-                        Set Ball in Court
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => {
+                            const contactId = prompt("Set Ball in Court to contact ID:");
+                            if (!contactId) return;
+                            runAction("change_ball_in_court", { ball_in_court_id: contactId.trim() });
+                          }}
+                          className="px-3 py-1 text-xs font-medium text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors whitespace-nowrap"
+                        >
+                          Set Ball in Court
+                        </button>
+                      )}
                     </td>
                   </tr>
 
@@ -1025,13 +1045,31 @@ export default function SubmittalDetailClient({
                           </td>
                           <td className="px-3 py-3">
                             <div className="flex items-center gap-2">
-                              {canEdit && step.person_id && isBallInCourt && (
+                              {(canEdit || (canRequiredApproverRespond && step.person_id === currentUserWorkflowStep?.person_id)) && step.person_id && isBallInCourt && (
                                 <button
                                   onClick={() => setResponseModal({ personId: step.person_id! })}
                                   className="text-xs text-blue-600 hover:underline"
                                 >
-                                  Edit Response
+                                  Send Response
                                 </button>
+                              )}
+                              {canOptionalApproverSetBallInCourt && step.person_id && isBallInCourt && (
+                                <select
+                                  value=""
+                                  onChange={(e) => {
+                                    const nextId = e.target.value;
+                                    if (!nextId) return;
+                                    runAction("change_ball_in_court", { ball_in_court_id: nextId });
+                                  }}
+                                  className="px-2 py-1 text-xs border border-gray-300 rounded bg-white text-gray-700"
+                                >
+                                  <option value="">Set Ball in Court…</option>
+                                  {ballInCourtTargets.map((contactId) => (
+                                    <option key={contactId} value={contactId}>
+                                      {getContactNameById(directory, contactId)}
+                                    </option>
+                                  ))}
+                                </select>
                               )}
                               {canEdit && step.person_id && isBallInCourt && (
                                 <button onClick={forwardForReview} className="text-xs text-blue-600 hover:underline">Forward</button>
@@ -1295,7 +1333,7 @@ function ResponseModal({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-6 overflow-y-auto">
       <div className="bg-white rounded-xl w-full max-w-lg shadow-xl my-auto max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-900">Edit Response</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Send Response</h2>
           <button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1306,16 +1344,13 @@ function ResponseModal({
         <div className="px-6 py-5 space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Response</label>
-            <select value={response} onChange={(e) => setResponse(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900">
-              <option value=""></option>
-              <option value="Approved">Approved</option>
-              <option value="Approved as Noted">Approved as Noted</option>
-              <option value="Make Corrections Noted">Make Corrections Noted</option>
-              <option value="No Exceptions Taken">No Exceptions Taken</option>
-              <option value="Rejected">Rejected</option>
-              <option value="Revise and Resubmit">Revise and Resubmit</option>
-              <option value="Sub Specified Item">Sub Specified Item</option>
-            </select>
+            <textarea
+              value={response}
+              onChange={(e) => setResponse(e.target.value)}
+              rows={3}
+              placeholder="Enter your response..."
+              className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Comments</label>
