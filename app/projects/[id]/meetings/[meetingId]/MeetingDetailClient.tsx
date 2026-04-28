@@ -42,6 +42,7 @@ type Meeting = {
   end_time: string | null;
   attendees: Attendee[];
   notes: string | null;
+  attachments: { name: string; url: string }[];
   agenda: AgendaCategory[];
   deleted_at: string | null;
   created_at: string;
@@ -683,7 +684,27 @@ export default function MeetingDetailClient({
 
                   {/* Row 5: Overview | Attachments */}
                   <InfoField label="Overview" value={meeting.overview} isHtml />
-                  <InfoField label="Attachments" value={null} />
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Attachments</p>
+                    {(meeting.attachments ?? []).length === 0 ? (
+                      <p className="text-sm text-gray-400">--</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {meeting.attachments.map((attachment, index) => (
+                          <li key={`${attachment.url}-${index}`}>
+                            <a
+                              href={attachment.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-600 hover:underline break-all"
+                            >
+                              {attachment.name}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
 
                   {/* Row 6: Notes (full width) */}
                   <div className="col-span-2">

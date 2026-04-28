@@ -530,6 +530,24 @@ export default function NewMeetingClient({
 
     if (res.ok) {
       const meeting = await res.json();
+      const failedUploads: string[] = [];
+
+      for (const file of attachments) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const uploadRes = await fetch(`/api/projects/${projectId}/meetings/${meeting.id}/attachment`, {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) failedUploads.push(file.name);
+      }
+
+      if (failedUploads.length > 0) {
+        setError(`Meeting created, but failed to upload attachment${failedUploads.length > 1 ? "s" : ""}: ${failedUploads.join(", ")}.`);
+        setSubmitting(false);
+        return;
+      }
+
       window.location.href = `/projects/${projectId}/meetings/${meeting.id}`;
     } else {
       const err = await res.json();
