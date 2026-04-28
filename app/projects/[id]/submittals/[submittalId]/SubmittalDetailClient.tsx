@@ -44,6 +44,7 @@ type Submittal = {
   workflow_steps: {
     step: number;
     person_id: string | null;
+    required?: boolean;
     role: string;
     due_date: string | null;
     sent_date?: string | null;
@@ -389,6 +390,10 @@ export default function SubmittalDetailClient({
   async function removeWorkflowPerson(personId: string) {
     if (!confirm("Remove this submitter/approver from the workflow?")) return;
     await runAction("remove_workflow_person", { person_id: personId });
+  }
+
+  async function toggleWorkflowStepRequired(stepNumber: number, required: boolean) {
+    await runAction("set_workflow_step_required", { step_number: stepNumber, required });
   }
 
   useEffect(() => {
@@ -967,6 +972,18 @@ export default function SubmittalDetailClient({
                                   <p className="text-sm font-medium text-gray-900 leading-snug">
                                     {contactDisplayName(stepContact)}
                                   </p>
+                                  {canEdit && (
+                                    <label className="mt-1 inline-flex items-center gap-1.5 text-xs text-gray-500">
+                                      <input
+                                        type="checkbox"
+                                        checked={Boolean(step.required)}
+                                        title="Mark required"
+                                        onChange={(e) => toggleWorkflowStepRequired(step.step, e.target.checked)}
+                                        className="h-3.5 w-3.5 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                                      />
+                                      Required
+                                    </label>
+                                  )}
                                   <p className="text-xs text-gray-500">{step.role}</p>
                                   {stepContact.company && (
                                     <p className="text-xs text-gray-500">{stepContact.company}</p>

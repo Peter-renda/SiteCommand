@@ -452,9 +452,9 @@ export function CreateSubmittalModal({
   const [actualDeliveryDate, setActualDeliveryDate] = useState("");
   // Submittal Workflow
   const [workflowOpen, setWorkflowOpen] = useState(true);
-  type WorkflowStep = { id: string; personId: string | null; role: string; dueDate: string };
+  type WorkflowStep = { id: string; personId: string | null; role: string; dueDate: string; required: boolean };
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
-    { id: crypto.randomUUID(), personId: null, role: "Approver", dueDate: "" },
+    { id: crypto.randomUUID(), personId: null, role: "Approver", dueDate: "", required: false },
   ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [budgetCostCodes, setBudgetCostCodes] = useState<{ code: string; description: string }[]>([]);
@@ -527,7 +527,7 @@ export function CreateSubmittalModal({
       description: description || null, attachmentFiles, attachments: [],
       approver_name_id: approverNameId, owners_manual: ownersManual || null, package_notes: packageNotes || null,
       confirmed_delivery_date: confirmedDeliveryDate || null, actual_delivery_date: actualDeliveryDate || null,
-      workflow_steps: workflowSteps.map((s, i) => ({ step: i + 1, person_id: s.personId, role: s.role, due_date: s.dueDate || null })),
+      workflow_steps: workflowSteps.map((s, i) => ({ step: i + 1, person_id: s.personId, required: s.required, role: s.role, due_date: s.dueDate || null })),
       submittal_package_id: submittalPackageId || null,
     };
   }
@@ -869,6 +869,7 @@ export function CreateSubmittalModal({
                         <th className="px-2 py-2 text-left font-medium">Name</th>
                         <th className="px-2 py-2 text-left font-medium">Role</th>
                         <th className="px-2 py-2 text-left font-medium">Due Date</th>
+                        <th className="px-2 py-2 text-left font-medium">Required</th>
                         <th className="w-8"></th>
                       </tr>
                     </thead>
@@ -891,6 +892,17 @@ export function CreateSubmittalModal({
                             <input type="date" value={step.dueDate} onChange={(e) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, dueDate: e.target.value } : s))} className="w-full px-2 py-1.5 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" />
                           </td>
                           <td className="px-2 py-2">
+                            <label className="inline-flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={step.required}
+                                title="Mark required"
+                                onChange={(e) => setWorkflowSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, required: e.target.checked } : s))}
+                                className="h-3.5 w-3.5 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                              />
+                            </label>
+                          </td>
+                          <td className="px-2 py-2">
                             {workflowSteps.length > 1 && (
                               <button type="button" onClick={() => setWorkflowSteps((prev) => prev.filter((s) => s.id !== step.id))} className="text-gray-400 hover:text-red-500 transition-colors">
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -902,7 +914,7 @@ export function CreateSubmittalModal({
                     </tbody>
                   </table>
                 </div>
-                <button type="button" onClick={() => setWorkflowSteps((prev) => [...prev, { id: crypto.randomUUID(), personId: null, role: "Approver", dueDate: "" }])} className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
+                <button type="button" onClick={() => setWorkflowSteps((prev) => [...prev, { id: crypto.randomUUID(), personId: null, role: "Approver", dueDate: "", required: false }])} className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
                   Add Step
                 </button>
               </div>
