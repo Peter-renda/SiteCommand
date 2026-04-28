@@ -61,45 +61,42 @@ function timeAgo(ts: string): string {
 }
 
 function ActivityIcon({ type }: { type: ActivityItem["type"] }) {
-  if (type === "rfi") {
-    return (
-      <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+  const iconMap: Record<string, React.ReactNode> = {
+    rfi: (
+      <svg className="w-4 h-4 text-[#D4500A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-    );
-  }
-  if (type === "submittal") {
-    return (
-      <svg className="w-4 h-4 text-purple-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+    ),
+    submittal: (
+      <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
-    );
-  }
-  if (type === "document") {
-    return (
-      <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+    ),
+    document: (
+      <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
       </svg>
-    );
-  }
-  if (type === "daily_log") {
-    return (
-      <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+    ),
+    daily_log: (
+      <svg className="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
-    );
-  }
-  if (type === "task") {
-    return (
-      <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+    ),
+    task: (
+      <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-    );
-  }
+    ),
+    drawing: (
+      <svg className="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      </svg>
+    ),
+  };
   return (
-    <svg className="w-4 h-4 text-orange-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
+    <div className="w-7 h-7 rounded-md bg-gray-50 border border-gray-100 grid place-items-center shrink-0">
+      {iconMap[type] ?? iconMap.document}
+    </div>
   );
 }
 
@@ -796,7 +793,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
                 <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
                   {/* Left: attention */}
                   <div className="px-6 sm:px-8 py-7 sm:py-9">
-                    <p className="eyebrow mb-4">Today · Where you&rsquo;re needed</p>
                     <h1 className="font-display text-[32px] sm:text-[40px] leading-[1.05] text-[color:var(--ink)] mb-1">
                       {attentionCount > 0 ? (
                         <>
@@ -856,7 +852,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
                   {/* Right: portfolio snapshot */}
                   <div className="border-t lg:border-t-0 lg:border-l hairline px-6 sm:px-8 py-7 sm:py-9 bg-gradient-to-br from-white to-[color:var(--surface-sunken)]">
-                    <p className="eyebrow mb-4">Portfolio · At a glance</p>
                     <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">Total value</p>
                     <p className="font-display text-[36px] leading-none text-[color:var(--ink)] tabular-nums mb-6">
                       {formatCurrencyDisplay(totalValue)}
@@ -902,11 +897,25 @@ export default function DashboardClient({ username, email, role, companyRole, us
         {/* Projects section header */}
         <div className="flex items-end justify-between mb-5">
           <div>
-            <p className="eyebrow mb-2">Portfolio</p>
-            <h2 className="font-display text-[22px] leading-tight text-[color:var(--ink)]">Projects</h2>
+            <h2 className="font-display text-[28px] leading-[1.05] text-[color:var(--ink)]">Projects</h2>
+            <p className="sec-sub">
+              <span className="num">{activeCount}</span> active
+              <span className="sep">·</span>
+              <span className="num">{projects.filter((p) => p.status === "bidding").length}</span> bidding
+              <span className="sep">·</span>
+              <span className="num">{formatCurrencyDisplay(totalValue)}</span> in flight
+            </p>
           </div>
-          {projects.length > 0 && (
-            <p className="text-xs text-gray-400 mono-label">{projects.length} TOTAL</p>
+          {canManageProjects && (
+            <button
+              onClick={() => { loadUsers(); setShowModal(true); }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[color:var(--ink)] text-white text-[12px] font-semibold rounded-md hover:bg-gray-800 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              New Project
+            </button>
           )}
         </div>
 
@@ -1034,10 +1043,11 @@ export default function DashboardClient({ username, email, role, companyRole, us
         <section ref={myOpenItemsRef} className="mt-12">
           <div className="flex items-end justify-between mb-5">
             <div>
-              <p className="eyebrow mb-2">Today · Where you&rsquo;re needed</p>
-              <h2 className="font-display text-[22px] leading-tight text-[color:var(--ink)]">My Open Items</h2>
+              <h2 className="font-display text-[28px] leading-[1.05] text-[color:var(--ink)]">My open items</h2>
+              <p className="sec-sub">
+                <span className="num">{myOpenItems.length}</span> item{myOpenItems.length !== 1 ? "s" : ""} awaiting action
+              </p>
             </div>
-            <p className="text-xs text-gray-400 mono-label">{myOpenItems.length} TOTAL</p>
           </div>
 
           {myOpenItems.length === 0 ? (
@@ -1082,8 +1092,8 @@ export default function DashboardClient({ username, email, role, companyRole, us
         <div className="mt-12">
           <div className="flex items-end justify-between mb-5">
             <div>
-              <p className="eyebrow mb-2">Signal</p>
-              <h2 className="font-display text-[22px] leading-tight text-[color:var(--ink)]">Recent activity</h2>
+              <h2 className="font-display text-[28px] leading-[1.05] text-[color:var(--ink)]">Recent activity</h2>
+              <p className="sec-sub">Last 24h across all projects</p>
             </div>
             {/* 3-dot filter button */}
             <div ref={filterMenuRef} className="relative">
@@ -1146,17 +1156,18 @@ export default function DashboardClient({ username, email, role, companyRole, us
                   <a
                     key={`${item.type}-${item.id}`}
                     href={item.href}
-                    className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
                   >
                     <ActivityIcon type={item.type} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-800 truncate">{item.title}</p>
-                      <p className="text-xs text-gray-400 truncate">
-                        <span className="mono-label mr-2">{TYPE_LABELS[item.type].toUpperCase()}</span>
+                      <p className="text-[13px] text-gray-900 truncate">{item.title}</p>
+                      <p className="text-[11px] text-gray-500 truncate">
+                        <span className="font-medium text-gray-600">{TYPE_LABELS[item.type]}</span>
+                        {" · "}
                         {item.project_name}
                       </p>
                     </div>
-                    <span className="text-xs text-gray-400 shrink-0 ml-2">{timeAgo(item.created_at)}</span>
+                    <span className="text-[11px] text-gray-400 shrink-0 tabular-nums">{timeAgo(item.created_at)}</span>
                   </a>
                 ))}
                 {hasMore && (
@@ -1190,7 +1201,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
               {/* General Information */}
               <div className="space-y-4">
-                <p className="eyebrow">General Information</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">General Information</p>
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Project Name</label>
@@ -1256,7 +1267,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
               {/* Location */}
               <div className="space-y-4">
-                <p className="eyebrow">Location</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Location</p>
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Address <span className="text-gray-400 font-normal">(optional)</span></label>
@@ -1309,7 +1320,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
               {/* Dates */}
               <div className="space-y-4">
-                <p className="eyebrow">Dates</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Dates</p>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1365,7 +1376,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
               {/* Team */}
               <div className="space-y-4">
-                <p className="eyebrow">Team</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Team</p>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Project Members <span className="text-gray-400 font-normal">(optional)</span></label>
                   <MemberPicker

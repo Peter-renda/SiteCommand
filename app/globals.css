@@ -207,27 +207,26 @@ p           { text-wrap: pretty; }
   letter-spacing: 0.02em;
 }
 
-/* Eyebrow: UPPERCASE + widely tracked, with brand dot */
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+/* Eyebrow: hidden — Option B "headline-led" header system is active.
+   Sections are led by an h2 + .sec-sub subtitle below; no orange-dot pill. */
+.eyebrow,
+.eyebrow-quiet { display: none; }
+
+/* Section subtitle — replaces the eyebrow pill. Sits below the h2. */
+.sec-sub {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.4;
   color: var(--fg-4);
 }
-.eyebrow::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background: var(--brand-500);
-  flex-shrink: 0;
+.sec-sub .num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--fg-3);
 }
-.eyebrow-quiet::before { background: var(--gray-300); }
+.sec-sub .sep { color: var(--gray-300); margin: 0 6px; }
 
 /* ──────────────── Bezel (double-layer surface) ────────────────
    Usage: <div class="bezel"><div class="bezel-inner">…</div></div>

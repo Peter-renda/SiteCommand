@@ -1350,7 +1350,6 @@ export default function DailyLogClient({
             <div className="relative z-[1] grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-6 px-6 sm:px-8 py-6 sm:py-7">
               {/* Left: page heading + date nav */}
               <div>
-                <p className="eyebrow mb-3">Daily log</p>
                 <div className="flex items-center gap-3 mb-2">
                   <button
                     onClick={() => setDate(shiftDay(date, -1))}
@@ -1414,7 +1413,6 @@ export default function DailyLogClient({
 
               {/* Right: weather snapshot */}
               <div className="md:border-l md:hairline md:pl-8">
-                <p className="eyebrow eyebrow-quiet mb-3">Observed on site</p>
                 <div className="flex items-baseline gap-3 mb-3">
                   <span className="font-display text-[44px] leading-none text-[color:var(--ink)] tabular-nums">
                     {form.weather_temp ? `${form.weather_temp}°` : "—"}
@@ -1458,7 +1456,7 @@ export default function DailyLogClient({
           <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6">
             <aside className="hidden lg:block">
               <div className="sticky top-20 bg-white border hairline rounded-xl p-4">
-                <p className="eyebrow mb-4">Sections</p>
+                <p className="mono-label mb-3">Sections</p>
                 <div className="space-y-0.5">
                   {DAILY_LOG_SECTIONS.map((section) => {
                     const count = (() => {
