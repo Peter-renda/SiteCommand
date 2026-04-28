@@ -7,6 +7,7 @@ import { logSubmittalDiff } from "@/lib/submittal-history";
 type WorkflowStep = {
   step: number;
   person_id: string | null;
+  required?: boolean;
   role: string;
   due_date: string | null;
   sent_date?: string | null;
@@ -42,9 +43,14 @@ async function getNextSubmittalNumber(projectId: string) {
   return (data?.submittal_number ?? 0) + 1;
 }
 
-function nextBallInCourtAfterResponse(steps: WorkflowStep[], actorPersonId: string): string | null {
+function nextBallInCourtAfterResponse(
+  steps: WorkflowStep[],
+  actorPersonId: string,
+  submittalManagerId: string | null
+): string | null {
   const current = steps.find((step) => step.person_id === actorPersonId);
   if (!current) return null;
+  if (!current.required) return actorPersonId;
 
   if (current.forwarded_by_person_id) return current.forwarded_by_person_id;
 
@@ -53,7 +59,7 @@ function nextBallInCourtAfterResponse(steps: WorkflowStep[], actorPersonId: stri
   if (currentIdx === -1) return null;
 
   const next = ordered.slice(currentIdx + 1).find((s) => s.person_id && !s.returned_date);
-  return next?.person_id ?? null;
+  return next?.person_id ?? submittalManagerId ?? null;
 }
 
 export async function POST(
@@ -156,6 +162,31 @@ export async function POST(
     return NextResponse.json(data);
   }
 
+  if (action === "set_workflow_step_required") {
+    const stepNumber = Number(payload?.step_number);
+    if (!Number.isFinite(stepNumber) || stepNumber < 1) {
+      return NextResponse.json({ error: "step_number is required" }, { status: 400 });
+    }
+    const required = Boolean(payload?.required);
+    const currentSteps = Array.isArray(existing.workflow_steps) ? (existing.workflow_steps as WorkflowStep[]) : [];
+    const hasStep = currentSteps.some((step) => step.step === stepNumber);
+    if (!hasStep) return NextResponse.json({ error: "Workflow step not found" }, { status: 404 });
+    const nextSteps = currentSteps.map((step) =>
+      step.step === stepNumber ? { ...step, required } : step
+    );
+    const { data, error } = await supabase
+      .from("submittals")
+      .update({ workflow_steps: nextSteps })
+      .eq("id", submittalId)
+      .eq("project_id", projectId)
+      .eq("is_deleted", false)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logUpdateHistory(data as Record<string, unknown>);
+    return NextResponse.json(data);
+  }
+
   if (action === "edit_response") {
     const personId = payload?.person_id as string | undefined;
     if (!personId) return NextResponse.json({ error: "person_id is required" }, { status: 400 });
@@ -185,7 +216,7 @@ export async function POST(
         : step
     );
 
-    const nextBallInCourt = nextBallInCourtAfterResponse(nextSteps, personId);
+    const nextBallInCourt = nextBallInCourtAfterResponse(nextSteps, personId, existing.submittal_manager_id ?? null);
     const { data, error } = await supabase
       .from("submittals")
       .update({
