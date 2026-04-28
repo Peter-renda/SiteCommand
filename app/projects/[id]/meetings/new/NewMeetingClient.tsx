@@ -600,7 +600,7 @@ export default function NewMeetingClient({
             )}
 
             {/* Meeting Information card */}
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-visible">
               {/* Section header */}
               <button
                 type="button"
