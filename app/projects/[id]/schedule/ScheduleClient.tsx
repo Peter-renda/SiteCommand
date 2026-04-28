@@ -437,6 +437,113 @@ function GanttView({ tasks }: { tasks: Task[] }) {
   );
 }
 
+// ── Calendar View ─────────────────────────────────────────────────────────────
+
+function CalendarView({ tasks }: { tasks: Task[] }) {
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState(
+    new Date(today.getFullYear(), today.getMonth(), 1)
+  );
+
+  const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+  const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+  const gridEnd = new Date(monthEnd);
+  gridEnd.setDate(monthEnd.getDate() + (6 - monthEnd.getDay()));
+
+  const days: Date[] = [];
+  for (const d = new Date(gridStart); d <= gridEnd; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d));
+  }
+
+  const weeks: Date[][] = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
+
+  const scheduledTasks = tasks.filter((task) => task.start && task.finish);
+
+  function tasksForDay(day: Date) {
+    const dayKey = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+    return scheduledTasks.filter((task) => {
+      const start = new Date(`${task.start}T00:00:00`);
+      const finish = new Date(`${task.finish}T00:00:00`);
+      return dayKey >= start.getTime() && dayKey <= finish.getTime();
+    });
+  }
+
+  const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <div className="h-full overflow-auto bg-gray-50 p-4">
+      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <button
+            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50"
+          >
+            Previous
+          </button>
+          <h3 className="text-base font-semibold text-gray-900">
+            {monthStart.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+          </h3>
+          <button
+            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50"
+          >
+            Next
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 border-b border-gray-100">
+          {weekDays.map((label) => (
+            <div key={label} className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-r last:border-r-0 border-gray-100">
+              {label}
+            </div>
+          ))}
+        </div>
+
+        <div className="divide-y divide-gray-100">
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7">
+              {week.map((day) => {
+                const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+                const dayTasks = tasksForDay(day);
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={`min-h-[110px] p-2 border-r last:border-r-0 border-gray-100 ${
+                      isCurrentMonth ? "bg-white" : "bg-gray-50"
+                    }`}
+                  >
+                    <div className={`text-xs mb-2 ${isCurrentMonth ? "text-gray-700" : "text-gray-400"}`}>
+                      {day.getDate()}
+                    </div>
+                    <div className="space-y-1">
+                      {dayTasks.slice(0, 2).map((task) => (
+                        <div
+                          key={`${task.uid}-${day.toISOString()}`}
+                          className={`h-2 rounded-full ${task.isSummary ? "bg-slate-500" : "bg-blue-500"}`}
+                          title={`${task.name}: ${task.start} → ${task.finish}`}
+                        />
+                      ))}
+                      {dayTasks.length > 2 && (
+                        <div className="text-[10px] text-gray-400">+{dayTasks.length - 2} more</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Upload Zone ───────────────────────────────────────────────────────────────
 
 function UploadZone({
@@ -549,7 +656,7 @@ export default function ScheduleClient({
 }) {
   const [schedule, setSchedule] = useState<ScheduleMeta | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [activeTab, setActiveTab] = useState<"table" | "gantt">("table");
+  const [activeTab, setActiveTab] = useState<"table" | "gantt" | "calendar">("table");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [replaceError, setReplaceError] = useState<string | null>(null);
@@ -703,7 +810,7 @@ export default function ScheduleClient({
           {/* Tab bar */}
           <div className="bg-white border-b border-gray-100 px-6 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-1">
-              {(["table", "gantt"] as const).map((tab) => (
+              {(["table", "gantt", "calendar"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -713,7 +820,7 @@ export default function ScheduleClient({
                       : "border-transparent text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  {tab === "table" ? "Table" : "Gantt Chart"}
+                  {tab === "table" ? "Table" : tab === "gantt" ? "Gantt Chart" : "Calendar"}
                 </button>
               ))}
             </div>
@@ -800,9 +907,13 @@ export default function ScheduleClient({
               <div className="h-full overflow-auto">
                 <TableView tasks={tasks} onUpdateTask={handleUpdateTask} />
               </div>
-            ) : (
+            ) : activeTab === "gantt" ? (
               <div className="h-full flex flex-col">
                 <GanttView tasks={tasks} />
+              </div>
+            ) : (
+              <div className="h-full flex flex-col">
+                <CalendarView tasks={tasks} />
               </div>
             )}
           </div>
