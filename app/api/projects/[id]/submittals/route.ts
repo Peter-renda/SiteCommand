@@ -43,6 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await req.json();
   const {
     title,
+    submittal_number,
     revision,
     specification_id,
     submittal_type,
@@ -82,6 +83,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Submittal Manager is required" }, { status: 400 });
   }
 
+  const requestedSubmittalNumber = Number(submittal_number);
+  const submittalNumberToUse =
+    Number.isInteger(requestedSubmittalNumber) && requestedSubmittalNumber > 0
+      ? requestedSubmittalNumber
+      : nextNumber;
+  const firstApproverWorkflowStep = Array.isArray(workflow_steps)
+    ? workflow_steps.find(
+        (step: { role?: string; person_id?: string | null } | null | undefined) =>
+          step?.person_id && (step.role ?? "").toLowerCase().includes("approver")
+      )
+    : null;
+  const ballInCourtIdToUse =
+    ball_in_court_id ||
+    approver_name_id ||
+    firstApproverWorkflowStep?.person_id ||
+    null;
 
   const scheduleDates = calculateSubmittalSchedule({
     required_on_site_date: required_on_site_date || null,
@@ -94,12 +111,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from("submittals")
     .insert({
       project_id: projectId,
-      submittal_number: nextNumber,
+      submittal_number: submittalNumberToUse,
       title: trimmedTitle,
-      revision: revision || "A",
+      revision: revision || "0",
       specification_id: specification_id || null,
       submittal_type: submittal_type || null,
-      status: status || "draft",
+      status: status || "open",
       responsible_contractor_id: responsible_contractor_id || null,
       received_from_id: received_from_id || null,
       submittal_manager_id: submittal_manager_id || null,
@@ -111,7 +128,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       cost_code: cost_code || null,
       linked_drawings: linked_drawings || null,
       distribution_list: distribution_list ?? [],
-      ball_in_court_id: ball_in_court_id || null,
+      ball_in_court_id: ballInCourtIdToUse,
       lead_time: lead_time != null ? Number(lead_time) : null,
       design_team_review_time: design_team_review_time != null ? Number(design_team_review_time) : null,
       internal_review_time: internal_review_time != null ? Number(internal_review_time) : null,
