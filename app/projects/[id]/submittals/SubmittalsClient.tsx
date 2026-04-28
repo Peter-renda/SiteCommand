@@ -436,6 +436,7 @@ export function CreateSubmittalModal({
   const [costCode, setCostCode] = useState("");
   const [linkedDrawings, setLinkedDrawings] = useState("");
   const [distributionList, setDistributionList] = useState<DirContact[]>([]);
+  const [ballInCourtId, setBallInCourtId] = useState<string | null>(null);
   const [leadTime, setLeadTime] = useState("");
   const [requiredOnSiteDate, setRequiredOnSiteDate] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -522,6 +523,7 @@ export function CreateSubmittalModal({
       received_date: receivedDate || null, issue_date: issueDate || null,
       final_due_date: finalDueDate || null, cost_code: costCode || null,
       linked_drawings: linkedDrawings || null, distribution_list: distributionList,
+      ball_in_court_id: ballInCourtId,
       lead_time: leadTime ? Number(leadTime) : null,
       required_on_site_date: requiredOnSiteDate || null, private: isPrivate,
       description: description || null, attachmentFiles, attachments: [],
