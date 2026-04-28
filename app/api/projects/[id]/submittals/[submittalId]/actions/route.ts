@@ -291,8 +291,12 @@ export async function POST(
 
     const workflowSteps = Array.isArray(existing.workflow_steps) ? (existing.workflow_steps as WorkflowStep[]) : [];
     const workflowIds = workflowSteps.map((step) => step.person_id).filter(Boolean) as string[];
+    const distributionList = Array.isArray(existing.distribution_list)
+      ? (existing.distribution_list as { id: string; name: string; email: string | null }[])
+      : [];
+    const distributionIds = distributionList.map((entry) => entry.id).filter(Boolean);
 
-    const contactIds = Array.from(new Set(workflowIds));
+    const contactIds = Array.from(new Set([...workflowIds, ...distributionIds]));
     const contactMap = new Map<string, { name: string; email: string | null }>();
     if (contactIds.length > 0) {
       const { data: contacts } = await supabase
@@ -323,10 +327,10 @@ export async function POST(
       recipients.push({ name, email });
     };
 
-    const distributionList = Array.isArray(existing.distribution_list)
-      ? (existing.distribution_list as { id: string; name: string; email: string | null }[])
-      : [];
-    for (const entry of distributionList) addRecipient(entry.name, entry.email);
+    for (const entry of distributionList) {
+      const fromDirectory = entry.id ? contactMap.get(entry.id) : null;
+      addRecipient(entry.name || fromDirectory?.name || "there", entry.email ?? fromDirectory?.email ?? null);
+    }
     for (const personId of contactIds) {
       const c = contactMap.get(personId);
       if (c) addRecipient(c.name, c.email);

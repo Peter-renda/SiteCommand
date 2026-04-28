@@ -79,6 +79,12 @@ type ChangeHistoryEntry = {
   changed_by_company: string | null;
   created_at: string;
 };
+type ExportOption = {
+  id: string;
+  label: string;
+  url: string | null;
+  source: "cover" | "attachment" | "response_attachment";
+};
 
 function pickString(row: Record<string, unknown>, keys: string[]): string | null {
   for (const key of keys) {
@@ -230,8 +236,12 @@ export default function SubmittalDetailClient({
   const [responseModal, setResponseModal] = useState<{ personId: string } | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const exportRef = useRef<HTMLDivElement | null>(null);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [selectedExportIds, setSelectedExportIds] = useState<string[]>([]);
   const [relatedItemType, setRelatedItemType] = useState("change_event");
   const [relatedItemInstanceId, setRelatedItemInstanceId] = useState("");
   const [relatedItemInstances, setRelatedItemInstances] = useState<RelatedItemInstance[]>([]);
@@ -398,6 +408,120 @@ export default function SubmittalDetailClient({
     await runAction("set_workflow_step_required", { step_number: stepNumber, required });
   }
 
+  const exportOptions: ExportOption[] = submittal
+    ? [
+        { id: "cover", label: "Cover Page", url: null, source: "cover" as const },
+        ...(submittal.attachments ?? []).map((attachment, idx) => ({
+          id: `attachment-${idx}`,
+          label: attachment.name || `Attachment ${idx + 1}`,
+          url: attachment.url ?? null,
+          source: "attachment" as const,
+        })),
+        ...((submittal.workflow_steps ?? []).flatMap((step, stepIndex) =>
+          (step.attachments ?? []).map((attachment, attachmentIndex) => ({
+            id: `response-${stepIndex}-${attachmentIndex}`,
+            label: `${attachment.name || `Response Attachment ${attachmentIndex + 1}`} (Workflow Step ${step.step})`,
+            url: attachment.url ?? null,
+            source: "response_attachment" as const,
+          }))
+        )),
+      ]
+    : [];
+
+  function toggleExportOption(optionId: string) {
+    setSelectedExportIds((prev) =>
+      prev.includes(optionId) ? prev.filter((id) => id !== optionId) : [...prev, optionId]
+    );
+  }
+
+  async function exportSelectedToPdf() {
+    if (!submittal) return;
+    const selected = exportOptions.filter((option) => selectedExportIds.includes(option.id));
+    if (selected.length === 0) {
+      alert("Please select at least one item to export.");
+      return;
+    }
+
+    setExportingPdf(true);
+    try {
+      const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+      const mergedPdf = await PDFDocument.create();
+      const skippedFiles: string[] = [];
+
+      for (const option of selected) {
+        if (option.source === "cover") {
+          const page = mergedPdf.addPage([612, 792]);
+          const font = await mergedPdf.embedFont(StandardFonts.Helvetica);
+          const titleFont = await mergedPdf.embedFont(StandardFonts.HelveticaBold);
+          let y = 750;
+          page.drawText(`Submittal #${submittal.submittal_number} Rev ${submittal.revision ?? "0"}`, {
+            x: 50,
+            y,
+            size: 20,
+            font: titleFont,
+            color: rgb(0.1, 0.1, 0.1),
+          });
+          y -= 32;
+          page.drawText(submittal.title, { x: 50, y, size: 14, font: titleFont, color: rgb(0.1, 0.1, 0.1) });
+          y -= 28;
+          const detailLines = [
+            `Status: ${STATUS_LABELS[submittal.status] ?? submittal.status}`,
+            `Type: ${submittal.submittal_type ?? "—"}`,
+            `Specification: ${getSpecName(specifications, submittal.specification_id)}`,
+            `Submit By: ${formatDate(submittal.submit_by)}`,
+            `Issue Date: ${formatDate(submittal.issue_date)}`,
+            `Final Due Date: ${formatDate(submittal.final_due_date)}`,
+            `Required On Site: ${formatDate(submittal.required_on_site_date)}`,
+            `Description: ${submittal.description ?? "—"}`,
+          ];
+          for (const line of detailLines) {
+            page.drawText(line, { x: 50, y, size: 11, font, color: rgb(0.2, 0.2, 0.2) });
+            y -= 18;
+          }
+          continue;
+        }
+
+        if (!option.url) {
+          skippedFiles.push(option.label);
+          continue;
+        }
+
+        try {
+          const response = await fetch(option.url);
+          if (!response.ok) throw new Error("Unable to fetch attachment");
+          const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+          if (!contentType.includes("pdf") && !option.url.toLowerCase().includes(".pdf")) {
+            skippedFiles.push(option.label);
+            continue;
+          }
+          const bytes = await response.arrayBuffer();
+          const doc = await PDFDocument.load(bytes);
+          const copiedPages = await mergedPdf.copyPages(doc, doc.getPageIndices());
+          copiedPages.forEach((copiedPage) => mergedPdf.addPage(copiedPage));
+        } catch {
+          skippedFiles.push(option.label);
+        }
+      }
+
+      const fileBytes = await mergedPdf.save();
+      const blob = new Blob([fileBytes], { type: "application/pdf" });
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `submittal-${submittal.submittal_number}-export.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+      if (skippedFiles.length > 0) {
+        alert(`Export completed. Skipped ${skippedFiles.length} non-PDF/unavailable file(s).`);
+      }
+      setExportOpen(false);
+    } catch {
+      alert("Failed to export PDF.");
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
   useEffect(() => {
     Promise.all([
       fetch(`/api/projects/${projectId}/submittals/${submittalId}`),
@@ -414,13 +538,19 @@ export default function SubmittalDetailClient({
   }, [projectId, submittalId]);
 
   useEffect(() => {
+    if (!submittal) return;
+    setSelectedExportIds(["cover"]);
+  }, [submittal]);
+
+  useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      const target = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(target)) setMenuOpen(false);
+      if (exportRef.current && !exportRef.current.contains(target)) setExportOpen(false);
     }
-    if (menuOpen) document.addEventListener("mousedown", onClickOutside);
+    if (menuOpen || exportOpen) document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [menuOpen]);
+  }, [menuOpen, exportOpen]);
 
   async function loadHistory() {
     if (historyLoading || historyLoaded) return;
@@ -579,7 +709,44 @@ export default function SubmittalDetailClient({
           {canEdit && (
             <>
               <button onClick={() => runAction("redistribute")} disabled={actionLoading !== null} className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded hover:bg-gray-700 transition-colors disabled:opacity-50">Redistribute</button>
-              <button className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors">Export</button>
+              <div className="relative" ref={exportRef}>
+                <button
+                  onClick={() => setExportOpen((v) => !v)}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+                >
+                  Export
+                </button>
+                {exportOpen && (
+                  <div className="absolute right-0 mt-1 w-96 max-h-80 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-20 p-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Select items to combine into PDF</p>
+                    <div className="space-y-2">
+                      {exportOptions.map((option) => (
+                        <label key={option.id} className="flex items-start gap-2 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={selectedExportIds.includes(option.id)}
+                            onChange={() => toggleExportOption(option.id)}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button onClick={() => setExportOpen(false)} className="px-2.5 py-1.5 text-xs border border-gray-300 rounded">
+                        Cancel
+                      </button>
+                      <button
+                        onClick={exportSelectedToPdf}
+                        disabled={exportingPdf}
+                        className="px-2.5 py-1.5 text-xs text-white bg-gray-900 rounded disabled:opacity-50"
+                      >
+                        {exportingPdf ? "Exporting..." : "Export Selected"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               {!isEditing ? (
                 <button onClick={startEdit} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors">Edit</button>
               ) : (
