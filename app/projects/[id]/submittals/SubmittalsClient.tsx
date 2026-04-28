@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useEffect, useRef, ChangeEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 
 type DirContact = { id: string; name: string; email: string | null };
@@ -405,13 +406,14 @@ function SingleContactPicker({
 }
 
 export function CreateSubmittalModal({
-  projectId, nextNumber, directory, specifications, packages, onConfirm, onCancel, onSpecCreated,
+  projectId, nextNumber, directory, specifications, packages, initialSpecificationId, onConfirm, onCancel, onSpecCreated,
 }: {
   projectId: string;
   nextNumber: number;
   directory: DirectoryContact[];
   specifications: Specification[];
   packages: SubmittalPackage[];
+  initialSpecificationId?: string | null;
   onConfirm: (data: Record<string, unknown>, sendEmails: boolean) => void;
   onCancel: () => void;
   onSpecCreated: (spec: Specification) => void;
@@ -419,7 +421,7 @@ export function CreateSubmittalModal({
   const today = new Date().toISOString().split("T")[0];
   const [title, setTitle] = useState("");
   const [revision, setRevision] = useState("A");
-  const [specificationId, setSpecificationId] = useState<string | null>(null);
+  const [specificationId, setSpecificationId] = useState<string | null>(initialSpecificationId ?? null);
   const [submittalType, setSubmittalType] = useState("");
   const [submittalPackageId, setSubmittalPackageId] = useState<string>("");
   const [status, setStatus] = useState("draft");
@@ -961,18 +963,36 @@ function exportSubmittalsPDF(submittals: Submittal[], directory: DirectoryContac
 }
 
 export default function SubmittalsClient({ projectId, role, username, userId }: { projectId: string; role: string; username: string; userId: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const shouldPromptForSpecs = searchParams.get("createFromSpecs") === "1";
+  const shouldOpenCreate = searchParams.get("openCreate") === "1";
+  const selectedSpecificationId = searchParams.get("specificationId");
   const [submittals, setSubmittals] = useState<Submittal[]>([]);
   const [packages, setPackages] = useState<SubmittalPackage[]>([]);
   const [directory, setDirectory] = useState<DirectoryContact[]>([]);
   const [specifications, setSpecifications] = useState<Specification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(shouldOpenCreate);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [creating, setCreating] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"items" | "packages" | "recycle_bin" | "spec_sections" | "ball_in_court">("items");
+  const [showProceedToSpecificationsModal, setShowProceedToSpecificationsModal] = useState(shouldPromptForSpecs);
+  const [prefilledSpecificationId, setPrefilledSpecificationId] = useState<string | null>(selectedSpecificationId);
   const createMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (shouldPromptForSpecs || shouldOpenCreate || selectedSpecificationId) {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("createFromSpecs");
+      next.delete("openCreate");
+      next.delete("specificationId");
+      const query = next.toString();
+      window.history.replaceState({}, "", query ? `?${query}` : window.location.pathname);
+    }
+  }, [searchParams, selectedSpecificationId, shouldOpenCreate, shouldPromptForSpecs]);
 
   useEffect(() => {
     Promise.all([
@@ -1089,6 +1109,12 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/";
+  }
+
+  function handleProceedToSpecifications() {
+    setShowProceedToSpecificationsModal(false);
+    const returnTo = `/projects/${projectId}/submittals?openCreate=1`;
+    router.push(`/projects/${projectId}/specifications?generateSubmittal=1&returnTo=${encodeURIComponent(returnTo)}`);
   }
 
   async function runBulkAction(action: "mark_private" | "mark_public" | "redistribute" | "delete" | "retrieve" | "apply_workflow" | "edit", payload?: Record<string, unknown>) {
@@ -1476,10 +1502,50 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
           directory={directory}
           specifications={specifications}
           packages={packages}
+          initialSpecificationId={prefilledSpecificationId}
           onConfirm={handleCreate}
-          onCancel={() => setShowCreate(false)}
+          onCancel={() => { setShowCreate(false); setPrefilledSpecificationId(null); }}
           onSpecCreated={(spec) => setSpecifications((prev) => [...prev, spec].sort((a, b) => safeLocaleCompare(a.name, b.name)))}
         />
+      )}
+
+      {showProceedToSpecificationsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-[640px] rounded bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <h2 className="text-[30px] font-semibold leading-none text-gray-900">Proceed to Specifications?</h2>
+              <button
+                type="button"
+                onClick={() => setShowProceedToSpecificationsModal(false)}
+                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-6 py-6 text-sm text-gray-600">
+              To generate a Submittal Registry, you will need to select Specifications to generate Submittals from. Would you like to proceed to Specifications?
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setShowProceedToSpecificationsModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleProceedToSpecifications}
+                className="px-4 py-2 text-sm font-semibold text-white bg-orange-500 rounded hover:bg-orange-600"
+              >
+                Proceed to Specifications
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
