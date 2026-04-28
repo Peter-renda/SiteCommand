@@ -26,6 +26,58 @@ function parseDate(raw: unknown): string {
   return str.includes("T") ? str.split("T")[0] : str;
 }
 
+function normalizeXmlKey(key: string): string {
+  return key.split(":").pop()?.toLowerCase() ?? key.toLowerCase();
+}
+
+function getNode(obj: unknown, nodeName: string): unknown {
+  if (!obj || typeof obj !== "object") return undefined;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const match = getNode(item, nodeName);
+      if (match !== undefined) return match;
+    }
+    return undefined;
+  }
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (normalizeXmlKey(key) === nodeName.toLowerCase()) return value;
+  }
+  return undefined;
+}
+
+function getValue(obj: unknown, keyName: string): unknown {
+  if (!obj || typeof obj !== "object") return undefined;
+  if (Array.isArray(obj)) return undefined;
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (normalizeXmlKey(key) === keyName.toLowerCase()) return value;
+  }
+  return undefined;
+}
+
+function collectNodes(obj: unknown, nodeName: string, results: unknown[] = []): unknown[] {
+  if (!obj || typeof obj !== "object") return results;
+  if (Array.isArray(obj)) {
+    for (const item of obj) collectNodes(item, nodeName, results);
+    return results;
+  }
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (normalizeXmlKey(key) === nodeName.toLowerCase()) {
+      if (Array.isArray(value)) results.push(...value);
+      else results.push(value);
+    }
+    collectNodes(value, nodeName, results);
+  }
+  return results;
+}
+
+function firstValue(obj: unknown, keys: string[]): unknown {
+  for (const key of keys) {
+    const value = getValue(obj, key);
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return undefined;
+}
+
 function parseTasks(xmlText: string): Task[] {
   const parser = new XMLParser({ ignoreAttributes: false, parseTagValue: true });
   const parsed = parser.parse(xmlText);
@@ -36,41 +88,47 @@ function parseTasks(xmlText: string): Task[] {
     parsed[Object.keys(parsed).find((k) => k.includes("Project")) ?? ""] ??
     {};
 
-  const tasksNode = root["Tasks"] ?? {};
-  const rawTasks = tasksNode["Task"];
+  const tasksNode = getNode(root, "Tasks") ?? getNode(parsed, "Tasks");
+  const rawTasks = tasksNode ? getNode(tasksNode, "Task") : undefined;
+  const taskArr = rawTasks
+    ? (Array.isArray(rawTasks) ? rawTasks : [rawTasks])
+    : collectNodes(root, "Task").length > 0
+      ? collectNodes(root, "Task")
+      : collectNodes(parsed, "Task").length > 0
+        ? collectNodes(parsed, "Task")
+        : collectNodes(parsed, "Activity");
 
-  if (!rawTasks) return [];
-
-  const taskArr = Array.isArray(rawTasks) ? rawTasks : [rawTasks];
+  if (!taskArr || taskArr.length === 0) return [];
 
   return taskArr
     .filter((t) => {
-      const uid = Number(t["UID"] ?? t["uid"] ?? -1);
+      const uid = Number(firstValue(t, ["UID", "ObjectId", "ActivityId", "Id"]) ?? -1);
       return uid !== 0; // skip project summary row
     })
     .map((t): Task => {
-      const predLink = t["PredecessorLink"];
+      const predLink = getNode(t, "PredecessorLink") ?? getNode(t, "Relationship");
       let predecessorUids: number[] = [];
       if (predLink) {
         const links = Array.isArray(predLink) ? predLink : [predLink];
         predecessorUids = links
-          .map((l) => Number(l["PredecessorUID"] ?? l["predecessorUID"] ?? 0))
+          .map((l) => Number(firstValue(l, ["PredecessorUID", "PredecessorObjectId", "PredecessorActivityId"]) ?? 0))
           .filter((n) => n > 0);
       }
 
       return {
-        uid: Number(t["UID"] ?? t["uid"] ?? 0),
-        id: Number(t["ID"] ?? t["id"] ?? 0),
-        name: String(t["Name"] ?? t["name"] ?? ""),
-        outlineLevel: Number(t["OutlineLevel"] ?? t["outlineLevel"] ?? 0),
-        isSummary: Number(t["Summary"] ?? t["summary"] ?? 0) === 1,
-        isMilestone: Number(t["Milestone"] ?? t["milestone"] ?? 0) === 1,
-        start: parseDate(t["Start"] ?? t["start"]),
-        finish: parseDate(t["Finish"] ?? t["finish"]),
-        percentComplete: Number(t["PercentComplete"] ?? t["percentComplete"] ?? 0),
+        uid: Number(firstValue(t, ["UID", "ObjectId", "ActivityId", "Id"]) ?? 0),
+        id: Number(firstValue(t, ["ID", "TaskID", "ActivityId", "Id"]) ?? 0),
+        name: String(firstValue(t, ["Name", "TaskName", "ActivityName"]) ?? ""),
+        outlineLevel: Number(firstValue(t, ["OutlineLevel", "WBSLevel"]) ?? 0),
+        isSummary: Number(firstValue(t, ["Summary", "WBS"]) ?? 0) === 1,
+        isMilestone: Number(firstValue(t, ["Milestone", "IsMilestone"]) ?? 0) === 1,
+        start: parseDate(firstValue(t, ["Start", "StartDate", "PlannedStartDate"])),
+        finish: parseDate(firstValue(t, ["Finish", "FinishDate", "PlannedFinishDate"])),
+        percentComplete: Number(firstValue(t, ["PercentComplete", "PhysicalPercentComplete", "CompletePercent"]) ?? 0),
         predecessorUids,
       };
-    });
+    })
+    .filter((t) => t.name || t.start || t.finish || t.id || t.uid);
 }
 
 // ── GET ───────────────────────────────────────────────────────────────────────
