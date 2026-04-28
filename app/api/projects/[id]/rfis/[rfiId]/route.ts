@@ -298,8 +298,13 @@ export async function PATCH(
     historyPromises.push(logRFIChange(supabase, session, rfiId, projectId, "Ball In Court", fromLabel, toLabel));
   }
 
-  // Send ball-in-court email notification when ball_in_court_id is set
-  if ("ball_in_court_id" in update && data.ball_in_court_id) {
+  // Send ball-in-court email notification when ball_in_court_id is newly set/changed
+  if (
+    "ball_in_court_id" in update &&
+    data.ball_in_court_id &&
+    prevRfi &&
+    prevRfi.ball_in_court_id !== data.ball_in_court_id
+  ) {
     try {
       const [contactRes, projectRes] = await Promise.all([
         supabase
@@ -315,9 +320,13 @@ export async function PATCH(
       ]);
 
       const contact = contactRes.data;
-      const recipientEmail = contact?.email;
+      const assignees: { id: string; name: string; email: string | null }[] = Array.isArray(data.assignees) ? data.assignees : [];
+      const distributionList: { id: string; name: string; email: string | null }[] = Array.isArray(data.distribution_list) ? data.distribution_list : [];
+      const fallbackContact = [...assignees, ...distributionList].find((c) => c.id === data.ball_in_court_id);
+      const recipientEmail = contact?.email || fallbackContact?.email || null;
       if (recipientEmail) {
-        const recipientName = [contact.first_name, contact.last_name].filter(Boolean).join(" ");
+        const directoryContactName = [contact?.first_name, contact?.last_name].filter(Boolean).join(" ").trim();
+        const recipientName = directoryContactName || fallbackContact?.name || "";
         const senderName = session.username;
         const projectName = projectRes.data?.name ?? "your project";
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
