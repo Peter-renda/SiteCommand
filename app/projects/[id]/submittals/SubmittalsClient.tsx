@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useEffect, useRef, ChangeEvent } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 
@@ -420,11 +420,12 @@ export function CreateSubmittalModal({
 }) {
   const today = new Date().toISOString().split("T")[0];
   const [title, setTitle] = useState("");
-  const [revision, setRevision] = useState("A");
+  const [submittalNumber, setSubmittalNumber] = useState(String(nextNumber));
+  const [revision, setRevision] = useState("0");
   const [specificationId, setSpecificationId] = useState<string | null>(initialSpecificationId ?? null);
   const [submittalType, setSubmittalType] = useState("");
   const [submittalPackageId, setSubmittalPackageId] = useState<string>("");
-  const [status, setStatus] = useState("draft");
+  const [status, setStatus] = useState("open");
   const [responsibleContractorId, setResponsibleContractorId] = useState<string | null>(null);
   const [receivedFromId, setReceivedFromId] = useState<string | null>(null);
   const [submittalManagerId, setSubmittalManagerId] = useState<string | null>(null);
@@ -435,7 +436,6 @@ export function CreateSubmittalModal({
   const [costCode, setCostCode] = useState("");
   const [linkedDrawings, setLinkedDrawings] = useState("");
   const [distributionList, setDistributionList] = useState<DirContact[]>([]);
-  const [ballInCourtId, setBallInCourtId] = useState<string | null>(null);
   const [leadTime, setLeadTime] = useState("");
   const [requiredOnSiteDate, setRequiredOnSiteDate] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -510,14 +510,19 @@ export function CreateSubmittalModal({
   }
 
   function buildData() {
+    const parsedSubmittalNumber = Number(submittalNumber);
     return {
-      title, revision, specification_id: specificationId, submittal_type: submittalType || null,
+      title,
+      submittal_number: Number.isFinite(parsedSubmittalNumber) ? parsedSubmittalNumber : nextNumber,
+      revision,
+      specification_id: specificationId,
+      submittal_type: submittalType || null,
       status, responsible_contractor_id: responsibleContractorId, received_from_id: receivedFromId,
       submittal_manager_id: submittalManagerId, submit_by: submitBy || null,
       received_date: receivedDate || null, issue_date: issueDate || null,
       final_due_date: finalDueDate || null, cost_code: costCode || null,
       linked_drawings: linkedDrawings || null, distribution_list: distributionList,
-      ball_in_court_id: ballInCourtId, lead_time: leadTime ? Number(leadTime) : null,
+      lead_time: leadTime ? Number(leadTime) : null,
       required_on_site_date: requiredOnSiteDate || null, private: isPrivate,
       description: description || null, attachmentFiles, attachments: [],
       approver_name_id: approverNameId, owners_manual: ownersManual || null, package_notes: packageNotes || null,
@@ -548,11 +553,18 @@ export function CreateSubmittalModal({
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Number</label>
-              <input type="text" readOnly value={nextNumber} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={submittalNumber}
+                onChange={(e) => setSubmittalNumber(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Revision <span className="text-red-500">*</span></label>
-              <input type="text" value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="A" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+              <input type="text" value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Submittal Type</label>
@@ -978,7 +990,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
   const [creating, setCreating] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"items" | "packages" | "recycle_bin" | "spec_sections" | "ball_in_court">("items");
+  const [activeTab, setActiveTab] = useState<"items" | "packages" | "recycle_bin" | "spec_sections">("items");
   const [showProceedToSpecificationsModal, setShowProceedToSpecificationsModal] = useState(shouldPromptForSpecs);
   const [prefilledSpecificationId, setPrefilledSpecificationId] = useState<string | null>(selectedSpecificationId);
   const createMenuRef = useRef<HTMLDivElement | null>(null);
@@ -1031,38 +1043,6 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
       return acc;
     }, new Map<string, { key: string; name: string; total: number; open: number; closed: number }>())
   ).sort((a, b) => safeLocaleCompare(a.name, b.name));
-
-  const ballInCourtGroups = Array.from(
-    submittals.reduce((acc, submittal) => {
-      const key = submittal.ball_in_court_id ?? "none";
-      const existing = acc.get(key) ?? {
-        key,
-        name: getContactNameById(directory, submittal.ball_in_court_id),
-        total: 0,
-        open: 0,
-        closed: 0,
-        submittals: [] as Submittal[],
-      };
-      existing.total += 1;
-      if (submittal.status === "closed") existing.closed += 1;
-      else existing.open += 1;
-      if (!Array.isArray(existing.submittals)) existing.submittals = [];
-      existing.submittals.push(submittal);
-      acc.set(key, existing);
-      return acc;
-    }, new Map<string, { key: string; name: string; total: number; open: number; closed: number; submittals: Submittal[] }>())
-  )
-    .filter((group) => group.key !== "none")
-    .map((group) => {
-      const groupSubmittals = Array.isArray(group.submittals) ? group.submittals : [];
-      return {
-        ...group,
-        submittals: [...groupSubmittals].sort(
-          (a, b) => a.submittal_number - b.submittal_number || safeLocaleCompare(a.revision, b.revision, true)
-        ),
-      };
-    })
-    .sort((a, b) => safeLocaleCompare(a.name, b.name));
 
   async function handleCreate(data: Record<string, unknown>, sendEmails: boolean) {
     setShowCreate(false);
@@ -1173,7 +1153,6 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
               <button onClick={() => { setActiveTab("items"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "items" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Items</button>
               <button onClick={() => { setActiveTab("packages"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "packages" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Packages</button>
               <button onClick={() => { setActiveTab("spec_sections"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "spec_sections" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Spec Sections</button>
-              <button onClick={() => { setActiveTab("ball_in_court"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "ball_in_court" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Ball in court</button>
               <button onClick={() => { setActiveTab("recycle_bin"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "recycle_bin" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Recycle Bin</button>
             </div>
           </div>
@@ -1198,7 +1177,7 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
               <button
                 type="button"
                 onClick={() => setShowCreateMenu((o) => !o)}
-                disabled={creating || activeTab === "recycle_bin" || activeTab === "packages" || activeTab === "spec_sections" || activeTab === "ball_in_court"}
+                disabled={creating || activeTab === "recycle_bin" || activeTab === "packages" || activeTab === "spec_sections"}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors disabled:opacity-50"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -1296,105 +1275,6 @@ export default function SubmittalsClient({ projectId, role, username, userId }: 
                       <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.open}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{row.closed}</td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        ) : activeTab === "ball_in_court" ? (
-          ballInCourtGroups.length === 0 ? (
-            <div className="bg-white border border-dashed border-gray-200 rounded-xl py-16 text-center">
-              <p className="eyebrow eyebrow-quiet justify-center mb-3">Empty</p>
-              <p className="font-display text-xl text-[color:var(--ink)] mb-1">No ball in court assignments yet</p>
-            </div>
-          ) : (
-            <div className="bg-white border hairline rounded-xl overflow-x-auto">
-              <table className="w-full min-w-[2200px]">
-                <thead>
-                  <tr className="border-b hairline bg-[color:var(--surface-sunken)]">
-                    <th className="text-left px-4 py-3 mono-label w-10"></th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">#</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">REV.</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">TITLE</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">TYPE</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">STATUS</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RESPONSIBLE CONTRACTOR</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">SUBMIT BY</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RECEIVED FROM</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RECEIVED DATE</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">BALL IN COURT</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">APPROVERS</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RESPONSE</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">SENT DATE</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">RETURNED DATE</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">FINAL DUE DATE</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">DISTRIBUTED DATE</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">LOCATION</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">CREATED AT</th>
-                    <th className="text-left px-4 py-3 mono-label whitespace-nowrap">SCHEDULE TASK</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ballInCourtGroups.map((group) => (
-                    <Fragment key={group.key}>
-                      <tr key={`${group.key}-header`} className="border-y border-gray-200 bg-gray-50/70">
-                        <td colSpan={20} className="px-4 py-2.5 text-sm font-semibold text-gray-900">
-                          {group.name}{" "}
-                          <span className="text-xs text-gray-500 font-medium">
-                            ({group.total} item{group.total === 1 ? "" : "s"} · {group.open} open · {group.closed} closed)
-                          </span>
-                        </td>
-                      </tr>
-                      {group.submittals.map((submittal) => {
-                        const latestResponse = latestWorkflowResponse(submittal.workflow_steps);
-                        return (
-                          <tr
-                            key={submittal.id}
-                            onClick={(e) => { if ((e.target as HTMLElement).closest("button,a,input")) return; window.location.href = `/projects/${projectId}/submittals/${submittal.id}`; }}
-                            className="border-b border-gray-50 hover:bg-[color:var(--surface-sunken)] transition-colors cursor-pointer"
-                          >
-                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.includes(submittal.id)}
-                                onChange={(e) =>
-                                  setSelectedIds((prev) =>
-                                    e.target.checked ? [...prev, submittal.id] : prev.filter((id) => id !== submittal.id)
-                                  )
-                                }
-                                className="mr-2"
-                              />
-                              <a href={`/projects/${projectId}/submittals/${submittal.id}`} className="inline-flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                              </a>
-                            </td>
-                            <td className="px-4 py-3 text-sm font-mono text-[color:var(--ink)] tabular-nums">#{submittal.submittal_number}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700 tabular-nums">{submittal.revision ?? "—"}</td>
-                            <td className="px-4 py-3 text-sm text-gray-900 font-medium">{submittal.title}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{submittal.submittal_type ?? "—"}</td>
-                            <td className="px-4 py-3">
-                              <span className={`pill ${STATUS_PILL[submittal.status] ?? "pill-post"}`}>
-                                {STATUS_LABELS[submittal.status] ?? submittal.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, submittal.responsible_contractor_id)}</td>
-                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.submit_by)}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, submittal.received_from_id)}</td>
-                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.received_date)}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{getContactNameById(directory, submittal.ball_in_court_id)}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{summarizeApprovers(directory, submittal.workflow_steps)}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{latestResponse?.response ?? "—"}</td>
-                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(latestResponse?.sent_date ?? null)}</td>
-                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(latestResponse?.returned_date ?? null)}</td>
-                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.final_due_date)}</td>
-                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{formatDate(submittal.distributed_at ? submittal.distributed_at.slice(0, 10) : null)}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{submittal.location ?? "—"}</td>
-                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap tabular-nums">{new Date(submittal.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{submittal.schedule_task ?? "—"}</td>
-                          </tr>
-                        );
-                      })}
-                    </Fragment>
                   ))}
                 </tbody>
               </table>
