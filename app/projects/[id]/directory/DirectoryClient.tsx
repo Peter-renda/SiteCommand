@@ -28,7 +28,7 @@ const PERMISSIONS = [
   "Architect/Engineer",
   "Owner/Client",
   "Subcontractor",
-  "Company Employee",
+  "Agency",
 ];
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
