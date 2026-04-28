@@ -37,6 +37,7 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
   const [newSpecificationNumber, setNewSpecificationNumber] = useState("");
   const [newSpecificationDescription, setNewSpecificationDescription] = useState("");
   const [selectedSpecIdForSubmittal, setSelectedSpecIdForSubmittal] = useState<string | null>(null);
+  const [isCreatingSpecification, setIsCreatingSpecification] = useState(false);
 
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const isGenerateSubmittalFlow = searchParams.get("generateSubmittal") === "1";
@@ -144,21 +145,41 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
     closeCreateDivisionModal();
   }
 
-  function handleCreateSpecification() {
+  async function handleCreateSpecification() {
     if (!newSpecificationDivision.trim() || !newSpecificationNumber.trim()) return;
     const division = divisions.find((item) => item.number === newSpecificationDivision);
     const specName = newSpecificationDescription.trim() || "Untitled Specification";
     const specCode = `${newSpecificationDivision} ${newSpecificationNumber.trim()}`;
     const suffix = division?.description ? ` - ${division.description}` : "";
-    setSpecifications((current) => [
-      {
-        id: `local-${Date.now()}`,
-        name: specName,
-        code: `${specCode}${suffix}`,
-      },
-      ...current,
-    ]);
-    closeCreateSpecificationModal();
+    setIsCreatingSpecification(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/specifications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: specName,
+          code: `${specCode}${suffix}`,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || "Failed to create specification");
+      }
+
+      const createdSpec = (await res.json()) as Specification;
+      setSpecifications((current) =>
+        [createdSpec, ...current].sort((a, b) => a.name.localeCompare(b.name))
+      );
+      if (isGenerateSubmittalFlow) {
+        setSelectedSpecIdForSubmittal(createdSpec.id);
+      }
+      closeCreateSpecificationModal();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create specification";
+      window.alert(message);
+    } finally {
+      setIsCreatingSpecification(false);
+    }
   }
 
   function handleGenerateSubmittal() {
@@ -538,11 +559,11 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
               </button>
               <button
                 type="button"
-                disabled={!canCreateSpecification}
+                disabled={!canCreateSpecification || isCreatingSpecification}
                 onClick={handleCreateSpecification}
                 className="rounded px-4 py-2 text-sm font-semibold text-white disabled:bg-[#f4c7af] enabled:bg-[#f39a6e] enabled:hover:bg-[#ea8858]"
               >
-                Create
+                {isCreatingSpecification ? "Creating..." : "Create"}
               </button>
             </div>
           </div>
