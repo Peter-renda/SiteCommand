@@ -12,9 +12,6 @@ const SKIP_KEYS = new Set([
   "created_at",
   "created_by",
   "updated_at",
-  "deleted_at",
-  "deleted_by",
-  "is_deleted",
 ]);
 
 function toComparable(value: unknown): string {

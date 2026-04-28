@@ -19,7 +19,7 @@ export async function POST(
 
   const { data: submittal } = await supabase
     .from("submittals")
-    .select("attachments")
+    .select("*")
     .eq("id", submittalId)
     .eq("project_id", projectId)
     .single();
