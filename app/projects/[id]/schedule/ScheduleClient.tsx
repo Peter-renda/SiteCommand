@@ -230,6 +230,32 @@ function GanttView({ tasks }: { tasks: Task[] }) {
   const ROW_HEIGHT = 36;
   const LEFT_PANE_W = 280;
   const totalW = totalDays * DAY_W;
+  const BAR_HEIGHT = 22;
+  const BAR_TOP = (ROW_HEIGHT - BAR_HEIGHT) / 2;
+
+  const taskByUid = new Map<number, Task>(tasks.map((t) => [t.uid, t]));
+  const taskRowByUid = new Map<number, number>(tasks.map((t, idx) => [t.uid, idx]));
+  const edgePaths = tasks.flatMap((task, taskIndex) => {
+    if (!task.start || !task.finish) return [];
+    const toXDays = (new Date(task.start).getTime() - rangeStart.getTime()) / msPerDay;
+    const toX = Math.max(0, toXDays * DAY_W);
+    const toY = taskIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+
+    return task.predecessorUids.flatMap((predUid) => {
+      const pred = taskByUid.get(predUid);
+      if (!pred || !pred.start || !pred.finish) return [];
+
+      const predIndex = taskRowByUid.get(predUid) ?? -1;
+      if (predIndex < 0) return [];
+
+      const predEndDays = (new Date(pred.finish).getTime() - rangeStart.getTime()) / msPerDay;
+      const fromX = Math.max(0, predEndDays * DAY_W);
+      const fromY = predIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+      const elbowX = Math.max(fromX + 10, toX - 10);
+
+      return [{ key: `${predUid}-${task.uid}`, fromX, fromY, elbowX, toX, toY }];
+    });
+  });
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -307,7 +333,29 @@ function GanttView({ tasks }: { tasks: Task[] }) {
         </div>
 
         {/* Task rows */}
-        <div style={{ minWidth: `${totalW}px` }}>
+        <div style={{ minWidth: `${totalW}px` }} className="relative">
+          {/* Dependency lines (from XML predecessors) */}
+          <svg
+            style={{ width: `${totalW}px`, height: `${tasks.length * ROW_HEIGHT}px` }}
+            className="absolute top-0 left-0 pointer-events-none z-10"
+          >
+            <defs>
+              <marker id="dep-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" fill="#6b7280" />
+              </marker>
+            </defs>
+            {edgePaths.map((edge) => (
+              <path
+                key={edge.key}
+                d={`M ${edge.fromX} ${edge.fromY} L ${edge.elbowX} ${edge.fromY} L ${edge.elbowX} ${edge.toY} L ${edge.toX} ${edge.toY}`}
+                fill="none"
+                stroke="#6b7280"
+                strokeWidth="1.2"
+                markerEnd="url(#dep-arrow)"
+              />
+            ))}
+          </svg>
+
           {tasks.map((task) => {
             const hasDate = task.start && task.finish;
             const taskStartMs = hasDate ? new Date(task.start).getTime() : 0;
@@ -360,7 +408,8 @@ function GanttView({ tasks }: { tasks: Task[] }) {
                         position: "absolute",
                         left: `${leftPct}%`,
                         width: `${widthPct}%`,
-                        height: task.isSummary ? "100%" : "60%",
+                        top: `${BAR_TOP}px`,
+                        height: task.isSummary ? `${BAR_HEIGHT}px` : `${Math.round(BAR_HEIGHT * 0.75)}px`,
                         background: task.isSummary ? "#4b5563" : "#3b82f6",
                         borderRadius: "3px",
                         overflow: "hidden",
