@@ -102,13 +102,33 @@ export async function DELETE(
   const { id: projectId, submittalId } = await params;
   const supabase = getSupabase();
 
-  const { error } = await supabase
+  const { data: previous } = await supabase
+    .from("submittals")
+    .select("*")
+    .eq("id", submittalId)
+    .eq("project_id", projectId)
+    .eq("is_deleted", false)
+    .single();
+
+  const { data, error } = await supabase
     .from("submittals")
     .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: session.id })
     .eq("id", submittalId)
     .eq("project_id", projectId)
-    .eq("is_deleted", false);
+    .eq("is_deleted", false)
+    .select()
+    .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (data) {
+    await logSubmittalDiff(
+      supabase,
+      session,
+      submittalId,
+      projectId,
+      (previous ?? null) as Record<string, unknown> | null,
+      data as Record<string, unknown>,
+    );
+  }
   return NextResponse.json({ ok: true });
 }
