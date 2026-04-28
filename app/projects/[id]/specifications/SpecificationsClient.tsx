@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search, Upload, ChevronDown, X, Plus, Settings } from "lucide-react";
 import ProjectNav from "@/components/ProjectNav";
 
@@ -18,6 +19,8 @@ type Division = {
 type TopTab = "specifications" | "all-revisions" | "recycle-bin";
 
 export default function SpecificationsClient({ projectId }: { projectId: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [specifications, setSpecifications] = useState<Specification[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -33,8 +36,11 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
   const [newSpecificationDivision, setNewSpecificationDivision] = useState("100");
   const [newSpecificationNumber, setNewSpecificationNumber] = useState("");
   const [newSpecificationDescription, setNewSpecificationDescription] = useState("");
+  const [selectedSpecIdForSubmittal, setSelectedSpecIdForSubmittal] = useState<string | null>(null);
 
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  const isGenerateSubmittalFlow = searchParams.get("generateSubmittal") === "1";
+  const returnTo = searchParams.get("returnTo") || `/projects/${projectId}/submittals?openCreate=1`;
 
   useEffect(() => {
     let mounted = true;
@@ -88,6 +94,13 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
       return spec.name.toLowerCase().includes(query) || (spec.code ?? "").toLowerCase().includes(query);
     });
   }, [search, specifications]);
+
+  useEffect(() => {
+    if (!isGenerateSubmittalFlow) return;
+    if (selectedSpecIdForSubmittal) return;
+    if (specifications.length === 0) return;
+    setSelectedSpecIdForSubmittal(specifications[0].id);
+  }, [isGenerateSubmittalFlow, selectedSpecIdForSubmittal, specifications]);
 
   function handleOpenSpecBook() {
     const win = window.open("", "_blank");
@@ -146,6 +159,12 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
       ...current,
     ]);
     closeCreateSpecificationModal();
+  }
+
+  function handleGenerateSubmittal() {
+    if (!selectedSpecIdForSubmittal) return;
+    const separator = returnTo.includes("?") ? "&" : "?";
+    router.push(`${returnTo}${separator}specificationId=${encodeURIComponent(selectedSpecIdForSubmittal)}`);
   }
 
   const canCreateDivision = Boolean(newDivisionNumber.trim() && newDivisionDescription.trim());
@@ -268,6 +287,21 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
       </div>
 
       <section className="px-4 py-5">
+        {isGenerateSubmittalFlow && (
+          <div className="mb-4 rounded border border-orange-200 bg-orange-50 px-4 py-3">
+            <p className="text-sm font-medium text-gray-800">Select a specification, then click <span className="font-semibold">Generate Submittal</span> to return to the submittal form.</p>
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={handleGenerateSubmittal}
+                disabled={!selectedSpecIdForSubmittal}
+                className="rounded bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-orange-200"
+              >
+                Generate Submittal
+              </button>
+            </div>
+          </div>
+        )}
         {loading ? (
           <div className="rounded border border-gray-200 bg-white p-6 text-sm text-gray-500">Loading specifications…</div>
         ) : filteredSpecifications.length === 0 ? (
@@ -279,6 +313,7 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                 <tr>
+                  {isGenerateSubmittalFlow && <th className="px-4 py-3 w-12"></th>}
                   <th className="px-4 py-3">Code</th>
                   <th className="px-4 py-3">Name</th>
                 </tr>
@@ -286,6 +321,17 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
               <tbody>
                 {filteredSpecifications.map((spec) => (
                   <tr key={spec.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    {isGenerateSubmittalFlow && (
+                      <td className="px-4 py-3">
+                        <input
+                          type="radio"
+                          name="selected-specification"
+                          checked={selectedSpecIdForSubmittal === spec.id}
+                          onChange={() => setSelectedSpecIdForSubmittal(spec.id)}
+                          className="h-4 w-4"
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-medium text-gray-800">{spec.code || "—"}</td>
                     <td className="px-4 py-3 text-gray-700">{spec.name}</td>
                   </tr>
