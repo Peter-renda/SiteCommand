@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import { Brand, Eyebrow, Pill } from "@/components/design-system/Primitives";
 import { PERMISSION_TEMPLATE_ORDER } from "@/lib/permission-templates";
@@ -515,6 +516,7 @@ export default function DirectoryClient({
   role: string;
   username: string;
 }) {
+  const router = useRouter();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -585,6 +587,11 @@ export default function DirectoryClient({
     return parts.length > 0 ? parts.join(" ") : "Unnamed";
   }
 
+
+  function openContactDetail(contactId: string) {
+    router.push(`/projects/${projectId}/directory/${contactId}`);
+  }
+
   async function handleAddUser(data: UserFormData) {
     setShowUserModal(false);
     const res = await fetch(`/api/projects/${projectId}/directory`, {
@@ -604,6 +611,7 @@ export default function DirectoryClient({
         });
         setInvitedIds((prev) => new Set(prev).add(c.id));
       }
+      openContactDetail(c.id);
     }
   }
 
@@ -1117,7 +1125,7 @@ export default function DirectoryClient({
                           setOpenMenuId(id);
                         }}
                         onMenuClose={() => { setOpenMenuId(null); setMenuPos(null); }}
-                        onEdit={(contact) => setEditTarget(contact)}
+                        onEdit={(contact) => openContactDetail(contact.id)}
                         indent
                         selected={selectedContacts.has(c.id)}
                         onToggleSelect={toggleSelectContact}
@@ -1164,7 +1172,7 @@ export default function DirectoryClient({
                           setOpenMenuId(id);
                         }}
                         onMenuClose={() => { setOpenMenuId(null); setMenuPos(null); }}
-                        onEdit={(contact) => setEditTarget(contact)}
+                        onEdit={(contact) => openContactDetail(contact.id)}
                         indent={false}
                         selected={selectedContacts.has(c.id)}
                         onToggleSelect={toggleSelectContact}
@@ -1235,7 +1243,7 @@ export default function DirectoryClient({
           className="w-36 bg-white border border-gray-100 rounded-lg shadow-lg py-1"
         >
           <button
-            onMouseDown={(e) => { e.stopPropagation(); setEditTarget(menuContact); setOpenMenuId(null); setMenuPos(null); }}
+            onMouseDown={(e) => { e.stopPropagation(); if (menuContact.type === "user") { openContactDetail(menuContact.id); } else { setEditTarget(menuContact); } setOpenMenuId(null); setMenuPos(null); }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
           >Edit</button>
           <div className="border-t border-gray-100 my-1" />
