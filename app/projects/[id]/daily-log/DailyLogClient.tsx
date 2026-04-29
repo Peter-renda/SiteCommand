@@ -219,8 +219,8 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+    <div className="bg-white overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/40">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
           {badge && <span className="text-xs text-gray-400">{badge}</span>}
@@ -1493,7 +1493,7 @@ export default function DailyLogClient({
               </div>
             </aside>
 
-            <div className="space-y-5">
+            <div className="bg-white border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-100">
               <section id="photos" className="scroll-mt-24">
                 <PhotosSection
                   projectId={projectId}
