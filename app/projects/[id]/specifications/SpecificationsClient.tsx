@@ -352,10 +352,6 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
         )}
         {loading ? (
           <div className="rounded border border-gray-200 bg-white p-6 text-sm text-gray-500">Loading specifications…</div>
-        ) : filteredSpecifications.length === 0 ? (
-          <div className="rounded border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
-            No specifications found.
-          </div>
         ) : (
           <div className="space-y-3">
             {visibleDivisions.map((division) => {
@@ -423,6 +419,11 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
                 </div>
               );
             })}
+            {search.trim().length > 0 && filteredSpecifications.length === 0 && (
+              <div className="rounded border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+                No specifications match your search.
+              </div>
+            )}
           </div>
         )}
       </section>
