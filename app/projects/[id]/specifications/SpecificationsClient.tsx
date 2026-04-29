@@ -109,6 +109,16 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
     [divisions]
   );
 
+  const displayedDivisions = useMemo(() => {
+    if (activeTab !== "recycle-bin") return visibleDivisions;
+
+    const recycleDivisionNumbers = new Set(
+      filteredSpecifications.map((spec) => spec.code?.match(/^\s*(\d{2,3})/)?.[1] ?? "100")
+    );
+
+    return visibleDivisions.filter((division) => recycleDivisionNumbers.has(division.number));
+  }, [activeTab, filteredSpecifications, visibleDivisions]);
+
   const specificationsByDivision = useMemo(() => {
     const grouped = new Map<string, Specification[]>();
     visibleDivisions.forEach((division) => grouped.set(division.number, []));
@@ -354,7 +364,7 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
           <div className="rounded border border-gray-200 bg-white p-6 text-sm text-gray-500">Loading specifications…</div>
         ) : (
           <div className="space-y-3">
-            {visibleDivisions.map((division) => {
+            {displayedDivisions.map((division) => {
               const divisionSpecs = specificationsByDivision.get(division.number) ?? [];
               return (
                 <div key={division.number} className="overflow-hidden rounded border border-gray-200 bg-white">
@@ -419,6 +429,11 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
                 </div>
               );
             })}
+            {activeTab === "recycle-bin" && search.trim().length === 0 && displayedDivisions.length === 0 && (
+              <div className="rounded border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+                No specifications in the recycle bin.
+              </div>
+            )}
             {search.trim().length > 0 && filteredSpecifications.length === 0 && (
               <div className="rounded border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
                 No specifications match your search.
