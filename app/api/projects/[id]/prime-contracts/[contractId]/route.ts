@@ -10,6 +10,32 @@ const TRACKED_FIELDS = [
   "is_private", "sov_view_allowed", "original_contract_amount", "approved_change_orders", "pending_change_orders", "draft_change_orders",
 ];
 
+const FIELD_LABELS: Record<string, string> = {
+  contract_number: "Contract Number",
+  title: "Title",
+  owner_client: "Owner Client",
+  contractor: "Contractor",
+  architect_engineer: "Architect/Engineer",
+  status: "Status",
+  erp_status: "ERP Status",
+  executed: "Executed",
+  default_retainage: "Default Retainage",
+  description: "Description",
+  inclusions: "Inclusions",
+  exclusions: "Exclusions",
+  start_date: "Start Date",
+  estimated_completion_date: "Estimated Completion Date",
+  actual_completion_date: "Actual Completion Date",
+  signed_contract_received_date: "Signed Contract Received Date",
+  contract_termination_date: "Contract Termination Date",
+  is_private: "Private",
+  sov_view_allowed: "Allow Non-Admin SOV View",
+  original_contract_amount: "Original Contract Amount",
+  approved_change_orders: "Approved Change Orders",
+  pending_change_orders: "Pending Change Orders",
+  draft_change_orders: "Draft Change Orders",
+};
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string; contractId: string }> }
@@ -115,32 +141,6 @@ export async function PATCH(
   }
 
   if (current && data) {
-    const labels: Record<string, string> = {
-      contract_number: "Contract Number",
-      title: "Title",
-      owner_client: "Owner Client",
-      contractor: "Contractor",
-      architect_engineer: "Architect/Engineer",
-      status: "Status",
-      erp_status: "ERP Status",
-      executed: "Executed",
-      default_retainage: "Default Retainage",
-      description: "Description",
-      inclusions: "Inclusions",
-      exclusions: "Exclusions",
-      start_date: "Start Date",
-      estimated_completion_date: "Estimated Completion Date",
-      actual_completion_date: "Actual Completion Date",
-      signed_contract_received_date: "Signed Contract Received Date",
-      contract_termination_date: "Contract Termination Date",
-      is_private: "Private",
-      sov_view_allowed: "Allow Non-Admin SOV View",
-      original_contract_amount: "Original Contract Amount",
-      approved_change_orders: "Approved Change Orders",
-      pending_change_orders: "Pending Change Orders",
-      draft_change_orders: "Draft Change Orders",
-    };
-
     const historyRows = TRACKED_FIELDS
       .filter((field) => field in fields && String((current as Record<string, unknown>)[field] ?? "") !== String((data as Record<string, unknown>)[field] ?? ""))
       .map((field) => ({
@@ -148,7 +148,7 @@ export async function PATCH(
         project_id: projectId,
         changed_by: session.id,
         changed_by_name: session.username,
-        action: `Updated ${labels[field] ?? field}`,
+        action: `Updated ${FIELD_LABELS[field] ?? field}`,
         field_name: field,
         from_value: String((current as Record<string, unknown>)[field] ?? ""),
         to_value: String((data as Record<string, unknown>)[field] ?? ""),

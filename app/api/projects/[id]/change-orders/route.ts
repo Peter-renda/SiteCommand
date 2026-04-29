@@ -141,5 +141,19 @@ export async function POST(
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (data && data.type === "prime" && data.prime_contract_id) {
+    await supabase.from("prime_contract_change_history").insert({
+      prime_contract_id: data.prime_contract_id,
+      project_id: projectId,
+      changed_by: session.id,
+      changed_by_name: session.username,
+      action: `Associated Change Order #${data.number}`,
+      field_name: "change_order_association",
+      from_value: "",
+      to_value: String(data.id),
+      details: `Change order ${data.number} (${data.title || "Untitled"}) was associated to this prime contract.`,
+    });
+  }
+
   return NextResponse.json(data);
 }
