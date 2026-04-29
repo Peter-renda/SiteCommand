@@ -64,10 +64,21 @@ export async function POST(
     .select("number")
     .eq("project_id", projectId)
     .eq("type", body.type || "prime")
-    .order("number", { ascending: false })
-    .limit(1);
+    .is("deleted_at", null);
 
-  const nextNumber = existing && existing.length > 0 ? existing[0].number + 1 : 1;
+  const maxExistingNumber = Array.isArray(existing)
+    ? existing.reduce((max, row) => {
+        const parsed = Number.parseInt(String(row?.number ?? ""), 10);
+        return Number.isFinite(parsed) ? Math.max(max, parsed) : max;
+      }, 0)
+    : 0;
+
+  const requestedNumber = String(body?.number ?? "").trim();
+  const parsedRequestedNumber = Number.parseInt(requestedNumber, 10);
+  const nextNumber =
+    requestedNumber && Number.isFinite(parsedRequestedNumber)
+      ? parsedRequestedNumber
+      : maxExistingNumber + 1;
 
   const insertPayload = {
     project_id: projectId,

@@ -263,6 +263,7 @@ export default function NewCommitmentCOClient({
           contract_name: commitment
             ? `${String(commitment.number).padStart(3, "0")} - ${commitment.title}`
             : "",
+          number: nextNumber,
           revision: parseInt(revision, 10) || 0,
           title,
           status,
@@ -562,9 +563,9 @@ export default function NewCommitmentCOClient({
                 left={
                   <Field label="#">
                     <input
-                      readOnly
                       value={nextNumber}
-                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50"
+                      onChange={(e) => setNextNumber(e.target.value)}
+                      className="w-40 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
                   </Field>
                 }
