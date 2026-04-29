@@ -81,6 +81,7 @@ function AttendeePicker({
   );
   const filtered = directory.filter(
     (c) =>
+      c.type === "user" &&
       !selectedIds.has(c.id) &&
       (contactDisplayName(c).toLowerCase().includes(normalizedSearch) ||
         (c.email ?? "").toLowerCase().includes(normalizedSearch))
@@ -813,7 +814,7 @@ export default function NewMeetingClient({
             </div>
 
             {/* Attendees section */}
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-visible">
               <div className="flex items-center justify-between px-6 py-4">
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">Attendees</h2>
