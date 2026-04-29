@@ -75,11 +75,16 @@ function AttendeePicker({
   }, []);
 
   const selectedIds = new Set(selected.map((s) => s.id));
+  const normalizedSearch = search.trim().toLowerCase();
+  const selectedKeySet = new Set(
+    selected.map((s) => `${s.name.trim().toLowerCase()}|${(s.email ?? "").trim().toLowerCase()}`)
+  );
   const filtered = directory.filter(
     (c) =>
+      c.type === "user" &&
       !selectedIds.has(c.id) &&
-      (contactDisplayName(c).toLowerCase().includes(search.toLowerCase()) ||
-        (c.email ?? "").toLowerCase().includes(search.toLowerCase()))
+      (contactDisplayName(c).toLowerCase().includes(normalizedSearch) ||
+        (c.email ?? "").toLowerCase().includes(normalizedSearch))
   );
 
   function add(c: DirContact) {
@@ -90,6 +95,31 @@ function AttendeePicker({
 
   function remove(id: string) {
     onChange(selected.filter((s) => s.id !== id));
+  }
+
+  function addCustomAttendee(rawValue: string) {
+    const value = rawValue.trim();
+    if (!value) return;
+
+    const emailLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    const name = emailLike ? value.split("@")[0] : value;
+    const email = emailLike ? value : null;
+    const duplicateKey = `${name.trim().toLowerCase()}|${(email ?? "").trim().toLowerCase()}`;
+    if (selectedKeySet.has(duplicateKey)) {
+      setSearch("");
+      return;
+    }
+
+    onChange([
+      ...selected,
+      {
+        id: `custom-${value.toLowerCase()}-${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        email,
+      },
+    ]);
+    setSearch("");
+    setOpen(false);
   }
 
   return (
@@ -122,10 +152,25 @@ function AttendeePicker({
         value={search}
         onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && search.trim()) {
+            e.preventDefault();
+            const exactDirectoryMatch = filtered.find((c) => {
+              const display = contactDisplayName(c).toLowerCase();
+              const email = (c.email ?? "").toLowerCase();
+              return display === normalizedSearch || email === normalizedSearch;
+            });
+            if (exactDirectoryMatch) {
+              add(exactDirectoryMatch);
+              return;
+            }
+            addCustomAttendee(search);
+          }
+        }}
         placeholder="Search for attendees..."
         className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
       />
-      {open && filtered.length > 0 && (
+      {open && (
         <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto z-30">
           {filtered.map((c) => (
             <button
@@ -139,6 +184,25 @@ function AttendeePicker({
               {c.email && <span className="text-gray-400 text-xs">{c.email}</span>}
             </button>
           ))}
+          {search.trim() && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => addCustomAttendee(search)}
+              className="w-full text-left px-4 py-2.5 text-sm border-t border-gray-100 hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-gray-500">Add attendee: </span>
+              <span className="font-medium text-gray-900">{search.trim()}</span>
+            </button>
+          )}
+          {!search.trim() && filtered.length === 0 && (
+            <p className="px-4 py-2.5 text-sm text-gray-400">Start typing to search the directory.</p>
+          )}
+          {search.trim() && filtered.length === 0 && (
+            <p className="px-4 py-2.5 text-xs text-gray-400 border-t border-gray-100">
+              Press Enter to add someone not in the directory.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -519,7 +583,7 @@ export default function NewMeetingClient({
             )}
 
             {/* Meeting Information card */}
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-visible">
               {/* Section header */}
               <button
                 type="button"
@@ -732,7 +796,7 @@ export default function NewMeetingClient({
             </div>
 
             {/* Attendees section */}
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-visible">
               <div className="flex items-center justify-between px-6 py-4">
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">Attendees</h2>
