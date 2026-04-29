@@ -67,7 +67,7 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
       const seenNumbers = new Set(current.map((division) => division.number));
       const inferredDivisions: Division[] = [];
       specifications.forEach((spec) => {
-        const match = spec.code?.match(/^\s*(\d{3})/);
+        const match = spec.code?.match(/^\s*(\d{2,3})/);
         if (!match) return;
         const number = match[1];
         if (seenNumbers.has(number)) return;
@@ -103,6 +103,25 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
       return spec.name.toLowerCase().includes(query) || (spec.code ?? "").toLowerCase().includes(query);
     });
   }, [search, visibleSpecifications]);
+
+  const visibleDivisions = useMemo(
+    () => [...divisions].sort((a, b) => a.number.localeCompare(b.number)),
+    [divisions]
+  );
+
+  const specificationsByDivision = useMemo(() => {
+    const grouped = new Map<string, Specification[]>();
+    visibleDivisions.forEach((division) => grouped.set(division.number, []));
+
+    filteredSpecifications.forEach((spec) => {
+      const match = spec.code?.match(/^\s*(\d{2,3})/);
+      const divisionNumber = match?.[1] ?? "100";
+      const existing = grouped.get(divisionNumber) ?? [];
+      grouped.set(divisionNumber, [...existing, spec]);
+    });
+
+    return grouped;
+  }, [filteredSpecifications, visibleDivisions]);
 
   useEffect(() => {
     if (!isGenerateSubmittalFlow) return;
@@ -333,63 +352,78 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
         )}
         {loading ? (
           <div className="rounded border border-gray-200 bg-white p-6 text-sm text-gray-500">Loading specifications…</div>
-        ) : filteredSpecifications.length === 0 ? (
-          <div className="rounded border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
-            No specifications found.
-          </div>
         ) : (
-          <div className="overflow-hidden rounded border border-gray-200 bg-white">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="w-20 px-4 py-3">
-                    <input type="checkbox" className="h-4 w-4 rounded border-gray-300" aria-label="Select all specifications" />
-                  </th>
-                  <th className="px-4 py-3">Number</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3">Revision</th>
-                  <th className="px-4 py-3">Date Issued</th>
-                  <th className="px-4 py-3">Date Received</th>
-                  <th className="px-4 py-3">Set</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSpecifications.map((spec) => (
-                  <tr key={spec.id} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        {isGenerateSubmittalFlow ? (
-                          <input
-                            type="radio"
-                            name="selected-specification"
-                            checked={selectedSpecIdForSubmittal === spec.id}
-                            onChange={() => setSelectedSpecIdForSubmittal(spec.id)}
-                            className="h-4 w-4"
-                          />
-                        ) : (
-                          <input type="checkbox" className="h-4 w-4 rounded border-gray-300" aria-label={`Select ${spec.name}`} />
-                        )}
-                        <Info className="h-4 w-4 text-gray-500" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-800">
-                      <button type="button" className="text-left text-[#1f3a66] underline underline-offset-2">
-                        {(spec.code || "—").replace(/\s+/g, "")}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">{spec.name}</td>
-                    <td className="px-4 py-3 font-semibold text-gray-800">0</td>
-                    <td className="px-4 py-3">
-                      <button type="button" className="rounded bg-gray-200 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-300">
-                        See All
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">—</td>
-                    <td className="px-4 py-3 text-gray-700">Specifications</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {visibleDivisions.map((division) => {
+              const divisionSpecs = specificationsByDivision.get(division.number) ?? [];
+              return (
+                <div key={division.number} className="overflow-hidden rounded border border-gray-200 bg-white">
+                  <div className="border-b border-gray-200 bg-[#dde2ec] px-4 py-3 text-xl font-semibold text-gray-900">
+                    {division.number} - {division.description} ({divisionSpecs.length})
+                  </div>
+                  {divisionSpecs.length === 0 ? (
+                    <div className="px-4 py-5 text-sm text-gray-500">No specifications in this division yet.</div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                        <tr>
+                          <th className="w-20 px-4 py-3">
+                            <input type="checkbox" className="h-4 w-4 rounded border-gray-300" aria-label="Select all specifications" />
+                          </th>
+                          <th className="px-4 py-3">Number</th>
+                          <th className="px-4 py-3">Description</th>
+                          <th className="px-4 py-3">Revision</th>
+                          <th className="px-4 py-3">Date Issued</th>
+                          <th className="px-4 py-3">Date Received</th>
+                          <th className="px-4 py-3">Set</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {divisionSpecs.map((spec) => (
+                          <tr key={spec.id} className="border-t border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                {isGenerateSubmittalFlow ? (
+                                  <input
+                                    type="radio"
+                                    name="selected-specification"
+                                    checked={selectedSpecIdForSubmittal === spec.id}
+                                    onChange={() => setSelectedSpecIdForSubmittal(spec.id)}
+                                    className="h-4 w-4"
+                                  />
+                                ) : (
+                                  <input type="checkbox" className="h-4 w-4 rounded border-gray-300" aria-label={`Select ${spec.name}`} />
+                                )}
+                                <Info className="h-4 w-4 text-gray-500" />
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 font-medium text-gray-800">
+                              <button type="button" className="text-left text-[#1f3a66] underline underline-offset-2">
+                                {(spec.code || "—").replace(/\s+/g, "")}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{spec.name}</td>
+                            <td className="px-4 py-3 font-semibold text-gray-800">0</td>
+                            <td className="px-4 py-3">
+                              <button type="button" className="rounded bg-gray-200 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-300">
+                                See All
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-gray-500">—</td>
+                            <td className="px-4 py-3 text-gray-700">Specifications</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              );
+            })}
+            {search.trim().length > 0 && filteredSpecifications.length === 0 && (
+              <div className="rounded border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+                No specifications match your search.
+              </div>
+            )}
           </div>
         )}
       </section>
