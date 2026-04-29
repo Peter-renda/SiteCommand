@@ -322,6 +322,17 @@ export default function DashboardClient({ username, email, role, companyRole, us
   });
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const [lastLoginAt] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("dashboard_last_login_at");
+      if (!stored) return null;
+      const parsed = Number(stored);
+      return Number.isFinite(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  });
 
   // My Tasks state
   const [myTasks, setMyTasks] = useState<MyTask[]>([]);
@@ -427,6 +438,12 @@ export default function DashboardClient({ username, email, role, companyRole, us
     });
     if (res.ok) window.location.reload();
   }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("dashboard_last_login_at", String(Date.now()));
+    } catch {}
+  }, []);
 
   useEffect(() => {
     loadProjects();
@@ -1039,55 +1056,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
           </div>
         )}
 
-        {/* My Open Items */}
-        <section ref={myOpenItemsRef} className="mt-12">
-          <div className="flex items-end justify-between mb-5">
-            <div>
-              <h2 className="font-display text-[28px] leading-[1.05] text-[color:var(--ink)]">My open items</h2>
-              <p className="sec-sub">
-                <span className="num">{myOpenItems.length}</span> item{myOpenItems.length !== 1 ? "s" : ""} awaiting action
-              </p>
-            </div>
-          </div>
-
-          {myOpenItems.length === 0 ? (
-            <div className="text-xs text-gray-400 italic">You&rsquo;re all caught up.</div>
-          ) : (
-            <ul className="divide-y divide-gray-50 border hairline rounded-xl bg-white">
-              {myOpenItems.map((item) => (
-                <li key={`${item.type}-${item.id}`}>
-                  <a
-                    href={openItemHref(item)}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
-                  >
-                    <span className={`pill ${item.due_date && new Date(item.due_date) < new Date() ? "pill-danger" : "pill-warn"} shrink-0`}>
-                      {item.type.replace("_", " ")}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-900 truncate">{item.title}</p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {item.project_name || "Project"} · {item.status || "Open"}
-                      </p>
-                    </div>
-                    {item.due_date && (
-                      <span className="text-xs text-gray-500 shrink-0 mono-label">
-                        {(() => {
-                          const d = new Date(item.due_date);
-                          const now = new Date();
-                          const days = Math.floor((d.getTime() - now.getTime()) / 86_400_000);
-                          if (days < 0) return `${Math.abs(days)}d overdue`;
-                          if (days === 0) return "Due today";
-                          return `Due ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-                        })()}
-                      </span>
-                    )}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
         {/* Recent Activity */}
         <div className="mt-12">
           <div className="flex items-end justify-between mb-5">
@@ -1160,7 +1128,12 @@ export default function DashboardClient({ username, email, role, companyRole, us
                   >
                     <ActivityIcon type={item.type} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] text-gray-900 truncate">{item.title}</p>
+                      <p className="text-[13px] text-gray-900 truncate flex items-center gap-2">
+                        <span className="truncate">{item.title}</span>
+                        {lastLoginAt !== null && new Date(item.created_at).getTime() > lastLoginAt && (
+                          <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" aria-label="New activity since last login" />
+                        )}
+                      </p>
                       <p className="text-[11px] text-gray-500 truncate">
                         <span className="font-medium text-gray-600">{TYPE_LABELS[item.type]}</span>
                         {" · "}
@@ -1182,6 +1155,55 @@ export default function DashboardClient({ username, email, role, companyRole, us
             );
           })()}
         </div>
+
+        {/* My Open Items */}
+        <section ref={myOpenItemsRef} className="mt-12">
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <h2 className="font-display text-[28px] leading-[1.05] text-[color:var(--ink)]">My open items</h2>
+              <p className="sec-sub">
+                <span className="num">{myOpenItems.length}</span> item{myOpenItems.length !== 1 ? "s" : ""} awaiting action
+              </p>
+            </div>
+          </div>
+
+          {myOpenItems.length === 0 ? (
+            <div className="text-xs text-gray-400 italic">You&rsquo;re all caught up.</div>
+          ) : (
+            <ul className="divide-y divide-gray-50 border hairline rounded-xl bg-white">
+              {myOpenItems.map((item) => (
+                <li key={`${item.type}-${item.id}`}>
+                  <a
+                    href={openItemHref(item)}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                  >
+                    <span className={`pill ${item.due_date && new Date(item.due_date) < new Date() ? "pill-danger" : "pill-warn"} shrink-0`}>
+                      {item.type.replace("_", " ")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-900 truncate">{item.title}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {item.project_name || "Project"} · {item.status || "Open"}
+                      </p>
+                    </div>
+                    {item.due_date && (
+                      <span className="text-xs text-gray-500 shrink-0 mono-label">
+                        {(() => {
+                          const d = new Date(item.due_date);
+                          const now = new Date();
+                          const days = Math.floor((d.getTime() - now.getTime()) / 86_400_000);
+                          if (days < 0) return `${Math.abs(days)}d overdue`;
+                          if (days === 0) return "Due today";
+                          return `Due ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+                        })()}
+                      </span>
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
 
       {/* New Project Modal */}
