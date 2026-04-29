@@ -9,6 +9,7 @@ type Specification = {
   id: string;
   name: string;
   code: string | null;
+  deleted_at?: string | null;
 };
 
 type Division = {
@@ -88,13 +89,20 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
     return () => document.removeEventListener("mousedown", onDocumentClick);
   }, []);
 
+  const visibleSpecifications = useMemo(() => {
+    if (activeTab === "recycle-bin") {
+      return specifications.filter((spec) => Boolean(spec.deleted_at));
+    }
+    return specifications.filter((spec) => !spec.deleted_at);
+  }, [activeTab, specifications]);
+
   const filteredSpecifications = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return specifications;
-    return specifications.filter((spec) => {
+    if (!query) return visibleSpecifications;
+    return visibleSpecifications.filter((spec) => {
       return spec.name.toLowerCase().includes(query) || (spec.code ?? "").toLowerCase().includes(query);
     });
-  }, [search, specifications]);
+  }, [search, visibleSpecifications]);
 
   useEffect(() => {
     if (!isGenerateSubmittalFlow) return;
