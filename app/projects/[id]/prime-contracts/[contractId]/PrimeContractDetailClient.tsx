@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { Plus, Mail, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Maximize2, HelpCircle } from "lucide-react";
+import { Plus, Mail, ChevronDown, ChevronRight, ArrowUp, ArrowDown, Maximize2, HelpCircle } from "lucide-react";
 
 type SovItem = {
   id: string;
@@ -166,15 +166,8 @@ function ContractSummaryTile({
 
   return (
     <div id="contract-summary" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-5">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 mb-4"
-      >
-        {open ? (
-          <ChevronDown className="w-4 h-4 text-gray-500" />
-        ) : (
-          <ChevronUp className="w-4 h-4 text-gray-500" />
-        )}
+      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 mb-4">
+        {open ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
         <h2 className="text-sm font-semibold text-gray-900">Contract Summary</h2>
       </button>
       {open && (
@@ -238,6 +231,10 @@ export default function PrimeContractDetailClient({
   const [reasonFilters, setReasonFilters] = useState<string[]>([]);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [generalInfoOpen, setGeneralInfoOpen] = useState(true);
+  const [inclusionsOpen, setInclusionsOpen] = useState(true);
+  const [datesOpen, setDatesOpen] = useState(true);
+  const [privacyOpen, setPrivacyOpen] = useState(true);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -568,10 +565,10 @@ export default function PrimeContractDetailClient({
               {/* General Information */}
               <div id="general-info" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">
                 <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <button onClick={() => setGeneralInfoOpen((v) => !v)} className="flex items-center gap-2">
+                    {generalInfoOpen ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
                     <h2 className="text-sm font-semibold text-gray-900">General Information</h2>
-                  </div>
+                  </button>
                   <button
                     onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contractId}/edit`)}
                     className="px-3 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
@@ -579,12 +576,12 @@ export default function PrimeContractDetailClient({
                     Edit
                   </button>
                 </div>
-                {contract.id && (
+                {generalInfoOpen && contract.id && (
                   <p className="text-xs text-gray-400 mb-5">
                     Created by — on {fmtDate(contract.start_date || null)}
                   </p>
                 )}
-                <div className="grid grid-cols-3 gap-x-8 gap-y-5 mb-6">
+                {generalInfoOpen && <div className="grid grid-cols-3 gap-x-8 gap-y-5 mb-6">
                   <Field label="Contract #" value={contract.contract_number} />
                   <Field label="Owner / Client" value={contract.owner_client} />
                   <Field label="Title" value={contract.title} />
@@ -607,17 +604,17 @@ export default function PrimeContractDetailClient({
                     }
                   />
                   <Field label="Architect / Engineer" value={contract.architect_engineer} />
-                </div>
-                {contract.description && (
+                </div>}
+                {generalInfoOpen && contract.description && (
                   <div className="mb-4">
                     <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Description</p>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{contract.description}</p>
                   </div>
                 )}
-                <div>
+                {generalInfoOpen && <div>
                   <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Attachments</p>
                   <p className="text-sm text-gray-400 italic">No attachments.</p>
-                </div>
+                </div>}
               </div>
 
               {/* Contract Summary */}
@@ -639,11 +636,11 @@ export default function PrimeContractDetailClient({
 
               {/* Inclusions & Exclusions */}
               <div id="inclusions-exclusions" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">
-                <div className="flex items-center gap-2 mb-5">
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                <button onClick={() => setInclusionsOpen((v) => !v)} className="flex items-center gap-2 mb-5">
+                  {inclusionsOpen ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
                   <h2 className="text-sm font-semibold text-gray-900">Inclusions &amp; Exclusions</h2>
-                </div>
-                <div className="space-y-6">
+                </button>
+                {inclusionsOpen && <div className="space-y-6">
                   <div>
                     <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Inclusions</p>
                     {contract.inclusions
@@ -656,34 +653,34 @@ export default function PrimeContractDetailClient({
                       ? <p className="text-sm text-gray-700 whitespace-pre-wrap">{contract.exclusions}</p>
                       : <p className="text-sm text-gray-400 italic">No exclusions specified.</p>}
                   </div>
-                </div>
+                </div>}
               </div>
 
               {/* Contract Dates */}
               <div id="contract-dates" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">
-                <div className="flex items-center gap-2 mb-5">
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                <button onClick={() => setDatesOpen((v) => !v)} className="flex items-center gap-2 mb-5">
+                  {datesOpen ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
                   <h2 className="text-sm font-semibold text-gray-900">Contract Dates</h2>
-                </div>
-                <div className="grid grid-cols-3 gap-x-8 gap-y-5">
+                </button>
+                {datesOpen && <div className="grid grid-cols-3 gap-x-8 gap-y-5">
                   <Field label="Start Date" value={fmtDate(contract.start_date)} />
                   <Field label="Estimated Completion" value={fmtDate(contract.estimated_completion_date)} />
                   <Field label="Actual Completion" value={fmtDate(contract.actual_completion_date)} />
                   <Field label="Signed Contract Received" value={fmtDate(contract.signed_contract_received_date)} />
                   <Field label="Contract Termination" value={fmtDate(contract.contract_termination_date)} />
-                </div>
+                </div>}
               </div>
 
               {/* Contract Privacy */}
               <div id="contract-privacy" className="scroll-mt-2 bg-white border-b border-gray-200 px-8 py-6">
-                <div className="flex items-center gap-2 mb-5">
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                <button onClick={() => setPrivacyOpen((v) => !v)} className="flex items-center gap-2 mb-5">
+                  {privacyOpen ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
                   <h2 className="text-sm font-semibold text-gray-900">Contract Privacy</h2>
-                </div>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                </button>
+                {privacyOpen && <div className="grid grid-cols-2 gap-x-8 gap-y-5">
                   <Field label="Private" value={contract.is_private ? "Yes — visible to admins and select users only" : "No — visible to all project members"} />
                   <Field label="Allow Non-Admin SOV View" value={contract.sov_view_allowed ? "Yes" : "No"} />
-                </div>
+                </div>}
               </div>
             </div>
           </>
@@ -931,6 +928,7 @@ const ADD_GROUP_OPTIONS = [
 ];
 
 function SovSection({ sovItems }: { sovItems: SovItem[] }) {
+  const [open, setOpen] = useState(true);
   const [groupDropOpen, setGroupDropOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -955,10 +953,10 @@ function SovSection({ sovItems }: { sovItems: SovItem[] }) {
     <div id="schedule-of-values" className="scroll-mt-2 bg-white border-b border-gray-200">
       {/* Section header */}
       <div className="px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ChevronDown className="w-4 h-4 text-gray-500" />
+        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2">
+          {open ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
           <h2 className="text-sm font-semibold text-gray-900">Schedule of Values</h2>
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors">
             <Maximize2 className="w-3.5 h-3.5" />
@@ -971,7 +969,7 @@ function SovSection({ sovItems }: { sovItems: SovItem[] }) {
       </div>
 
       {/* Add Group control */}
-      <div className="px-8 pb-3">
+      {open && <div className="px-8 pb-3">
         <div ref={dropRef} className="relative inline-block">
           <button
             onClick={() => setGroupDropOpen((v) => !v)}
@@ -1007,10 +1005,10 @@ function SovSection({ sovItems }: { sovItems: SovItem[] }) {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Table */}
-      {sovItems.length === 0 ? (
+      {open && (sovItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-gray-400 border-t border-gray-100">
           <p className="text-sm font-medium text-gray-500 mb-1">No schedule of values items</p>
           <p className="text-xs">SOV items can be added when editing this contract.</p>
@@ -1047,7 +1045,7 @@ function SovSection({ sovItems }: { sovItems: SovItem[] }) {
             </tfoot>
           </table>
         </div>
-      )}
+      ))}
     </div>
   );
 }
