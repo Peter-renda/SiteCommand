@@ -103,7 +103,7 @@ export async function logSubmittalChange(
       : session.username;
     const changedByCompany = (companyRes.data as { name?: string } | null)?.name ?? null;
 
-    await supabase.from("submittal_change_history").insert({
+    const payload = {
       submittal_id: submittalId,
       project_id: projectId,
       changed_by: session.id,
@@ -112,7 +112,16 @@ export async function logSubmittalChange(
       action,
       from_value: fromValue,
       to_value: toValue,
-    });
+    };
+
+    const { error: insertError } = await supabase.from("submittal_change_history").insert(payload);
+    if (insertError) {
+      const { error: fallbackError } = await supabase.from("submittal_change_history").insert({
+        ...payload,
+        changed_by: null,
+      });
+      if (fallbackError) throw fallbackError;
+    }
   } catch (error) {
     // History logging should never block the main operation
     console.error("Failed to write submittal change history", { submittalId, projectId, action, error });
