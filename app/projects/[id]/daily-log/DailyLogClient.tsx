@@ -271,23 +271,21 @@ function EntryRow({ children, onDelete }: {
 }
 
 // An always-visible form row at the bottom of a section
-function FormRow({ onSubmit, children, showCreateButton = true }: {
-  onSubmit: () => void; children: React.ReactNode; showCreateButton?: boolean;
+function FormRow({ onSubmit, children }: {
+  onSubmit: () => void; children: React.ReactNode;
 }) {
   return (
     <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/40">
       <div className="inline-flex items-end gap-4 text-xs w-max min-w-full">
         {children}
-        {showCreateButton && (
-          <div className="sticky right-0 ml-auto shrink-0 pb-0.5 pl-3 bg-gray-50/95 border-l border-gray-200">
-            <button
-              onClick={onSubmit}
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors whitespace-nowrap"
-            >
-              Create
-            </button>
-          </div>
-        )}
+        <div className="sticky right-0 ml-auto shrink-0 pb-0.5 pl-3 bg-gray-50/95 border-l border-gray-200">
+          <button
+            onClick={onSubmit}
+            className="px-3 py-1.5 text-xs font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors whitespace-nowrap"
+          >
+            Create
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -753,16 +751,10 @@ function WeatherSection({
 
       {/* Time-based observations */}
       <div>
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+        <div className="px-4 py-2.5 border-b border-gray-100">
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             Observed Weather Conditions
           </span>
-          <button
-            onClick={handleCreate}
-            className="px-3 py-1.5 text-xs font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors whitespace-nowrap"
-          >
-            Create
-          </button>
         </div>
 
         {observations.map((o) => (
@@ -783,7 +775,7 @@ function WeatherSection({
           </EntryRow>
         ))}
 
-        <FormRow onSubmit={handleCreate} showCreateButton={false}>
+        <FormRow onSubmit={handleCreate}>
           <Col label="Time" minW="90px"><input type="time" value={draft.time_observed} onChange={(e) => set("time_observed", e.target.value)} className={inCls} /></Col>
           <Col label="Sky" minW="110px">
             <select value={draft.sky} onChange={(e) => set("sky", e.target.value)} className={selCls}>
