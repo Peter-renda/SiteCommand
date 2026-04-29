@@ -402,6 +402,7 @@ export default function ProjectClient({
   const [scheduleTasks, setScheduleTasks] = useState<ScheduleTask[]>([]);
   const [workTab, setWorkTab] = useState<"ongoing" | "upcoming">("ongoing");
   const [workExpanded, setWorkExpanded] = useState(false);
+  const [recentActivityExpanded, setRecentActivityExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editPhotoRef = useRef<HTMLInputElement>(null);
@@ -891,20 +892,30 @@ export default function ProjectClient({
                   {activity.length === 0 ? (
                     <p className="text-sm text-gray-400">No activity yet.</p>
                   ) : (
-                    <div className="space-y-4">
-                      {activity.map((item) => (
-                        <div key={item.id} className="flex items-start gap-3">
-                          <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 shrink-0" />
-                          <div>
-                            <p className="text-sm text-gray-700">{item.description}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              {item.users?.username && `${item.users.username} · `}
-                              {timeAgo(item.created_at)}
-                            </p>
+                    <>
+                      <div className="space-y-4">
+                        {(recentActivityExpanded ? activity : activity.slice(0, 5)).map((item) => (
+                          <div key={item.id} className="flex items-start gap-3">
+                            <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 shrink-0" />
+                            <div>
+                              <p className="text-sm text-gray-700">{item.description}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {item.users?.username && `${item.users.username} · `}
+                                {timeAgo(item.created_at)}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                      {activity.length > 5 && (
+                        <button
+                          onClick={() => setRecentActivityExpanded((x) => !x)}
+                          className="mt-3 w-full py-1.5 text-xs font-medium text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          {recentActivityExpanded ? "Show less" : `Show ${activity.length - 5} more`}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
