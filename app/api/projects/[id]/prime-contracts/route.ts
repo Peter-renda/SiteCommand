@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { requireToolLevel } from "@/lib/tool-permissions";
 
 export async function GET(
   _req: NextRequest,
@@ -10,6 +11,8 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId } = await params;
+  const denied = await requireToolLevel(session, projectId, "prime_contracts", "read_only");
+  if (denied) return denied;
   const supabase = getSupabase();
 
   const { data, error } = await supabase
@@ -73,6 +76,8 @@ export async function POST(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: projectId } = await params;
+  const denied = await requireToolLevel(session, projectId, "prime_contracts", "admin");
+  if (denied) return denied;
   const supabase = getSupabase();
   const body = await req.json();
 
@@ -123,7 +128,7 @@ export async function POST(
 
   // Save SOV items if provided
   if (Array.isArray(body.sov_items) && body.sov_items.length > 0 && data) {
-    const rows = body.sov_items.map((item: any, idx: number) => ({
+    const rows = body.sov_items.map((item: { budget_code?: string; description?: string; amount?: number | string; scheduled_value?: number | string; billed_to_date?: number | string }, idx: number) => ({
       prime_contract_id: data.id,
       project_id: projectId,
       budget_code: item.budget_code ?? "",
@@ -133,6 +138,45 @@ export async function POST(
       sort_order: idx,
     }));
     await supabase.from("prime_contract_sov_items").insert(rows);
+  }
+
+  if (data) {
+    const fieldLabels: Record<string, string> = {
+      contract_number: "Contract Number",
+      title: "Title",
+      owner_client: "Owner Client",
+      contractor: "Contractor",
+      architect_engineer: "Architect/Engineer",
+      status: "Status",
+      executed: "Executed",
+      default_retainage: "Default Retainage",
+      description: "Description",
+      inclusions: "Inclusions",
+      exclusions: "Exclusions",
+      start_date: "Start Date",
+      estimated_completion_date: "Estimated Completion Date",
+      actual_completion_date: "Actual Completion Date",
+      signed_contract_received_date: "Signed Contract Received Date",
+      contract_termination_date: "Contract Termination Date",
+      is_private: "Private",
+      sov_view_allowed: "Allow Non-Admin SOV View",
+      original_contract_amount: "Original Contract Amount",
+    };
+    const historyRows = Object.keys(fieldLabels)
+      .filter((k) => String((data as Record<string, unknown>)[k] ?? "").trim() !== "")
+      .map((k) => ({
+        prime_contract_id: data.id,
+        project_id: projectId,
+        changed_by: session.id,
+        changed_by_name: session.username,
+        action: `Updated ${fieldLabels[k]}`,
+        field_name: k,
+        from_value: "",
+        to_value: String((data as Record<string, unknown>)[k] ?? ""),
+      }));
+    if (historyRows.length > 0) {
+      await supabase.from("prime_contract_change_history").insert(historyRows);
+    }
   }
 
   return NextResponse.json(data);

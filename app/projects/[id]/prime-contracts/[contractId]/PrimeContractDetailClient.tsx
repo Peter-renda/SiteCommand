@@ -63,6 +63,14 @@ type ChangeOrder = {
   change_reason?: string | null;
   prime_contract_change_order?: string | null;
 };
+type HistoryItem = {
+  id: string;
+  created_at: string;
+  changed_by_name: string;
+  action: string;
+  from_value: string | null;
+  to_value: string | null;
+};
 
 const STATUS_COLORS: Record<string, string> = {
   Draft: "border-gray-400 text-gray-600",
@@ -230,6 +238,9 @@ export default function PrimeContractDetailClient({
   const [reasonFilters, setReasonFilters] = useState<string[]>([]);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
@@ -251,6 +262,19 @@ export default function PrimeContractDetailClient({
       })
       .catch(() => {});
   }, [projectId, contractId]);
+
+  useEffect(() => {
+    if (tab !== "change_history" || historyLoaded || historyLoading) return;
+    setHistoryLoading(true);
+    fetch(`/api/projects/${projectId}/prime-contracts/${contractId}/history`)
+      .then((r) => r.json())
+      .then((data) => {
+        setHistory(Array.isArray(data) ? data : []);
+        setHistoryLoaded(true);
+      })
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false));
+  }, [tab, historyLoaded, historyLoading, projectId, contractId]);
 
   // Track active sidebar section based on scroll position
   useEffect(() => {
@@ -794,9 +818,38 @@ export default function PrimeContractDetailClient({
 
         {/* ── Change History ── */}
         {tab === "change_history" && (
-          <div className="flex-1 overflow-y-auto bg-white flex flex-col items-center justify-center py-24 text-gray-400">
-            <p className="text-sm font-medium text-gray-500 mb-1">No history yet</p>
-            <p className="text-xs">Changes made to this contract will be logged here.</p>
+          <div className="flex-1 overflow-y-auto bg-white">
+            {historyLoading && !historyLoaded ? (
+              <p className="text-sm text-gray-400 px-8 py-8">Loading change history…</p>
+            ) : history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+                <p className="text-sm font-medium text-gray-500 mb-1">No history yet</p>
+                <p className="text-xs">Changes made to this contract will be logged here.</p>
+              </div>
+            ) : (
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="px-4 py-2.5 text-left">Date</th>
+                    <th className="px-4 py-2.5 text-left">Action By</th>
+                    <th className="px-4 py-2.5 text-left">Changed</th>
+                    <th className="px-4 py-2.5 text-left">From</th>
+                    <th className="px-4 py-2.5 text-left">To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((entry, idx) => (
+                    <tr key={entry.id} className={idx < history.length - 1 ? "border-b border-gray-100" : ""}>
+                      <td className="px-4 py-2.5 text-gray-600">{new Date(entry.created_at).toLocaleString()}</td>
+                      <td className="px-4 py-2.5 text-gray-700">{entry.changed_by_name || "—"}</td>
+                      <td className="px-4 py-2.5 text-gray-700">{entry.action || "—"}</td>
+                      <td className="px-4 py-2.5 text-gray-600">{entry.from_value || "--"}</td>
+                      <td className="px-4 py-2.5 text-gray-700">{entry.to_value || "--"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
