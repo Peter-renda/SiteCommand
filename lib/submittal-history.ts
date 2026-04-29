@@ -113,8 +113,9 @@ export async function logSubmittalChange(
       from_value: fromValue,
       to_value: toValue,
     });
-  } catch {
+  } catch (error) {
     // History logging should never block the main operation
+    console.error("Failed to write submittal change history", { submittalId, projectId, action, error });
   }
 }
 
