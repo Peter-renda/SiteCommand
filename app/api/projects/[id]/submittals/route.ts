@@ -11,12 +11,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id: projectId } = await params;
   const supabase = getSupabase();
 
-  const { data, error } = await supabase
+  const query = supabase
     .from("submittals")
     .select("*")
     .eq("project_id", projectId)
-     .eq("is_deleted", req.nextUrl.searchParams.get("recycle_bin") === "true")
     .order("submittal_number", { ascending: true });
+
+  if (req.nextUrl.searchParams.get("recycle_bin") === "true") query.eq("is_deleted", true);
+  else query.or("is_deleted.is.null,is_deleted.eq.false");
+
+  const { data, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data || []);
