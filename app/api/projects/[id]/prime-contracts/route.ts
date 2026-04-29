@@ -3,6 +3,40 @@ import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { requireToolLevel } from "@/lib/tool-permissions";
 
+const TRACKED_FIELDS = [
+  "contract_number", "title", "owner_client", "contractor", "architect_engineer", "status", "erp_status",
+  "executed", "default_retainage", "description", "inclusions", "exclusions",
+  "start_date", "estimated_completion_date", "actual_completion_date", "signed_contract_received_date", "contract_termination_date",
+  "is_private", "sov_view_allowed", "original_contract_amount", "approved_change_orders", "pending_change_orders", "draft_change_orders",
+];
+
+const FIELD_LABELS: Record<string, string> = {
+  contract_number: "Contract Number",
+  title: "Title",
+  owner_client: "Owner Client",
+  contractor: "Contractor",
+  architect_engineer: "Architect/Engineer",
+  status: "Status",
+  erp_status: "ERP Status",
+  executed: "Executed",
+  default_retainage: "Default Retainage",
+  description: "Description",
+  inclusions: "Inclusions",
+  exclusions: "Exclusions",
+  start_date: "Start Date",
+  estimated_completion_date: "Estimated Completion Date",
+  actual_completion_date: "Actual Completion Date",
+  signed_contract_received_date: "Signed Contract Received Date",
+  contract_termination_date: "Contract Termination Date",
+  is_private: "Private",
+  sov_view_allowed: "Allow Non-Admin SOV View",
+  original_contract_amount: "Original Contract Amount",
+  approved_change_orders: "Approved Change Orders",
+  pending_change_orders: "Pending Change Orders",
+  draft_change_orders: "Draft Change Orders",
+};
+
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -141,39 +175,16 @@ export async function POST(
   }
 
   if (data) {
-    const fieldLabels: Record<string, string> = {
-      contract_number: "Contract Number",
-      title: "Title",
-      owner_client: "Owner Client",
-      contractor: "Contractor",
-      architect_engineer: "Architect/Engineer",
-      status: "Status",
-      executed: "Executed",
-      default_retainage: "Default Retainage",
-      description: "Description",
-      inclusions: "Inclusions",
-      exclusions: "Exclusions",
-      start_date: "Start Date",
-      estimated_completion_date: "Estimated Completion Date",
-      actual_completion_date: "Actual Completion Date",
-      signed_contract_received_date: "Signed Contract Received Date",
-      contract_termination_date: "Contract Termination Date",
-      is_private: "Private",
-      sov_view_allowed: "Allow Non-Admin SOV View",
-      original_contract_amount: "Original Contract Amount",
-    };
-    const historyRows = Object.keys(fieldLabels)
-      .filter((k) => String((data as Record<string, unknown>)[k] ?? "").trim() !== "")
-      .map((k) => ({
-        prime_contract_id: data.id,
-        project_id: projectId,
-        changed_by: session.id,
-        changed_by_name: session.username,
-        action: `Updated ${fieldLabels[k]}`,
-        field_name: k,
-        from_value: "",
-        to_value: String((data as Record<string, unknown>)[k] ?? ""),
-      }));
+    const historyRows = TRACKED_FIELDS.map((field) => ({
+      prime_contract_id: data.id,
+      project_id: projectId,
+      changed_by: session.id,
+      changed_by_name: session.username,
+      action: `Updated ${FIELD_LABELS[field] ?? field}`,
+      field_name: field,
+      from_value: "",
+      to_value: String((data as Record<string, unknown>)[field] ?? ""),
+    }));
     if (historyRows.length > 0) {
       await supabase.from("prime_contract_change_history").insert(historyRows);
     }

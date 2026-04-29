@@ -38,20 +38,20 @@ export async function PATCH(
 
   const { data: initialExisting, error: existingError } = await supabase
     .from("change_orders")
-    .select("id, type, erp_status, status")
+    .select("id, type, erp_status, status, prime_contract_id, number, title")
     .eq("id", changeOrderId)
     .eq("project_id", projectId)
     .is("deleted_at", null)
     .single();
 
-  let existing = initialExisting as { id: string; type: string; erp_status?: string | null } | null;
+  let existing = initialExisting as { id: string; type: string; erp_status?: string | null; status?: string | null; prime_contract_id?: string | null; number?: string | null; title?: string | null } | null;
 
   if (existingError) {
     // If the error is about the erp_status column not existing, retry without it.
     if (/erp_status/i.test(existingError.message || "")) {
       const { data: fallback, error: fallbackError } = await supabase
         .from("change_orders")
-        .select("id, type, status")
+        .select("id, type, status, prime_contract_id, number, title")
         .eq("id", changeOrderId)
         .eq("project_id", projectId)
         .is("deleted_at", null)
@@ -105,6 +105,42 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (data && data.type === "prime") {
+    const previousPrimeContractId = existing.prime_contract_id ? String(existing.prime_contract_id) : "";
+    const nextPrimeContractId = data.prime_contract_id ? String(data.prime_contract_id) : "";
+
+    if (previousPrimeContractId !== nextPrimeContractId) {
+      if (previousPrimeContractId) {
+        await supabase.from("prime_contract_change_history").insert({
+          prime_contract_id: previousPrimeContractId,
+          project_id: projectId,
+          changed_by: session.id,
+          changed_by_name: session.username,
+          action: `Removed Change Order #${data.number}`,
+          field_name: "change_order_association",
+          from_value: String(data.id),
+          to_value: "",
+          details: `Change order ${data.number} (${data.title || "Untitled"}) is no longer associated to this prime contract.`,
+        });
+      }
+
+      if (nextPrimeContractId) {
+        await supabase.from("prime_contract_change_history").insert({
+          prime_contract_id: nextPrimeContractId,
+          project_id: projectId,
+          changed_by: session.id,
+          changed_by_name: session.username,
+          action: `Associated Change Order #${data.number}`,
+          field_name: "change_order_association",
+          from_value: "",
+          to_value: String(data.id),
+          details: `Change order ${data.number} (${data.title || "Untitled"}) was associated to this prime contract.`,
+        });
+      }
+    }
+  }
+
   return NextResponse.json(data);
 }
 
