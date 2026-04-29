@@ -19,12 +19,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const supabase = getSupabase();
 
-  const { data, error } = await supabase
+  const query = supabase
     .from("rfis")
     .select("*")
     .eq("project_id", projectId)
-    .eq("is_deleted", recycleBin)
     .order("rfi_number", { ascending: true });
+
+  if (recycleBin) query.eq("is_deleted", true);
+  else query.or("is_deleted.is.null,is_deleted.eq.false");
+
+  const { data, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data || []);
