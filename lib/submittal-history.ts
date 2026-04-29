@@ -19,11 +19,11 @@ function toComparable(value: unknown): string {
 }
 
 function formatValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null;
+  if (value === null || value === undefined) return "";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "string") return value || null;
   if (typeof value === "number") return String(value);
-  if (Array.isArray(value)) return `${value.length} items`;
+  if (Array.isArray(value)) return JSON.stringify(value);
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }

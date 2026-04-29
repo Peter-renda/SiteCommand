@@ -109,11 +109,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   await logRFIChange(supabase, session, data.id, projectId, "Created RFI", null, `RFI #${data.rfi_number}`);
 
-  // Log initial values that were set on creation (matches the per-field /
-  // per-member granularity of edit history)
-  const memberLabel = (m: { id?: string | null; name?: string | null }) => m?.name?.trim() || m?.id?.trim() || "Unknown";
-  const initialPromises: Promise<unknown>[] = [];
-
   const contactIds = [data.rfi_manager_id, data.received_from_id, data.responsible_contractor_id].filter(Boolean) as string[];
   const [contactsRes, specsRes] = await Promise.all([
     contactIds.length > 0
@@ -124,8 +119,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       : Promise.resolve({ data: null as { id: string; name: string | null; code: string | null } | null }),
   ]);
 
-  const contactNameById = (id: string | null): string | null => {
-    if (!id) return null;
+  const contactNameById = (id: string | null): string => {
+    if (!id) return "";
     const c = (contactsRes.data ?? []).find((x) => x.id === id);
     if (!c) return id;
     const name = [c.first_name, c.last_name].filter(Boolean).join(" ").trim();
@@ -133,54 +128,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   };
 
   const spec = specsRes.data;
-  const specLabel = spec ? (spec.code ? `${spec.name ?? spec.id} (${spec.code})` : (spec.name ?? spec.id)) : null;
+  const specLabel = spec ? (spec.code ? `${spec.name ?? spec.id} (${spec.code})` : (spec.name ?? spec.id)) : "";
 
-  const scalarFields: { value: unknown; action: string; display: (v: unknown) => string | null }[] = [
-    { value: data.subject, action: "Subject", display: (v) => (typeof v === "string" && v ? v : null) },
-    { value: data.due_date, action: "Due Date", display: (v) => (typeof v === "string" && v ? v : null) },
-    { value: data.status, action: "Status", display: (v) => (typeof v === "string" && v ? v.charAt(0).toUpperCase() + v.slice(1) : null) },
-    { value: data.rfi_manager_id, action: "RFI Manager", display: (v) => contactNameById(typeof v === "string" ? v : null) },
-    { value: data.received_from_id, action: "Received From", display: (v) => contactNameById(typeof v === "string" ? v : null) },
-    { value: data.responsible_contractor_id, action: "Responsible Contractor", display: (v) => contactNameById(typeof v === "string" ? v : null) },
-    { value: data.specification_id, action: "Specification", display: () => specLabel },
-    { value: data.drawing_number, action: "Drawing Number", display: (v) => (typeof v === "string" && v ? v : null) },
-    { value: data.schedule_impact, action: "Schedule Impact", display: (v) => (typeof v === "string" && v ? v : null) },
-    { value: data.cost_impact, action: "Cost Impact", display: (v) => (typeof v === "string" && v ? v : null) },
-    { value: data.cost_code, action: "Cost Code", display: (v) => (typeof v === "string" && v ? v : null) },
-    { value: data.sub_job, action: "Sub Job", display: (v) => (typeof v === "string" && v ? v : null) },
-    { value: data.rfi_stage, action: "RFI Stage", display: (v) => (typeof v === "string" && v ? v : null) },
-    { value: data.private, action: "Private", display: (v) => (v === true ? "Yes" : v === false ? null : null) },
+  const historyRows: Array<{ action: string; toValue: string }> = [
+    { action: "RFI Number", toValue: String(data.rfi_number ?? "") },
+    { action: "Subject", toValue: String(data.subject ?? "") },
+    { action: "Question", toValue: typeof data.question === "string" && data.question.trim() ? "Updated" : "" },
+    { action: "Due Date", toValue: String(data.due_date ?? "") },
+    { action: "Status", toValue: String(data.status ?? "") },
+    { action: "RFI Manager", toValue: contactNameById(data.rfi_manager_id ?? null) },
+    { action: "Received From", toValue: contactNameById(data.received_from_id ?? null) },
+    { action: "Responsible Contractor", toValue: contactNameById(data.responsible_contractor_id ?? null) },
+    { action: "Specification", toValue: specLabel },
+    { action: "Drawing Number", toValue: String(data.drawing_number ?? "") },
+    { action: "Schedule Impact", toValue: String(data.schedule_impact ?? "") },
+    { action: "Cost Impact", toValue: String(data.cost_impact ?? "") },
+    { action: "Cost Code", toValue: String(data.cost_code ?? "") },
+    { action: "Sub Job", toValue: String(data.sub_job ?? "") },
+    { action: "RFI Stage", toValue: String(data.rfi_stage ?? "") },
+    { action: "Private", toValue: data.private ? "Yes" : "No" },
   ];
 
-  for (const f of scalarFields) {
-    const display = f.display(f.value);
-    if (!display) continue;
-    initialPromises.push(logRFIChange(supabase, session, data.id, projectId, f.action, null, display));
-  }
-
-  // Question is rich text — log only that it was set, not the HTML
-  if (typeof data.question === "string" && data.question.trim().length > 0) {
-    initialPromises.push(logRFIChange(supabase, session, data.id, projectId, "Question", null, null));
-  }
-
-  const initialAssignees: { id?: string | null; name?: string | null }[] = Array.isArray(data.assignees) ? data.assignees : [];
-  for (const m of initialAssignees) {
-    initialPromises.push(logRFIChange(supabase, session, data.id, projectId, "Added Assignee", null, memberLabel(m)));
-  }
-
-  const initialDistribution: { id?: string | null; name?: string | null }[] = Array.isArray(data.distribution_list) ? data.distribution_list : [];
-  for (const m of initialDistribution) {
-    initialPromises.push(logRFIChange(supabase, session, data.id, projectId, "Added Distribution Member", null, memberLabel(m)));
-  }
-
-  const initialAttachments: { name?: string; url?: string }[] = Array.isArray(data.attachments) ? data.attachments : [];
-  for (const a of initialAttachments) {
-    initialPromises.push(logRFIChange(supabase, session, data.id, projectId, "Attachment Added", null, a.name ?? "Attachment"));
-  }
-
-  if (initialPromises.length > 0) {
-    await Promise.allSettled(initialPromises);
-  }
+  await Promise.allSettled([
+    ...historyRows.map((row) => logRFIChange(supabase, session, data.id, projectId, row.action, "", row.toValue)),
+    ...((Array.isArray(data.assignees) ? data.assignees : []) as { id?: string | null; name?: string | null }[]).map((m) =>
+      logRFIChange(supabase, session, data.id, projectId, "Added Assignee", "", m?.name?.trim() || m?.id?.trim() || "Unknown")
+    ),
+    ...((Array.isArray(data.distribution_list) ? data.distribution_list : []) as { id?: string | null; name?: string | null }[]).map((m) =>
+      logRFIChange(supabase, session, data.id, projectId, "Added Distribution Member", "", m?.name?.trim() || m?.id?.trim() || "Unknown")
+    ),
+    ...((Array.isArray(data.attachments) ? data.attachments : []) as { name?: string }[]).map((a) =>
+      logRFIChange(supabase, session, data.id, projectId, "Attachment Added", "", a.name ?? "Attachment")
+    ),
+  ]);
 
   if (session.company_id) {
     dispatchWebhookEvent(session.company_id, "rfi.created", {
