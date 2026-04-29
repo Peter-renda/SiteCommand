@@ -834,7 +834,7 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
     const confirmed = window.confirm(
       action === "delete"
         ? `Send ${ids.length} RFI(s) to Recycling Bin?`
-        : `Retrieve ${ids.length} RFI(s) from Recycling Bin?`,
+        : `Recover ${ids.length} RFI(s) from Recycling Bin and move back to RFIs?`,
     );
     if (!confirmed) return;
 
@@ -1158,7 +1158,7 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
                                 className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={activeTab === "recycle_bin" ? "M4 7h16M10 11v6m4-6v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" : "M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3M4 7h16"} /></svg>
-                                {activeTab === "recycle_bin" ? "Retrieve" : "Send to Bin"}
+                                {activeTab === "recycle_bin" ? "Recover RFI" : "Send to Bin"}
                               </button>
                             )}
                           </div>
