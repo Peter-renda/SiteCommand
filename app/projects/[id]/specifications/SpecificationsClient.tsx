@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Upload, ChevronDown, X, Plus, Settings } from "lucide-react";
+import { Search, Upload, ChevronDown, X, Plus, Settings, Info } from "lucide-react";
 import ProjectNav from "@/components/ProjectNav";
 
 type Specification = {
@@ -334,27 +334,50 @@ export default function SpecificationsClient({ projectId }: { projectId: string 
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                 <tr>
-                  {isGenerateSubmittalFlow && <th className="px-4 py-3 w-12"></th>}
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3">Name</th>
+                  <th className="w-20 px-4 py-3">
+                    <input type="checkbox" className="h-4 w-4 rounded border-gray-300" aria-label="Select all specifications" />
+                  </th>
+                  <th className="px-4 py-3">Number</th>
+                  <th className="px-4 py-3">Description</th>
+                  <th className="px-4 py-3">Revision</th>
+                  <th className="px-4 py-3">Date Issued</th>
+                  <th className="px-4 py-3">Date Received</th>
+                  <th className="px-4 py-3">Set</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSpecifications.map((spec) => (
                   <tr key={spec.id} className="border-t border-gray-100 hover:bg-gray-50">
-                    {isGenerateSubmittalFlow && (
-                      <td className="px-4 py-3">
-                        <input
-                          type="radio"
-                          name="selected-specification"
-                          checked={selectedSpecIdForSubmittal === spec.id}
-                          onChange={() => setSelectedSpecIdForSubmittal(spec.id)}
-                          className="h-4 w-4"
-                        />
-                      </td>
-                    )}
-                    <td className="px-4 py-3 font-medium text-gray-800">{spec.code || "—"}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {isGenerateSubmittalFlow ? (
+                          <input
+                            type="radio"
+                            name="selected-specification"
+                            checked={selectedSpecIdForSubmittal === spec.id}
+                            onChange={() => setSelectedSpecIdForSubmittal(spec.id)}
+                            className="h-4 w-4"
+                          />
+                        ) : (
+                          <input type="checkbox" className="h-4 w-4 rounded border-gray-300" aria-label={`Select ${spec.name}`} />
+                        )}
+                        <Info className="h-4 w-4 text-gray-500" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-800">
+                      <button type="button" className="text-left text-[#1f3a66] underline underline-offset-2">
+                        {(spec.code || "—").replace(/\s+/g, "")}
+                      </button>
+                    </td>
                     <td className="px-4 py-3 text-gray-700">{spec.name}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-800">0</td>
+                    <td className="px-4 py-3">
+                      <button type="button" className="rounded bg-gray-200 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-300">
+                        See All
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">—</td>
+                    <td className="px-4 py-3 text-gray-700">Specifications</td>
                   </tr>
                 ))}
               </tbody>
