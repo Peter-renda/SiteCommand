@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiKeysTab, WebhooksTab, DocumentationTab } from "@/app/settings/developer/DeveloperSettingsClient";
 import IntegrationsClient from "@/app/settings/integrations/IntegrationsClient";
+import PermissionTemplatesTab from "./PermissionTemplatesTab";
 
 type Member = {
   id: string;
@@ -65,7 +66,9 @@ export default function CompanyClient({
   isSuperAdmin: boolean;
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"team" | "projects" | "integrations" | "developer">("team");
+  const [activeTab, setActiveTab] = useState<
+    "team" | "projects" | "permission-templates" | "integrations" | "developer"
+  >("team");
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
 
@@ -158,8 +161,8 @@ const seatCount = members.length;
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-8">
-          <p className="eyebrow mb-2">Company · Team</p>
-          <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">{company?.name ?? "Team"}</h1>
+          <p className="eyebrow mb-2">Company</p>
+          <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">{company?.name ?? "Company"}</h1>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <span className="text-sm text-gray-500 capitalize">
               {company?.subscription_plan ?? "No plan"} plan
@@ -190,20 +193,32 @@ const seatCount = members.length;
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 mb-6">
-          {(["team", "projects", "integrations", "developer"] as const).map((tab) => (
+          {(["team", "projects", "permission-templates", "integrations", "developer"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors mr-1 capitalize ${
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors mr-1 ${
                 activeTab === tab
                   ? "border-orange-500 text-gray-900"
                   : "border-transparent text-gray-400 hover:text-gray-700"
               }`}
             >
-              {tab === "team" ? "Team" : tab === "projects" ? "Projects" : tab === "integrations" ? "Integrations" : "Developer"}
+              {tab === "team"
+                ? "Company"
+                : tab === "projects"
+                  ? "Projects"
+                  : tab === "permission-templates"
+                    ? "Permission Templates"
+                    : tab === "integrations"
+                      ? "Integrations"
+                      : "Developer"}
             </button>
           ))}
         </div>
+
+        {activeTab === "permission-templates" && (
+          <PermissionTemplatesTab canEdit={isSuperAdmin} />
+        )}
 
         {activeTab === "integrations" && (
           <div className="space-y-6">
@@ -503,7 +518,7 @@ const seatCount = members.length;
             <h2 className="text-base font-semibold text-gray-900 mb-1">Remove member?</h2>
             <p className="text-sm text-gray-500 mb-5">
               <span className="font-medium text-gray-700">{removeConfirmMember.username}</span> will
-              lose access to all projects and be removed from the team. This cannot be undone.
+              lose access to all projects and be removed from the company. This cannot be undone.
             </p>
             <div className="flex gap-2">
               <button
