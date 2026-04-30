@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import { Settings, Plus, ChevronDown, ChevronRight, Search, SlidersHorizontal, Columns3, Upload, X, Loader2 } from "lucide-react";
@@ -22,6 +22,15 @@ type PrimeContract = {
   payments_received: number;
   is_private: boolean;
   attachments_count?: number;
+};
+
+type PrimePco = {
+  id: string;
+  prime_contract_id: string | null;
+  number: string | null;
+  title: string | null;
+  status: string | null;
+  amount: number | null;
 };
 
 type ImportFields = {
@@ -137,6 +146,39 @@ export default function PrimeContractsClient({
   // Sage sync
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [expandedContractIds, setExpandedContractIds] = useState<Set<string>>(new Set());
+  const [primePcosByContract, setPrimePcosByContract] = useState<Record<string, PrimePco[]>>({});
+  const [loadingContractPcos, setLoadingContractPcos] = useState<Set<string>>(new Set());
+
+  async function toggleContractExpansion(e: React.MouseEvent, contractId: string) {
+    e.stopPropagation();
+    const isExpanded = expandedContractIds.has(contractId);
+    setExpandedContractIds((prev) => {
+      const next = new Set(prev);
+      if (isExpanded) next.delete(contractId);
+      else next.add(contractId);
+      return next;
+    });
+
+    if (isExpanded || primePcosByContract[contractId] || loadingContractPcos.has(contractId)) return;
+
+    setLoadingContractPcos((prev) => new Set(prev).add(contractId));
+    try {
+      const res = await fetch(`/api/projects/${projectId}/change-orders?type=prime`);
+      const data = await res.json();
+      const pcos = (Array.isArray(data) ? data : []) as PrimePco[];
+      const scoped = pcos.filter((pco) => pco.prime_contract_id === contractId);
+      setPrimePcosByContract((prev) => ({ ...prev, [contractId]: scoped }));
+    } catch {
+      setPrimePcosByContract((prev) => ({ ...prev, [contractId]: [] }));
+    } finally {
+      setLoadingContractPcos((prev) => {
+        const next = new Set(prev);
+        next.delete(contractId);
+        return next;
+      });
+    }
+  }
 
   async function handleSyncToSage(e: React.MouseEvent, contract: PrimeContract) {
     e.stopPropagation();
@@ -663,15 +705,19 @@ export default function PrimeContractsClient({
                     const pctPaid = revised > 0 ? ((payments / revised) * 100).toFixed(2) : "0.00";
                     const remaining = revised - payments;
 
+                    const isExpanded = expandedContractIds.has(contract.id);
+                    const pcos = primePcosByContract[contract.id] ?? [];
+                    const isPcoLoading = loadingContractPcos.has(contract.id);
+
                     return (
-                      <tr
-                        key={contract.id}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contract.id}`)}
-                      >
-                        <td className="px-2 py-1.5 text-gray-400">
-                          <ChevronRight className="w-3 h-3" />
-                        </td>
+                      <Fragment key={contract.id}>
+                        <tr
+                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => router.push(`/projects/${projectId}/prime-contracts/${contract.id}`)}
+                        >
+                          <td className="px-2 py-1.5 text-gray-400" onClick={(e) => toggleContractExpansion(e, contract.id)}>
+                            <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                          </td>
                         <td className="px-2 py-1.5 text-blue-600 hover:underline">
                           {contract.contract_number}
                         </td>
@@ -730,7 +776,35 @@ export default function PrimeContractsClient({
                         <td className="px-2 py-1.5 text-right text-gray-700">{fmt(remaining)}</td>
                         <td className="px-2 py-1.5 text-gray-700">{contract.is_private ? "Yes" : "No"}</td>
                         <td className="px-2 py-1.5 text-right text-gray-700">{contract.attachments_count ?? 0}</td>
-                      </tr>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="border-b border-gray-100 bg-gray-50">
+                            <td />
+                            <td colSpan={COLUMNS.length} className="px-3 py-2">
+                              {isPcoLoading ? (
+                                <p className="text-xs text-gray-500">Loading associated prime contract PCOs…</p>
+                              ) : pcos.length === 0 ? (
+                                <p className="text-xs text-gray-500">No associated prime contract PCOs found.</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {pcos.map((pco) => (
+                                    <button
+                                      key={pco.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        router.push(`/projects/${projectId}/change-orders/${pco.id}`);
+                                      }}
+                                      className="w-full text-left text-xs px-2 py-1 rounded border border-gray-200 bg-white hover:bg-gray-100 transition-colors"
+                                    >
+                                      PCO #{pco.number || "—"}: {pco.title || "Untitled"} · {pco.status || "Draft"} · {fmt(pco.amount)}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                   {(() => {
