@@ -1,6 +1,8 @@
-# QuickBooks Online integration (SiteCommand)
+# Intuit accounting integration (QBO + Intuit Enterprise Suite)
 
-This integration is **manual push sync** (not automatic continuous sync). You connect your QBO company once, then push records from SiteCommand to QBO as needed.
+This integration is **manual push sync** (not automatic continuous sync). You connect an Intuit accounting tenant once, then push records from SiteCommand as needed.
+
+It supports both **QuickBooks Online (QBO)** and **Intuit Enterprise Suite (IES)** tenants that expose the Intuit accounting APIs.
 
 ## What currently syncs
 
@@ -84,5 +86,10 @@ the schedule will be downgraded to once daily.
 - Sync is **push-only** from SiteCommand to QBO. There is no pull from QBO into
   SiteCommand.
 - Mapping is name-based for customer/vendor records when creating transactions.
-- Change orders, invoices distinct from SOV billing, and other accessory
-  records are not yet synced.
+
+
+## Enterprise Suite compatibility
+
+- OAuth uses Intuit accounting scopes and the same token exchange flow used by QBO.
+- API calls target Intuit's `v3/company/{realmId}` accounting endpoints, which are shared by QBO-compatible accounting tenants.
+- Optional: set `INTUIT_OAUTH_SCOPES` if your Intuit app requires additional scopes in your enterprise environment.
