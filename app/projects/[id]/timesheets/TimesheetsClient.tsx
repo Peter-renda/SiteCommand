@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import AppHeader from "@/app/components/AppHeader";
 
 type Quantity = {
   id: string;
@@ -81,11 +82,6 @@ export default function TimesheetsClient({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
-
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/";
-  }
 
   async function fetchTimesheets() {
     setIsLoading(true);
@@ -240,36 +236,30 @@ export default function TimesheetsClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">SiteCommand</a>
-        <div className="flex items-center gap-5"><span className="text-sm text-gray-400">{username}</span><button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Logout</button></div>
-      </header>
+      <AppHeader username={username} />
       <ProjectNav projectId={projectId} />
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-          <p className="eyebrow mb-2">Project · Workforce</p>
-          <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Timesheets</h1>
-
-          <div className="grid md:grid-cols-6 gap-2">
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm" />
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employee, location, cost code" className="md:col-span-2 border border-gray-300 rounded-md px-3 py-2 text-sm" />
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm">
-              <option value="all">All statuses</option>
-              {TIMESHEET_STATUSES.map((status) => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-            <button onClick={() => void fetchTimesheets()} className="rounded-md bg-gray-900 text-white px-3 py-2 text-sm font-medium">Apply Filters</button>
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <p className="eyebrow mb-2">Project · Workforce</p>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Timesheets</h1>
           </div>
-
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={exportCsv}
+              className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+            >
+              Export CSV
+            </button>
             <div className="relative" ref={createRef}>
               <button
                 onClick={() => setShowCreateMenu((open) => !open)}
-                className="rounded-md bg-gray-900 text-white px-3 py-2 text-sm font-medium inline-flex items-center gap-2"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors"
               >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
                 Create
                 <svg
                   className={`w-3.5 h-3.5 transition-transform ${showCreateMenu ? "rotate-180" : ""}`}
@@ -307,7 +297,21 @@ export default function TimesheetsClient({
                 </div>
               )}
             </div>
-            <button onClick={exportCsv} className="rounded-md bg-emerald-700 text-white px-3 py-2 text-sm font-medium">Export CSV</button>
+          </div>
+        </div>
+
+        <div className="bg-white border hairline rounded-xl p-4">
+          <div className="grid md:grid-cols-6 gap-2">
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-gray-200 rounded-md px-3 py-2 text-sm" />
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border border-gray-200 rounded-md px-3 py-2 text-sm" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employee, location, cost code" className="md:col-span-2 border border-gray-200 rounded-md px-3 py-2 text-sm" />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border border-gray-200 rounded-md px-3 py-2 text-sm">
+              <option value="all">All statuses</option>
+              {TIMESHEET_STATUSES.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+            <button onClick={() => void fetchTimesheets()} className="rounded-md bg-[color:var(--ink)] text-white px-3 py-2 text-sm font-semibold hover:bg-black transition-colors">Apply Filters</button>
           </div>
         </div>
 
