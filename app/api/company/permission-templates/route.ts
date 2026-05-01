@@ -12,6 +12,15 @@ import {
   type TemplateCategory,
   type TemplateUserType,
 } from "@/lib/permission-templates";
+import { applyPermissionTemplate } from "@/lib/apply-permission-template";
+
+
+function inviteeUserTypeToTemplateName(userType: TemplateUserType): string | null {
+  if (userType === "subcontractor") return "Subcontractor";
+  if (userType === "architect_engineer") return "Architect/Engineer";
+  if (userType === "owner_client") return "Owner/Client";
+  return null;
+}
 
 /**
  * GET /api/company/permission-templates?category=company|invitee&type=<user_type>
@@ -121,6 +130,69 @@ export async function PUT(req: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (body.category === "invitee") {
+    const templateName = inviteeUserTypeToTemplateName(body.user_type);
+    if (templateName) {
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("company_id", session.company_id);
+
+      const projectIds = (projects ?? []).map((p) => p.id).filter(Boolean);
+
+      if (projectIds.length > 0) {
+        const { data: contacts } = await supabase
+          .from("directory_contacts")
+          .select("project_id,email,type,permission")
+          .in("project_id", projectIds)
+          .eq("type", "user")
+          .eq("permission", templateName)
+          .not("email", "is", null);
+
+        const normalized = Array.from(
+          new Set(
+            (contacts ?? [])
+              .map((c) => ({
+                projectId: c.project_id as string | null,
+                email: String(c.email ?? "").trim().toLowerCase(),
+              }))
+              .filter((c) => c.projectId && c.email)
+              .map((c) => `${c.projectId}::${c.email}`)
+          )
+        ).map((key) => {
+          const [projectId, email] = key.split("::");
+          return { projectId, email };
+        });
+
+        if (normalized.length > 0) {
+          const emailSet = Array.from(new Set(normalized.map((c) => c.email)));
+          const { data: users } = await supabase
+            .from("users")
+            .select("id,email")
+            .in("email", emailSet);
+
+          const userIdByEmail = new Map(
+            (users ?? []).map((u) => [String(u.email ?? "").trim().toLowerCase(), u.id as string])
+          );
+
+          for (const contact of normalized) {
+            const userId = userIdByEmail.get(contact.email);
+            if (!userId) continue;
+
+            await applyPermissionTemplate(supabase, {
+              companyId: session.company_id,
+              projectId: contact.projectId,
+              userId,
+              category: body.category,
+              userType: body.user_type,
+              updatedBy: session.id,
+            });
+          }
+        }
+      }
+    }
   }
 
   return NextResponse.json({ ok: true });
