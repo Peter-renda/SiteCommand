@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ProjectNav from "@/components/ProjectNav";
+import AppHeader from "@/app/components/AppHeader";
 
 type TabKey = "all_tickets" | "recycle_bin";
 
@@ -29,82 +30,64 @@ function EmptyTicketIcon() {
 export default function TMTicketsClient({ projectId, username }: { projectId: string; username: string }) {
   const [activeTab, setActiveTab] = useState<TabKey>("all_tickets");
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/";
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
-          SiteCommand
-        </a>
-        <div className="flex items-center gap-5">
-          <span className="text-sm text-gray-400">{username}</span>
-          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 transition-colors">
-            Logout
-          </button>
-        </div>
-      </header>
-
+      <AppHeader username={username} />
       <ProjectNav projectId={projectId} />
 
-      <main className="px-6 py-5">
-        <div className="bg-white border border-gray-200 min-h-[560px]">
-          <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-gray-200">
-            <div className="flex items-center gap-5">
-              <div className="flex items-center gap-2.5">
-                <svg className="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <p className="eyebrow mb-2">Project · Workforce</p>
-                <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">T&amp;M Tickets</h1>
-              </div>
-
-              <div className="flex items-end gap-4 pt-4">
-                <button
-                  onClick={() => setActiveTab("all_tickets")}
-                  className={`text-sm leading-none pb-1 border-b-4 transition-colors ${
-                    activeTab === "all_tickets"
-                      ? "border-orange-500 text-gray-900"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  All Tickets
-                </button>
-                <button
-                  onClick={() => setActiveTab("recycle_bin")}
-                  className={`text-sm leading-none pb-1 border-b-4 transition-colors ${
-                    activeTab === "recycle_bin"
-                      ? "border-orange-500 text-gray-900"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  Recycle Bin
-                </button>
-              </div>
-            </div>
-
-            <a href={`/projects/${projectId}/tm-tickets/new`} className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-sm transition-colors">
-              <span className="text-base leading-none">+</span>
-              <span>Create</span>
-            </a>
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        <div className="flex items-end justify-between mb-6 gap-4 flex-wrap">
+          <div>
+            <p className="eyebrow mb-2">Project · Workforce</p>
+            <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">T&amp;M Tickets</h1>
           </div>
+          <a
+            href={`/projects/${projectId}/tm-tickets/new`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Create
+          </a>
+        </div>
 
-          <div className="flex items-center justify-center min-h-[520px]">
-            <div className="text-center">
-              <div className="mb-8 flex justify-center">
+        <div className="inline-flex rounded-md border hairline overflow-hidden mb-4 bg-white">
+          <button
+            onClick={() => setActiveTab("all_tickets")}
+            className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+              activeTab === "all_tickets"
+                ? "bg-[color:var(--ink)] text-white"
+                : "bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            All Tickets
+          </button>
+          <button
+            onClick={() => setActiveTab("recycle_bin")}
+            className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+              activeTab === "recycle_bin"
+                ? "bg-[color:var(--ink)] text-white"
+                : "bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            Recycle Bin
+          </button>
+        </div>
+
+        <div className="bg-white border hairline rounded-xl">
+          <div className="flex items-center justify-center min-h-[480px]">
+            <div className="text-center px-6 py-10">
+              <div className="mb-6 flex justify-center">
                 <EmptyTicketIcon />
               </div>
-              <p className="text-4xl leading-tight font-semibold text-gray-900">
+              <p className="font-display text-[24px] leading-tight text-[color:var(--ink)]">
                 {activeTab === "all_tickets"
                   ? "No T&M Tickets have been created yet"
                   : "Recycle Bin is empty"}
               </p>
               {activeTab === "all_tickets" && (
-                <div className="mt-6 rounded border border-orange-100 bg-orange-50 px-4 py-3 text-left text-sm text-gray-700 max-w-xl">
+                <div className="mt-6 mx-auto max-w-xl bg-white border hairline rounded-lg px-4 py-3 text-left text-sm text-gray-700">
                   <p className="font-semibold text-gray-900">Bulk Actions workflow</p>
                   <p className="mt-1">
                     Select one or more T&amp;M tickets and use <span className="font-medium">Bulk Actions</span> &gt;{" "}
@@ -118,7 +101,7 @@ export default function TMTicketsClient({ projectId, username }: { projectId: st
                   </p>
                   <a
                     href={`/projects/${projectId}/change-events/workflows`}
-                    className="mt-3 inline-flex items-center rounded border border-orange-200 bg-white px-2.5 py-1 text-xs font-medium text-orange-700 hover:bg-orange-100"
+                    className="mt-3 inline-flex items-center px-2.5 py-1 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
                   >
                     Open workflow guides
                   </a>

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import ProjectNav from "@/components/ProjectNav";
-import { Brand, Eyebrow, Pill } from "@/components/design-system/Primitives";
+import AppHeader from "@/app/components/AppHeader";
+import { Pill } from "@/components/design-system/Primitives";
 
 type ProjectAdmin = {
   id: string;
@@ -347,40 +348,23 @@ export default function AdminClient({
     setSaving(false);
   }
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/";
-  }
-
   function jumpToSection(id: (typeof ADMIN_SECTIONS)[number]["id"]) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     setActiveSection(id);
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6]">
-      <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
-        <a href="/dashboard" className="hover:opacity-80 transition-opacity">
-          <Brand />
-        </a>
-        <div className="flex items-center gap-5">
-          <span className="text-sm text-gray-500">{username}</span>
-          <button onClick={handleLogout} className="text-sm text-gray-500 transition-colors hover:text-gray-900">
-            Logout
-          </button>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader username={username} />
       <ProjectNav projectId={projectId} />
 
-      <main className="mx-auto max-w-[1460px] px-5 py-6">
+      <main className="mx-auto max-w-7xl px-6 py-8">
         {loading ? (
           <p className="text-sm text-gray-500">Loading...</p>
         ) : (
           <>
-            <div className="mb-5 flex items-start justify-between rounded-lg border border-[var(--border-base)] bg-white p-5">
+            <div className="flex items-end justify-between mb-6 gap-4 flex-wrap">
               <div>
-                <Eyebrow quiet>Project Workspace</Eyebrow>
                 <p className="eyebrow mb-2">Project · Setup</p>
                 <h1 className="font-display text-[28px] leading-tight text-[color:var(--ink)]">Project Admin</h1>
                 <p className="mt-1 text-base text-gray-700">{data?.name || "Untitled Project"}</p>
@@ -391,13 +375,13 @@ export default function AdminClient({
               {isAdmin ? (
                 <div className="flex flex-col items-end gap-2">
                   <Pill className="pill-open">Admin controls</Pill>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saved ? "Saved" : saving ? "Saving..." : "Save Changes"}
-                </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="rounded-md bg-[color:var(--ink)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {saved ? "Saved" : saving ? "Saving..." : "Save Changes"}
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -410,10 +394,10 @@ export default function AdminClient({
                       key={section.id}
                       type="button"
                       onClick={() => jumpToSection(section.id)}
-                      className={`mb-1 block w-full border-l-4 px-3 py-1.5 text-left text-xl ${
+                      className={`mb-1 block w-full border-l-2 px-3 py-1.5 text-left text-sm ${
                         activeSection === section.id
-                          ? "border-gray-800 bg-gray-200 font-semibold text-gray-900"
-                          : "border-transparent text-gray-700 hover:bg-gray-100"
+                          ? "border-gray-900 bg-gray-100 font-semibold text-gray-900"
+                          : "border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
                       {section.label}
