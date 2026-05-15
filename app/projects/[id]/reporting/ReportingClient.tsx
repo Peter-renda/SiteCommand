@@ -2050,6 +2050,11 @@ export default function ReportingClient({ projectId }: { projectId: string }) {
   }
 
   function openFromSaved(saved: SavedReport) {
+    if (saved.reportType === "360 Report") {
+      router.push(`/projects/${projectId}/reporting/360/${saved.id}`);
+      return;
+    }
+
     const def =
       REPORT_TYPES.find((r) => {
         const expectedType = r.group === "Daily Log" ? "Daily Log Report" : "Single Tool Report";
