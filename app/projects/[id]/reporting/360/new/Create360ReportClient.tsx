@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
-import { saveReport, type StoredReport } from "../../saved-reports-store";
+import { loadSavedReports, saveReport, type StoredReport } from "../../saved-reports-store";
 
 // ─── Column catalog ──────────────────────────────────────────────────────────
 // Categories shown in the Configure Columns popout. The "source" maps to the
@@ -271,9 +271,11 @@ type Row = Record<string, unknown>;
 export default function Create360ReportClient({
   projectId,
   category,
+  reportId,
 }: {
   projectId: string;
   category: string;
+  reportId?: string;
 }) {
   const router = useRouter();
   const today = new Date();
@@ -286,6 +288,11 @@ export default function Create360ReportClient({
   const [description, setDescription] = useState("");
   const [activeTab, setActiveTab] = useState(category);
   const [tabs] = useState<string[]>([category]);
+  const [existingReportMeta, setExistingReportMeta] = useState<{
+    createdAt: string;
+    createdBy: string;
+    sharedWith: string[];
+  } | null>(null);
 
   // Right-side panel selection
   type PanelKey = "columns" | "filters" | "calculations" | "visuals" | "info" | null;
@@ -377,6 +384,34 @@ export default function Create360ReportClient({
     await Promise.all(activeSources.map((s) => fetchSource(s)));
   }
 
+  // Hydrate from an existing saved report when editing.
+  useEffect(() => {
+    if (!reportId) return;
+    const existing = loadSavedReports(projectId).find((r) => r.id === reportId);
+    if (!existing) return;
+    setReportName(existing.name);
+    setDescription(existing.description ?? "");
+    if (existing.category) setActiveTab(existing.category);
+    if (existing.selectedColumns) {
+      setSelectedColumns(
+        existing.selectedColumns.map((c) => ({
+          id: c.id,
+          categoryLabel: c.categoryLabel,
+          source: c.source,
+          fieldKey: c.fieldKey,
+          fieldLabel: c.fieldLabel,
+          format: c.format,
+        })),
+      );
+      setExpandedCategories(new Set(existing.selectedColumns.map((c) => c.categoryLabel)));
+    }
+    setExistingReportMeta({
+      createdAt: existing.createdAt,
+      createdBy: existing.createdBy,
+      sharedWith: existing.sharedWith ?? [],
+    });
+  }, [projectId, reportId]);
+
   // Auto-load when toggle is off
   useEffect(() => {
     if (loadDataManually) return;
@@ -443,15 +478,15 @@ export default function Create360ReportClient({
                 const now = new Date().toISOString();
                 const totalRecords = Object.values(rowsBySource).reduce((sum, r) => sum + r.length, 0);
                 const stored: StoredReport = {
-                  id: crypto.randomUUID(),
+                  id: reportId ?? crypto.randomUUID(),
                   name: reportName.trim() || defaultName,
                   reportType: "360 Report",
-                  description: description.trim() || `${category} 360 Report`,
-                  createdBy: "Me",
-                  createdAt: now,
+                  description: description.trim() || `${activeTab} 360 Report`,
+                  createdBy: existingReportMeta?.createdBy ?? "Me",
+                  createdAt: existingReportMeta?.createdAt ?? now,
                   updatedAt: now,
-                  sharedWith: [],
-                  category,
+                  sharedWith: existingReportMeta?.sharedWith ?? [],
+                  category: activeTab,
                   selectedColumns: selectedColumns.map((c) => ({
                     id: c.id,
                     categoryLabel: c.categoryLabel,
