@@ -29,15 +29,14 @@ export async function loadPdfjs(): Promise<PdfjsModule> {
         if (!g.ImageData) g.ImageData = canvas.ImageData;
         if (!g.Path2D) g.Path2D = canvas.Path2D;
       }
+      // Pre-import the worker module so it registers
+      // globalThis.pdfjsWorker.WorkerMessageHandler. With that in place,
+      // pdfjs's fake-worker bootstrap uses it directly and never tries to
+      // dynamic-import GlobalWorkerOptions.workerSrc — which fails in
+      // bundled serverless runtimes (Vercel) regardless of whether the path
+      // is empty or a resolved file:// URL.
+      await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
       const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-      // pdfjs v5 on Node still needs a real worker path to bootstrap its
-      // "fake worker"; an empty string throws
-      // 'No "GlobalWorkerOptions.workerSrc" specified.'
-      const { createRequire } = await import("module");
-      const requireFromHere = createRequire(import.meta.url);
-      const workerPath = requireFromHere.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
-      const { pathToFileURL } = await import("url");
-      pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
       return pdfjs;
     })();
   }
