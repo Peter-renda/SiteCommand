@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverBodySizeLimit: "100mb",
   },
+  serverExternalPackages: ["@napi-rs/canvas", "pdfjs-dist"],
   turbopack: {
     resolveAlias: {
       // pdfjs-dist optionally requires 'canvas' for server-side rendering; stub it out
