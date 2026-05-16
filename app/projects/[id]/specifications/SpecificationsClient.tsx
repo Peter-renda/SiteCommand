@@ -199,13 +199,34 @@ export default function SpecificationsClient({ projectId, username }: { projectI
       window.alert("Please attach a PDF first.");
       return;
     }
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      window.alert("Only PDF files are accepted.");
+      return;
+    }
     setIsParsingUpload(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
+      // Step 1: get a signed upload URL (no file bytes sent through Vercel,
+      // which caps request bodies at 4.5 MB on serverless functions).
+      const urlRes = await fetch(
+        `/api/projects/${projectId}/specifications/parse-upload-url?filename=${encodeURIComponent(file.name)}`
+      );
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData?.error ?? "Could not get upload URL");
+      const { signedUrl, storagePath } = urlData as { signedUrl: string; storagePath: string };
+
+      // Step 2: upload directly to Supabase Storage.
+      const putRes = await fetch(signedUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": "application/pdf" },
+      });
+      if (!putRes.ok) throw new Error(`Storage upload failed (${putRes.status})`);
+
+      // Step 3: ask the server to download from storage and parse sections.
       const res = await fetch(`/api/projects/${projectId}/specifications/parse`, {
         method: "POST",
-        body: form,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storagePath, filename: file.name }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Failed to parse specification PDF.");
