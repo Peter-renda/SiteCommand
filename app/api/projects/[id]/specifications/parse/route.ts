@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { GoogleGenAI } from "@google/genai";
 import { loadPdfjs } from "@/lib/pdfjs-server";
+import { getSupabase } from "@/lib/supabase";
 
 type ParsedSection = {
   number: string;
@@ -53,20 +54,51 @@ function parseSectionsHeuristically(pageHeads: Array<{ page: number; text: strin
   return parsedSections;
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const formData = await _req.formData();
-  const file = formData.get("file") as File | null;
-  if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  if (!file.name.toLowerCase().endsWith(".pdf")) {
+  const { id: projectId } = await params;
+
+  // Accept JSON: the client already uploaded the file directly to Supabase
+  // using a signed URL (bypassing Vercel's 4.5 MB body limit).
+  let storagePath: string;
+  let filename: string;
+  try {
+    const body = await req.json();
+    storagePath = body?.storagePath;
+    filename = body?.filename;
+  } catch {
+    return NextResponse.json({ error: "Expected JSON body with storagePath and filename" }, { status: 400 });
+  }
+
+  if (!storagePath || !filename) {
+    return NextResponse.json({ error: "storagePath and filename are required" }, { status: 400 });
+  }
+  if (!filename.toLowerCase().endsWith(".pdf")) {
     return NextResponse.json({ error: "Only PDF files are accepted" }, { status: 400 });
+  }
+  // Guard against arbitrary path traversal: temp files must live under this
+  // project's _spec-parse/ prefix that parse-upload-url issues into.
+  if (!storagePath.startsWith(`${projectId}/_spec-parse/`)) {
+    return NextResponse.json({ error: "Invalid storagePath" }, { status: 400 });
+  }
+
+  const supabase = getSupabase();
+  const { data: fileBlob, error: downloadError } = await supabase.storage
+    .from("project-drawings")
+    .download(storagePath);
+
+  if (downloadError || !fileBlob) {
+    return NextResponse.json({ error: downloadError?.message ?? "Download failed" }, { status: 500 });
   }
 
   try {
     const pdfjs = await loadPdfjs();
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    const bytes = new Uint8Array(await fileBlob.arrayBuffer());
     const pdf = await pdfjs.getDocument({ data: bytes, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
 
     const pageHeads: Array<{ page: number; text: string }> = [];
@@ -104,12 +136,15 @@ ${pageHeads.map((p) => `Page ${p.page}: ${p.text}`).join("\n")}`;
     }
 
     return NextResponse.json({
-      fileName: file.name,
+      fileName: filename,
       totalPages: pdf.numPages,
       sections: parsedSections,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to parse PDF";
     return NextResponse.json({ error: message }, { status: 400 });
+  } finally {
+    // Clean up the temp upload regardless of parse success.
+    void supabase.storage.from("project-drawings").remove([storagePath]);
   }
 }
