@@ -51,6 +51,7 @@ type InspectionEntry = {
   location: string;
   inspection_area: string;
   comments: string;
+  attachments?: Attachment[];
 };
 
 type DeliveryEntry = {
@@ -60,6 +61,7 @@ type DeliveryEntry = {
   tracking_number: string;
   contents: string;
   comments: string;
+  attachments?: Attachment[];
 };
 
 type VisitorEntry = {
@@ -68,6 +70,7 @@ type VisitorEntry = {
   start_time: string;
   end_time: string;
   comments: string;
+  attachments?: Attachment[];
 };
 
 type SafetyViolationEntry = {
@@ -78,6 +81,7 @@ type SafetyViolationEntry = {
   issued_to: string;
   compliance_due: string;
   comments: string;
+  attachments?: Attachment[];
 };
 
 type AccidentEntry = {
@@ -86,6 +90,7 @@ type AccidentEntry = {
   party_involved: string;
   company_involved: string;
   comments: string;
+  attachments?: Attachment[];
 };
 
 type DelayEntry = {
@@ -96,6 +101,7 @@ type DelayEntry = {
   duration_hours: string;
   location: string;
   comments: string;
+  attachments?: Attachment[];
 };
 
 type NoteEntry = {
@@ -103,6 +109,7 @@ type NoteEntry = {
   is_issue: boolean;
   location: string;
   comments: string;
+  attachments?: Attachment[];
 };
 
 type ManpowerEntry = {
@@ -113,6 +120,7 @@ type ManpowerEntry = {
   location: string;
   cost_code: string;
   comments: string;
+  attachments?: Attachment[];
 };
 
 type WeatherObservation = {
@@ -126,6 +134,7 @@ type WeatherObservation = {
   wind: string;
   ground_sea: string;
   comments: string;
+  attachments?: Attachment[];
 };
 
 type PhotoEntry = {
@@ -138,6 +147,11 @@ type PhotoEntry = {
   filename?: string;
   uploaded_at?: string;
   uploaded_by_name?: string;
+};
+
+type Attachment = {
+  url: string;
+  filename: string;
 };
 
 type PhotoAlbum = {
@@ -226,9 +240,7 @@ function SectionCard({
           {badge && <span className="text-xs text-gray-400">{badge}</span>}
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <div className="min-w-full">{children}</div>
-      </div>
+      {children}
     </div>
   );
 }
@@ -238,6 +250,10 @@ const inCls =
   "w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-400 bg-white";
 const selCls =
   "w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white";
+
+// Width reserved for the right-side action column (Create / Attach / Delete).
+// Keeping it the same across every section is what makes the Create buttons line up.
+const ACTION_COL_WIDTH = "150px";
 
 // Label + input column used in both display rows and form rows
 function Col({ label, minW, children }: { label: string; minW: string; children: React.ReactNode }) {
@@ -249,17 +265,95 @@ function Col({ label, minW, children }: { label: string; minW: string; children:
   );
 }
 
+// Attachments rendered inline within an EntryRow as click-to-open hyperlinks
+function AttachmentLinks({ items }: { items?: Attachment[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <Col label="Photos" minW="140px">
+      <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+        {items.map((a, i) => (
+          <a
+            key={`${a.url}-${i}`}
+            href={a.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline truncate max-w-[180px]"
+            title={a.filename}
+          >
+            {a.filename || `Photo ${i + 1}`}
+          </a>
+        ))}
+      </div>
+    </Col>
+  );
+}
+
+// Hook for managing the draft attachments on a section's form row.
+// Uploads via the project Photos endpoint so images live in the Photos library.
+function useDraftAttachments(projectId: string) {
+  const [items, setItems] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((f) => formData.append("file", f));
+      const res = await fetch(`/api/projects/${projectId}/photos`, {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const uploaded = await res.json();
+        if (Array.isArray(uploaded)) {
+          setItems((prev) => [
+            ...prev,
+            ...uploaded.map((p: { url: string; filename: string }) => ({
+              url: p.url,
+              filename: p.filename,
+            })),
+          ]);
+        }
+      }
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  }
+
+  function remove(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function reset() {
+    setItems([]);
+  }
+
+  return { items, uploading, inputRef, handleFiles, remove, reset };
+}
+
 // A row that displays saved data (with delete button on hover)
 function EntryRow({ children, onDelete }: {
   children: React.ReactNode; onDelete: () => void;
 }) {
   return (
-    <div className="px-4 py-3 border-b border-gray-50 hover:bg-gray-50/50 group">
-      <div className="flex items-center gap-6 text-xs min-w-max">
-        {children}
+    <div className="border-b border-gray-50 hover:bg-gray-50/50 group flex items-stretch">
+      <div className="flex-1 min-w-0 overflow-x-auto px-4 py-3">
+        <div className="flex items-center gap-6 text-xs min-w-max">
+          {children}
+        </div>
+      </div>
+      <div
+        className="shrink-0 flex items-center justify-end px-3 border-l border-gray-100 bg-white group-hover:bg-gray-50/50"
+        style={{ width: ACTION_COL_WIDTH }}
+      >
         <button
           onClick={onDelete}
-          className="sticky right-0 ml-auto shrink-0 p-1 text-gray-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 bg-white/95"
+          className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label="Delete entry"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -270,15 +364,84 @@ function EntryRow({ children, onDelete }: {
   );
 }
 
-// An always-visible form row at the bottom of a section
-function FormRow({ onSubmit, children }: {
-  onSubmit: () => void; children: React.ReactNode;
+// An always-visible form row at the bottom of a section.
+// The Create + Attach buttons sit in a fixed-width right column so they line up
+// across every section, regardless of how wide the inputs are.
+function FormRow({
+  onSubmit, children, attachments, uploading, inputRef, onAttachFiles, onRemoveAttachment,
+}: {
+  onSubmit: () => void;
+  children: React.ReactNode;
+  attachments: Attachment[];
+  uploading: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onAttachFiles: (e: ChangeEvent<HTMLInputElement>) => void;
+  onRemoveAttachment: (index: number) => void;
 }) {
   return (
-    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/40">
-      <div className="inline-flex items-end gap-4 text-xs w-max min-w-full">
-        {children}
-        <div className="sticky right-0 ml-auto shrink-0 pb-0.5 pl-3 bg-gray-50/95 border-l border-gray-200">
+    <div className="border-t border-gray-100 bg-gray-50/40">
+      {attachments.length > 0 && (
+        <div className="px-4 pt-3 pb-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px] pt-0.5">Attached</span>
+          {attachments.map((a, i) => (
+            <span key={`${a.url}-${i}`} className="inline-flex items-center gap-1 text-blue-600">
+              <a
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline truncate max-w-[180px]"
+                title={a.filename}
+              >
+                {a.filename || `Photo ${i + 1}`}
+              </a>
+              <button
+                type="button"
+                onClick={() => onRemoveAttachment(i)}
+                className="text-gray-400 hover:text-red-500"
+                aria-label="Remove attachment"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex items-stretch">
+        <div className="flex-1 min-w-0 overflow-x-auto px-4 py-3">
+          <div className="inline-flex items-end gap-4 text-xs w-max min-w-full">
+            {children}
+          </div>
+        </div>
+        <div
+          className="shrink-0 flex items-end justify-end gap-2 px-3 py-3 border-l border-gray-200 bg-gray-50/40"
+          style={{ width: ACTION_COL_WIDTH }}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={onAttachFiles}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="p-1.5 text-gray-500 hover:text-[color:var(--ink)] border border-gray-200 bg-white rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title={uploading ? "Uploading..." : "Attach image"}
+            aria-label="Attach image"
+          >
+            {uploading ? (
+              <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v4m0 8v4m8-8h-4M8 12H4m13.66-5.66l-2.83 2.83m-5.66 5.66l-2.83 2.83m11.32 0l-2.83-2.83M9.17 9.17L6.34 6.34" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+              </svg>
+            )}
+          </button>
           <button
             onClick={onSubmit}
             className="px-3 py-1.5 text-xs font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black transition-colors whitespace-nowrap"
@@ -298,17 +461,20 @@ const emptyInspection = (): Omit<InspectionEntry, "id"> => ({
   inspector_name: "", location: "", inspection_area: "", comments: "",
 });
 
-function InspectionsSection({ entries, onAdd, onDelete }: {
+function InspectionsSection({ projectId, entries, onAdd, onDelete }: {
+  projectId: string;
   entries: InspectionEntry[];
   onAdd: (e: InspectionEntry) => void;
   onDelete: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(emptyInspection());
+  const att = useDraftAttachments(projectId);
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft });
+    onAdd({ id: uid(), ...draft, attachments: att.items });
     setDraft(emptyInspection());
+    att.reset();
   }
 
   return (
@@ -323,9 +489,17 @@ function InspectionsSection({ entries, onAdd, onDelete }: {
           {e.location && <Col label="Location" minW="100px"><span className="text-gray-700">{e.location}</span></Col>}
           {e.inspection_area && <Col label="Area" minW="100px"><span className="text-gray-700">{e.inspection_area}</span></Col>}
           {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
-      <FormRow onSubmit={handleCreate}>
+      <FormRow
+        onSubmit={handleCreate}
+        attachments={att.items}
+        uploading={att.uploading}
+        inputRef={att.inputRef}
+        onAttachFiles={att.handleFiles}
+        onRemoveAttachment={att.remove}
+      >
         <Col label="Type" minW="120px"><input value={draft.inspection_type} onChange={(e) => set("inspection_type", e.target.value)} placeholder="e.g. Fire Safety" className={inCls} /></Col>
         <Col label="Start" minW="90px"><input type="time" value={draft.start_time} onChange={(e) => set("start_time", e.target.value)} className={inCls} /></Col>
         <Col label="End" minW="90px"><input type="time" value={draft.end_time} onChange={(e) => set("end_time", e.target.value)} className={inCls} /></Col>
@@ -345,17 +519,20 @@ const emptyDelivery = (): Omit<DeliveryEntry, "id"> => ({
   time: "", delivery_from: "", tracking_number: "", contents: "", comments: "",
 });
 
-function DeliveriesSection({ entries, onAdd, onDelete }: {
+function DeliveriesSection({ projectId, entries, onAdd, onDelete }: {
+  projectId: string;
   entries: DeliveryEntry[];
   onAdd: (e: DeliveryEntry) => void;
   onDelete: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(emptyDelivery());
+  const att = useDraftAttachments(projectId);
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft });
+    onAdd({ id: uid(), ...draft, attachments: att.items });
     setDraft(emptyDelivery());
+    att.reset();
   }
 
   return (
@@ -367,9 +544,17 @@ function DeliveriesSection({ entries, onAdd, onDelete }: {
           {e.contents && <Col label="Contents" minW="120px"><span className="text-gray-700">{e.contents}</span></Col>}
           {e.tracking_number && <Col label="Tracking #" minW="100px"><span className="text-gray-700">{e.tracking_number}</span></Col>}
           {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
-      <FormRow onSubmit={handleCreate}>
+      <FormRow
+        onSubmit={handleCreate}
+        attachments={att.items}
+        uploading={att.uploading}
+        inputRef={att.inputRef}
+        onAttachFiles={att.handleFiles}
+        onRemoveAttachment={att.remove}
+      >
         <Col label="Time" minW="90px"><input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inCls} /></Col>
         <Col label="From" minW="130px"><input value={draft.delivery_from} onChange={(e) => set("delivery_from", e.target.value)} placeholder="Supplier / vendor" className={inCls} /></Col>
         <Col label="Contents" minW="140px"><input value={draft.contents} onChange={(e) => set("contents", e.target.value)} placeholder="Material description" className={inCls} /></Col>
@@ -386,17 +571,20 @@ const emptyVisitor = (): Omit<VisitorEntry, "id"> => ({
   visitor: "", start_time: "", end_time: "", comments: "",
 });
 
-function VisitorsSection({ entries, onAdd, onDelete }: {
+function VisitorsSection({ projectId, entries, onAdd, onDelete }: {
+  projectId: string;
   entries: VisitorEntry[];
   onAdd: (e: VisitorEntry) => void;
   onDelete: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(emptyVisitor());
+  const att = useDraftAttachments(projectId);
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft });
+    onAdd({ id: uid(), ...draft, attachments: att.items });
     setDraft(emptyVisitor());
+    att.reset();
   }
 
   return (
@@ -407,9 +595,17 @@ function VisitorsSection({ entries, onAdd, onDelete }: {
           {e.start_time && <Col label="Start" minW="60px"><span className="text-gray-700">{e.start_time}</span></Col>}
           {e.end_time && <Col label="End" minW="60px"><span className="text-gray-700">{e.end_time}</span></Col>}
           {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
-      <FormRow onSubmit={handleCreate}>
+      <FormRow
+        onSubmit={handleCreate}
+        attachments={att.items}
+        uploading={att.uploading}
+        inputRef={att.inputRef}
+        onAttachFiles={att.handleFiles}
+        onRemoveAttachment={att.remove}
+      >
         <Col label="Visitor" minW="160px"><input value={draft.visitor} onChange={(e) => set("visitor", e.target.value)} placeholder="Name and company" className={inCls} /></Col>
         <Col label="Start" minW="90px"><input type="time" value={draft.start_time} onChange={(e) => set("start_time", e.target.value)} className={inCls} /></Col>
         <Col label="End" minW="90px"><input type="time" value={draft.end_time} onChange={(e) => set("end_time", e.target.value)} className={inCls} /></Col>
@@ -425,17 +621,20 @@ const emptySafetyViolation = (): Omit<SafetyViolationEntry, "id"> => ({
   time: "", subject: "", safety_notice: "", issued_to: "", compliance_due: "", comments: "",
 });
 
-function SafetyViolationsSection({ entries, onAdd, onDelete }: {
+function SafetyViolationsSection({ projectId, entries, onAdd, onDelete }: {
+  projectId: string;
   entries: SafetyViolationEntry[];
   onAdd: (e: SafetyViolationEntry) => void;
   onDelete: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(emptySafetyViolation());
+  const att = useDraftAttachments(projectId);
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft });
+    onAdd({ id: uid(), ...draft, attachments: att.items });
     setDraft(emptySafetyViolation());
+    att.reset();
   }
 
   return (
@@ -448,9 +647,17 @@ function SafetyViolationsSection({ entries, onAdd, onDelete }: {
           {e.safety_notice && <Col label="Notice" minW="90px"><span className="text-gray-700">{e.safety_notice}</span></Col>}
           {e.compliance_due && <Col label="Due" minW="90px"><span className="text-gray-700">{e.compliance_due}</span></Col>}
           {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
-      <FormRow onSubmit={handleCreate}>
+      <FormRow
+        onSubmit={handleCreate}
+        attachments={att.items}
+        uploading={att.uploading}
+        inputRef={att.inputRef}
+        onAttachFiles={att.handleFiles}
+        onRemoveAttachment={att.remove}
+      >
         <Col label="Subject" minW="140px"><input value={draft.subject} onChange={(e) => set("subject", e.target.value)} placeholder="Brief description" className={inCls} /></Col>
         <Col label="Time" minW="90px"><input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inCls} /></Col>
         <Col label="Issued To" minW="120px"><input value={draft.issued_to} onChange={(e) => set("issued_to", e.target.value)} placeholder="Person / company" className={inCls} /></Col>
@@ -468,17 +675,20 @@ const emptyAccident = (): Omit<AccidentEntry, "id"> => ({
   time: "", party_involved: "", company_involved: "", comments: "",
 });
 
-function AccidentsSection({ entries, onAdd, onDelete }: {
+function AccidentsSection({ projectId, entries, onAdd, onDelete }: {
+  projectId: string;
   entries: AccidentEntry[];
   onAdd: (e: AccidentEntry) => void;
   onDelete: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(emptyAccident());
+  const att = useDraftAttachments(projectId);
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft });
+    onAdd({ id: uid(), ...draft, attachments: att.items });
     setDraft(emptyAccident());
+    att.reset();
   }
 
   return (
@@ -489,9 +699,17 @@ function AccidentsSection({ entries, onAdd, onDelete }: {
           {e.party_involved && <Col label="Party Involved" minW="110px"><span className="text-gray-800 font-medium">{e.party_involved}</span></Col>}
           {e.company_involved && <Col label="Company" minW="110px"><span className="text-gray-700">{e.company_involved}</span></Col>}
           {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
-      <FormRow onSubmit={handleCreate}>
+      <FormRow
+        onSubmit={handleCreate}
+        attachments={att.items}
+        uploading={att.uploading}
+        inputRef={att.inputRef}
+        onAttachFiles={att.handleFiles}
+        onRemoveAttachment={att.remove}
+      >
         <Col label="Time" minW="90px"><input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inCls} /></Col>
         <Col label="Party Involved" minW="140px"><input value={draft.party_involved} onChange={(e) => set("party_involved", e.target.value)} placeholder="Person's name" className={inCls} /></Col>
         <Col label="Company" minW="130px"><input value={draft.company_involved} onChange={(e) => set("company_involved", e.target.value)} placeholder="Company name" className={inCls} /></Col>
@@ -507,12 +725,14 @@ const emptyDelay = (): Omit<DelayEntry, "id"> => ({
   delay_type: "", start_time: "", end_time: "", duration_hours: "", location: "", comments: "",
 });
 
-function DelaysSection({ entries, onAdd, onDelete }: {
+function DelaysSection({ projectId, entries, onAdd, onDelete }: {
+  projectId: string;
   entries: DelayEntry[];
   onAdd: (e: DelayEntry) => void;
   onDelete: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(emptyDelay());
+  const att = useDraftAttachments(projectId);
 
   function setField(f: keyof typeof draft, v: string) {
     setDraft((d) => {
@@ -528,8 +748,9 @@ function DelaysSection({ entries, onAdd, onDelete }: {
   }
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft });
+    onAdd({ id: uid(), ...draft, attachments: att.items });
     setDraft(emptyDelay());
+    att.reset();
   }
 
   const totalHours = entries.reduce((sum, e) => sum + (parseFloat(e.duration_hours) || 0), 0);
@@ -544,9 +765,17 @@ function DelaysSection({ entries, onAdd, onDelete }: {
           {e.duration_hours && <Col label="Duration" minW="70px"><span className="text-gray-700">{e.duration_hours}h</span></Col>}
           {e.location && <Col label="Location" minW="100px"><span className="text-gray-700">{e.location}</span></Col>}
           {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
-      <FormRow onSubmit={handleCreate}>
+      <FormRow
+        onSubmit={handleCreate}
+        attachments={att.items}
+        uploading={att.uploading}
+        inputRef={att.inputRef}
+        onAttachFiles={att.handleFiles}
+        onRemoveAttachment={att.remove}
+      >
         <Col label="Type" minW="130px">
           <select value={draft.delay_type} onChange={(e) => setField("delay_type", e.target.value)} className={selCls}>
             {DELAY_TYPES.map((t) => <option key={t} value={t}>{t || "— Select —"}</option>)}
@@ -568,16 +797,19 @@ const emptyNoteEntry = (): Omit<NoteEntry, "id"> => ({
   is_issue: false, location: "", comments: "",
 });
 
-function NoteEntriesSection({ entries, onAdd, onDelete }: {
+function NoteEntriesSection({ projectId, entries, onAdd, onDelete }: {
+  projectId: string;
   entries: NoteEntry[];
   onAdd: (e: NoteEntry) => void;
   onDelete: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(emptyNoteEntry());
+  const att = useDraftAttachments(projectId);
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft });
+    onAdd({ id: uid(), ...draft, attachments: att.items });
     setDraft(emptyNoteEntry());
+    att.reset();
   }
 
   return (
@@ -592,9 +824,17 @@ function NoteEntriesSection({ entries, onAdd, onDelete }: {
           </Col>
           {e.location && <Col label="Location" minW="110px"><span className="text-gray-700">{e.location}</span></Col>}
           {e.comments && <Col label="Note" minW="200px"><span className="text-gray-600">{e.comments}</span></Col>}
+          <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
-      <FormRow onSubmit={handleCreate}>
+      <FormRow
+        onSubmit={handleCreate}
+        attachments={att.items}
+        uploading={att.uploading}
+        inputRef={att.inputRef}
+        onAttachFiles={att.handleFiles}
+        onRemoveAttachment={att.remove}
+      >
         <Col label="Issue?" minW="60px">
           <label className="flex items-center gap-1.5 cursor-pointer py-1">
             <input
@@ -619,18 +859,21 @@ const emptyManpower = (): Omit<ManpowerEntry, "id"> => ({
   company: "", workers: "", hours: "", location: "", cost_code: "", comments: "",
 });
 
-function ManpowerSection({ entries, onAdd, onDelete, companySuggestions }: {
+function ManpowerSection({ projectId, entries, onAdd, onDelete, companySuggestions }: {
+  projectId: string;
   entries: ManpowerEntry[];
   onAdd: (e: ManpowerEntry) => void;
   onDelete: (id: string) => void;
   companySuggestions: string[];
 }) {
   const [draft, setDraft] = useState(emptyManpower());
+  const att = useDraftAttachments(projectId);
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft });
+    onAdd({ id: uid(), ...draft, attachments: att.items });
     setDraft(emptyManpower());
+    att.reset();
   }
 
   const totalWorkers = entries.reduce((sum, e) => sum + (parseInt(e.workers) || 0), 0);
@@ -657,9 +900,17 @@ function ManpowerSection({ entries, onAdd, onDelete, companySuggestions }: {
           <Col label="Location" minW="100px"><span className="text-gray-700">{e.location || "—"}</span></Col>
           <Col label="Cost Code" minW="80px"><span className="text-gray-700">{e.cost_code || "—"}</span></Col>
           <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments || "—"}</span></Col>
+          <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
-      <FormRow onSubmit={handleCreate}>
+      <FormRow
+        onSubmit={handleCreate}
+        attachments={att.items}
+        uploading={att.uploading}
+        inputRef={att.inputRef}
+        onAttachFiles={att.handleFiles}
+        onRemoveAttachment={att.remove}
+      >
         <Col label="Company" minW="150px">
           <input
             list="manpower-companies"
@@ -691,8 +942,9 @@ const emptyWeatherObs = (): Omit<WeatherObservation, "id"> => ({
 });
 
 function WeatherSection({
-  form, patch, observations, onAddObs, onDeleteObs,
+  projectId, form, patch, observations, onAddObs, onDeleteObs,
 }: {
+  projectId: string;
   form: LogForm;
   patch: <K extends keyof LogForm>(key: K, value: LogForm[K]) => void;
   observations: WeatherObservation[];
@@ -700,11 +952,13 @@ function WeatherSection({
   onDeleteObs: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(emptyWeatherObs());
+  const att = useDraftAttachments(projectId);
   const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   function handleCreate() {
-    onAddObs({ id: uid(), ...draft });
+    onAddObs({ id: uid(), ...draft, attachments: att.items });
     setDraft(emptyWeatherObs());
+    att.reset();
   }
 
   // Inline input style for general weather (full-width)
@@ -772,10 +1026,18 @@ function WeatherSection({
               </Col>
             )}
             {o.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{o.comments}</span></Col>}
+            <AttachmentLinks items={o.attachments} />
           </EntryRow>
         ))}
 
-        <FormRow onSubmit={handleCreate}>
+        <FormRow
+          onSubmit={handleCreate}
+          attachments={att.items}
+          uploading={att.uploading}
+          inputRef={att.inputRef}
+          onAttachFiles={att.handleFiles}
+          onRemoveAttachment={att.remove}
+        >
           <Col label="Time" minW="90px"><input type="time" value={draft.time_observed} onChange={(e) => set("time_observed", e.target.value)} className={inCls} /></Col>
           <Col label="Sky" minW="110px">
             <select value={draft.sky} onChange={(e) => set("sky", e.target.value)} className={selCls}>
@@ -1514,6 +1776,7 @@ export default function DailyLogClient({
 
               <section id="manpower" className="scroll-mt-24">
                 <ManpowerSection
+                  projectId={projectId}
                   entries={form.manpower}
                   onAdd={(e) => addToList("manpower", e)}
                   onDelete={(id) => removeFromList("manpower", id)}
@@ -1523,6 +1786,7 @@ export default function DailyLogClient({
 
               <section id="inspections" className="scroll-mt-24">
                 <InspectionsSection
+                  projectId={projectId}
                   entries={form.inspections}
                   onAdd={(e) => addToList("inspections", e)}
                   onDelete={(id) => removeFromList("inspections", id)}
@@ -1531,6 +1795,7 @@ export default function DailyLogClient({
 
               <section id="deliveries" className="scroll-mt-24">
                 <DeliveriesSection
+                  projectId={projectId}
                   entries={form.deliveries}
                   onAdd={(e) => addToList("deliveries", e)}
                   onDelete={(id) => removeFromList("deliveries", id)}
@@ -1539,6 +1804,7 @@ export default function DailyLogClient({
 
               <section id="visitors" className="scroll-mt-24">
                 <VisitorsSection
+                  projectId={projectId}
                   entries={form.visitors}
                   onAdd={(e) => addToList("visitors", e)}
                   onDelete={(id) => removeFromList("visitors", id)}
@@ -1547,6 +1813,7 @@ export default function DailyLogClient({
 
               <section id="safety-violations" className="scroll-mt-24">
                 <SafetyViolationsSection
+                  projectId={projectId}
                   entries={form.safety_violations}
                   onAdd={(e) => addToList("safety_violations", e)}
                   onDelete={(id) => removeFromList("safety_violations", id)}
@@ -1555,6 +1822,7 @@ export default function DailyLogClient({
 
               <section id="accidents" className="scroll-mt-24">
                 <AccidentsSection
+                  projectId={projectId}
                   entries={form.accidents}
                   onAdd={(e) => addToList("accidents", e)}
                   onDelete={(id) => removeFromList("accidents", id)}
@@ -1563,6 +1831,7 @@ export default function DailyLogClient({
 
               <section id="delays" className="scroll-mt-24">
                 <DelaysSection
+                  projectId={projectId}
                   entries={form.delays}
                   onAdd={(e) => addToList("delays", e)}
                   onDelete={(id) => removeFromList("delays", id)}
@@ -1571,6 +1840,7 @@ export default function DailyLogClient({
 
               <section id="notes" className="scroll-mt-24">
                 <NoteEntriesSection
+                  projectId={projectId}
                   entries={form.note_entries}
                   onAdd={(e) => addToList("note_entries", e)}
                   onDelete={(id) => removeFromList("note_entries", id)}
@@ -1579,6 +1849,7 @@ export default function DailyLogClient({
 
               <section id="observed-weather" className="scroll-mt-24">
                 <WeatherSection
+                  projectId={projectId}
                   form={form}
                   patch={patch}
                   observations={form.weather_observations}
