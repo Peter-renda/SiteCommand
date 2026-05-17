@@ -4,6 +4,12 @@ import { getSupabase } from "@/lib/supabase";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
 
+function isMissingSpecBookTable(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === "42P01") return true;
+  return (error.message ?? "").toLowerCase().includes("project_spec_books");
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,6 +26,9 @@ export async function GET(
     .eq("project_id", projectId)
     .maybeSingle();
 
+  // Treat a missing table (migration 125 not yet applied) the same as "no
+  // spec book uploaded yet" so the page degrades gracefully instead of 500.
+  if (error && isMissingSpecBookTable(error)) return NextResponse.json({ specBook: null });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!book) return NextResponse.json({ specBook: null });
 
@@ -100,6 +109,12 @@ export async function POST(
     .select("id, filename, storage_path, total_pages, uploaded_at")
     .single();
 
+  if (upsertError && isMissingSpecBookTable(upsertError)) {
+    return NextResponse.json(
+      { error: "Spec book storage isn't set up yet — run migration 125_project_spec_book.sql." },
+      { status: 503 }
+    );
+  }
   if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 });
 
   return NextResponse.json({
