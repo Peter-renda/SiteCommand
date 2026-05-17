@@ -801,6 +801,7 @@ function RunReportModal({
   const [newDecimals, setNewDecimals] = useState(2);
   const [newRounding, setNewRounding] = useState(true);
   const [loadDataManually, setLoadDataManually] = useState(true);
+  const [showConfig, setShowConfig] = useState(!existingReport);
   const [groupByKey, setGroupByKey] = useState("");
   const [visualType, setVisualType] = useState<VisualType>(existingReport?.visualConfig?.visualType ?? "table");
   const [xAxisKey, setXAxisKey] = useState(existingReport?.visualConfig?.xAxisKey ?? "");
@@ -985,6 +986,14 @@ function RunReportModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadDataManually, startDate, endDate, actorEmailFilter, eventTypeFilter, groupByKey, calculatedColumns]);
 
+  // Auto-run on open when viewing an already-saved report so the user lands
+  // on the rendered results instead of an empty builder.
+  useEffect(() => {
+    if (!existingReport) return;
+    void runReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingReport?.id]);
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8">
       <div className="bg-white rounded-xl w-full max-w-4xl shadow-xl flex flex-col max-h-[90vh]">
@@ -1000,13 +1009,53 @@ function RunReportModal({
               {reportDef.group} · {reportDef.description}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors ml-4 shrink-0">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2 ml-4 shrink-0">
+            <button
+              onClick={() => setShowConfig((prev) => !prev)}
+              className="px-3 py-1.5 border border-gray-200 text-xs font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              {showConfig ? "Hide Configuration" : "Edit Configuration"}
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
+        {!showConfig && (
+          <div className="px-6 py-3 border-b border-gray-100 bg-gray-50 shrink-0 flex flex-wrap items-center gap-2">
+            {loading && <span className="text-xs text-gray-500">Running report...</span>}
+            {ran && !error && rows.length > 0 && (
+              <>
+                <span className="text-xs text-gray-500 mr-2">
+                  {rows.length} {rows.length === 1 ? "record" : "records"}
+                </span>
+                <button
+                  onClick={() => void downloadXLSX(`${reportName.toLowerCase().replace(/\s+/g, "-")}.xlsx`, displayColumns, rows)}
+                  className="px-3 py-1.5 border border-gray-200 text-xs font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Export XLSX
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="px-3 py-1.5 border border-gray-200 text-xs font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Export CSV
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="px-3 py-1.5 border border-gray-200 text-xs font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Export PDF
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {showConfig && (
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 shrink-0">
           <div className="mb-3 rounded-md border border-gray-200 bg-white p-3">
             <p className="text-xs font-medium text-gray-700 mb-2">Visual Type & Configuration</p>
@@ -1346,6 +1395,7 @@ function RunReportModal({
             </p>
           )}
         </div>
+        )}
 
         <div className="overflow-auto flex-1">
           {error && <p className="text-sm text-red-600 px-6 py-4">{error}</p>}
