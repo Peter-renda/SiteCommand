@@ -54,7 +54,7 @@ export default function Home() {
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      <Navbar />
+      <Navbar hidePricing />
 
       <main id="main-content">
         {/* ── Hero ── */}
