@@ -2,7 +2,7 @@ import Navbar from "../components/Navbar";
 export default function Home() {
   return (
     <div className="min-h-screen bg-white">
-      <Navbar />
+      <Navbar hidePricing />
       <main className="flex flex-col items-center justify-center min-h-screen text-center px-6">
         <h1 className="text-5xl font-semibold tracking-tight text-gray-900 max-w-2xl">
           Take command of your site
