@@ -360,6 +360,9 @@ function DrawingPdfViewerModal({
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDimsRef = useRef<{ w: number; h: number } | null>(null);
   const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  // Displayed CSS size of the rendered page (smaller than the raster's
+  // intrinsic pixels — we supersample so zoom-in stays crisp).
+  const [pdfDisplaySize, setPdfDisplaySize] = useState<{ w: number; h: number } | null>(null);
   const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
   const selectedStrokeIdRef = useRef<string | null>(null);
   const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
@@ -461,6 +464,7 @@ function DrawingPdfViewerModal({
       setLoading(true);
       setRenderError(null);
       setPdfDataUrl(null);
+      setPdfDisplaySize(null);
       try {
         await ensurePdfJs();
         const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -472,8 +476,20 @@ function DrawingPdfViewerModal({
         const containerW = Math.max((containerRef.current?.clientWidth ?? 900) - 32, 200);
         const containerH = Math.max((containerRef.current?.clientHeight ?? 700) - 32, 200);
         const baseVp = page.getViewport({ scale: 1 });
-        const scale = Math.min(containerW / baseVp.width, containerH / baseVp.height);
-        const vp = page.getViewport({ scale });
+        const fitScale = Math.min(containerW / baseVp.width, containerH / baseVp.height);
+        // Supersample so the raster still has pixel detail when the user
+        // zooms in (browser zoom or pinch). Cap render dimensions to keep
+        // memory + toDataURL latency reasonable on huge sheets.
+        const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
+        const desiredSupersample = Math.max(dpr, 1) * 3;
+        const MAX_RENDER_PX = 4096;
+        const maxScaleByPixels = Math.min(
+          MAX_RENDER_PX / baseVp.width,
+          MAX_RENDER_PX / baseVp.height,
+        );
+        const renderScale = Math.min(fitScale * desiredSupersample, maxScaleByPixels);
+        const fitVp = page.getViewport({ scale: fitScale });
+        const vp = page.getViewport({ scale: renderScale });
         // Render to an offscreen canvas — never touched by React
         const offscreen = document.createElement("canvas");
         offscreen.width = vp.width;
@@ -482,12 +498,13 @@ function DrawingPdfViewerModal({
         if (!ctx || cancelled) return;
         await page.render({ canvasContext: ctx, viewport: vp }).promise;
         if (cancelled) return;
-        pdfDimsRef.current = { w: vp.width, h: vp.height };
+        pdfDimsRef.current = { w: fitVp.width, h: fitVp.height };
+        setPdfDisplaySize({ w: fitVp.width, h: fitVp.height });
         setPdfDataUrl(offscreen.toDataURL());
         const annoCanvas = annotationCanvasRef.current;
         if (annoCanvas) {
-          annoCanvas.width = vp.width;
-          annoCanvas.height = vp.height;
+          annoCanvas.width = fitVp.width;
+          annoCanvas.height = fitVp.height;
           redrawCanvas();
         }
       } catch (err) {
@@ -939,7 +956,13 @@ function DrawingPdfViewerModal({
         <div className="flex justify-center items-center p-4 min-h-full">
           <div ref={previewSurfaceRef} className="relative inline-block max-h-full">
             {pdfDataUrl && (
-              <img src={pdfDataUrl} alt={name} className="block max-w-full max-h-full shadow-xl" draggable={false} />
+              <img
+                src={pdfDataUrl}
+                alt={name}
+                className="block max-w-full max-h-full shadow-xl"
+                draggable={false}
+                style={pdfDisplaySize ? { width: pdfDisplaySize.w, height: pdfDisplaySize.h } : undefined}
+              />
             )}
             {!pdfDataUrl && !loading && (
               <div className="w-[min(92vw,1100px)] h-[80vh] bg-white rounded overflow-hidden shadow-xl border border-gray-300">
