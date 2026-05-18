@@ -58,7 +58,7 @@ const navItems: NavItemType[] = [
 
 type NavbarProps = { hidePricing?: boolean };
 
-export default function Navbar({ hidePricing = false }: NavbarProps) {
+export default function Navbar({ hidePricing = true }: NavbarProps) {
   const [open, setOpen] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
