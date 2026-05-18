@@ -184,9 +184,42 @@ interface ScopeAttachment {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ScopeOfWorkClient({ projectId, username }: { projectId: string; username?: string }) {
+  const activeDivisionsStorageKey = `scope-of-work:active-divisions:${projectId}`;
   const [items, setItems] = useState<ScopeItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeDivisions, setActiveDivisions] = useState<Set<string>>(new Set(["01"]));
+  // Whether the initial activeDivisions state came from a saved user preference
+  // (vs the default). When true, we suppress the "auto-activate divisions that
+  // have items/attachments" behavior so the user's checkbox choices stick.
+  const hadStoredActiveDivisions = useRef(false);
+  const [activeDivisions, setActiveDivisions] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set(["01"]);
+    try {
+      const raw = window.localStorage.getItem(activeDivisionsStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          hadStoredActiveDivisions.current = true;
+          return new Set(parsed.filter((v): v is string => typeof v === "string"));
+        }
+      }
+    } catch {
+      // ignore corrupted value
+    }
+    return new Set(["01"]);
+  });
+
+  // Persist active divisions whenever they change.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        activeDivisionsStorageKey,
+        JSON.stringify(Array.from(activeDivisions))
+      );
+    } catch {
+      // storage may be full or disabled — ignore
+    }
+  }, [activeDivisions, activeDivisionsStorageKey]);
   const [addForm, setAddForm] = useState<AddFormState | null>(null);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -208,8 +241,9 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
       const data: ScopeItem[] = await res.json();
       setItems(data);
 
-      // Auto-activate divisions that have items
-      if (data.length > 0) {
+      // Auto-activate divisions that have items only on first visit (no saved
+      // checkbox state yet) so a user's explicit unchecks aren't reverted.
+      if (data.length > 0 && !hadStoredActiveDivisions.current) {
         setActiveDivisions((prev) => {
           const next = new Set(prev);
           data.forEach((item) => next.add(item.division_code));
@@ -243,8 +277,10 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
       const data = await res.json();
       const list: ScopeAttachment[] = data?.attachments || [];
       setAttachments(list);
-      // Auto-activate any division that has attachments so they're visible.
-      if (list.length > 0) {
+      // Auto-activate any division that has attachments only on first visit
+      // (no saved checkbox state yet) so a user's explicit unchecks aren't
+      // reverted by data fetched on every mount.
+      if (list.length > 0 && !hadStoredActiveDivisions.current) {
         setActiveDivisions((prev) => {
           const next = new Set(prev);
           list.forEach((a) => next.add(a.divisionCode));
