@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ApiKeysTab, WebhooksTab, DocumentationTab } from "@/app/settings/developer/DeveloperSettingsClient";
 import IntegrationsClient from "@/app/settings/integrations/IntegrationsClient";
@@ -36,6 +36,7 @@ type Project = {
   name: string;
   status: string | null;
   created_at: string;
+  archived_at: string | null;
 };
 
 function roleBadgeClass(role: string) {
@@ -65,6 +66,39 @@ export default function CompanyClient({
   currentUserId: string;
   isSuperAdmin: boolean;
 }) {
+  const [projectList, setProjectList] = useState<Project[]>(projects);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [archiveConfirm, setArchiveConfirm] = useState<Project | null>(null);
+  const [archiving, setArchiving] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [openMenuId]);
+
+  async function handleArchive(project: Project) {
+    setArchiving(true);
+    const res = await fetch(`/api/projects/${project.id}/archive`, { method: "POST" });
+    setArchiving(false);
+    if (res.ok) {
+      const updated = await res.json();
+      setProjectList((prev) =>
+        prev.map((p) => (p.id === project.id ? { ...p, archived_at: updated.archived_at } : p))
+      );
+      setArchiveConfirm(null);
+    }
+  }
+
+  const activeProjects = projectList.filter((p) => !p.archived_at);
+  const archivedProjects = projectList.filter((p) => p.archived_at);
+
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "team" | "projects" | "permission-templates" | "integrations" | "developer"
@@ -417,30 +451,66 @@ const seatCount = members.length;
             <div className="mb-4">
               <h2 className="text-sm font-semibold text-gray-900">Projects</h2>
               <p className="text-xs text-gray-400 mt-1">
-                {projects.length} total project{projects.length === 1 ? "" : "s"}
+                {activeProjects.length} total project{activeProjects.length === 1 ? "" : "s"}
               </p>
             </div>
 
-            {projects.length === 0 ? (
+            {activeProjects.length === 0 ? (
               <p className="text-sm text-gray-400 mb-4">No projects yet.</p>
             ) : (
               <div className="space-y-1 mb-5">
-                {projects.map((project) => (
-                  <a
+                {activeProjects.map((project) => (
+                  <div
                     key={project.id}
-                    href={`/projects/${project.id}`}
                     className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    <div className="min-w-0">
+                    <a href={`/projects/${project.id}`} className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{project.name}</p>
                       <p className="text-xs text-gray-400 capitalize truncate">
                         {project.status || "No status"}
                       </p>
+                    </a>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === project.id ? null : project.id);
+                          }}
+                          aria-label="Project actions"
+                          className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="5" cy="12" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="19" cy="12" r="2" />
+                          </svg>
+                        </button>
+                        {openMenuId === project.id && (
+                          <div
+                            ref={menuRef}
+                            className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-md shadow-lg z-10 py-1"
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                setArchiveConfirm(project);
+                              }}
+                              className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              Archive Project
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <a href={`/projects/${project.id}`} aria-label="Open project">
+                        <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </a>
                     </div>
-                    <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </a>
+                  </div>
                 ))}
               </div>
             )}
@@ -451,6 +521,36 @@ const seatCount = members.length;
             >
               + New Project
             </a>
+
+            {archivedProjects.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-gray-100">
+                <div className="mb-4">
+                  <h2 className="text-sm font-semibold text-gray-900">Complete Projects</h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {archivedProjects.length} archived project{archivedProjects.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  {archivedProjects.map((project) => (
+                    <a
+                      key={project.id}
+                      href={`/projects/${project.id}`}
+                      className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-500 truncate">{project.name}</p>
+                        <p className="text-xs text-gray-400 truncate">
+                          Archived{project.archived_at ? ` ${new Date(project.archived_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}
+                        </p>
+                      </div>
+                      <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -531,6 +631,36 @@ const seatCount = members.length;
                 className="flex-1 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors"
               >
                 Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Project Confirmation Modal */}
+      {archiveConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Archive project?</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              <span className="font-medium text-gray-700">{archiveConfirm.name}</span> will be moved
+              to Complete Projects and removed from everyone who had access. All project data is
+              retained.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setArchiveConfirm(null)}
+                disabled={archiving}
+                className="flex-1 py-2 border border-gray-200 text-sm text-gray-600 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleArchive(archiveConfirm)}
+                disabled={archiving}
+                className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                {archiving ? "Archiving..." : "Archive"}
               </button>
             </div>
           </div>

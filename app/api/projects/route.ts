@@ -19,6 +19,7 @@ export async function GET() {
       .from("projects")
       .select("*")
       .eq("company_id", session.company_id)
+      .is("archived_at", null)
       .order("created_at", { ascending: false });
     const projects = Array.isArray(data) ? data : [];
     if (projects.length === 0) return NextResponse.json([]);
@@ -50,6 +51,7 @@ export async function GET() {
     .from("projects")
     .select("*")
     .in("id", projectIds)
+    .is("archived_at", null)
     .order("created_at", { ascending: false });
 
   // Internal users with a company_id should only see projects from their company
