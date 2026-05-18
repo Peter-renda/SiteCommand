@@ -110,10 +110,13 @@ function buildRainAlert(days: WeatherDay[]): string | null {
     if (curr - prev !== 86400000) { consecutive = false; break; }
   }
 
-  if (rainy.length === 1) return `Rain expected on ${fmt(rainy[0])}`;
-  if (consecutive) return `Rain expected ${fmt(rainy[0])} through ${fmt(rainy[rainy.length - 1])}`;
+  const total = rainy.reduce((sum, d) => sum + d.precip, 0);
+  const totalStr = `${total.toFixed(1)}"`;
+
+  if (rainy.length === 1) return `Rain expected on ${fmt(rainy[0])} (${totalStr})`;
+  if (consecutive) return `Rain expected ${fmt(rainy[0])} through ${fmt(rainy[rainy.length - 1])} (${totalStr} total)`;
   const names = rainy.map(fmt);
-  return `Rain expected on ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `Rain expected on ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} (${totalStr} total)`;
 }
 
 function WeatherWidget({ zipCode, onDays }: { zipCode: string; onDays?: (days: WeatherDay[]) => void }) {
@@ -728,18 +731,19 @@ export default function ProjectClient({
       {project && <ProjectNav projectId={project.id} showBackToProject={false} />}
 
       {rainAlert && (
-        <div className="bg-red-600 border-b border-red-700 px-4 sm:px-6 py-3 flex items-center gap-3 relative">
-          <button
-            onClick={() => setRainAlert(null)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-red-700 hover:bg-red-800 text-white transition-colors shrink-0"
-            aria-label="Dismiss rain alert"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <span className="text-sky-100 ml-8"><WeatherGlyph kind="rain" /></span>
-          <p className="text-sm font-medium text-white">{rainAlert}</p>
+        <div className="flex justify-center px-4 sm:px-6 py-3">
+          <Pill className="pill-danger">
+            <span>{rainAlert}</span>
+            <button
+              onClick={() => setRainAlert(null)}
+              className="ml-1 -mr-1 flex items-center justify-center hover:opacity-70 transition-opacity"
+              aria-label="Dismiss rain alert"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </Pill>
         </div>
       )}
 
