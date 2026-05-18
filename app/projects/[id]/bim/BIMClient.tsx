@@ -193,12 +193,39 @@ export default function BIMClient({
     setUploadError("");
 
     try {
-      const form = new FormData();
-      form.append("file", file);
-
-      const uploadRes = await fetch(`/api/projects/${projectId}/bim/upload`, {
+      const startRes = await fetch(`/api/projects/${projectId}/bim/upload-url`, {
         method: "POST",
-        body: form,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start", filename: file.name, contentType: file.type }),
+      });
+
+      const startData = await startRes.json();
+      if (!startRes.ok) {
+        if (startRes.status === 503) setApsConfigured(false);
+        setUploadError(startData.error ?? "Failed to prepare upload");
+        return;
+      }
+
+      const s3Res = await fetch(startData.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+
+      if (!s3Res.ok) {
+        setUploadError("Failed to upload file data");
+        return;
+      }
+
+      const uploadRes = await fetch(`/api/projects/${projectId}/bim/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "complete",
+          filename: file.name,
+          objectKey: startData.objectKey,
+          uploadKey: startData.uploadKey,
+        }),
       });
 
       const uploadData = await uploadRes.json();
