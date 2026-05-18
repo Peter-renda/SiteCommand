@@ -51,6 +51,7 @@ export const TEMPLATE_TOOLS: string[] = [
   "Commitments",
   "Change Orders",
   "Change Events",
+  "Transaction Orders",
   "RFIs",
   "Submittals",
   "Transmittals",
