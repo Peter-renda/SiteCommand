@@ -1,0 +1,118 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
+import { canAccessProject } from "@/lib/project-access";
+import { getSupabase } from "@/lib/supabase";
+
+const ALLOWED_FREQUENCIES = new Set(["daily", "weekly", "monthly"]);
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id: projectId } = await params;
+  const hasAccess = await canAccessProject(projectId, session);
+  if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("assist_recurring_workflows")
+    .select("id, name, prompt, frequency, recipients, active, created_at, last_run_at")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const workflows = (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    prompt: row.prompt,
+    frequency: row.frequency,
+    recipients: Array.isArray(row.recipients) ? (row.recipients as string[]) : [],
+    active: row.active,
+    createdAt: row.created_at,
+    lastRunAt: row.last_run_at,
+  }));
+
+  return NextResponse.json({ workflows });
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id: projectId } = await params;
+  const hasAccess = await canAccessProject(projectId, session);
+  if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  let body: {
+    name?: unknown;
+    prompt?: unknown;
+    frequency?: unknown;
+    recipients?: unknown;
+  };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Expected JSON body" }, { status: 400 });
+  }
+
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+  const frequency = typeof body.frequency === "string" ? body.frequency.trim() : "";
+  if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+  if (!prompt) return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+  if (!ALLOWED_FREQUENCIES.has(frequency)) {
+    return NextResponse.json(
+      { error: "Frequency must be one of daily, weekly, monthly" },
+      { status: 400 },
+    );
+  }
+
+  const rawRecipients = Array.isArray(body.recipients) ? body.recipients : [];
+  const recipients: string[] = [];
+  for (const r of rawRecipients) {
+    if (typeof r !== "string") continue;
+    const email = r.trim().toLowerCase();
+    if (!email) continue;
+    if (!email.includes("@")) continue;
+    if (recipients.includes(email)) continue;
+    recipients.push(email);
+  }
+
+  const supabase = getSupabase();
+  const { data: inserted, error: insertError } = await supabase
+    .from("assist_recurring_workflows")
+    .insert({
+      project_id: projectId,
+      created_by: session.id,
+      name,
+      prompt,
+      frequency,
+      recipients,
+    })
+    .select("id, name, prompt, frequency, recipients, active, created_at, last_run_at")
+    .single();
+
+  if (insertError) {
+    return NextResponse.json({ error: insertError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    workflow: {
+      id: inserted.id,
+      name: inserted.name,
+      prompt: inserted.prompt,
+      frequency: inserted.frequency,
+      recipients: Array.isArray(inserted.recipients) ? (inserted.recipients as string[]) : [],
+      active: inserted.active,
+      createdAt: inserted.created_at,
+      lastRunAt: inserted.last_run_at,
+    },
+  });
+}
