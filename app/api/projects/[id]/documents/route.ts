@@ -69,8 +69,7 @@ async function logAndNotifyParentTrackers(
     .from("document_tracking")
     .select("user_email")
     .in("document_id", ancestorIds)
-    .eq("project_id", projectId)
-    .neq("user_id", userId);
+    .eq("project_id", projectId);
 
   const uniqueEmails = [...new Set((trackers || []).map((t) => t.user_email).filter(Boolean))];
   if (uniqueEmails.length === 0) return;

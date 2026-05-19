@@ -49,8 +49,6 @@ async function notifyTrackers(
   projectId: string,
   documentName: string,
   action: string,
-  changedByName: string,
-  excludeUserId: string,
   opts: { parentId: string | null; storagePath: string | null; comment?: string | null },
 ) {
   if (documentIds.length === 0) return;
@@ -59,8 +57,7 @@ async function notifyTrackers(
     .from("document_tracking")
     .select("user_email")
     .in("document_id", documentIds)
-    .eq("project_id", projectId)
-    .neq("user_id", excludeUserId);
+    .eq("project_id", projectId);
 
   const uniqueEmails = [...new Set((trackers || []).map((t) => t.user_email).filter(Boolean))];
   if (uniqueEmails.length === 0) return;
@@ -155,7 +152,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (oldDoc && body.name !== undefined && body.name !== oldDoc.name) {
     const details = `Renamed from "${oldDoc.name}" to "${body.name}"`;
     await logChange(supabase, docId, projectId, session.id, changedByName, "Renamed", details);
-    await notifyTrackers(supabase, trackingScopeIds, projectId, body.name, "Renamed", changedByName, session.id, {
+    await notifyTrackers(supabase, trackingScopeIds, projectId, body.name, "Renamed", {
       parentId: data.parent_id,
       storagePath,
       comment: details,
@@ -168,7 +165,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const movedScopeIds = new Set(trackingScopeIds);
     if (oldDoc.parent_id) movedScopeIds.add(oldDoc.parent_id);
     if (data.parent_id) movedScopeIds.add(data.parent_id);
-    await notifyTrackers(supabase, [...movedScopeIds], projectId, data.name, "Moved", changedByName, session.id, {
+    await notifyTrackers(supabase, [...movedScopeIds], projectId, data.name, "Moved", {
       parentId: data.parent_id,
       storagePath,
       comment: details,
@@ -178,7 +175,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (oldDoc && body.is_private !== undefined && Boolean(body.is_private) !== oldDoc.is_private) {
     const details = body.is_private ? "Folder set to private" : "Folder set to public";
     await logChange(supabase, docId, projectId, session.id, changedByName, "Permission changed", details);
-    await notifyTrackers(supabase, trackingScopeIds, projectId, data.name, "Permission changed", changedByName, session.id, {
+    await notifyTrackers(supabase, trackingScopeIds, projectId, data.name, "Permission changed", {
       parentId: data.parent_id,
       storagePath,
       comment: details,
@@ -210,7 +207,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const changedByName = await getChangedByName(supabase, session.id);
     const details = `${doc.type === "folder" ? "Folder" : "File"} "${doc.name}" was deleted`;
     await logChange(supabase, docId, projectId, session.id, changedByName, "Deleted", details);
-    await notifyTrackers(supabase, trackingScopeIds, projectId, doc.name, "Deleted", changedByName, session.id, {
+    await notifyTrackers(supabase, trackingScopeIds, projectId, doc.name, "Deleted", {
       parentId: doc.parent_id,
       storagePath: null,
       comment: details,
