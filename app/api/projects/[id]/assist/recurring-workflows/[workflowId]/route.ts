@@ -31,6 +31,7 @@ export async function PATCH(
     frequency?: unknown;
     runDayOfWeek?: unknown;
     runHourEt?: unknown;
+    runMinuteEt?: unknown;
     recipients?: unknown;
     active?: unknown;
   };
@@ -76,6 +77,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Run hour (ET) must be an integer between 0 and 23" }, { status: 400 });
     }
     updates.run_hour_et = v;
+  }
+  if (body.runMinuteEt !== undefined) {
+    const v = typeof body.runMinuteEt === "number" ? body.runMinuteEt : Number(body.runMinuteEt);
+    if (!Number.isInteger(v) || v < 0 || v > 59) {
+      return NextResponse.json({ error: "Run minute (ET) must be an integer between 0 and 59" }, { status: 400 });
+    }
+    updates.run_minute_et = v;
   }
   if (Array.isArray(body.recipients)) {
     const recipients: string[] = [];

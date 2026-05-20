@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { GoogleGenAI } from "@google/genai";
 import { getSupabase } from "@/lib/supabase";
 
 function nowInEasternParts(date = new Date()) {
@@ -6,44 +7,60 @@ function nowInEasternParts(date = new Date()) {
     timeZone: "America/New_York",
     weekday: "long",
     hour: "numeric",
+    minute: "numeric",
     hour12: false,
   }).formatToParts(date);
-  const weekday = (parts.find((p) => p.type === "weekday")?.value || "").toLowerCase();
-  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "-1");
-  return { weekday, hour };
+  return {
+    weekday: (parts.find((p) => p.type === "weekday")?.value || "").toLowerCase(),
+    hour: Number(parts.find((p) => p.type === "hour")?.value ?? "-1"),
+    minute: Number(parts.find((p) => p.type === "minute")?.value ?? "-1"),
+  };
 }
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return NextResponse.json({ error: "GEMINI_API_KEY missing" }, { status: 503 });
 
   const supabase = getSupabase();
-  const { weekday, hour } = nowInEasternParts();
+  const { weekday, hour, minute } = nowInEasternParts();
   const { data, error } = await supabase
     .from("assist_recurring_workflows")
-    .select("id, project_id, name, prompt, recipients, run_day_of_week, run_hour_et, active")
+    .select("id, project_id, name, prompt, run_day_of_week, run_hour_et, run_minute_et, active")
     .eq("active", true)
     .eq("run_day_of_week", weekday)
-    .eq("run_hour_et", hour);
+    .eq("run_hour_et", hour)
+    .eq("run_minute_et", minute);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Mark matching workflows as run. (Report generation pipeline can key off this run marker.)
-  const ids = (data ?? []).map((w) => w.id as string);
-  if (ids.length > 0) {
-    await supabase
-      .from("assist_recurring_workflows")
-      .update({ last_run_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .in("id", ids);
+  const ai = new GoogleGenAI({ apiKey });
+  let created = 0;
+  for (const w of data ?? []) {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ role: "user", parts: [{ text: String(w.prompt ?? "") }] }],
+      });
+      const text = (response.text ?? "").trim() || "No output generated.";
+      const safeName = String(w.name ?? "Recurring Workflow").replace(/[^a-z0-9\- ]/gi, "").trim() || "Recurring Workflow";
+      const fileName = `${safeName} - ${new Date().toISOString()}.md`;
+      const fileUrl = `data:text/markdown;charset=utf-8,${encodeURIComponent(text)}`;
+      const { error: insertErr } = await supabase.from("assist_recurring_workflow_reports").insert({
+        workflow_id: w.id,
+        project_id: w.project_id,
+        file_name: fileName,
+        file_url: fileUrl,
+        file_type: "pdf",
+      });
+      if (!insertErr) created++;
+      await supabase.from("assist_recurring_workflows").update({ last_run_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", w.id);
+    } catch {
+      // keep cron running for other workflows
+    }
   }
 
-  return NextResponse.json({
-    ok: true,
-    matched: ids.length,
-    weekdayEt: weekday,
-    hourEt: hour,
-  });
+  return NextResponse.json({ ok: true, matched: (data ?? []).length, created, weekdayEt: weekday, hourEt: hour, minuteEt: minute });
 }
