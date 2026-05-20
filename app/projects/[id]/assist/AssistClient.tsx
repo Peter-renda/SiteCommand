@@ -31,6 +31,7 @@ type RecurringWorkflow = {
   frequency: Frequency;
   runDayOfWeek: Weekday | null;
   runHourEt: number | null;
+  runMinuteEt: number | null;
   recipients: string[];
   active: boolean;
   createdAt: string;
@@ -57,9 +58,11 @@ export default function AssistClient({ projectId }: { projectId: string }) {
   const [wfName, setWfName] = useState("");
   const [wfPrompt, setWfPrompt] = useState("");
   const [wfFrequency, setWfFrequency] = useState<Frequency>("weekly");
-  const [wfRecipients, setWfRecipients] = useState<string[]>([]);
+  const [wfRecipients, setWfRecipients] = useState("");
+  const [selectedWorkflow, setSelectedWorkflow] = useState<RecurringWorkflow | null>(null);
   const [wfRunDayOfWeek, setWfRunDayOfWeek] = useState<Weekday>("monday");
   const [wfRunHourEt, setWfRunHourEt] = useState<number>(6);
+  const [wfRunMinuteEt, setWfRunMinuteEt] = useState<number>(0);
   const [directoryRecipients, setDirectoryRecipients] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [wfSaving, setWfSaving] = useState(false);
   const [wfError, setWfError] = useState<string | null>(null);
@@ -177,7 +180,7 @@ export default function AssistClient({ projectId }: { projectId: string }) {
       return;
     }
 
-    const recipients = wfRecipients.map((r) => r.trim().toLowerCase()).filter((s) => s.length > 0);
+    const recipients = wfRecipients.split(",").map((r) => r.trim().toLowerCase()).filter((s) => s.length > 0);
     for (const r of recipients) {
       if (!r.includes("@")) {
         setWfError(`"${r}" is not a valid email.`);
@@ -197,6 +200,7 @@ export default function AssistClient({ projectId }: { projectId: string }) {
           recipients,
           runDayOfWeek: wfRunDayOfWeek,
           runHourEt: wfRunHourEt,
+          runMinuteEt: wfRunMinuteEt,
         }),
       });
       const data = await res.json();
@@ -385,7 +389,7 @@ export default function AssistClient({ projectId }: { projectId: string }) {
           <div className="mb-4">
             <h2 className="h3-warm">Recurring Workflows</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Save a prompt to run on a recurring schedule. Results are emailed to the listed recipients.
+              Save a prompt to run on a recurring schedule. Results are saved below as recurring workflow reports.
             </p>
           </div>
 
@@ -428,7 +432,7 @@ export default function AssistClient({ projectId }: { projectId: string }) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Run hour (ET)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Run time (ET)</label>
                 <select
                   value={String(wfRunHourEt)}
                   onChange={(e) => setWfRunHourEt(Number(e.target.value))}
@@ -439,6 +443,12 @@ export default function AssistClient({ projectId }: { projectId: string }) {
                       {h === 0 ? "12 AM" : h < 12 ? `${h} AM` : h === 12 ? "12 PM" : `${h - 12} PM`}
                     </option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Run minute (ET)</label>
+                <select value={String(wfRunMinuteEt)} onChange={(e) => setWfRunMinuteEt(Number(e.target.value))} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
+                  {Array.from({ length: 60 }).map((_, m) => (<option key={m} value={m}>{String(m).padStart(2, "0")}</option>))}
                 </select>
               </div>
             </div>
@@ -506,7 +516,7 @@ export default function AssistClient({ projectId }: { projectId: string }) {
                       )}
                       {typeof w.runHourEt === "number" && (
                         <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
-                          {w.runHourEt === 0 ? "12 AM ET" : w.runHourEt < 12 ? `${w.runHourEt} AM ET` : w.runHourEt === 12 ? "12 PM ET" : `${w.runHourEt - 12} PM ET`}
+                          {(w.runHourEt === 0 ? "12" : w.runHourEt <= 12 ? String(w.runHourEt) : String(w.runHourEt - 12)) + `:${String(w.runMinuteEt ?? 0).padStart(2, "0")} ` + (w.runHourEt < 12 ? "AM ET" : "PM ET")}
                         </span>
                       )}
                       {!w.active && (
@@ -516,11 +526,7 @@ export default function AssistClient({ projectId }: { projectId: string }) {
                       )}
                     </div>
                     <p className="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-words">{w.prompt}</p>
-                    {w.recipients.length > 0 && (
-                      <p className="mt-1 text-[11px] text-gray-500">
-                        Recipients: {w.recipients.join(", ")}
-                      </p>
-                    )}
+                    
                     <div className="mt-2">
                       <p className="text-[11px] font-medium text-gray-600">Latest reports</p>
                       {w.reports && w.reports.length > 0 ? (
@@ -537,10 +543,10 @@ export default function AssistClient({ projectId }: { projectId: string }) {
                         <p className="text-xs text-gray-500 mt-1">No reports yet.</p>
                       )}
                       <a
-                        href={`/projects/${projectId}/assist?workflow=${w.id}`}
+                        href="#" onClick={(e) => { e.preventDefault(); setSelectedWorkflow(w); }}
                         className="mt-2 inline-block text-xs font-medium text-gray-700 hover:text-gray-900 hover:underline"
                       >
-                        View all reports
+                        See all reports
                       </a>
                     </div>
                   </div>
@@ -562,6 +568,7 @@ export default function AssistClient({ projectId }: { projectId: string }) {
               ))}
             </ul>
           )}
+        {selectedWorkflow && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSelectedWorkflow(null)}><div className="w-full max-w-2xl rounded-lg bg-white p-4" onClick={(e) => e.stopPropagation()}><div className="flex items-center justify-between"><h3 className="text-sm font-semibold">{selectedWorkflow.name} — All Reports</h3><button className="text-sm" onClick={() => setSelectedWorkflow(null)}>Close</button></div><ul className="mt-3 max-h-[60vh] overflow-auto space-y-2">{(selectedWorkflow.reports ?? []).map((report) => (<li key={report.id}><a href={report.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">{report.fileName}</a></li>))}</ul></div></div>)}
         </section>
       </main>
     </div>
