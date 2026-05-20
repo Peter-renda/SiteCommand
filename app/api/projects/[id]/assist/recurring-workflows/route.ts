@@ -39,6 +39,24 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const workflowIds = (data ?? []).map((row) => row.id as string);
+  const { data: reportRows } = workflowIds.length
+    ? await supabase
+        .from("assist_recurring_workflow_reports")
+        .select("id, workflow_id, file_name, file_url, file_type, created_at")
+        .in("workflow_id", workflowIds)
+        .order("created_at", { ascending: false })
+    : { data: [] as Array<Record<string, unknown>> };
+
+  const reportsByWorkflow = new Map<string, Array<Record<string, unknown>>>();
+  for (const report of reportRows ?? []) {
+    const workflowId = String(report.workflow_id ?? "");
+    if (!workflowId) continue;
+    const existing = reportsByWorkflow.get(workflowId) ?? [];
+    existing.push(report);
+    reportsByWorkflow.set(workflowId, existing);
+  }
+
   const workflows = (data ?? []).map((row) => ({
     id: row.id,
     name: row.name,
@@ -48,6 +66,13 @@ export async function GET(
     active: row.active,
     createdAt: row.created_at,
     lastRunAt: row.last_run_at,
+    reports: (reportsByWorkflow.get(row.id) ?? []).map((report) => ({
+      id: report.id,
+      fileName: report.file_name,
+      fileUrl: report.file_url,
+      fileType: report.file_type,
+      createdAt: report.created_at,
+    })),
   }));
 
   return NextResponse.json({ workflows });
