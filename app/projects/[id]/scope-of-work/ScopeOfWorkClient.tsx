@@ -763,13 +763,24 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
                 ref={(el) => { sectionRefs.current[division.code] = el; }}
               >
                 {/* Division header */}
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-gray-900">
-                    <span className="font-mono text-orange-500 mr-2">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-black/[0.08]">
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="mono-label text-[color:var(--brand-500)]">
                       Division {division.code}
                     </span>
-                    {division.name}
-                  </h2>
+                    <h2 className="h3-warm">{division.name}</h2>
+                    {(divItems.length > 0 || divAttachments.length > 0) && (
+                      <span className="text-[11px] text-gray-400">
+                        {divItems.length > 0 && (
+                          <><span className="num tabular-nums">{divItems.length}</span> item{divItems.length === 1 ? "" : "s"}</>
+                        )}
+                        {divItems.length > 0 && divAttachments.length > 0 && <span className="sep">·</span>}
+                        {divAttachments.length > 0 && (
+                          <><span className="num tabular-nums">{divAttachments.length}</span> file{divAttachments.length === 1 ? "" : "s"}</>
+                        )}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-4">
                     <input
                       ref={(el) => { fileInputRefs.current[division.code] = el; }}
@@ -785,7 +796,7 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
                     <button
                       onClick={() => fileInputRefs.current[division.code]?.click()}
                       disabled={isUploadingHere}
-                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 font-medium transition-colors disabled:opacity-50"
+                      className="btn-quiet disabled:opacity-50"
                     >
                       {isUploadingHere ? (
                         <>
@@ -807,7 +818,7 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
                           openAddForm(division.code);
                         }
                       }}
-                      className="flex items-center gap-1.5 text-xs text-orange-500 hover:text-orange-600 font-medium transition-colors"
+                      className="btn-quiet"
                     >
                       {isAddingHere ? (
                         <>
@@ -825,7 +836,7 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
                 </div>
 
                 {divUploadError && (
-                  <p className="text-xs text-red-500 mb-3">{divUploadError}</p>
+                  <p className="text-xs text-[color:var(--danger-500)] mb-3">{divUploadError}</p>
                 )}
 
                 {/* Attachments */}
@@ -837,22 +848,22 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
                       return (
                         <div
                           key={att.id}
-                          className="bg-white border border-gray-200 rounded-lg"
+                          className="bg-white border border-black/[0.08] rounded-lg"
                         >
                           <div className="flex items-center gap-2 px-4 py-2.5">
-                            <FileText className="w-4 h-4 text-orange-500 shrink-0" />
+                            <FileText className="w-4 h-4 text-[color:var(--brand-500)] shrink-0" />
                             {att.url ? (
                               <a
                                 href={att.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex-1 text-sm text-gray-800 hover:text-orange-600 truncate flex items-center gap-1.5"
+                                className="flex-1 text-sm text-[color:var(--ink)] hover:text-[color:var(--brand-600)] truncate flex items-center gap-1.5"
                               >
                                 {att.filename}
                                 <ExternalLink className="w-3 h-3 text-gray-400" />
                               </a>
                             ) : (
-                              <span className="flex-1 text-sm text-gray-800 truncate">
+                              <span className="flex-1 text-sm text-[color:var(--ink)] truncate">
                                 {att.filename}
                               </span>
                             )}
@@ -861,7 +872,7 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
                                 setExpandedAttachment(isExpanded ? null : att.id)
                               }
                               disabled={!att.extractedText}
-                              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-40"
+                              className="btn-quiet disabled:opacity-40"
                             >
                               {isExpanded ? (
                                 <>
@@ -878,14 +889,14 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
                             <button
                               onClick={() => handleAttachmentDelete(att.id)}
                               disabled={isDeleting}
-                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40"
+                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-[color:var(--danger-500)] transition-colors disabled:opacity-40"
                               title="Remove attachment"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                           {isExpanded && (
-                            <div className="border-t border-gray-100 px-4 py-3 max-h-80 overflow-y-auto bg-gray-50 rounded-b-lg">
+                            <div className="border-t border-black/[0.06] px-4 py-3 max-h-80 overflow-y-auto bg-[color:var(--surface-sunken)] rounded-b-lg">
                               {att.extractedText ? (
                                 <pre className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">
                                   {att.extractedText}
@@ -905,13 +916,13 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
 
                 {/* Existing items */}
                 {divItems.length === 0 && !isAddingHere && divAttachments.length === 0 && (
-                  <p className="text-xs text-gray-400 italic bg-white border border-dashed border-gray-200 rounded-lg px-4 py-3">
+                  <p className="text-xs text-gray-400 italic bg-white border border-dashed border-black/[0.12] rounded-lg px-4 py-3">
                     No scope items yet. Click &quot;Add Item&quot; or &quot;Attach File&quot; to get started.
                   </p>
                 )}
 
                 <div className="space-y-3">
-                  {divItems.map((item) => {
+                  {divItems.map((item, itemIdx) => {
                     const isEditing = editForm?.itemId === item.id;
                     const isDeleting = deleteConfirm === item.id;
 
@@ -940,53 +951,58 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
                     return (
                       <div
                         key={item.id}
-                        className="bg-white border border-gray-200 rounded-lg px-4 py-3"
+                        className="bg-white border border-black/[0.08] rounded-lg px-4 py-3 flex gap-3"
                       >
-                        {(item.section_code || item.section_name) && (
-                          <p className="text-xs font-semibold text-gray-500 mb-1">
-                            {[item.section_code, item.section_name]
-                              .filter(Boolean)
-                              .join(" – ")}
+                        <span className="idx-italic status-open shrink-0 pt-0.5">
+                          {String(itemIdx + 1).padStart(2, "0")}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          {(item.section_code || item.section_name) && (
+                            <p className="mono-label mb-1">
+                              {[item.section_code, item.section_name]
+                                .filter(Boolean)
+                                .join(" – ")}
+                            </p>
+                          )}
+                          <p className="text-sm text-[color:var(--ink)] leading-relaxed whitespace-pre-wrap">
+                            {item.scope_text}
                           </p>
-                        )}
-                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
-                          {item.scope_text}
-                        </p>
 
-                        {isDeleting ? (
-                          <div className="mt-3 flex items-center gap-3 text-xs">
-                            <span className="text-gray-500">Delete this item?</span>
-                            <button
-                              onClick={() => handleDelete(item.id)}
-                              className="text-red-500 font-medium hover:text-red-700"
-                            >
-                              Yes, delete
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm(null)}
-                              className="text-gray-400 hover:text-gray-600"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="mt-3 flex items-center gap-3">
-                            <button
-                              onClick={() => openEditForm(item)}
-                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-                            >
-                              <Pencil className="w-3 h-3" />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm(item.id)}
-                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              Delete
-                            </button>
-                          </div>
-                        )}
+                          {isDeleting ? (
+                            <div className="mt-3 flex items-center gap-3 text-xs">
+                              <span className="text-gray-500">Delete this item?</span>
+                              <button
+                                onClick={() => handleDelete(item.id)}
+                                className="text-[color:var(--danger-500)] font-medium hover:opacity-80"
+                              >
+                                Yes, delete
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirm(null)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="mt-3 flex items-center gap-3">
+                              <button
+                                onClick={() => openEditForm(item)}
+                                className="flex items-center gap-1 text-xs text-gray-400 hover:text-[color:var(--ink)] transition-colors"
+                              >
+                                <Pencil className="w-3 h-3" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirm(item.id)}
+                                className="flex items-center gap-1 text-xs text-gray-400 hover:text-[color:var(--danger-500)] transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -1014,8 +1030,8 @@ export default function ScopeOfWorkClient({ projectId, username }: { projectId: 
 
           {activeDivisions.size === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <FileText className="w-10 h-10 text-gray-300 mb-3" />
-              <p className="text-sm font-medium text-gray-500">No divisions selected</p>
+              <FileText className="w-10 h-10 text-[color:var(--brand-200)] mb-3" />
+              <p className="font-display text-[20px] text-[color:var(--ink)]">No divisions selected</p>
               <p className="text-xs text-gray-400 mt-1">
                 Use the sidebar to activate CSI divisions for this scope.
               </p>
@@ -1042,10 +1058,10 @@ function AddCard({
   onAIDraft: () => void;
 }) {
   return (
-    <div className="bg-white border border-orange-200 rounded-lg px-4 py-4 mt-3 space-y-3">
+    <div className="bg-white border border-[color:var(--brand-200)] rounded-lg px-4 py-4 mt-3 space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
+          <label className="mono-label block mb-1">
             Section Code
           </label>
           <input
@@ -1055,11 +1071,11 @@ function AddCard({
               onFormChange((f) => f ? { ...f, sectionCode: e.target.value } : f)
             }
             placeholder="e.g. 03 30 00"
-            className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full px-3 py-2 border border-black/[0.12] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-300)]"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
+          <label className="mono-label block mb-1">
             Section Name
           </label>
           <input
@@ -1069,18 +1085,18 @@ function AddCard({
               onFormChange((f) => f ? { ...f, sectionName: e.target.value } : f)
             }
             placeholder="e.g. Cast-in-Place Concrete"
-            className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full px-3 py-2 border border-black/[0.12] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-300)]"
           />
         </div>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-xs font-medium text-gray-500">Scope Text</label>
+          <label className="mono-label block">Scope Text</label>
           <button
             onClick={onAIDraft}
             disabled={addForm.aiLoading}
-            className="flex items-center gap-1.5 text-xs text-orange-500 hover:text-orange-600 font-medium disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-[color:var(--brand-500)] hover:text-[color:var(--brand-600)] font-medium disabled:opacity-50 transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" />
             {addForm.aiLoading ? "Generating..." : "AI Draft"}
@@ -1093,25 +1109,25 @@ function AddCard({
             onFormChange((f) => f ? { ...f, scopeText: e.target.value } : f)
           }
           placeholder="Describe the scope of work for this section..."
-          className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-y"
+          className="w-full px-3 py-2 border border-black/[0.12] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-300)] resize-y"
         />
       </div>
 
       {addForm.error && (
-        <p className="text-xs text-red-500">{addForm.error}</p>
+        <p className="text-xs text-[color:var(--danger-500)]">{addForm.error}</p>
       )}
 
       <div className="flex items-center gap-2">
         <button
           onClick={onSave}
           disabled={addForm.saving}
-          className="px-4 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+          className="btn-primary disabled:opacity-50"
         >
           {addForm.saving ? "Saving..." : "Save"}
         </button>
         <button
           onClick={onCancel}
-          className="px-4 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          className="btn-quiet"
         >
           Cancel
         </button>
@@ -1145,10 +1161,10 @@ function EditCard({
   void _projectId;
 
   return (
-    <div className="bg-white border border-orange-200 rounded-lg px-4 py-4 space-y-3">
+    <div className="bg-white border border-[color:var(--brand-200)] rounded-lg px-4 py-4 space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
+          <label className="mono-label block mb-1">
             Section Code
           </label>
           <input
@@ -1158,11 +1174,11 @@ function EditCard({
               onEditFormChange((f) => f ? { ...f, sectionCode: e.target.value } : f)
             }
             placeholder="e.g. 03 30 00"
-            className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full px-3 py-2 border border-black/[0.12] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-300)]"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
+          <label className="mono-label block mb-1">
             Section Name
           </label>
           <input
@@ -1172,18 +1188,18 @@ function EditCard({
               onEditFormChange((f) => f ? { ...f, sectionName: e.target.value } : f)
             }
             placeholder="e.g. Cast-in-Place Concrete"
-            className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full px-3 py-2 border border-black/[0.12] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-300)]"
           />
         </div>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-xs font-medium text-gray-500">Scope Text</label>
+          <label className="mono-label block">Scope Text</label>
           <button
             onClick={onAIDraft}
             disabled={editForm.aiLoading}
-            className="flex items-center gap-1.5 text-xs text-orange-500 hover:text-orange-600 font-medium disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-[color:var(--brand-500)] hover:text-[color:var(--brand-600)] font-medium disabled:opacity-50 transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" />
             {editForm.aiLoading ? "Generating..." : "AI Draft"}
@@ -1195,25 +1211,25 @@ function EditCard({
           onChange={(e) =>
             onEditFormChange((f) => f ? { ...f, scopeText: e.target.value } : f)
           }
-          className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-y"
+          className="w-full px-3 py-2 border border-black/[0.12] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-300)] resize-y"
         />
       </div>
 
       {editForm.error && (
-        <p className="text-xs text-red-500">{editForm.error}</p>
+        <p className="text-xs text-[color:var(--danger-500)]">{editForm.error}</p>
       )}
 
       <div className="flex items-center gap-2">
         <button
           onClick={onSave}
           disabled={editForm.saving}
-          className="px-4 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+          className="btn-primary disabled:opacity-50"
         >
           {editForm.saving ? "Saving..." : "Save Changes"}
         </button>
         <button
           onClick={onCancel}
-          className="px-4 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          className="btn-quiet"
         >
           Cancel
         </button>

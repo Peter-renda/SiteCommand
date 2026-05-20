@@ -211,9 +211,9 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
       <ProjectNav projectId={projectId} />
 
       <main className="mx-auto max-w-[1400px] px-4 py-6">
-        <div className="flex items-end justify-between mb-6 gap-4 flex-wrap">
+        <div className="sec-row mb-6">
           <div>
-            <h1 className="font-display text-[32px] leading-[1.05] tracking-[-0.012em] text-[color:var(--ink)]">Quick notes</h1>
+            <h1 className="h2-warm">Quick notes</h1>
             <p className="sub mt-1.5">
               <em>A working notebook for this project</em>
               <span className="sep">·</span>
@@ -221,7 +221,8 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
               {activeNote && (
                 <>
                   <span className="sep">·</span>
-                  last touched {prettyDate(activeNote.updatedAt)}
+                  <em>last touched</em>{" "}
+                  <span className="num">{prettyDate(activeNote.updatedAt)}</span>
                 </>
               )}
             </p>
@@ -233,27 +234,37 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
           <aside className="card h-[calc(100vh-150px)] overflow-hidden flex flex-col">
-            <div className="card-pad pb-3 border-b border-[color:var(--border-base)]">
-              <p className="mono-label text-[color:var(--ink-soft)]">Notebook</p>
+            <div className="card-pad pb-3 border-b border-[color:var(--border-base)] flex items-baseline justify-between gap-2">
+              <h2 className="h3-warm">Notebook</h2>
+              <span className="num text-[color:var(--ink-soft)]">{notes.length}</span>
             </div>
 
             <div className="overflow-y-auto p-2 space-y-1">
               {notes.length === 0 ? (
                 <p className="px-2 py-4 text-sm text-[color:var(--ink-soft)] italic">No notes yet.</p>
               ) : (
-                notes.map((note) => (
+                notes.map((note, i) => (
                   <button
                     key={note.id}
                     type="button"
                     onClick={() => { setActiveId(note.id); setIsEditing(false); }}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg border transition ${
+                    className={`w-full text-left px-3 py-2.5 rounded-lg border transition flex items-baseline gap-2.5 ${
                       note.id === activeId
                         ? "bg-[color:var(--surface-sunken)] border-[color:var(--brand-500)]"
                         : "bg-white border-transparent hover:bg-[color:var(--surface-sunken)]"
                     }`}
                   >
-                    <p className="font-display text-[15px] leading-tight text-[color:var(--ink)] truncate">{note.title || "Untitled note"}</p>
-                    <p className="mono-label mt-1.5 text-[color:var(--ink-soft)]">Updated {prettyDate(note.updatedAt)}</p>
+                    <span
+                      className={`idx-italic shrink-0 ${
+                        note.id === activeId ? "status-open" : "status-draft"
+                      }`}
+                    >
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-display text-[15px] leading-tight text-[color:var(--ink)] truncate">{note.title || "Untitled note"}</span>
+                      <span className="block mono-label mt-1.5 text-[color:var(--ink-soft)]">Updated {prettyDate(note.updatedAt)}</span>
+                    </span>
                   </button>
                 ))
               )}
@@ -265,6 +276,14 @@ export default function QuickNotesClient({ projectId }: { projectId: string }) {
               <p className="card-pad text-sm text-[color:var(--ink-soft)] italic">Select a note to start editing.</p>
             ) : (
               <div className="flex flex-col flex-1 card-pad overflow-hidden">
+                <div className="flex items-baseline justify-between gap-2 pb-3">
+                  <h2 className="h3-warm">
+                    {isEditing ? "Editing note" : "Note"}
+                  </h2>
+                  <Pill className={isEditing ? "pill-warn" : "pill-open"}>
+                    {isEditing ? "Editing" : "Viewing"}
+                  </Pill>
+                </div>
                 <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-[color:var(--border-base)]">
                   {isEditing ? (
                     <>

@@ -6,6 +6,8 @@ import AppHeader from "@/app/components/AppHeader";
 
 type TabKey = "all_tickets" | "recycle_bin";
 
+type TMTicket = { id: string };
+
 function EmptyTicketIcon() {
   return (
     <svg width="118" height="118" viewBox="0 0 118 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -29,6 +31,8 @@ function EmptyTicketIcon() {
 
 export default function TMTicketsClient({ projectId, username }: { projectId: string; username: string }) {
   const [activeTab, setActiveTab] = useState<TabKey>("all_tickets");
+  const [tickets] = useState<TMTicket[]>([]);
+  const ticketCount = tickets.length;
 
   return (
     <div className="min-h-screen bg-[#FAFAF7]">
@@ -41,10 +45,10 @@ export default function TMTicketsClient({ projectId, username }: { projectId: st
             <h1 className="font-display text-[32px] leading-[1.05] tracking-[-0.012em] text-[color:var(--ink)]">
               Time &amp; Material tickets
             </h1>
-            <p className="sub mt-1.5">
-              <em>Field-logged labor, equipment and material</em>
+            <p className="sec-sub mt-1.5">
+              <span className="serif-italic text-[color:var(--brand-700)]">Field-logged labor, equipment and material</span>
               <span className="sep">·</span>
-              <span className="num">0</span> tickets
+              <span className="num" style={{ color: "var(--brand-500)" }}>{ticketCount}</span> tickets
               <span className="sep">·</span>
               roll up into change events
             </p>
@@ -84,7 +88,7 @@ export default function TMTicketsClient({ projectId, username }: { projectId: st
                   : "Recycle Bin is empty"}
               </p>
               {activeTab === "all_tickets" && (
-                <div className="mt-6 mx-auto max-w-xl border hairline rounded-lg bg-[color:var(--surface-sunken)] px-4 py-3 text-left text-sm text-gray-700">
+                <div className="mt-6 mx-auto max-w-xl border hairline rounded-lg bg-[color:var(--surface-sunken)] px-4 py-3 text-left text-sm text-gray-600">
                   <p className="mono-label">Bulk Actions workflow</p>
                   <p className="mt-2">
                     Select one or more T&amp;M tickets and use <span className="font-semibold text-[color:var(--ink)]">Bulk Actions</span> &gt;{" "}
