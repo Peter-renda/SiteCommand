@@ -1415,8 +1415,11 @@ export default function DrawingsClient({
   const thumbnails = useRef<Map<string, string>>(new Map());
   const [thumbVersion, setThumbVersion] = useState(0); // force re-render when thumb ready
 
+  const [showReportsMenu, setShowReportsMenu] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadsPanelRef = useRef<HTMLDivElement>(null);
+  const reportsMenuRef = useRef<HTMLDivElement>(null);
 
   // ── Fetch ────────────────────────────────────────────────────────────────────
 
@@ -1451,6 +1454,9 @@ export default function DrawingsClient({
     function handleClick(e: MouseEvent) {
       if (uploadsPanelRef.current && !uploadsPanelRef.current.contains(e.target as Node)) {
         setShowUploadsPanel(false);
+      }
+      if (reportsMenuRef.current && !reportsMenuRef.current.contains(e.target as Node)) {
+        setShowReportsMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -1724,7 +1730,7 @@ export default function DrawingsClient({
 
   if (!loading && drawings.length === 0) {
     return (
-      <div className="h-screen bg-[#FAFAF7] flex flex-col">
+      <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
         <header className="bg-[#FAFAF7] border-b border-black/[0.06] px-6 h-14 flex items-center justify-between shrink-0">
           <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors">
             SiteCommand
@@ -1781,7 +1787,7 @@ export default function DrawingsClient({
   // ── Main layout ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-screen bg-[#FAFAF7] flex flex-col">
+    <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
       {/* Review extracted metadata after upload */}
       {reviewModal && (
         <ReviewExtractedModal
@@ -1863,7 +1869,30 @@ export default function DrawingsClient({
                 {uploadStatus}
               </span>
             )}
-            <button className="btn-secondary">Reports</button>
+            <div ref={reportsMenuRef} className="relative">
+              <button
+                onClick={() => setShowReportsMenu((o) => !o)}
+                className="btn-secondary flex items-center gap-1.5"
+              >
+                Reports
+                <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showReportsMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showReportsMenu && (
+                <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-20">
+                  {["All Sets and Revisions", "Sketches", "Measurements"].map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => setShowReportsMenu(false)}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button className="btn-secondary">View Locations</button>
             <button className="btn-secondary">Export</button>
             <button
@@ -1987,13 +2016,13 @@ export default function DrawingsClient({
 
       {/* Main content area */}
       <div
-        className="flex flex-1 overflow-hidden"
+        className="flex flex-1"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        <div className={`flex-1 flex flex-col overflow-hidden ${isDragging ? "ring-2 ring-[color:var(--brand-500)] ring-inset" : ""}`}>
-          <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className={`flex-1 flex flex-col ${isDragging ? "ring-2 ring-[color:var(--brand-500)] ring-inset" : ""}`}>
+          <div className="px-6 py-6">
             {loading ? (
               <div className="rfi-list">
                 {[0, 1, 2, 3, 4].map((i) => (
@@ -2125,7 +2154,7 @@ export default function DrawingsClient({
 
         {/* Detail panel */}
         {selected && (
-          <div className="w-80 shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-hidden">
+          <div className="w-80 shrink-0 bg-white border-l border-gray-100 flex flex-col sticky top-0 h-screen">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <h3 className="text-sm font-semibold text-gray-800 truncate pr-2">
                 {selected.drawing_no ?? `Page ${selected.page_number}`}
