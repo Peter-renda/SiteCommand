@@ -555,6 +555,7 @@ export async function scanPermitApplication(
         systemInstruction: SCAN_SYSTEM_INSTRUCTION_FLAT,
         responseMimeType: "application/json",
         responseSchema: FLAT_RESPONSE_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
 
@@ -648,6 +649,7 @@ export async function scanPermitApplication(
     config: {
       systemInstruction: SCAN_SYSTEM_INSTRUCTION,
       responseMimeType: "application/json",
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
 
