@@ -927,6 +927,25 @@ export default function DashboardClient({ username, email, role, companyRole, us
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        {/* W2 greeting bar */}
+        {(() => {
+          const h = new Date().getHours();
+          const firstName = (username || "there").split(/[\s.@]/)[0];
+          return (
+            <div className="flex items-center gap-2.5 mb-5 text-[12px] text-gray-500">
+              <span className="inline-block w-[5px] h-[5px] rounded-full shrink-0 bg-[#D4500A]" />
+              <span className="font-medium text-gray-700">
+                Good {h < 12 ? "morning" : h < 18 ? "afternoon" : "evening"}, {firstName}
+              </span>
+              <span className="text-gray-300 mx-0.5">·</span>
+              <em className="not-italic font-display italic text-[11px] text-[#9A6240]">here&rsquo;s what&rsquo;s on today</em>
+              <span className="ml-auto font-mono tabular-nums text-[11px] text-gray-400 hidden sm:block">
+                {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+              </span>
+            </div>
+          );
+        })()}
+
         {/* Focus Card — hero with ambient glow, attention items + portfolio snapshot */}
         {(() => {
           const scopedTasks = myTasks.filter((t) => !currentProjectId || t.project_id === currentProjectId);
@@ -1165,11 +1184,11 @@ export default function DashboardClient({ username, email, role, companyRole, us
                   {project.members && project.members.length > 0 && (
                     <div className="flex items-center gap-2 mb-4">
                       <div className="flex -space-x-1.5">
-                        {project.members.slice(0, 4).map((m) => (
+                        {project.members.slice(0, 4).map((m, mi) => (
                           <div
                             key={m.id}
                             title={m.username}
-                            className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-semibold text-gray-600"
+                            className={`av-warm av-${(mi % 5) + 1} w-6 h-6 border-2 border-white text-[10px] flex items-center justify-center`}
                           >
                             {m.username[0].toUpperCase()}
                           </div>
@@ -1183,7 +1202,8 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
                   {/* Site-pulse footer */}
                   <div className="-mx-5 px-5 py-2.5 border-t hairline bg-[color:var(--surface-sunken)] flex items-center justify-between">
-                    <span className="mono-label">
+                    <span className="mono-label flex items-center gap-1.5">
+                      {isActive && <span className="live-dot" />}
                       {isActive ? "ON SITE" : project.status === "warranty" ? "WARRANTY" : project.status === "bidding" ? "BIDDING" : project.status === "pre-construction" ? "PRE-CON" : "WRAPPED"}
                     </span>
                     <span className="text-[11px] text-gray-400">
@@ -1259,12 +1279,12 @@ export default function DashboardClient({ username, email, role, companyRole, us
             const visible = filtered.slice(0, visibleCount);
             const hasMore = filtered.length > visibleCount;
             return (
-              <div className="bg-white border hairline rounded-xl divide-y divide-gray-50">
-                {visible.map((item) => (
+              <div className="act-timeline bg-white border hairline rounded-xl divide-y divide-gray-50">
+                {visible.map((item, ai) => (
                   <a
                     key={`${item.type}-${item.id}`}
                     href={item.href}
-                    className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
+                    className={`act-row flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors${ai === 0 ? " act-live" : ""}`}
                   >
                     <ActivityIcon type={item.type} />
                     <div className="flex-1 min-w-0">
