@@ -1211,6 +1211,7 @@ function ReviewExtractedModal({
     }
     if (applied.length > 0) onApplied(applied);
     setApplyingAll(false);
+    onClose();
   }
 
   const allApproved = rows.length > 0 && rows.every((r) => r.approved);
