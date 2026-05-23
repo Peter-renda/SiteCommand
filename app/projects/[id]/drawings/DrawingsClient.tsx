@@ -1762,12 +1762,18 @@ function UploadDrawingsModal({
 type ReviewRow = {
   drawing_id: string;
   page_number: number;
+  filename: string;
+  uploaded_at: string;
+  storage_path: string;
+  viewer_page: number;
   title: string;
   drawing_no: string;
   category: string;
   revision: string;
   drawing_date: string;
-  approved: boolean;
+  received_date: string;
+  confirmed: boolean;
+  viewed: boolean;
   saving: boolean;
 };
 
@@ -1785,36 +1791,132 @@ const CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "FP", label: "FP — Fire Protection" },
 ];
 
+function ReviewPreviewCanvas({
+  storagePath,
+  pageNumber,
+  rotation,
+}: {
+  storagePath: string;
+  pageNumber: number;
+  rotation: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    (async () => {
+      try {
+        await ensurePdfJs();
+        const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!supabaseUrl) throw new Error("Supabase URL missing");
+        const url = `${supabaseUrl}/storage/v1/object/public/project-drawings/${storagePath}`;
+        const pdf = await getDocument(url).promise;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const page: any = await pdf.getPage(pageNumber);
+        const base = page.getViewport({ scale: 1 });
+        const target = 2200;
+        const scale = Math.min(2, target / Math.max(base.width, base.height));
+        const vp = page.getViewport({ scale, rotation });
+        if (cancelled) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        if (!cancelled) setStatus("ready");
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [storagePath, pageNumber, rotation]);
+
+  return (
+    <div className="flex-1 overflow-auto flex items-center justify-center p-6 relative">
+      {status === "loading" && (
+        <div className="absolute flex items-center gap-2 text-sm text-gray-500">
+          <svg className="w-5 h-5 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+          </svg>
+          Rendering page…
+        </div>
+      )}
+      {status === "error" && (
+        <div className="text-sm text-gray-500">Could not render this page.</div>
+      )}
+      <canvas
+        ref={canvasRef}
+        style={{ maxWidth: "100%", maxHeight: "100%", display: status === "ready" ? "block" : "none" }}
+        className="bg-white shadow-lg"
+      />
+    </div>
+  );
+}
+
 function ReviewExtractedModal({
   projectId,
   uploadId,
   drawings,
   onClose,
   onApplied,
+  onDeleted,
 }: {
   projectId: string;
   uploadId: string;
   drawings: DrawingPage[];
   onClose: () => void;
   onApplied: (updates: DrawingPage[]) => void;
+  onDeleted: (drawingId: string) => void;
 }) {
   const [rows, setRows] = useState<ReviewRow[]>(() =>
-    drawings.map((d) => ({
-      drawing_id: d.id,
-      page_number: d.page_number,
-      title: d.title ?? "",
-      drawing_no: d.drawing_no ?? "",
-      category: d.category ?? "",
-      revision: d.revision ?? "",
-      drawing_date: d.drawing_date ?? "",
-      approved: false,
-      saving: false,
-    })),
+    drawings.map((d) => {
+      const uploadedDate = d.uploaded_at ? d.uploaded_at.slice(0, 10) : "";
+      return {
+        drawing_id: d.id,
+        page_number: d.page_number,
+        filename: d.filename,
+        uploaded_at: d.uploaded_at,
+        storage_path: d.storage_path,
+        viewer_page: d.viewer_page,
+        title: d.title ?? "",
+        drawing_no: d.drawing_no ?? "",
+        category: d.category ?? "",
+        revision: d.revision || "0",
+        drawing_date: d.drawing_date ?? "",
+        received_date: d.received_date ?? uploadedDate,
+        confirmed: false,
+        viewed: false,
+        saving: false,
+      };
+    }),
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [applyingAll, setApplyingAll] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    drawings.length > 0 ? drawings[0].id : null,
+  );
+  const [rotation, setRotation] = useState(0);
 
+  // Reset rotation when selection changes
+  useEffect(() => { setRotation(0); }, [selectedId]);
+
+  // Mark the selected row as viewed (once per row)
+  useEffect(() => {
+    if (!selectedId) return;
+    setRows((prev) => {
+      if (!prev.some((r) => r.drawing_id === selectedId && !r.viewed)) return prev;
+      return prev.map((r) => (r.drawing_id === selectedId && !r.viewed ? { ...r, viewed: true } : r));
+    });
+  }, [selectedId]);
+
+  // Run AI extraction once on mount
   useEffect(() => {
     let cancelled = false;
     async function run() {
@@ -1853,7 +1955,7 @@ function ReviewExtractedModal({
               title: m.title || row.title,
               drawing_no: m.sheet_number || row.drawing_no,
               category: m.category || row.category,
-              revision: m.revision || row.revision,
+              revision: m.revision || row.revision || "0",
               drawing_date: m.date || row.drawing_date,
             };
           }),
@@ -1868,12 +1970,25 @@ function ReviewExtractedModal({
     return () => { cancelled = true; };
   }, [projectId, uploadId]);
 
-  function updateRow(drawingId: string, patch: Partial<ReviewRow>) {
-    setRows((prev) => prev.map((r) => (r.drawing_id === drawingId ? { ...r, ...patch } : r)));
+  const selected = rows.find((r) => r.drawing_id === selectedId) ?? null;
+  const confirmedCount = rows.filter((r) => r.confirmed).length;
+  const allConfirmed = rows.length > 0 && confirmedCount === rows.length;
+
+  function updateSelected(patch: Partial<ReviewRow>) {
+    if (!selectedId) return;
+    setRows((prev) =>
+      prev.map((r) => (r.drawing_id === selectedId ? { ...r, ...patch } : r)),
+    );
+  }
+
+  function isValid(r: ReviewRow) {
+    return !!r.drawing_no.trim() && !!r.category;
   }
 
   async function applyRow(row: ReviewRow): Promise<DrawingPage | null> {
-    updateRow(row.drawing_id, { saving: true });
+    setRows((prev) =>
+      prev.map((r) => (r.drawing_id === row.drawing_id ? { ...r, saving: true } : r)),
+    );
     try {
       const res = await fetch(
         `/api/projects/${projectId}/drawings/${row.drawing_id}`,
@@ -1881,192 +1996,326 @@ function ReviewExtractedModal({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            drawing_no: row.drawing_no || null,
-            title: row.title || null,
-            revision: row.revision || null,
+            drawing_no: row.drawing_no.trim() || null,
+            title: row.title.trim() || null,
+            revision: row.revision.trim() || "0",
             drawing_date: row.drawing_date || null,
+            received_date: row.received_date || null,
             category: row.category || null,
           }),
         },
       );
       if (!res.ok) throw new Error("Save failed");
-      const updated = await res.json();
-      updateRow(row.drawing_id, { approved: true, saving: false });
-      return updated as DrawingPage;
+      const updated = (await res.json()) as DrawingPage;
+      setRows((prev) =>
+        prev.map((r) => (r.drawing_id === row.drawing_id ? { ...r, confirmed: true, saving: false } : r)),
+      );
+      return updated;
     } catch {
-      updateRow(row.drawing_id, { saving: false });
+      setRows((prev) =>
+        prev.map((r) => (r.drawing_id === row.drawing_id ? { ...r, saving: false } : r)),
+      );
       return null;
     }
   }
 
-  async function handleApprove(row: ReviewRow) {
-    const updated = await applyRow(row);
-    if (updated) onApplied([updated]);
+  async function handleConfirm() {
+    if (!selected || !isValid(selected) || selected.confirmed) return;
+    const updated = await applyRow(selected);
+    if (updated) {
+      onApplied([updated]);
+      // Advance to the next unconfirmed row (wrap to start if needed)
+      const idx = rows.findIndex((r) => r.drawing_id === selected.drawing_id);
+      const next =
+        rows.slice(idx + 1).find((r) => !r.confirmed) ??
+        rows.slice(0, idx).find((r) => !r.confirmed);
+      if (next) setSelectedId(next.drawing_id);
+    }
   }
 
-  async function handleApproveAll() {
+  async function handleConfirmAll() {
     setApplyingAll(true);
-    const pending = rows.filter((r) => !r.approved);
     const applied: DrawingPage[] = [];
-    for (const row of pending) {
+    const invalidIds: string[] = [];
+    const failedIds: string[] = [];
+    for (const row of rows) {
+      if (row.confirmed) continue;
+      if (!isValid(row)) { invalidIds.push(row.drawing_id); continue; }
       const updated = await applyRow(row);
       if (updated) applied.push(updated);
+      else failedIds.push(row.drawing_id);
     }
     if (applied.length > 0) onApplied(applied);
     setApplyingAll(false);
-    onClose();
+    if (invalidIds.length === 0 && failedIds.length === 0) {
+      onClose();
+    } else {
+      setSelectedId(invalidIds[0] ?? failedIds[0] ?? selectedId);
+    }
   }
 
-  const allApproved = rows.length > 0 && rows.every((r) => r.approved);
-  const approvedCount = rows.filter((r) => r.approved).length;
+  async function handleDelete() {
+    if (!selected) return;
+    const label = selected.drawing_no.trim() || `page ${selected.page_number}`;
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+    const res = await fetch(`/api/projects/${projectId}/drawings/${selected.drawing_id}`, { method: "DELETE" });
+    if (!res.ok) return;
+    const deletedId = selected.drawing_id;
+    const idx = rows.findIndex((r) => r.drawing_id === deletedId);
+    const remaining = rows.filter((r) => r.drawing_id !== deletedId);
+    setRows(remaining);
+    onDeleted(deletedId);
+    if (remaining.length === 0) {
+      onClose();
+    } else {
+      const next = remaining[Math.min(idx, remaining.length - 1)];
+      setSelectedId(next.drawing_id);
+    }
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Review extracted drawing info</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              We read the title block on each page. Edit any field, then approve to save.
-            </p>
+    <div className="fixed inset-0 z-50 flex bg-white">
+      {/* Left panel: drawing list */}
+      <aside className="w-72 shrink-0 border-r border-black/[0.06] flex flex-col bg-white">
+        <div className="px-4 py-3 border-b border-black/[0.06] flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold" style={{ color: "var(--brand-600)" }}>
+            {confirmedCount} of {rows.length} confirmed
+          </span>
+          <button
+            onClick={handleConfirmAll}
+            disabled={applyingAll || loading || allConfirmed || rows.length === 0}
+            className="text-xs font-semibold text-gray-700 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {applyingAll ? "Confirming…" : "Confirm All"}
+          </button>
+        </div>
+        <ul className="flex-1 overflow-y-auto">
+          {rows.map((row) => {
+            const isSelected = row.drawing_id === selectedId;
+            const numLabel = row.drawing_no.trim() || `Page ${row.page_number}`;
+            const titleLabel = row.title.trim() || "—";
+            return (
+              <li key={row.drawing_id}>
+                <button
+                  onClick={() => setSelectedId(row.drawing_id)}
+                  className={`w-full text-left px-4 py-3 border-b border-black/[0.04] flex items-start justify-between gap-2 transition-colors ${
+                    isSelected ? "bg-[#FBF0E6]" : "bg-white hover:bg-gray-50"
+                  }`}
+                  style={
+                    isSelected
+                      ? { borderLeft: "3px solid var(--brand-500)", paddingLeft: "13px" }
+                      : undefined
+                  }
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 truncate">{numLabel}</div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500 truncate mt-0.5">
+                      {titleLabel}
+                    </div>
+                  </div>
+                  <div className="shrink-0 pt-0.5">
+                    {row.confirmed ? (
+                      <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : row.viewed ? (
+                      <span className="text-[10px] uppercase tracking-wide text-gray-400">Viewed</span>
+                    ) : null}
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+
+      {/* Center panel: PDF preview */}
+      <section className="flex-1 min-w-0 flex flex-col bg-gray-100 relative">
+        {selected ? (
+          <>
+            <ReviewPreviewCanvas
+              key={selected.drawing_id}
+              storagePath={selected.storage_path}
+              pageNumber={selected.viewer_page > 0 ? selected.viewer_page : selected.page_number}
+              rotation={rotation}
+            />
+            <div className="absolute bottom-4 left-4">
+              <button
+                onClick={() => setRotation((r) => (r + 90) % 360)}
+                className="btn-secondary"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v6h6M20 20v-6h-6M5 10a8 8 0 0114-3M19 14a8 8 0 01-14 3" />
+                </svg>
+                Rotate Drawing
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-sm text-gray-500">
+            Select a drawing on the left to start.
           </div>
+        )}
+      </section>
+
+      {/* Right panel: General information */}
+      <aside className="w-[440px] shrink-0 border-l border-black/[0.06] flex flex-col bg-white">
+        <div className="px-5 py-4 border-b border-black/[0.06] flex items-start justify-between gap-2">
+          <h2 className="text-base font-semibold text-gray-900">General information</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            className="p-1 -mt-0.5 -mr-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
             aria-label="Close"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {loading && (
-          <div className="px-6 py-12 flex flex-col items-center justify-center text-sm text-gray-500">
-            <svg className="w-6 h-6 animate-spin text-blue-500 mb-3" fill="none" viewBox="0 0 24 24">
+          <div className="px-5 py-2 text-xs text-gray-500 border-b border-black/[0.04] flex items-center gap-2">
+            <svg className="w-3.5 h-3.5 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
             </svg>
             Reading the title block on each page…
           </div>
         )}
-
         {error && !loading && (
-          <div className="px-6 py-4 bg-amber-50 border-b border-amber-100 text-sm text-amber-800">
-            {error}. You can still edit fields manually and approve.
+          <div className="px-5 py-2 text-xs bg-amber-50 border-b border-amber-100 text-amber-800">
+            {error}. You can still edit fields manually and confirm.
           </div>
         )}
 
-        {!loading && (
-          <div className="flex-1 overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide sticky top-0">
-                <tr>
-                  <th className="px-3 py-2 text-left w-12">#</th>
-                  <th className="px-3 py-2 text-left">Sheet No.</th>
-                  <th className="px-3 py-2 text-left">Title</th>
-                  <th className="px-3 py-2 text-left w-44">Category</th>
-                  <th className="px-3 py-2 text-left w-24">Rev.</th>
-                  <th className="px-3 py-2 text-left w-40">Date</th>
-                  <th className="px-3 py-2 text-left w-32"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {rows.map((row) => (
-                  <tr key={row.drawing_id} className={row.approved ? "bg-emerald-50/50" : ""}>
-                    <td className="px-3 py-2 text-gray-500">{row.page_number}</td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={row.drawing_no}
-                        onChange={(e) => updateRow(row.drawing_id, { drawing_no: e.target.value, approved: false })}
-                        className="w-full border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="A-101"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={row.title}
-                        onChange={(e) => updateRow(row.drawing_id, { title: e.target.value, approved: false })}
-                        className="w-full border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Floor Plan"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <select
-                        value={row.category}
-                        onChange={(e) => updateRow(row.drawing_id, { category: e.target.value, approved: false })}
-                        className="w-full border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      >
-                        {CATEGORY_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={row.revision}
-                        onChange={(e) => updateRow(row.drawing_id, { revision: e.target.value, approved: false })}
-                        className="w-full border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="2"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="date"
-                        value={row.drawing_date}
-                        onChange={(e) => updateRow(row.drawing_id, { drawing_date: e.target.value, approved: false })}
-                        className="w-full border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      {row.approved ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-medium">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                          Approved
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleApprove(row)}
-                          disabled={row.saving || applyingAll}
-                          className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-                        >
-                          {row.saving ? "Saving…" : "Approve"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+        {selected ? (
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Drawing Number<span className="text-rose-600">*</span>
+              </label>
+              <input
+                type="text"
+                value={selected.drawing_no}
+                onChange={(e) => updateSelected({ drawing_no: e.target.value })}
+                placeholder="A-101"
+                className="w-full text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-500)]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Discipline<span className="text-rose-600">*</span>
+              </label>
+              <select
+                value={selected.category}
+                onChange={(e) => updateSelected({ category: e.target.value })}
+                className="w-full text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-500)] bg-white"
+              >
+                <option value="">Select a discipline…</option>
+                {CATEGORY_OPTIONS.filter((o) => o.value).map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {DISCIPLINE_LABELS[opt.value] ?? opt.label}
+                  </option>
                 ))}
-              </tbody>
-            </table>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Drawing Title</label>
+              <input
+                type="text"
+                value={selected.title}
+                onChange={(e) => updateSelected({ title: e.target.value })}
+                placeholder="Floor Plan"
+                className="w-full text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-500)]"
+              />
+            </div>
+
+            <div className="pt-2">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Versions</h3>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 text-[10px] font-medium text-gray-500 uppercase tracking-wide">
+                    <tr>
+                      <th className="px-2 py-1.5 text-left">Revision<span className="text-rose-600">*</span></th>
+                      <th className="px-2 py-1.5 text-left">Drawing Date</th>
+                      <th className="px-2 py-1.5 text-left">Received Date</th>
+                      <th className="px-2 py-1.5 text-left">Drawing Set</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="px-2 py-1.5 align-middle">
+                        <input
+                          type="text"
+                          value={selected.revision}
+                          onChange={(e) => updateSelected({ revision: e.target.value })}
+                          className="w-full border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-500)]"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 align-middle">
+                        <input
+                          type="date"
+                          value={selected.drawing_date}
+                          onChange={(e) => updateSelected({ drawing_date: e.target.value })}
+                          className="w-full border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-500)]"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 align-middle">
+                        <input
+                          type="date"
+                          value={selected.received_date}
+                          onChange={(e) => updateSelected({ received_date: e.target.value })}
+                          className="w-full border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-500)]"
+                        />
+                      </td>
+                      <td
+                        className="px-2 py-1.5 align-middle text-gray-700 truncate max-w-[100px]"
+                        title={selected.filename}
+                      >
+                        {selected.filename}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <p className="text-[11px] italic text-rose-600 pt-1">* Required fields</p>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-sm text-gray-500 px-4">
+            No drawing selected.
           </div>
         )}
 
-        <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between gap-3">
-          <p className="text-xs text-gray-500">
-            {approvedCount} of {rows.length} approved
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-1.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              {allApproved ? "Close" : "Skip"}
-            </button>
-            <button
-              onClick={handleApproveAll}
-              disabled={loading || applyingAll || allApproved}
-              className="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {applyingAll ? "Approving…" : "Approve All"}
-            </button>
-          </div>
+        <div className="px-5 py-3 border-t border-black/[0.06] flex items-center justify-end gap-2">
+          <button
+            onClick={handleDelete}
+            disabled={!selected || !!selected?.saving || applyingAll}
+            className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Delete
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={
+              !selected ||
+              !isValid(selected) ||
+              selected.saving ||
+              applyingAll ||
+              selected.confirmed
+            }
+            className="px-4 py-1.5 text-sm font-semibold text-white rounded-md disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            style={{ backgroundColor: "var(--brand-500)" }}
+          >
+            {selected?.saving
+              ? "Saving…"
+              : selected?.confirmed
+              ? "Confirmed"
+              : "Confirm"}
+          </button>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }
@@ -2621,6 +2870,19 @@ export default function DrawingsClient({
                 return u ? { ...d, ...u } : d;
               });
             });
+          }}
+          onDeleted={(drawingId) => {
+            const uploadId = reviewModal.uploadId;
+            setDrawings((prev) => {
+              const remaining = prev.filter((d) => d.id !== drawingId);
+              const stillInUpload = remaining.some((d) => d.upload_id === uploadId);
+              if (!stillInUpload) {
+                setUploads((prevUploads) => prevUploads.filter((u) => u.id !== uploadId));
+              }
+              return remaining;
+            });
+            thumbnails.current.delete(drawingId);
+            if (selected?.id === drawingId) setSelected(null);
           }}
         />
       )}
