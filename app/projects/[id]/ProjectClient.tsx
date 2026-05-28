@@ -399,6 +399,7 @@ export default function ProjectClient({
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [primeContractValue, setPrimeContractValue] = useState(0);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [rainAlert, setRainAlert] = useState<string | null>(null);
   const [openTaskAlerts, setOpenTaskAlerts] = useState<{ id: string; title: string }[]>([]);
@@ -565,6 +566,15 @@ export default function ProjectClient({
           setOpenTaskAlerts(alerts);
         });
     }
+
+    // Sum revised contract amounts from prime contracts
+    fetch(`/api/projects/${projectId}/prime-contracts`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((contracts: { original_contract_amount?: number; approved_change_orders?: number }[]) => {
+        if (!Array.isArray(contracts)) return;
+        const total = contracts.reduce((sum, c) => sum + (c.original_contract_amount ?? 0) + (c.approved_change_orders ?? 0), 0);
+        setPrimeContractValue(total);
+      });
 
     // Load team roles for the team tile
     Promise.all([
@@ -796,15 +806,15 @@ export default function ProjectClient({
                     {(project.city || project.state) && (
                       <em>{[project.city, project.state].filter(Boolean).join(", ")}</em>
                     )}
-                    {(project.city || project.state) && project.value > 0 && (
+                    {(project.city || project.state) && primeContractValue > 0 && (
                       <span style={{ color: "rgba(255,217,176,0.5)" }}>·</span>
                     )}
-                    {project.value > 0 && (
+                    {primeContractValue > 0 && (
                       <span style={{ fontFamily: "JetBrains Mono, monospace" }}>
-                        ${project.value.toLocaleString()} contract
+                        ${primeContractValue.toLocaleString()} contract
                       </span>
                     )}
-                    {(project.value > 0 || project.city || project.state) && (
+                    {(primeContractValue > 0 || project.city || project.state) && (
                       <span style={{ color: "rgba(255,217,176,0.5)" }}>·</span>
                     )}
                     <span style={{ fontFamily: "JetBrains Mono, monospace", textTransform: "capitalize" }}>
