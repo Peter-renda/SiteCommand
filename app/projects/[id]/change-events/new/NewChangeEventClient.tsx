@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import AppHeader from "@/app/components/AppHeader";
@@ -54,6 +54,7 @@ type LineItem = {
 type BudgetItem = {
   id: string;
   cost_code: string;
+  cost_type?: string | null;
   description: string;
 };
 
@@ -76,13 +77,14 @@ function BudgetCodeDropdown({
   value: string;
   budgetItems: BudgetItem[];
   onSelect: (code: string, description: string) => void;
-  onCreateNew: (code: string, description: string) => Promise<void>;
+  onCreateNew: (code: string, description: string, costType: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [newCode, setNewCode] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [newCostType, setNewCostType] = useState("Other");
   const [saving, setSaving] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -143,7 +145,9 @@ function BudgetCodeDropdown({
                   onClick={() => { onSelect(b.cost_code, b.description); setOpen(false); }}
                   className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
                 >
-                  <p className="text-xs font-medium text-gray-800">{b.cost_code}</p>
+                  <p className="text-xs font-medium text-gray-800">
+                    {b.cost_code}{b.cost_type ? <span className="text-gray-400"> · {b.cost_type}</span> : null}
+                  </p>
                   {b.description && <p className="text-[11px] text-gray-500">{b.description}</p>}
                 </button>
               ))
@@ -168,6 +172,13 @@ function BudgetCodeDropdown({
                 onChange={(e) => setNewDesc(e.target.value)}
                 className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
+              <input
+                type="text"
+                placeholder="Cost type"
+                value={newCostType}
+                onChange={(e) => setNewCostType(e.target.value)}
+                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
               <div className="flex gap-1.5 pt-0.5">
                 <button
                   type="button"
@@ -182,13 +193,19 @@ function BudgetCodeDropdown({
                   onClick={async () => {
                     if (!newCode.trim()) return;
                     setSaving(true);
-                    await onCreateNew(newCode.trim(), newDesc.trim());
-                    onSelect(newCode.trim(), newDesc.trim());
-                    setSaving(false);
-                    setCreating(false);
-                    setOpen(false);
-                    setNewCode("");
-                    setNewDesc("");
+                    try {
+                      await onCreateNew(newCode.trim(), newDesc.trim(), newCostType.trim() || "Other");
+                      onSelect(newCode.trim(), newDesc.trim());
+                      setCreating(false);
+                      setOpen(false);
+                      setNewCode("");
+                      setNewDesc("");
+                      setNewCostType("Other");
+                    } catch (error) {
+                      window.alert(error instanceof Error ? error.message : "Unable to create budget line item.");
+                    } finally {
+                      setSaving(false);
+                    }
                   }}
                   className="flex-1 px-2 py-1 text-xs bg-gray-900 hover:bg-gray-700 text-white rounded font-medium disabled:opacity-50"
                 >
@@ -318,29 +335,8 @@ function ClearableSelect({
 
 // ── Rich text toolbar ──────────────────────────────────────────────────────────
 
-function RichTextEditor({ editorRef }: { editorRef: { current: HTMLDivElement | null } }) {
-  function exec(cmd: string, value?: string) {
-    editorRef.current?.focus();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (document as any).execCommand(cmd, false, value ?? undefined);
-  }
-
-  const fontSizes = ["8pt", "10pt", "12pt", "14pt", "16pt", "18pt", "24pt", "36pt"];
-  const [fontSize, setFontSize] = useState("12pt");
-
-  function applyFontSize(size: string) {
-    setFontSize(size);
-    // execCommand fontSize uses 1-7 scale; use a workaround
-    exec("fontSize", "7");
-    const spans = editorRef.current?.querySelectorAll('font[size="7"]');
-    spans?.forEach((span) => {
-      (span as HTMLElement).removeAttribute("size");
-      (span as HTMLElement).style.fontSize = size;
-    });
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ToolBtn = ({ onClick, title, children }: { onClick: () => void; title: string; children?: any }) => (
+function ToolbarButton({ onClick, title, children }: { onClick: () => void; title: string; children?: ReactNode }) {
+  return (
     <button
       type="button"
       title={title}
@@ -353,59 +349,115 @@ function RichTextEditor({ editorRef }: { editorRef: { current: HTMLDivElement | 
       {children}
     </button>
   );
+}
 
-  const Sep = () => <span className="w-px h-4 bg-gray-300 mx-0.5" />;
+function ToolbarSeparator() {
+  return <span className="w-px h-4 bg-gray-300 mx-0.5" />;
+}
+
+function ColorPalette({
+  colors,
+  onSelect,
+  ariaLabel,
+}: {
+  colors: string[];
+  onSelect: (color: string) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="absolute left-0 top-full mt-1 z-10 grid grid-cols-6 gap-1 rounded-md border border-gray-200 bg-white p-1.5 shadow-lg">
+      {colors.map((color) => (
+        <button
+          key={color}
+          type="button"
+          aria-label={`${ariaLabel} ${color}`}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onSelect(color);
+          }}
+          className="h-5 w-5 rounded border border-gray-200 hover:ring-2 hover:ring-gray-300"
+          style={{ backgroundColor: color }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RichTextEditor({ editorRef }: { editorRef: { current: HTMLDivElement | null } }) {
+  function exec(cmd: string, value?: string) {
+    editorRef.current?.focus();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (document as any).execCommand(cmd, false, value ?? undefined);
+  }
+
+  const fontSizes = ["8pt", "10pt", "12pt", "14pt", "16pt", "18pt", "24pt", "36pt"];
+  const textColors = ["#111827", "#dc2626", "#d97706", "#059669", "#2563eb", "#7c3aed"];
+  const highlightColors = ["#fef3c7", "#fee2e2", "#dcfce7", "#dbeafe", "#ede9fe", "#fce7f3"];
+  const [fontSize, setFontSize] = useState("12pt");
+  const [showTextColors, setShowTextColors] = useState(false);
+  const [showHighlightColors, setShowHighlightColors] = useState(false);
+
+  function applyFontSize(size: string) {
+    setFontSize(size);
+    // execCommand fontSize uses 1-7 scale; use a workaround
+    exec("fontSize", "7");
+    const spans = editorRef.current?.querySelectorAll('font[size="7"]');
+    spans?.forEach((span) => {
+      (span as HTMLElement).removeAttribute("size");
+      (span as HTMLElement).style.fontSize = size;
+    });
+  }
 
   return (
     <div className="border border-gray-300 rounded overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center flex-wrap gap-0.5 px-2 py-1.5 border-b border-gray-200 bg-gray-50">
-        <ToolBtn onClick={() => exec("bold")} title="Bold">
+        <ToolbarButton onClick={() => exec("bold")} title="Bold">
           <Bold className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("italic")} title="Italic">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("italic")} title="Italic">
           <Italic className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("underline")} title="Underline">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("underline")} title="Underline">
           <Underline className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("strikeThrough")} title="Strikethrough">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("strikeThrough")} title="Strikethrough">
           <Strikethrough className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <Sep />
-        <ToolBtn onClick={() => exec("justifyLeft")} title="Align Left">
+        </ToolbarButton>
+        <ToolbarSeparator />
+        <ToolbarButton onClick={() => exec("justifyLeft")} title="Align Left">
           <AlignLeft className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("justifyCenter")} title="Align Center">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("justifyCenter")} title="Align Center">
           <AlignCenter className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("justifyRight")} title="Align Right">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("justifyRight")} title="Align Right">
           <AlignRight className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <Sep />
-        <ToolBtn onClick={() => exec("insertUnorderedList")} title="Bullet List">
+        </ToolbarButton>
+        <ToolbarSeparator />
+        <ToolbarButton onClick={() => exec("insertUnorderedList")} title="Bullet List">
           <List className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("insertOrderedList")} title="Numbered List">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("insertOrderedList")} title="Numbered List">
           <ListOrdered className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("outdent")} title="Outdent">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("outdent")} title="Outdent">
           <Outdent className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("indent")} title="Indent">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("indent")} title="Indent">
           <Indent className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <Sep />
-        <ToolBtn onClick={() => exec("cut")} title="Cut">
+        </ToolbarButton>
+        <ToolbarSeparator />
+        <ToolbarButton onClick={() => exec("cut")} title="Cut">
           <Scissors className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("copy")} title="Copy">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("copy")} title="Copy">
           <Copy className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("paste")} title="Paste">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("paste")} title="Paste">
           <Clipboard className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <Sep />
+        </ToolbarButton>
+        <ToolbarSeparator />
         {/* Font size */}
         <div className="relative flex items-center">
           <select
@@ -419,32 +471,64 @@ function RichTextEditor({ editorRef }: { editorRef: { current: HTMLDivElement | 
           </select>
           <ChevronDown className="absolute right-1 w-2.5 h-2.5 text-gray-400 pointer-events-none" />
         </div>
-        <Sep />
-        {/* Text color placeholder */}
-        <button
-          type="button"
-          title="Text Color"
-          className="p-1 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-0.5"
-        >
-          <span className="text-xs font-bold" style={{ color: "#e11d48" }}>A</span>
-          <ChevronDown className="w-2.5 h-2.5 text-gray-400" />
-        </button>
-        {/* Highlight color placeholder */}
-        <button
-          type="button"
-          title="Highlight Color"
-          className="p-1 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-0.5"
-        >
-          <span className="text-xs font-bold" style={{ backgroundColor: "#fde68a", padding: "0 2px" }}>A</span>
-          <ChevronDown className="w-2.5 h-2.5 text-gray-400" />
-        </button>
-        <Sep />
-        <ToolBtn onClick={() => exec("undo")} title="Undo">
+        <ToolbarSeparator />
+        <div className="relative">
+          <button
+            type="button"
+            title="Text Color"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setShowTextColors((open) => !open);
+              setShowHighlightColors(false);
+            }}
+            className="p-1 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-0.5"
+          >
+            <span className="text-xs font-bold" style={{ color: "#dc2626" }}>A</span>
+            <ChevronDown className="w-2.5 h-2.5 text-gray-400" />
+          </button>
+          {showTextColors && (
+            <ColorPalette
+              ariaLabel="Apply text color"
+              colors={textColors}
+              onSelect={(color) => {
+                exec("foreColor", color);
+                setShowTextColors(false);
+              }}
+            />
+          )}
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            title="Highlight Color"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setShowHighlightColors((open) => !open);
+              setShowTextColors(false);
+            }}
+            className="p-1 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-0.5"
+          >
+            <span className="text-xs font-bold" style={{ backgroundColor: "#fef3c7", padding: "0 2px" }}>A</span>
+            <ChevronDown className="w-2.5 h-2.5 text-gray-400" />
+          </button>
+          {showHighlightColors && (
+            <ColorPalette
+              ariaLabel="Apply highlight color"
+              colors={highlightColors}
+              onSelect={(color) => {
+                exec("hiliteColor", color);
+                setShowHighlightColors(false);
+              }}
+            />
+          )}
+        </div>
+        <ToolbarSeparator />
+        <ToolbarButton onClick={() => exec("undo")} title="Undo">
           <RotateCcw className="w-3.5 h-3.5" />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec("redo")} title="Redo">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => exec("redo")} title="Redo">
           <RotateCw className="w-3.5 h-3.5" />
-        </ToolBtn>
+        </ToolbarButton>
       </div>
       {/* Editable area */}
       <div
@@ -931,17 +1015,25 @@ export default function NewChangeEventClient({
       .catch(() => {});
   }, [projectId, sourceId, sourceType]);
 
-  async function handleCreateBudgetCode(code: string, description: string) {
-    await fetch(`/api/projects/${projectId}/budget`, {
+  async function handleCreateBudgetCode(code: string, description: string, costType: string) {
+    const res = await fetch(`/api/projects/${projectId}/budget`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cost_code: code, description }),
-    })
-      .then((r) => r.json())
-      .then((item) => {
-        if (item?.id) setBudgetItems((prev) => [...prev, item]);
-      })
-      .catch(() => {});
+      body: JSON.stringify({
+        cost_code: code,
+        cost_type: costType || "Other",
+        description,
+        original_budget_amount: 0,
+        is_partial_line_item: true,
+        sort_order: budgetItems.length,
+      }),
+    });
+
+    const item = await res.json();
+    if (!res.ok) {
+      throw new Error(item?.error || "Unable to create budget line item.");
+    }
+    if (item?.id) setBudgetItems((prev) => [...prev, item]);
   }
 
   function updateLine(id: string, field: keyof LineItem, value: string) {
