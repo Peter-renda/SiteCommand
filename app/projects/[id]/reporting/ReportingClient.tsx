@@ -2363,6 +2363,7 @@ type AssistRecommendation = {
   sortDirection?: "asc" | "desc";
   groupByKey?: string;
   calculatedColumns: AssistCalculatedColumn[];
+  filters: ReportFilter[];
   name: string;
   description: string;
   reasoning?: string;
@@ -2435,6 +2436,31 @@ function AssistReportModal({
           })
         : [];
 
+      const validKeys = new Set(def.columns.map((c) => c.key));
+      const validFilterModes: FilterMode[] = [
+        "matches",
+        "not_matches",
+        "contains",
+        "not_contains",
+        "starts_with",
+        "ends_with",
+      ];
+      const rawFilters: ReportFilter[] = Array.isArray(payload.filters)
+        ? (payload.filters as Array<Record<string, unknown>>).flatMap((f) => {
+            const columnKey = typeof f.columnKey === "string" && validKeys.has(f.columnKey) ? f.columnKey : "";
+            const mode = validFilterModes.includes(f.mode as FilterMode)
+              ? (f.mode as FilterMode)
+              : "matches";
+            const values = Array.isArray(f.values)
+              ? (f.values as unknown[])
+                  .map((v) => (typeof v === "string" ? v : v == null ? "" : String(v)))
+                  .filter((v) => v.length > 0)
+              : [];
+            if (!columnKey || values.length === 0) return [];
+            return [{ id: crypto.randomUUID(), columnKey, mode, values }];
+          })
+        : [];
+
       onCreate({
         reportType: payload.reportType,
         columns: Array.isArray(payload.columns) ? payload.columns : [],
@@ -2443,6 +2469,7 @@ function AssistReportModal({
           payload.sortDirection === "desc" ? "desc" : payload.sortDirection === "asc" ? "asc" : undefined,
         groupByKey: typeof payload.groupByKey === "string" ? payload.groupByKey : undefined,
         calculatedColumns: rawCalcs,
+        filters: rawFilters,
         name: typeof payload.name === "string" ? payload.name : def.label,
         description: typeof payload.description === "string" ? payload.description : def.description,
         reasoning: typeof payload.reasoning === "string" ? payload.reasoning : "",
@@ -3540,6 +3567,7 @@ export default function ReportingClient({
               }),
               visualConfig: visualConfig as unknown as Record<string, unknown>,
               calculatedColumns: calculatedColumns as unknown as Record<string, unknown>[],
+              filters: rec.filters as unknown as Record<string, unknown>[],
             };
             saveReport(projectId, stored);
             handleSaveReport({
@@ -3554,6 +3582,7 @@ export default function ReportingClient({
               sharedWith: stored.sharedWith,
               calculatedColumns,
               visualConfig,
+              filters: rec.filters,
             });
             setStatusBanner(`Assist created “${stored.name}”. It’s now in My Reports.`);
             setSelectedSectionId("my-reports");
