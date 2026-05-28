@@ -1173,6 +1173,7 @@ function RunReportModal({
   onClose,
   onSave,
   onUpdate,
+  fullscreen,
 }: {
   reportDef: ReportDef;
   projectId: string;
@@ -1181,6 +1182,7 @@ function RunReportModal({
   onClose: () => void;
   onSave: (report: SavedReport) => void;
   onUpdate?: (reportId: string, patch: Partial<SavedReport>) => void;
+  fullscreen?: boolean;
 }) {
   const today = new Date();
   const [reportName, setReportName] = useState(existingReport?.name ?? reportDef.label);
@@ -1412,8 +1414,8 @@ function RunReportModal({
   }, [existingReport?.id]);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8">
-      <div className="bg-white rounded-xl w-full max-w-4xl shadow-xl flex flex-col max-h-[90vh]">
+    <div className={fullscreen ? "fixed inset-0 bg-white z-50 flex flex-col overflow-hidden" : "fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8"}>
+      <div className={fullscreen ? "flex flex-col flex-1 overflow-hidden" : "bg-white rounded-xl w-full max-w-4xl shadow-xl flex flex-col max-h-[90vh]"}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
             <input
@@ -2771,6 +2773,7 @@ export default function ReportingClient({
   const [activeReport, setActiveReport] = useState<ReportDef | null>(null);
   const [activeCalculatedColumns, setActiveCalculatedColumns] = useState<CalculatedColumn[]>([]);
   const [activeSavedReport, setActiveSavedReport] = useState<SavedReport | null>(null);
+  const [activeReportFullscreen, setActiveReportFullscreen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createType, setCreateType] = useState("");
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
@@ -3413,10 +3416,12 @@ export default function ReportingClient({
           projectId={projectId}
           existingReport={activeSavedReport}
           initialCalculatedColumns={activeCalculatedColumns}
+          fullscreen={activeReportFullscreen}
           onClose={() => {
             setActiveReport(null);
             setActiveSavedReport(null);
             setActiveCalculatedColumns([]);
+            setActiveReportFullscreen(false);
           }}
           onSave={handleSaveReport}
           onUpdate={updateSavedReport}
@@ -3589,6 +3594,7 @@ export default function ReportingClient({
             setActiveReport(rec.def);
             setActiveSavedReport(savedReport);
             setActiveCalculatedColumns(calculatedColumns);
+            setActiveReportFullscreen(true);
             setStatusBanner(`Assist created “${stored.name}”. Review and adjust as needed.`);
           }}
         />
