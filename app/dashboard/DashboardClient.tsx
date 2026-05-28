@@ -996,13 +996,13 @@ export default function DashboardClient({ username, email, role, companyRole, us
                     <button
                       type="button"
                       onClick={() => myOpenItemsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                      className="block text-left font-display text-[32px] sm:text-[40px] leading-[1.05] text-[color:var(--ink)] mb-1 hover:opacity-85 transition-opacity"
+                      className="group block text-left font-display text-[32px] sm:text-[40px] leading-[1.05] text-[color:var(--ink)] mb-1 hover:opacity-85 transition-opacity"
                     >
                       {attentionCount > 0 ? (
                         <>
                           <span className="tabular-nums">{attentionCount}</span>{" "}
                           {attentionCount === 1 ? "item" : "items"}{" "}
-                          <span className="serif-italic text-gray-500">need your attention</span>
+                          <span className="serif-italic text-gray-500 group-hover:underline underline-offset-4 decoration-[1.5px]">need your attention</span>
                         </>
                       ) : (
                         <>
@@ -1019,10 +1019,10 @@ export default function DashboardClient({ username, email, role, companyRole, us
                     <button
                       type="button"
                       onClick={() => whileAwayRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                      className="block text-left font-display text-[32px] sm:text-[40px] leading-[1.05] text-[color:var(--ink)] mb-6 hover:opacity-85 transition-opacity"
+                      className="group block text-left font-display text-[32px] sm:text-[40px] leading-[1.05] text-[color:var(--ink)] mb-6 hover:opacity-85 transition-opacity"
                     >
                       <span className="tabular-nums font-semibold">{updatesWhileAwayCount} {updatesWhileAwayCount === 1 ? "item" : "items"}</span>{" "}
-                      <span className="serif-italic text-gray-500">were updated while you were away</span>
+                      <span className="serif-italic text-gray-500 group-hover:underline underline-offset-4 decoration-[1.5px]">were updated while you were away</span>
                     </button>
 
                     {scopedTasks.length > 0 && (
