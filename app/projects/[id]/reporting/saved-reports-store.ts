@@ -27,6 +27,8 @@ export type StoredReport = {
     dataSetId: string | null;
     selectedColumns: string[];
   }[];
+  visualConfig?: Record<string, unknown>;
+  calculatedColumns?: Record<string, unknown>[];
   lastRunRecordCount?: number;
 };
 

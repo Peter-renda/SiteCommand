@@ -1841,9 +1841,24 @@ function PromoteReportModal({
   );
 }
 
+type AssistCalculatedColumn = {
+  name: string;
+  output: CalculatedOutput;
+  leftSource: string;
+  operator: "+" | "-" | "*" | "/";
+  rightSource: string;
+  leftConstant?: number;
+  rightConstant?: number;
+  decimals: number;
+  rounding: boolean;
+};
+
 type AssistRecommendation = {
   reportType: string;
   columns: string[];
+  sortByKey?: string;
+  sortDirection?: "asc" | "desc";
+  calculatedColumns: AssistCalculatedColumn[];
   name: string;
   description: string;
   reasoning?: string;
@@ -1889,9 +1904,42 @@ function AssistReportModal({
         setError("Assist returned an unrecognized report type.");
         return;
       }
+      const calcOutputs: CalculatedOutput[] = ["number", "currency", "percent", "date-variance"];
+      const rawCalcs: AssistCalculatedColumn[] = Array.isArray(payload.calculatedColumns)
+        ? (payload.calculatedColumns as Array<Record<string, unknown>>).flatMap((c) => {
+            const name = typeof c.name === "string" ? c.name : "";
+            const output = calcOutputs.includes(c.output as CalculatedOutput)
+              ? (c.output as CalculatedOutput)
+              : "number";
+            const operator = ["+", "-", "*", "/"].includes(c.operator as string)
+              ? (c.operator as "+" | "-" | "*" | "/")
+              : "+";
+            const leftSource = typeof c.leftSource === "string" ? c.leftSource : "constant";
+            const rightSource = typeof c.rightSource === "string" ? c.rightSource : "constant";
+            if (!name) return [];
+            return [
+              {
+                name,
+                output,
+                leftSource,
+                operator,
+                rightSource,
+                leftConstant: typeof c.leftConstant === "number" ? c.leftConstant : undefined,
+                rightConstant: typeof c.rightConstant === "number" ? c.rightConstant : undefined,
+                decimals: typeof c.decimals === "number" ? c.decimals : 2,
+                rounding: typeof c.rounding === "boolean" ? c.rounding : true,
+              },
+            ];
+          })
+        : [];
+
       setRecommendation({
         reportType: payload.reportType,
         columns: Array.isArray(payload.columns) ? payload.columns : [],
+        sortByKey: typeof payload.sortByKey === "string" ? payload.sortByKey : undefined,
+        sortDirection:
+          payload.sortDirection === "desc" ? "desc" : payload.sortDirection === "asc" ? "asc" : undefined,
+        calculatedColumns: rawCalcs,
         name: typeof payload.name === "string" ? payload.name : def.label,
         description: typeof payload.description === "string" ? payload.description : def.description,
         reasoning: typeof payload.reasoning === "string" ? payload.reasoning : "",
@@ -1928,7 +1976,7 @@ function AssistReportModal({
             disabled={loading}
             className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm disabled:opacity-50"
           >
-            {loading ? "Generating…" : "Generate Recommendation"}
+            {loading ? "Generating…" : "Generate Report"}
           </button>
           <button onClick={onClose} className="px-4 py-2 border border-gray-200 text-gray-600 rounded-md text-sm">
             Close
@@ -1955,6 +2003,31 @@ function AssistReportModal({
                       className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
                     >
                       {c.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {recommendation.sortByKey && (
+              <div className="mt-3">
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Sort</p>
+                <p className="text-[11px] text-gray-700">
+                  {recommendation.def.columns.find((c) => c.key === recommendation.sortByKey)?.label ??
+                    recommendation.sortByKey}
+                  {" "}({recommendation.sortDirection === "desc" ? "descending" : "ascending"})
+                </p>
+              </div>
+            )}
+            {recommendation.calculatedColumns.length > 0 && (
+              <div className="mt-3">
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Custom columns</p>
+                <div className="flex flex-wrap gap-1">
+                  {recommendation.calculatedColumns.map((c, idx) => (
+                    <span
+                      key={`${c.name}-${idx}`}
+                      className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-2 py-0.5 text-[11px]"
+                    >
+                      {c.name}
                     </span>
                   ))}
                 </div>
@@ -2291,6 +2364,8 @@ export default function ReportingClient({
       updatedAt: report.updatedAt,
       sharedWith: report.sharedWith,
       lastRunRecordCount: report.lastRunRecordCount,
+      visualConfig: report.visualConfig as unknown as Record<string, unknown> | undefined,
+      calculatedColumns: report.calculatedColumns as unknown as Record<string, unknown>[] | undefined,
     });
   }
 
@@ -2325,6 +2400,8 @@ export default function ReportingClient({
           sharedWith: p.sharedWith ?? [],
           lastRunRecordCount: p.lastRunRecordCount,
           hasSingleToolTabs: (p.singleToolTabs?.length ?? 0) > 0,
+          visualConfig: p.visualConfig as unknown as VisualConfig | undefined,
+          calculatedColumns: p.calculatedColumns as unknown as CalculatedColumn[] | undefined,
         }));
       return [...additions, ...prev];
     });
@@ -2977,6 +3054,24 @@ export default function ReportingClient({
             setShowAssistModal(false);
             const now = new Date().toISOString();
             const isDailyLog = rec.def.group === "Daily Log";
+            const calculatedColumns: CalculatedColumn[] = rec.calculatedColumns.map((c) => ({
+              id: `calc_${crypto.randomUUID()}`,
+              name: c.name,
+              type: c.output === "date-variance" ? "date-variance" : "basic",
+              output: c.output,
+              leftSource: c.leftSource,
+              operator: c.operator,
+              rightSource: c.rightSource,
+              leftConstant: c.leftConstant,
+              rightConstant: c.rightConstant,
+              decimals: c.decimals,
+              rounding: c.rounding,
+            }));
+            const visualConfig: VisualConfig = {
+              visualType: "table",
+              sortByKey: rec.sortByKey,
+              sortDirection: rec.sortDirection ?? "asc",
+            };
             const stored: StoredReport = {
               id: crypto.randomUUID(),
               name: rec.name,
@@ -2998,6 +3093,8 @@ export default function ReportingClient({
                   fieldLabel: col?.label ?? key,
                 };
               }),
+              visualConfig: visualConfig as unknown as Record<string, unknown>,
+              calculatedColumns: calculatedColumns as unknown as Record<string, unknown>[],
             };
             saveReport(projectId, stored);
             handleSaveReport({
@@ -3010,6 +3107,8 @@ export default function ReportingClient({
               createdAt: stored.createdAt,
               updatedAt: stored.updatedAt,
               sharedWith: stored.sharedWith,
+              calculatedColumns,
+              visualConfig,
             });
             setStatusBanner(`Assist created “${stored.name}”. It’s now in My Reports.`);
             setSelectedSectionId("my-reports");
