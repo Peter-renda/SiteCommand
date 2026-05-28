@@ -32,7 +32,15 @@ import {
   Search,
   Plus,
   HelpCircle,
+  Home,
 } from "lucide-react";
+import {
+  COST_CODE_CATEGORIES,
+  COST_TYPES,
+  costTypeLabel,
+  subcategoryLabel,
+  type CostCodeCategory,
+} from "@/lib/cost-codes";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -81,11 +89,7 @@ function BudgetCodeDropdown({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [newCode, setNewCode] = useState("");
-  const [newDesc, setNewDesc] = useState("");
-  const [newCostType, setNewCostType] = useState("Other");
-  const [saving, setSaving] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,7 +97,6 @@ function BudgetCodeDropdown({
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setCreating(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -111,7 +114,7 @@ function BudgetCodeDropdown({
     <div ref={containerRef} className="relative">
       <button
         type="button"
-        onClick={() => { setOpen((o) => !o); setSearch(""); setCreating(false); }}
+        onClick={() => { setOpen((o) => !o); setSearch(""); }}
         className="w-full flex items-center justify-between px-1.5 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-300 bg-white text-left"
       >
         <span className={value ? "text-gray-800 truncate" : "text-gray-400"}>{value || "--"}</span>
@@ -155,77 +158,340 @@ function BudgetCodeDropdown({
           </div>
 
           {/* Create section */}
-          {creating ? (
-            <div className="border-t border-gray-100 px-3 py-2.5 space-y-1.5">
-              <input
-                autoFocus
-                type="text"
-                placeholder="Budget code"
-                value={newCode}
-                onChange={(e) => setNewCode(e.target.value)}
-                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-              <input
-                type="text"
-                placeholder="Description"
-                value={newDesc}
-                onChange={(e) => setNewDesc(e.target.value)}
-                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-              <input
-                type="text"
-                placeholder="Cost type"
-                value={newCostType}
-                onChange={(e) => setNewCostType(e.target.value)}
-                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-              <div className="flex gap-1.5 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => setCreating(false)}
-                  className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded text-gray-600 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={!newCode.trim() || saving}
-                  onClick={async () => {
-                    if (!newCode.trim()) return;
-                    setSaving(true);
-                    try {
-                      await onCreateNew(newCode.trim(), newDesc.trim(), newCostType.trim() || "Other");
-                      onSelect(newCode.trim(), newDesc.trim());
-                      setCreating(false);
-                      setOpen(false);
-                      setNewCode("");
-                      setNewDesc("");
-                      setNewCostType("Other");
-                    } catch (error) {
-                      window.alert(error instanceof Error ? error.message : "Unable to create budget line item.");
-                    } finally {
-                      setSaving(false);
-                    }
-                  }}
-                  className="flex-1 px-2 py-1 text-xs bg-gray-900 hover:bg-gray-700 text-white rounded font-medium disabled:opacity-50"
-                >
-                  {saving ? "Saving…" : "Save"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-xs font-medium transition-colors rounded-b"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Create
-              <HelpCircle className="w-3.5 h-3.5 opacity-70" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => { setShowCreateModal(true); setOpen(false); }}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-xs font-medium transition-colors rounded-b"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Create
+            <HelpCircle className="w-3.5 h-3.5 opacity-70" />
+          </button>
         </div>
       )}
+
+      {showCreateModal && (
+        <CreateBudgetCodeModal
+          onClose={() => setShowCreateModal(false)}
+          onCreate={async (code, description, costType) => {
+            await onCreateNew(code, description, costType);
+            onSelect(code, description);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Hierarchical select (cost code categories → subcategories, cost types) ──────
+
+function HierSelect({
+  placeholder,
+  valueLabel,
+  children,
+}: {
+  placeholder: string;
+  valueLabel: string | null;
+  children: (close: () => void) => ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white text-left"
+      >
+        <span className={valueLabel ? "text-gray-800 truncate" : "text-gray-400"}>
+          {valueLabel || placeholder}
+        </span>
+        <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 ml-1" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-[60] bg-white border border-gray-200 rounded shadow-lg w-full">
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Create Budget Code Modal ───────────────────────────────────────────────────
+
+function CreateBudgetCodeModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (code: string, description: string, costType: string) => Promise<void>;
+}) {
+  const [costCode, setCostCode] = useState<{ code: string; name: string } | null>(null);
+  const [costType, setCostType] = useState<{ code: string; name: string } | null>(null);
+  const [descMode, setDescMode] = useState<"concatenated" | "custom">("concatenated");
+  const [customDesc, setCustomDesc] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Cost code picker drill-down state
+  const [activeCategory, setActiveCategory] = useState<CostCodeCategory | null>(null);
+  const [codeSearch, setCodeSearch] = useState("");
+  const [typeSearch, setTypeSearch] = useState("");
+
+  const concatenated = costCode
+    ? costType
+      ? `${costCode.name} - ${costType.name}`
+      : costCode.name
+    : "";
+
+  const finalDescription = descMode === "custom" ? customDesc.trim() || concatenated : concatenated;
+  const canCreate = !!costCode && !!costType && !saving;
+
+  async function handleCreate() {
+    if (!costCode || !costType) return;
+    setSaving(true);
+    try {
+      await onCreate(costCode.code, finalDescription, costType.name);
+      onClose();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to create budget code.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const filteredCategories = COST_CODE_CATEGORIES.filter(
+    (c) =>
+      !codeSearch ||
+      c.code.includes(codeSearch) ||
+      c.name.toLowerCase().includes(codeSearch.toLowerCase())
+  );
+  const filteredSubcategories = (activeCategory?.subcategories ?? []).filter(
+    (s) =>
+      !codeSearch ||
+      s.code.includes(codeSearch) ||
+      s.name.toLowerCase().includes(codeSearch.toLowerCase())
+  );
+  const filteredTypes = COST_TYPES.filter(
+    (t) =>
+      !typeSearch ||
+      t.code.toLowerCase().includes(typeSearch.toLowerCase()) ||
+      t.name.toLowerCase().includes(typeSearch.toLowerCase())
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/40 p-4 pt-24"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onMouseDown={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900">Create Budget Code</h3>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4">
+          {/* Cost Code */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Cost Code <span className="text-red-500">*</span>
+            </label>
+            <HierSelect
+              placeholder="Select an item"
+              valueLabel={costCode ? `${costCode.code} - ${costCode.name}` : null}
+            >
+              {(close) => (
+                <div>
+                  {/* Search */}
+                  <div className="flex items-center border-b border-gray-100 px-3 py-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Search"
+                      value={codeSearch}
+                      onChange={(e) => setCodeSearch(e.target.value)}
+                      className="flex-1 text-sm focus:outline-none"
+                    />
+                    <Search className="w-4 h-4 text-gray-400 ml-2 shrink-0" />
+                  </div>
+
+                  {activeCategory ? (
+                    <>
+                      {/* Breadcrumb */}
+                      <button
+                        type="button"
+                        onClick={() => { setActiveCategory(null); setCodeSearch(""); }}
+                        className="w-full flex items-center gap-1.5 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 border-b border-gray-100"
+                      >
+                        <Home className="w-3.5 h-3.5" />
+                        <ChevronRight className="w-3 h-3 text-gray-400" />
+                        <span className="font-medium">{activeCategory.code} - {activeCategory.name}</span>
+                      </button>
+                      <div className="max-h-60 overflow-y-auto">
+                        {filteredSubcategories.length === 0 ? (
+                          <p className="text-sm text-gray-400 px-3 py-3 text-center">No items found</p>
+                        ) : (
+                          filteredSubcategories.map((s) => (
+                            <button
+                              key={s.code}
+                              type="button"
+                              onClick={() => {
+                                setCostCode({ code: s.code, name: s.name });
+                                setActiveCategory(null);
+                                setCodeSearch("");
+                                close();
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-b-0"
+                            >
+                              {subcategoryLabel(s)}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="max-h-60 overflow-y-auto">
+                      {filteredCategories.length === 0 ? (
+                        <p className="text-sm text-gray-400 px-3 py-3 text-center">No items found</p>
+                      ) : (
+                        filteredCategories.map((c) => (
+                          <button
+                            key={c.code}
+                            type="button"
+                            onClick={() => { setActiveCategory(c); setCodeSearch(""); }}
+                            className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-b-0"
+                          >
+                            <span>{c.code} - {c.name}</span>
+                            <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </HierSelect>
+          </div>
+
+          {/* Cost Type */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Cost Type <span className="text-red-500">*</span>
+            </label>
+            <HierSelect
+              placeholder="Select an item"
+              valueLabel={costType ? costTypeLabel(costType) : null}
+            >
+              {(close) => (
+                <div>
+                  <div className="flex items-center border-b border-gray-100 px-3 py-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Search"
+                      value={typeSearch}
+                      onChange={(e) => setTypeSearch(e.target.value)}
+                      className="flex-1 text-sm focus:outline-none"
+                    />
+                    <Search className="w-4 h-4 text-gray-400 ml-2 shrink-0" />
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {filteredTypes.length === 0 ? (
+                      <p className="text-sm text-gray-400 px-3 py-3 text-center">No items found</p>
+                    ) : (
+                      filteredTypes.map((t) => (
+                        <button
+                          key={t.code}
+                          type="button"
+                          onClick={() => { setCostType({ code: t.code, name: t.name }); setTypeSearch(""); close(); }}
+                          className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-b-0"
+                        >
+                          {costTypeLabel(t)}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </HierSelect>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="flex items-center gap-1 text-xs font-semibold text-gray-700 mb-1">
+              Description <span className="text-red-500">*</span>
+              <HelpCircle className="w-3.5 h-3.5 text-gray-400" />
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="desc-mode"
+                  checked={descMode === "concatenated"}
+                  onChange={() => setDescMode("concatenated")}
+                  className="mt-0.5"
+                />
+                <span className="text-sm text-gray-700">
+                  Concatenated
+                  <span className="block text-xs text-gray-500">{concatenated || "-"}</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="desc-mode"
+                  checked={descMode === "custom"}
+                  onChange={() => setDescMode("custom")}
+                  className="mt-0.5"
+                />
+                <span className="flex-1 text-sm text-gray-700">
+                  Custom
+                  <input
+                    type="text"
+                    value={customDesc}
+                    onChange={(e) => setCustomDesc(e.target.value)}
+                    onFocus={() => setDescMode("custom")}
+                    placeholder="Enter custom description, or leave blank to use concatenated description"
+                    className="mt-1 w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm font-medium text-gray-600 hover:text-gray-800"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canCreate}
+            onClick={handleCreate}
+            className="px-4 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white rounded disabled:opacity-50"
+          >
+            {saving ? "Creating…" : "Create"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -631,7 +897,7 @@ function LineItemsTable({
   vendorOptions: string[];
   contractOptions: string[];
   budgetItems: BudgetItem[];
-  onCreateBudgetCode: (code: string, description: string) => Promise<void>;
+  onCreateBudgetCode: (code: string, description: string, costType: string) => Promise<void>;
   onAddLinesForAllCommitments: () => void;
   onImportCsv: (file: File) => void;
 }) {
