@@ -19,7 +19,7 @@ export type StoredReport = {
     source: string;
     fieldKey: string;
     fieldLabel: string;
-    format?: "currency" | "date" | "text";
+    format?: "currency" | "date" | "text" | "number";
   }[];
   singleToolTabs?: {
     id: string;

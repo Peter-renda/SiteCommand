@@ -19,7 +19,7 @@ import {
 // primary entity fetched from a project API — selecting any column under that
 // category populates one row per record of that entity.
 
-type FieldDef = { key: string; label: string; format?: "currency" | "date" | "text" };
+type FieldDef = { key: string; label: string; format?: "currency" | "date" | "text" | "number" };
 
 type CategoryDef = {
   label: string;
@@ -33,33 +33,58 @@ const FINANCIALS_CATEGORIES: CategoryDef[] = [
     label: "Budget Code",
     source: "budget-codes",
     fields: [
-      { key: "code", label: "Code" },
-      { key: "description", label: "Description" },
+      { key: "attribute_1_line_items", label: "Attribute 1 Line Items" },
+      { key: "attribute_1_name", label: "Attribute 1 Name" },
+      { key: "attribute_2_line_items", label: "Attribute 2 Line Items" },
+      { key: "attribute_2_name", label: "Attribute 2 Name" },
+      { key: "attribute_3_line_items", label: "Attribute 3 Line Items" },
+      { key: "attribute_3_name", label: "Attribute 3 Name" },
+      { key: "budget_code", label: "Budget Code" },
+      { key: "budget_code_description", label: "Budget Code Description" },
+      { key: "budget_code_status", label: "Budget Code Status" },
+      { key: "cost_code", label: "Cost Code" },
+      { key: "cost_code_description", label: "Cost Code Description" },
+      { key: "cost_code_tier_1", label: "Cost Code Tier 1" },
+      { key: "cost_code_tier_1_description", label: "Cost Code Tier 1 Description" },
+      { key: "cost_code_tier_2", label: "Cost Code Tier 2" },
+      { key: "cost_code_tier_2_description", label: "Cost Code Tier 2 Description" },
       { key: "cost_type", label: "Cost Type" },
-      { key: "active", label: "Active" },
+      { key: "cost_type_description", label: "Cost Type Description" },
+      { key: "count", label: "Count", format: "number" },
+      { key: "id", label: "ID", format: "number" },
     ],
   },
   {
     label: "Budget Line Item",
     source: "budget-line-items",
     fields: [
-      { key: "cost_code", label: "Cost Code" },
-      { key: "description", label: "Description" },
-      { key: "original_budget", label: "Original Budget", format: "currency" },
-      { key: "revised_budget", label: "Revised Budget", format: "currency" },
-      { key: "committed_costs", label: "Committed Costs", format: "currency" },
-      { key: "variance", label: "Variance", format: "currency" },
+      { key: "budget_calculation_strategy", label: "Budget Calculation Strategy" },
+      { key: "count", label: "Count", format: "number" },
+      { key: "currency_code", label: "Currency Code" },
+      { key: "date_created", label: "Date Created", format: "date" },
+      { key: "date_updated", label: "Date Updated", format: "date" },
+      { key: "id", label: "ID", format: "number" },
+      { key: "notes", label: "Notes" },
+      { key: "original_budget_amount", label: "Original Budget Amount", format: "currency" },
+      { key: "original_budgeted_hours", label: "Original Budgeted Hours", format: "number" },
+      { key: "unit_cost", label: "Unit Cost", format: "currency" },
+      { key: "unit_of_measure", label: "Unit Of Measure" },
+      { key: "unit_quantity", label: "Unit Quantity", format: "number" },
     ],
   },
   {
     label: "Budget Modification",
     source: "budget-modifications",
     fields: [
-      { key: "number", label: "#" },
-      { key: "title", label: "Title" },
-      { key: "status", label: "Status" },
-      { key: "amount", label: "Amount", format: "currency" },
-      { key: "created_at", label: "Created", format: "date" },
+      { key: "budget_modification_type", label: "Budget Modification Type" },
+      { key: "count", label: "Count", format: "number" },
+      { key: "created_by", label: "Created By" },
+      { key: "currency_code", label: "Currency Code" },
+      { key: "date_created", label: "Date Created", format: "date" },
+      { key: "date_updated", label: "Date Updated", format: "date" },
+      { key: "id", label: "ID" },
+      { key: "notes", label: "Notes" },
+      { key: "transfer_amount", label: "Transfer Amount", format: "currency" },
     ],
   },
   {
@@ -1823,6 +1848,11 @@ function formatCell(value: unknown, format?: FieldDef["format"]) {
     const d = new Date(String(value));
     if (Number.isNaN(d.getTime())) return String(value);
     return d.toLocaleDateString();
+  }
+  if (format === "number") {
+    const n = typeof value === "number" ? value : parseFloat(String(value));
+    if (Number.isNaN(n)) return String(value);
+    return n.toLocaleString("en-US");
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "object") return JSON.stringify(value);
