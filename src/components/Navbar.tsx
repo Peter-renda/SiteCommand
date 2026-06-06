@@ -56,15 +56,10 @@ const navItems: NavItemType[] = [
   { label: "Pricing", items: [], href: "/pricing" },
 ];
 
-type NavbarProps = { hidePricing?: boolean };
-
-export default function Navbar({ hidePricing = true }: NavbarProps) {
+export default function Navbar() {
   const [open, setOpen] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
-  const visibleNavItems = hidePricing
-    ? navItems.filter((item) => item.label !== "Pricing")
-    : navItems;
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
@@ -72,7 +67,7 @@ export default function Navbar({ hidePricing = true }: NavbarProps) {
           SiteCommand
         </a>
         <div className="hidden md:flex items-center gap-1">
-          {visibleNavItems.map((item) => (
+          {navItems.map((item) => (
             <div
               key={item.label}
               className="relative"

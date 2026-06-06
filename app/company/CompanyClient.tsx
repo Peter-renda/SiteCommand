@@ -70,6 +70,7 @@ export default function CompanyClient({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [archiveConfirm, setArchiveConfirm] = useState<Project | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -105,6 +106,22 @@ export default function CompanyClient({
       );
       setOpenMenuId(null);
     }
+  }
+
+  async function handleManageBilling() {
+    setBillingLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      alert(data.error || "Unable to open the billing portal.");
+    } catch {
+      alert("Unable to open the billing portal.");
+    }
+    setBillingLoading(false);
   }
 
   const activeProjects = projectList.filter((p) => !p.archived_at);
@@ -219,12 +236,22 @@ const seatCount = members.length;
             {isSuperAdmin && (
               <>
                 <span className="text-gray-300">·</span>
-                <a
-                  href="/pricing"
-                  className="text-sm text-amber-600 hover:text-amber-800 font-medium transition-colors"
-                >
-                  {company?.subscription_plan ? "Manage billing" : "Upgrade plan"}
-                </a>
+                {company?.subscription_plan ? (
+                  <button
+                    onClick={handleManageBilling}
+                    disabled={billingLoading}
+                    className="text-sm text-amber-600 hover:text-amber-800 font-medium transition-colors disabled:opacity-50"
+                  >
+                    {billingLoading ? "Opening…" : "Manage billing"}
+                  </button>
+                ) : (
+                  <a
+                    href="/pricing"
+                    className="text-sm text-amber-600 hover:text-amber-800 font-medium transition-colors"
+                  >
+                    Upgrade plan
+                  </a>
+                )}
               </>
             )}
           </div>
