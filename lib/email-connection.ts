@@ -1,6 +1,22 @@
 import { getSupabase } from "./supabase";
-import { getValidToken, fetchInboxMessages, createOutlookDraft, sendOutlookEmail, type GraphMessage } from "./microsoft-graph";
-import { getValidGmailToken, fetchGmailMessages, createGmailDraft, sendGmailEmail } from "./gmail";
+import {
+  getValidToken,
+  fetchInboxMessages,
+  createOutlookDraft,
+  sendOutlookEmail,
+  fetchOutlookThread,
+  sendOutlookReply,
+  type GraphMessage,
+} from "./microsoft-graph";
+import {
+  getValidGmailToken,
+  fetchGmailMessages,
+  createGmailDraft,
+  sendGmailEmail,
+  fetchGmailThread,
+  sendGmailReply,
+} from "./gmail";
+import type { ThreadMessage } from "./email-types";
 
 export type EmailProvider = "outlook" | "gmail";
 
@@ -79,4 +95,54 @@ export async function sendActiveEmail(
   }
   const token = await getValidToken(userId);
   return sendOutlookEmail(token, opts);
+}
+
+/** Fetches the full message chain for a thread from the active provider. */
+export async function fetchActiveThread(
+  userId: string,
+  conversationId: string
+): Promise<{ provider: EmailProvider; accountEmail: string; messages: ThreadMessage[] }> {
+  const conn = await getActiveEmailConnection(userId);
+  if (!conn) throw new Error("No email connection found");
+
+  if (conn.provider === "gmail") {
+    const token = await getValidGmailToken(userId);
+    const messages = await fetchGmailThread(token, conversationId);
+    return { provider: "gmail", accountEmail: conn.email, messages };
+  }
+  const token = await getValidToken(userId);
+  const messages = await fetchOutlookThread(token, conversationId);
+  return { provider: "outlook", accountEmail: conn.email, messages };
+}
+
+/** Sends a reply within a thread using the active provider. */
+export async function sendActiveReply(
+  userId: string,
+  opts: {
+    conversationId: string;
+    to: string;
+    cc?: string[];
+    subject: string;
+    body: string;
+    latestMessageId?: string;
+    inReplyTo?: string;
+  }
+): Promise<void> {
+  const conn = await getActiveEmailConnection(userId);
+  if (!conn) throw new Error("No email connection found");
+
+  if (conn.provider === "gmail") {
+    const token = await getValidGmailToken(userId);
+    return sendGmailReply(token, {
+      threadId: opts.conversationId,
+      to: opts.to,
+      cc: opts.cc,
+      subject: opts.subject,
+      body: opts.body,
+      inReplyTo: opts.inReplyTo,
+    });
+  }
+  const token = await getValidToken(userId);
+  if (!opts.latestMessageId) throw new Error("Cannot reply: missing source message");
+  return sendOutlookReply(token, { messageId: opts.latestMessageId, body: opts.body });
 }

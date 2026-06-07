@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import type { ThreadMessage } from "./email-types";
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 const TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
@@ -76,11 +77,12 @@ export async function getValidToken(userId: string): Promise<string> {
 }
 
 /**
- * Fetches the 50 most recent inbox messages for the authenticated user.
+ * Fetches up to 250 of the most recent messages from the user's mailbox.
+ * /me/messages spans all folders, so this includes both received and sent mail.
  */
 export async function fetchInboxMessages(accessToken: string): Promise<GraphMessage[]> {
   const select = "id,subject,bodyPreview,conversationId,isRead,hasAttachments,receivedDateTime,from,toRecipients";
-  const url = `${GRAPH_BASE}/me/messages?$top=50&$orderby=receivedDateTime desc&$select=${select}`;
+  const url = `${GRAPH_BASE}/me/messages?$top=250&$orderby=receivedDateTime desc&$select=${select}`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -164,4 +166,72 @@ export async function createOutlookDraft(
   }
 
   return res.json();
+}
+
+/** Fetches all messages in an Outlook conversation (oldest first) with full bodies. */
+export async function fetchOutlookThread(
+  accessToken: string,
+  conversationId: string
+): Promise<ThreadMessage[]> {
+  const select = "id,subject,from,toRecipients,receivedDateTime,body,bodyPreview,internetMessageId";
+  // Single quotes inside an OData string literal must be doubled.
+  const safeId = conversationId.replace(/'/g, "''");
+  const url = `${GRAPH_BASE}/me/messages?$filter=conversationId eq '${safeId}'&$select=${select}&$top=100`;
+
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Graph thread fetch failed: ${res.status} ${body}`);
+  }
+  const json = await res.json();
+  const messages = (json.value ?? []) as any[];
+
+  return messages
+    .map((m): ThreadMessage => {
+      const isHtml = (m.body?.contentType ?? "").toLowerCase() === "html";
+      return {
+        id: m.id,
+        from: {
+          name: m.from?.emailAddress?.name ?? "",
+          address: m.from?.emailAddress?.address ?? "",
+        },
+        to: (m.toRecipients ?? []).map((r: any) => ({
+          name: r.emailAddress?.name ?? "",
+          address: r.emailAddress?.address ?? "",
+        })),
+        date: m.receivedDateTime ?? new Date().toISOString(),
+        subject: m.subject || "(no subject)",
+        bodyHtml: isHtml ? m.body?.content ?? "" : "",
+        bodyText: isHtml ? "" : m.body?.content ?? "",
+        snippet: m.bodyPreview ?? "",
+        messageIdHeader: m.internetMessageId,
+      };
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
+/**
+ * Replies to an Outlook message within its conversation. Uses the Graph reply
+ * action, which keeps threading intact and replies to the original sender.
+ */
+export async function sendOutlookReply(
+  accessToken: string,
+  opts: { messageId: string; body: string }
+): Promise<void> {
+  const res = await fetch(`${GRAPH_BASE}/me/messages/${opts.messageId}/reply`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ comment: opts.body }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    if (res.status === 403) {
+      throw new Error("Outlook send permission denied. Please disconnect and reconnect your Outlook account to grant send access.");
+    }
+    throw new Error(`Graph reply failed: ${res.status} ${body}`);
+  }
 }

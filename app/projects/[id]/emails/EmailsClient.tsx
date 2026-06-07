@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
 import { SkeletonTable } from "@/app/components/Skeleton";
+import type { ThreadMessage } from "@/lib/email-types";
 
 type EmailProvider = "outlook" | "gmail";
 
@@ -50,6 +51,17 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatDateTime(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
@@ -89,6 +101,17 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState(false);
+
+  // Thread view + reply state
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+  const [openThreadSubject, setOpenThreadSubject] = useState("");
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [threadAccountEmail, setThreadAccountEmail] = useState("");
+  const [loadingThread, setLoadingThread] = useState(false);
+  const [threadError, setThreadError] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   const loadThreads = useCallback(() => {
     setLoadingThreads(true);
@@ -257,6 +280,97 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
     }
   };
 
+  const loadThreadMessages = useCallback(
+    (threadDbId: string) =>
+      fetch(`/api/projects/${projectId}/emails/${threadDbId}/messages`).then(async (r) => {
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          throw new Error(d.error === "not_connected" ? "Your email account is no longer connected." : d.error || "Failed to load conversation");
+        }
+        return r.json();
+      }),
+    [projectId]
+  );
+
+  const openThread = (t: LinkedThread) => {
+    setOpenThreadId(t.id);
+    setOpenThreadSubject(t.subject);
+    setThreadMessages([]);
+    setThreadAccountEmail("");
+    setThreadError(null);
+    setReplyBody("");
+    setReplyError(null);
+    setLoadingThread(true);
+    loadThreadMessages(t.id)
+      .then((data) => {
+        setThreadMessages(data.messages ?? []);
+        setThreadAccountEmail(data.accountEmail ?? "");
+        if (data.subject) setOpenThreadSubject(data.subject);
+      })
+      .catch((e: Error) => setThreadError(e.message))
+      .finally(() => setLoadingThread(false));
+  };
+
+  const closeThread = () => {
+    if (sendingReply) return;
+    setOpenThreadId(null);
+    setThreadMessages([]);
+    setReplyBody("");
+    setThreadError(null);
+    setReplyError(null);
+  };
+
+  // Determine who a reply should go to, relative to the connected account.
+  // Prefer the most recent message from the other party (so Outlook's reply
+  // action and Gmail's recipient both target the correct person).
+  const replyTarget = (() => {
+    if (threadMessages.length === 0) return null;
+    const me = threadAccountEmail.toLowerCase();
+    const fromOther = [...threadMessages].reverse().find((m) => m.from.address.toLowerCase() !== me);
+    const target = fromOther ?? threadMessages[threadMessages.length - 1];
+    const to =
+      target.from.address.toLowerCase() === me
+        ? target.to.map((r) => r.address).filter(Boolean).join(", ")
+        : target.from.address;
+    return {
+      to,
+      latestMessageId: target.id,
+      inReplyTo: target.messageIdHeader,
+      subject: target.subject || openThreadSubject,
+    };
+  })();
+
+  const sendReply = async () => {
+    if (!replyBody.trim() || sendingReply || !openThreadId || !replyTarget) return;
+    setSendingReply(true);
+    setReplyError(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/emails/${openThreadId}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: replyTarget.to,
+          subject: replyTarget.subject,
+          body: replyBody,
+          latestMessageId: replyTarget.latestMessageId,
+          inReplyTo: replyTarget.inReplyTo,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || "Failed to send reply.");
+      }
+      setReplyBody("");
+      // Refresh the chain so the new reply shows up.
+      const refreshed = await loadThreadMessages(openThreadId).catch(() => null);
+      if (refreshed?.messages) setThreadMessages(refreshed.messages);
+    } catch (e) {
+      setReplyError(e instanceof Error ? e.message : "Failed to send reply.");
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
   const active = connections ? getActiveProvider(connections) : null;
 
   const searchParams = useSearchParams();
@@ -401,9 +515,15 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {threads.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={t.id}
+                    onClick={() => openThread(t)}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900 truncate max-w-xs">{t.subject}</div>
+                      <div className="font-medium text-gray-900 truncate max-w-xs hover:text-blue-600">
+                        {t.subject}
+                      </div>
                       <div className="text-xs text-gray-400 truncate max-w-xs mt-0.5">
                         {t.latest_message_preview}
                       </div>
@@ -418,7 +538,10 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
                     <td className="px-4 py-3 text-xs text-gray-400">{timeAgo(t.linked_at)}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => unlinkThread(t.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          unlinkThread(t.id);
+                        }}
                         disabled={unlinking === t.id}
                         title="Unlink thread"
                         className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50"
@@ -682,6 +805,155 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
           </div>
         </div>
       )}
+
+      {/* ── Thread / Conversation Modal ── */}
+      {openThreadId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={closeThread} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[88vh]">
+            {/* Header */}
+            <div className="flex items-start justify-between px-6 py-4 border-b border-gray-200 shrink-0 gap-4">
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold text-gray-900 truncate">{openThreadSubject}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {loadingThread
+                    ? "Loading conversation…"
+                    : `${threadMessages.length} message${threadMessages.length !== 1 ? "s" : ""} in this thread`}
+                </p>
+              </div>
+              <button
+                onClick={closeThread}
+                disabled={sendingReply}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-40 shrink-0"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Message chain */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-gray-50">
+              {loadingThread ? (
+                <div className="py-12 text-center text-sm text-gray-400">Loading conversation…</div>
+              ) : threadError ? (
+                <div className="py-12 text-center text-sm text-red-600">{threadError}</div>
+              ) : threadMessages.length === 0 ? (
+                <div className="py-12 text-center text-sm text-gray-400">No messages found in this thread.</div>
+              ) : (
+                threadMessages.map((m) => (
+                  <div key={m.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3">
+                      <div className="text-xs min-w-0">
+                        <span className="font-medium text-gray-900">
+                          {m.from.name || m.from.address}
+                        </span>
+                        {m.from.name && (
+                          <span className="text-gray-400"> &lt;{m.from.address}&gt;</span>
+                        )}
+                        {m.to.length > 0 && (
+                          <span className="text-gray-400 block truncate">
+                            to {m.to.map((r) => r.name || r.address).join(", ")}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-400 shrink-0">{formatDateTime(m.date)}</span>
+                    </div>
+                    <div className="px-4 py-3">
+                      <MessageBody msg={m} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Reply box */}
+            {!loadingThread && !threadError && threadMessages.length > 0 && (
+              <div className="border-t border-gray-200 px-6 py-4 shrink-0 space-y-2">
+                {replyTarget?.to && (
+                  <p className="text-xs text-gray-500">
+                    Reply to <strong className="text-gray-700">{replyTarget.to}</strong>
+                  </p>
+                )}
+                <textarea
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
+                  placeholder="Write a reply…"
+                  rows={3}
+                  disabled={sendingReply}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none disabled:bg-gray-50"
+                />
+                {replyError && (
+                  <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {replyError}
+                  </p>
+                )}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-gray-400 truncate">
+                    {threadAccountEmail && (
+                      <>From: <strong>{threadAccountEmail}</strong></>
+                    )}
+                  </span>
+                  <button
+                    onClick={sendReply}
+                    disabled={sendingReply || !replyBody.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-md hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                  >
+                    {sendingReply ? (
+                      "Sending…"
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                        Reply
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+/** Renders an email's HTML body inside a sandboxed, auto-sized iframe (no script execution). */
+function EmailHtmlBody({ html }: { html: string }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+
+  const resize = () => {
+    const frame = ref.current;
+    if (!frame) return;
+    try {
+      const doc = frame.contentDocument;
+      if (doc?.body) frame.style.height = `${doc.body.scrollHeight + 16}px`;
+    } catch {
+      /* cross-origin guard — ignore */
+    }
+  };
+
+  const srcDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.5;color:#374151;word-wrap:break-word;overflow-wrap:break-word;}img{max-width:100%;height:auto;}a{color:#2563eb;}table{max-width:100%;}</style></head><body>${html}</body></html>`;
+
+  return (
+    <iframe
+      ref={ref}
+      title="email-body"
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      srcDoc={srcDoc}
+      onLoad={resize}
+      className="w-full block border-0"
+      style={{ minHeight: 40 }}
+    />
+  );
+}
+
+function MessageBody({ msg }: { msg: ThreadMessage }) {
+  if (msg.bodyHtml) return <EmailHtmlBody html={msg.bodyHtml} />;
+  if (msg.bodyText) {
+    return <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">{msg.bodyText}</div>;
+  }
+  return <div className="text-sm text-gray-400 italic">{msg.snippet || "(no content)"}</div>;
 }
