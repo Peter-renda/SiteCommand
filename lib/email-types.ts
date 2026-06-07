@@ -3,6 +3,7 @@ export interface ThreadMessage {
   id: string;
   from: { name: string; address: string };
   to: { name: string; address: string }[];
+  cc: { name: string; address: string }[];
   date: string;
   subject: string;
   /** Rendered HTML body (empty when only plain text is available). */

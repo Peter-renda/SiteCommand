@@ -72,6 +72,25 @@ function timeAgo(iso: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+/** True when rich-text HTML has no visible content (e.g. "", "<br>", "<div></div>"). */
+function htmlIsEmpty(html: string): boolean {
+  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim() === "";
+}
+
+function dedupeAddresses(addrs: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of addrs) {
+    const a = raw.trim();
+    const key = a.toLowerCase();
+    if (a && !seen.has(key)) {
+      seen.add(key);
+      out.push(a);
+    }
+  }
+  return out;
+}
+
 function getActiveProvider(conns: Connections): { provider: EmailProvider; info: ProviderInfo } | null {
   if (conns.outlook.connected) return { provider: "outlook", info: conns.outlook };
   if (conns.gmail.connected) return { provider: "gmail", info: conns.gmail };
@@ -111,6 +130,7 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
   const [threadError, setThreadError] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
+  const [sendingMode, setSendingMode] = useState<"reply" | "replyAll" | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
 
   const loadThreads = useCallback(() => {
@@ -320,40 +340,66 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
     setReplyError(null);
   };
 
-  // Determine who a reply should go to, relative to the connected account.
-  // Prefer the most recent message from the other party (so Outlook's reply
-  // action and Gmail's recipient both target the correct person).
-  const replyTarget = (() => {
+  // Build reply + reply-all targets, relative to the connected account.
+  // We base the reply on the most recent message from the other party so the
+  // recipient is correct regardless of who sent last.
+  const replyInfo = (() => {
     if (threadMessages.length === 0) return null;
     const me = threadAccountEmail.toLowerCase();
-    const fromOther = [...threadMessages].reverse().find((m) => m.from.address.toLowerCase() !== me);
-    const target = fromOther ?? threadMessages[threadMessages.length - 1];
-    const to =
-      target.from.address.toLowerCase() === me
-        ? target.to.map((r) => r.address).filter(Boolean).join(", ")
-        : target.from.address;
+    const base =
+      [...threadMessages].reverse().find((m) => m.from.address.toLowerCase() !== me) ??
+      threadMessages[threadMessages.length - 1];
+
+    const replyTo =
+      base.from.address.toLowerCase() === me
+        ? base.to[0]?.address ?? ""
+        : base.from.address;
+
+    // Reply-all: everyone on From + To (minus me), with original Cc (minus me/dupes).
+    const allTo = dedupeAddresses(
+      [base.from.address, ...base.to.map((r) => r.address)].filter(
+        (a) => a && a.toLowerCase() !== me
+      )
+    );
+    const allCc = dedupeAddresses(
+      base.cc
+        .map((r) => r.address)
+        .filter(
+          (a) =>
+            a &&
+            a.toLowerCase() !== me &&
+            !allTo.some((x) => x.toLowerCase() === a.toLowerCase())
+        )
+    );
+
     return {
-      to,
-      latestMessageId: target.id,
-      inReplyTo: target.messageIdHeader,
-      subject: target.subject || openThreadSubject,
+      latestMessageId: base.id,
+      inReplyTo: base.messageIdHeader,
+      subject: base.subject || openThreadSubject,
+      reply: { to: replyTo, cc: [] as string[] },
+      replyAll: { to: allTo.join(", "), cc: allCc },
+      canReplyAll: allTo.length + allCc.length > 1,
     };
   })();
 
-  const sendReply = async () => {
-    if (!replyBody.trim() || sendingReply || !openThreadId || !replyTarget) return;
+  const sendReply = async (replyAll: boolean) => {
+    if (htmlIsEmpty(replyBody) || sendingReply || !openThreadId || !replyInfo) return;
     setSendingReply(true);
+    setSendingMode(replyAll ? "replyAll" : "reply");
     setReplyError(null);
     try {
+      const target = replyAll ? replyInfo.replyAll : replyInfo.reply;
       const res = await fetch(`/api/projects/${projectId}/emails/${openThreadId}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: replyTarget.to,
-          subject: replyTarget.subject,
+          to: target.to,
+          cc: target.cc,
+          subject: replyInfo.subject,
           body: replyBody,
-          latestMessageId: replyTarget.latestMessageId,
-          inReplyTo: replyTarget.inReplyTo,
+          replyAll,
+          latestMessageId: replyInfo.latestMessageId,
+          inReplyTo: replyInfo.inReplyTo,
         }),
       });
       if (!res.ok) {
@@ -368,6 +414,7 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
       setReplyError(e instanceof Error ? e.message : "Failed to send reply.");
     } finally {
       setSendingReply(false);
+      setSendingMode(null);
     }
   };
 
@@ -748,13 +795,7 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Message</label>
-                <textarea
-                  value={composeBody}
-                  onChange={(e) => setComposeBody(e.target.value)}
-                  placeholder="Write your message…"
-                  rows={7}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
-                />
+                <RichTextEditor value={composeBody} onChange={setComposeBody} minHeight="160px" />
               </div>
 
               {sendError && (
@@ -870,19 +911,12 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
             {/* Reply box */}
             {!loadingThread && !threadError && threadMessages.length > 0 && (
               <div className="border-t border-gray-200 px-6 py-4 shrink-0 space-y-2">
-                {replyTarget?.to && (
+                {replyInfo?.reply.to && (
                   <p className="text-xs text-gray-500">
-                    Reply to <strong className="text-gray-700">{replyTarget.to}</strong>
+                    Reply to <strong className="text-gray-700">{replyInfo.reply.to}</strong>
                   </p>
                 )}
-                <textarea
-                  value={replyBody}
-                  onChange={(e) => setReplyBody(e.target.value)}
-                  placeholder="Write a reply…"
-                  rows={3}
-                  disabled={sendingReply}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none disabled:bg-gray-50"
-                />
+                <RichTextEditor value={replyBody} onChange={setReplyBody} minHeight="90px" />
                 {replyError && (
                   <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                     {replyError}
@@ -894,22 +928,34 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
                       <>From: <strong>{threadAccountEmail}</strong></>
                     )}
                   </span>
-                  <button
-                    onClick={sendReply}
-                    disabled={sendingReply || !replyBody.trim()}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-md hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
-                  >
-                    {sendingReply ? (
-                      "Sending…"
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                        </svg>
-                        Reply
-                      </>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {replyInfo?.canReplyAll && (
+                      <button
+                        onClick={() => sendReply(true)}
+                        disabled={sendingReply || htmlIsEmpty(replyBody)}
+                        title="Reply to all recipients"
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {sendingMode === "replyAll" ? "Sending…" : "Reply All"}
+                      </button>
                     )}
-                  </button>
+                    <button
+                      onClick={() => sendReply(false)}
+                      disabled={sendingReply || htmlIsEmpty(replyBody)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-md hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {sendingMode === "reply" ? (
+                        "Sending…"
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                          </svg>
+                          Reply
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -956,4 +1002,73 @@ function MessageBody({ msg }: { msg: ThreadMessage }) {
     return <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">{msg.bodyText}</div>;
   }
   return <div className="text-sm text-gray-400 italic">{msg.snippet || "(no content)"}</div>;
+}
+
+// ── Rich Text Editor ──────────────────────────────────────────────────────────
+
+type RteCommand =
+  | "bold" | "italic" | "underline" | "strikeThrough"
+  | "justifyLeft" | "justifyCenter" | "justifyRight"
+  | "insertUnorderedList" | "insertOrderedList"
+  | "outdent" | "indent" | "undo" | "redo";
+
+function RichTextEditor({
+  value,
+  onChange,
+  minHeight = "80px",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  minHeight?: string;
+}) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const isFocused = useRef(false);
+
+  useEffect(() => {
+    if (editorRef.current && !isFocused.current) {
+      editorRef.current.innerHTML = value;
+    }
+  }, [value]);
+
+  function exec(cmd: RteCommand) {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false);
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+  }
+
+  const btnCls = "p-1 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors";
+
+  return (
+    <div className="border border-gray-300 rounded overflow-hidden">
+      <div className="flex items-center flex-wrap gap-0.5 px-2 py-1.5 border-b border-gray-200 bg-gray-50">
+        <button type="button" onClick={() => exec("bold")} className={btnCls} title="Bold"><b className="text-xs px-0.5">B</b></button>
+        <button type="button" onClick={() => exec("italic")} className={btnCls} title="Italic"><i className="text-xs px-0.5">I</i></button>
+        <button type="button" onClick={() => exec("underline")} className={btnCls} title="Underline"><u className="text-xs px-0.5">U</u></button>
+        <div className="w-px h-4 bg-gray-200 mx-0.5" />
+        <button type="button" onClick={() => exec("insertUnorderedList")} className={btnCls} title="Bullet list">
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z" /></svg>
+        </button>
+        <button type="button" onClick={() => exec("insertOrderedList")} className={btnCls} title="Numbered list">
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z" /></svg>
+        </button>
+        <div className="w-px h-4 bg-gray-200 mx-0.5" />
+        <button type="button" onClick={() => exec("undo")} className={btnCls} title="Undo">
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" /></svg>
+        </button>
+        <button type="button" onClick={() => exec("redo")} className={btnCls} title="Redo">
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z" /></svg>
+        </button>
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={() => { if (editorRef.current) onChange(editorRef.current.innerHTML); }}
+        onFocus={() => { isFocused.current = true; }}
+        onBlur={() => { isFocused.current = false; }}
+        className="px-3 py-2 text-sm text-gray-900 focus:outline-none"
+        style={{ minHeight }}
+      />
+    </div>
+  );
 }

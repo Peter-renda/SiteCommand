@@ -115,7 +115,7 @@ export async function fetchActiveThread(
   return { provider: "outlook", accountEmail: conn.email, messages };
 }
 
-/** Sends a reply within a thread using the active provider. */
+/** Sends an HTML reply (or reply-all) within a thread using the active provider. */
 export async function sendActiveReply(
   userId: string,
   opts: {
@@ -123,7 +123,8 @@ export async function sendActiveReply(
     to: string;
     cc?: string[];
     subject: string;
-    body: string;
+    html: string;
+    replyAll?: boolean;
     latestMessageId?: string;
     inReplyTo?: string;
   }
@@ -138,11 +139,16 @@ export async function sendActiveReply(
       to: opts.to,
       cc: opts.cc,
       subject: opts.subject,
-      body: opts.body,
+      html: opts.html,
       inReplyTo: opts.inReplyTo,
     });
   }
   const token = await getValidToken(userId);
   if (!opts.latestMessageId) throw new Error("Cannot reply: missing source message");
-  return sendOutlookReply(token, { messageId: opts.latestMessageId, body: opts.body });
+  // Outlook's createReply/createReplyAll resolves recipients server-side.
+  return sendOutlookReply(token, {
+    messageId: opts.latestMessageId,
+    html: opts.html,
+    replyAll: opts.replyAll,
+  });
 }

@@ -150,7 +150,7 @@ export async function fetchGmailMessages(accessToken: string): Promise<GmailMess
     });
 }
 
-/** Sends an email directly through Gmail (requires gmail.compose or gmail.send scope). */
+/** Sends an HTML email directly through Gmail (requires gmail.compose or gmail.send scope). */
 export async function sendGmailEmail(
   accessToken: string,
   opts: { to: string; subject: string; body: string; cc?: string[] }
@@ -159,7 +159,7 @@ export async function sendGmailEmail(
     `To: ${opts.to}`,
     `Subject: ${opts.subject}`,
     `MIME-Version: 1.0`,
-    `Content-Type: text/plain; charset=UTF-8`,
+    `Content-Type: text/html; charset=UTF-8`,
   ];
   if (opts.cc?.length) rawParts.push(`Cc: ${opts.cc.join(", ")}`);
   rawParts.push("", opts.body);
@@ -258,6 +258,7 @@ export async function fetchGmailThread(accessToken: string, threadId: string): P
       id: msg.id,
       from: parseEmailAddress(parseHeader(headers, "From")),
       to: parseAddressList(parseHeader(headers, "To")).map((r) => r.emailAddress),
+      cc: parseAddressList(parseHeader(headers, "Cc")).map((r) => r.emailAddress),
       date: safeDate(parseHeader(headers, "Date")),
       subject: parseHeader(headers, "Subject") || "(no subject)",
       bodyHtml: html,
@@ -268,7 +269,7 @@ export async function fetchGmailThread(accessToken: string, threadId: string): P
   });
 }
 
-/** Sends a reply within an existing Gmail thread. */
+/** Sends an HTML reply within an existing Gmail thread. */
 export async function sendGmailReply(
   accessToken: string,
   opts: {
@@ -276,7 +277,7 @@ export async function sendGmailReply(
     to: string;
     cc?: string[];
     subject: string;
-    body: string;
+    html: string;
     inReplyTo?: string;
   }
 ): Promise<void> {
@@ -285,14 +286,14 @@ export async function sendGmailReply(
     `To: ${opts.to}`,
     `Subject: ${subject}`,
     `MIME-Version: 1.0`,
-    `Content-Type: text/plain; charset=UTF-8`,
+    `Content-Type: text/html; charset=UTF-8`,
   ];
   if (opts.cc?.length) lines.push(`Cc: ${opts.cc.join(", ")}`);
   if (opts.inReplyTo) {
     lines.push(`In-Reply-To: ${opts.inReplyTo}`);
     lines.push(`References: ${opts.inReplyTo}`);
   }
-  lines.push("", opts.body);
+  lines.push("", opts.html);
 
   const encoded = Buffer.from(lines.join("\r\n")).toString("base64url");
   const res = await fetch(`${GMAIL_BASE}/messages/send`, {
