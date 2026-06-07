@@ -114,7 +114,7 @@ export async function sendOutlookEmail(
     body: JSON.stringify({
       message: {
         subject: opts.subject,
-        body: { contentType: "Text", content: opts.body },
+        body: { contentType: "HTML", content: opts.body },
         toRecipients: [{ emailAddress: { address: opts.to } }],
         ccRecipients: (opts.cc ?? []).map((a) => ({ emailAddress: { address: a } })),
       },
@@ -173,7 +173,7 @@ export async function fetchOutlookThread(
   accessToken: string,
   conversationId: string
 ): Promise<ThreadMessage[]> {
-  const select = "id,subject,from,toRecipients,receivedDateTime,body,bodyPreview,internetMessageId";
+  const select = "id,subject,from,toRecipients,ccRecipients,receivedDateTime,body,bodyPreview,internetMessageId";
   // Single quotes inside an OData string literal must be doubled.
   const safeId = conversationId.replace(/'/g, "''");
   const url = `${GRAPH_BASE}/me/messages?$filter=conversationId eq '${safeId}'&$select=${select}&$top=100`;
@@ -199,6 +199,10 @@ export async function fetchOutlookThread(
           name: r.emailAddress?.name ?? "",
           address: r.emailAddress?.address ?? "",
         })),
+        cc: (m.ccRecipients ?? []).map((r: any) => ({
+          name: r.emailAddress?.name ?? "",
+          address: r.emailAddress?.address ?? "",
+        })),
         date: m.receivedDateTime ?? new Date().toISOString(),
         subject: m.subject || "(no subject)",
         bodyHtml: isHtml ? m.body?.content ?? "" : "",
@@ -211,27 +215,57 @@ export async function fetchOutlookThread(
 }
 
 /**
- * Replies to an Outlook message within its conversation. Uses the Graph reply
- * action, which keeps threading intact and replies to the original sender.
+ * Replies (or replies-all) to an Outlook message with an HTML body, keeping the
+ * conversation threading and quoted history intact.
+ *
+ * Uses the canonical Graph flow: createReply/createReplyAll produces a draft with
+ * the correct recipients + quoted original; we prepend the user's HTML, then send.
  */
 export async function sendOutlookReply(
   accessToken: string,
-  opts: { messageId: string; body: string }
+  opts: { messageId: string; html: string; replyAll?: boolean }
 ): Promise<void> {
-  const res = await fetch(`${GRAPH_BASE}/me/messages/${opts.messageId}/reply`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ comment: opts.body }),
-  });
+  const auth = { Authorization: `Bearer ${accessToken}` };
+  const action = opts.replyAll ? "createReplyAll" : "createReply";
 
-  if (!res.ok) {
-    const body = await res.text();
-    if (res.status === 403) {
+  // 1. Create the reply draft (recipients + quoted history are filled in by Graph)
+  const createRes = await fetch(`${GRAPH_BASE}/me/messages/${opts.messageId}/${action}`, {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!createRes.ok) {
+    const body = await createRes.text();
+    if (createRes.status === 403) {
       throw new Error("Outlook send permission denied. Please disconnect and reconnect your Outlook account to grant send access.");
     }
-    throw new Error(`Graph reply failed: ${res.status} ${body}`);
+    throw new Error(`Graph create reply failed: ${createRes.status} ${body}`);
+  }
+  const draft = (await createRes.json()) as { id: string; body?: { content?: string } };
+
+  // 2. Prepend the user's HTML above the quoted original
+  const quoted = draft.body?.content ?? "";
+  const content = `${opts.html}<br><br>${quoted}`;
+  const patchRes = await fetch(`${GRAPH_BASE}/me/messages/${draft.id}`, {
+    method: "PATCH",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ body: { contentType: "HTML", content } }),
+  });
+  if (!patchRes.ok) {
+    const body = await patchRes.text();
+    throw new Error(`Graph update reply failed: ${patchRes.status} ${body}`);
+  }
+
+  // 3. Send the draft
+  const sendRes = await fetch(`${GRAPH_BASE}/me/messages/${draft.id}/send`, {
+    method: "POST",
+    headers: auth,
+  });
+  if (!sendRes.ok) {
+    const body = await sendRes.text();
+    if (sendRes.status === 403) {
+      throw new Error("Outlook send permission denied. Please disconnect and reconnect your Outlook account to grant send access.");
+    }
+    throw new Error(`Graph send reply failed: ${sendRes.status} ${body}`);
   }
 }

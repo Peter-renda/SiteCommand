@@ -1,9 +1,10 @@
 /**
  * POST /api/projects/[id]/emails/[threadId]/reply
  *
- * Sends a reply within a linked email thread from the user's connected account.
- * Body: { to: string, subject: string, body: string, cc?: string[],
- *         latestMessageId?: string, inReplyTo?: string }
+ * Sends an HTML reply (or reply-all) within a linked email thread from the
+ * user's connected account.
+ * Body: { to: string, subject: string, body: string (HTML), cc?: string[],
+ *         replyAll?: boolean, latestMessageId?: string, inReplyTo?: string }
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -31,11 +32,12 @@ export async function POST(
   if (!row) return NextResponse.json({ error: "Thread not found" }, { status: 404 });
 
   const body = await req.json();
-  const { to, subject, body: replyBody, cc, latestMessageId, inReplyTo } = body as {
+  const { to, subject, body: replyBody, cc, replyAll, latestMessageId, inReplyTo } = body as {
     to?: string;
     subject?: string;
     body?: string;
     cc?: string[];
+    replyAll?: boolean;
     latestMessageId?: string;
     inReplyTo?: string;
   };
@@ -49,8 +51,9 @@ export async function POST(
       conversationId: row.graph_conversation_id,
       to: (to ?? "").trim(),
       subject: subject ?? row.subject ?? "",
-      body: replyBody,
+      html: replyBody,
       cc: Array.isArray(cc) ? cc.filter(Boolean) : [],
+      replyAll: !!replyAll,
       latestMessageId,
       inReplyTo,
     });
