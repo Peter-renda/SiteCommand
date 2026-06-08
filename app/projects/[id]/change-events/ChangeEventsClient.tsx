@@ -562,22 +562,10 @@ export default function ChangeEventsClient({
 
       <div className="flex items-center justify-between gap-2 flex-wrap px-4 sm:px-6 py-2 border-b border-black/[0.06] bg-[#F9FAFB] shrink-0">
         {/* Left: tabs */}
-        <div className="flex items-center overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="seg">
           {(["detail", "summary", "rfqs", "recycle_bin"] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-                activeTab === tab
-                  ? "border-[color:var(--ink)] text-[color:var(--ink)]"
-                  : "border-transparent text-gray-500 hover:text-[color:var(--ink)]"
-              }`}
-            >
-              {tab === "recycle_bin"
-                ? "Recycle Bin"
-                : tab === "rfqs"
-                ? "RFQs"
-                : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            <button key={tab} onClick={() => setActiveTab(tab)} className={activeTab === tab ? "active" : ""}>
+              {tab === "recycle_bin" ? "Recycle Bin" : tab === "rfqs" ? "RFQs" : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>

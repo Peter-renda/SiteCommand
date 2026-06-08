@@ -606,20 +606,17 @@ export default function SpecificationsClient({ projectId, username }: { projectI
         )}
 
         <div className="mt-5">
-          <div className="flex gap-6 text-sm">
-            {topTabs.map((tab) => {
-              const active = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`border-b-2 pb-2 pt-1 transition-colors ${active ? "border-[color:var(--brand-500)] font-semibold text-[color:var(--ink)]" : "border-transparent text-gray-500 hover:text-[color:var(--ink)]"}`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+          <div className="seg">
+            {topTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={activeTab === tab.key ? "active" : ""}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>

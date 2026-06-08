@@ -95,8 +95,7 @@ export default function DirectoryContactDetailClient({ projectId, username, init
     });
     setSaving(false);
     if (res.ok) {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      router.push(`/projects/${projectId}/directory`);
     }
   }
 

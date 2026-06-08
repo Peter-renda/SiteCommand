@@ -1604,8 +1604,8 @@ p           { text-wrap: pretty; }
 .dir-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
 .dir-card {
   background:#fff; border:1px solid rgba(0,0,0,0.06);
-  border-radius:12px; padding: 16px 18px;
-  display: flex; flex-direction: column; gap: 10px;
+  border-radius:12px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 6px;
 }
 .dir-card .head {
   display: flex; align-items: center; gap: 12px;

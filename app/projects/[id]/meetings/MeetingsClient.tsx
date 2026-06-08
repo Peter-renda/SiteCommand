@@ -276,27 +276,11 @@ export default function MeetingsClient({
         )}
 
         {/* Tabs */}
-        <div className="flex items-center gap-0 border-b border-black/[0.06] bg-white -mx-6 px-6">
-          <button
-            onClick={() => { setActiveTab("list"); setPage(1); }}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "list"
-                ? "border-[color:var(--ink)] text-[color:var(--ink)]"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Meetings
-          </button>
-          <button
-            onClick={() => { setActiveTab("recycle"); setPage(1); }}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "recycle"
-                ? "border-[color:var(--ink)] text-[color:var(--ink)]"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Recycle Bin
-          </button>
+        <div className="mb-4">
+          <div className="seg">
+            <button onClick={() => { setActiveTab("list"); setPage(1); }} className={activeTab === "list" ? "active" : ""}>Meetings</button>
+            <button onClick={() => { setActiveTab("recycle"); setPage(1); }} className={activeTab === "recycle" ? "active" : ""}>Recycle Bin</button>
+          </div>
         </div>
 
         {/* Toolbar */}

@@ -386,27 +386,9 @@ export default function ChangeOrdersClient({
 
       {/* Tabs + section header */}
       <div className="flex items-center justify-between gap-2 flex-wrap px-4 sm:px-6 py-2 border-b border-black/[0.06] bg-white shrink-0">
-        <div className="flex items-center gap-5 overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <button
-            onClick={() => setActiveTab("prime")}
-            className={`text-sm pb-1.5 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === "prime"
-                ? "border-[color:var(--brand-500)] text-[color:var(--ink)] font-semibold"
-                : "border-transparent text-gray-500 hover:text-[color:var(--ink)] font-medium"
-            }`}
-          >
-            Prime Contract Change Orders
-          </button>
-          <button
-            onClick={() => setActiveTab("commitment")}
-            className={`text-sm pb-1.5 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === "commitment"
-                ? "border-[color:var(--brand-500)] text-[color:var(--ink)] font-semibold"
-                : "border-transparent text-gray-500 hover:text-[color:var(--ink)] font-medium"
-            }`}
-          >
-            Commitment Change Orders
-          </button>
+        <div className="seg">
+          <button onClick={() => setActiveTab("prime")} className={activeTab === "prime" ? "active" : ""}>Prime Contract Change Orders</button>
+          <button onClick={() => setActiveTab("commitment")} className={activeTab === "commitment" ? "active" : ""}>Commitment Change Orders</button>
         </div>
         <div ref={exportRef} className="relative shrink-0">
           <button

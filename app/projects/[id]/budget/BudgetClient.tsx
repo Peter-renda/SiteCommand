@@ -2389,52 +2389,12 @@ export default function BudgetClient({
           </div>
         )}
 
-        <div className="mb-4 border-b border-gray-200">
-          <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={() => setActiveTab("budget")}
-              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "budget"
-                  ? "border-orange-500 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Budget
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("budget_details")}
-              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "budget_details"
-                  ? "border-orange-500 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Budget Details
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("forecasting")}
-              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "forecasting"
-                  ? "border-orange-500 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Forecasting
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("project_status_snapshot")}
-              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "project_status_snapshot"
-                  ? "border-orange-500 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Project Status Snapshots
-            </button>
+        <div className="mb-4">
+          <div className="seg">
+            <button type="button" onClick={() => setActiveTab("budget")} className={activeTab === "budget" ? "active" : ""}>Budget</button>
+            <button type="button" onClick={() => setActiveTab("budget_details")} className={activeTab === "budget_details" ? "active" : ""}>Budget Details</button>
+            <button type="button" onClick={() => setActiveTab("forecasting")} className={activeTab === "forecasting" ? "active" : ""}>Forecasting</button>
+            <button type="button" onClick={() => setActiveTab("project_status_snapshot")} className={activeTab === "project_status_snapshot" ? "active" : ""}>Project Status Snapshots</button>
           </div>
         </div>
 

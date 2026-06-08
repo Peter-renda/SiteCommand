@@ -1079,32 +1079,18 @@ export default function CommitmentsClient({
         })()}
 
         {/* Tabs */}
-        <div className="flex border-b border-black/[0.08] mb-5">
-          <button
-            onClick={() => setActiveTab("contracts")}
-            className={`px-1 pb-3 mr-6 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "contracts"
-                ? "border-gray-900 text-gray-900"
-                : "border-transparent text-gray-400 hover:text-gray-700"
-            }`}
-          >
-            Contracts
-          </button>
-          <button
-            onClick={() => setActiveTab("recycle_bin")}
-            className={`px-1 pb-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "recycle_bin"
-                ? "border-gray-900 text-gray-900"
-                : "border-transparent text-gray-400 hover:text-gray-700"
-            }`}
-          >
-            Recycle Bin
-            {deletedItems.length > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500">
-                {deletedItems.length}
-              </span>
-            )}
-          </button>
+        <div className="mb-5">
+          <div className="seg">
+            <button onClick={() => setActiveTab("contracts")} className={activeTab === "contracts" ? "active" : ""}>Contracts</button>
+            <button onClick={() => setActiveTab("recycle_bin")} className={activeTab === "recycle_bin" ? "active" : ""}>
+              Recycle Bin
+              {deletedItems.length > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-gray-200 text-gray-600">
+                  {deletedItems.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Search + filter bar */}

@@ -1195,9 +1195,9 @@ export default function RFIsClient({ projectId, role, username, userId, toolLeve
           </div>
         </div>
         <div className="flex items-center gap-3 mb-4">
-          <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden bg-white">
-            <button onClick={() => { setActiveTab("items"); setSelectedRfiIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "items" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Items</button>
-            <button onClick={() => { setActiveTab("recycle_bin"); setSelectedRfiIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "recycle_bin" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Recycling Bin</button>
+          <div className="seg">
+            <button onClick={() => { setActiveTab("items"); setSelectedRfiIds([]); }} className={activeTab === "items" ? "active" : ""}>Items</button>
+            <button onClick={() => { setActiveTab("recycle_bin"); setSelectedRfiIds([]); }} className={activeTab === "recycle_bin" ? "active" : ""}>Recycling Bin</button>
           </div>
           <button
             type="button"
