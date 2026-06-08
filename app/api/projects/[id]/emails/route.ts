@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { fetchActiveThread } from "@/lib/email-connection";
+import { persistThreadMessages } from "@/lib/email-messages";
 
 export async function GET(
   _req: NextRequest,
@@ -72,5 +74,22 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Best-effort: pull the full thread now (the linking user has a live
+  // connection since they just selected this from their inbox) and store the
+  // message text. Failures here must not block linking.
+  if (data?.id) {
+    try {
+      const { messages } = await fetchActiveThread(session.id, graphConversationId);
+      await persistThreadMessages(supabase, {
+        threadId: data.id as string,
+        projectId,
+        messages,
+      });
+    } catch {
+      // ignore — messages will be captured the next time the thread is viewed
+    }
+  }
+
   return NextResponse.json(data);
 }

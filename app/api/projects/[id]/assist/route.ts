@@ -36,7 +36,6 @@ const TABLES: Array<{ label: string; table: string; idCol?: string }> = [
   { label: "Photos", table: "project_photos" },
   { label: "Drawing Uploads", table: "drawing_uploads" },
   { label: "Drawing Pages", table: "project_drawings" },
-  { label: "Emails", table: "project_email_threads" },
   { label: "Punch List", table: "punch_list_items" },
   { label: "Transaction Orders", table: "project_transaction_orders" },
   { label: "Transmittals", table: "transmittals" },
@@ -142,6 +141,77 @@ function buildContext(blocks: Array<{ label: string; rows: Row[] }>): string {
     parts.push("");
   }
   return parts.join("\n");
+}
+
+// Email bodies are full prose, so they get a much higher per-value budget than
+// the generic table serializer (which caps every field at MAX_VALUE_CHARS).
+const MAX_EMAIL_BODY_CHARS = 4000;
+const MAX_EMAIL_BLOCK_CHARS = 200_000;
+
+type EmailContext = { text: string; threadCount: number; messageCount: number };
+
+// Emails are stored across two tables (threads + their messages) and the
+// message text matters far more than any single field would survive the generic
+// 1500-char cap, so they get a dedicated, fuller context block.
+async function collectEmailContext(supabase: Supa, projectId: string): Promise<EmailContext> {
+  const { data: threads } = await supabase
+    .from("project_email_threads")
+    .select("id, subject, participants, latest_received_at")
+    .eq("project_id", projectId)
+    .order("latest_received_at", { ascending: false })
+    .limit(PER_TABLE_LIMIT);
+
+  const threadRows = (threads ?? []) as Row[];
+  if (!threadRows.length) return { text: "", threadCount: 0, messageCount: 0 };
+
+  const { data: messages } = await supabase
+    .from("project_email_messages")
+    .select("thread_id, from_name, from_address, sent_at, subject, body_text, snippet")
+    .in("thread_id", threadRows.map((t) => t.id as string))
+    .order("sent_at", { ascending: true });
+
+  const byThread = new Map<string, Row[]>();
+  for (const m of (messages ?? []) as Row[]) {
+    const tid = m.thread_id as string;
+    if (!byThread.has(tid)) byThread.set(tid, []);
+    byThread.get(tid)!.push(m);
+  }
+
+  let messageCount = 0;
+  const parts: string[] = [];
+  for (const t of threadRows) {
+    const msgs = byThread.get(t.id as string) ?? [];
+    const participants = Array.isArray(t.participants)
+      ? (t.participants as unknown[]).map(String).filter(Boolean).join(", ")
+      : "";
+    parts.push(`#### Thread: ${t.subject || "(no subject)"}`);
+    if (participants) parts.push(`Participants: ${participants}`);
+    if (!msgs.length) {
+      // Thread linked but messages not yet synced (e.g. linked before storage,
+      // never re-opened). Note it so Assist doesn't assume the thread is empty.
+      parts.push("(message bodies not yet synced for this thread)");
+    }
+    for (const m of msgs) {
+      messageCount += 1;
+      const sender = [m.from_name, m.from_address ? `<${m.from_address}>` : ""]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      const when = m.sent_at ? String(m.sent_at) : "";
+      const bodyRaw = ((m.body_text as string) || (m.snippet as string) || "").trim();
+      const body = bodyRaw.length > MAX_EMAIL_BODY_CHARS
+        ? bodyRaw.slice(0, MAX_EMAIL_BODY_CHARS) + "…"
+        : bodyRaw;
+      parts.push(`- From ${sender || "(unknown)"}${when ? ` on ${when}` : ""}:\n${body || "(empty)"}`);
+    }
+    parts.push("");
+    if (parts.join("\n").length > MAX_EMAIL_BLOCK_CHARS) break;
+  }
+
+  let text = parts.join("\n");
+  if (text.length > MAX_EMAIL_BLOCK_CHARS) text = text.slice(0, MAX_EMAIL_BLOCK_CHARS) + "\n…(emails truncated)";
+
+  return { text, threadCount: threadRows.length, messageCount };
 }
 
 type Candidate = {
@@ -347,7 +417,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Gather candidates from all sources. Drawings + spec book first (typically larger
   // reference docs), then attachments, then general documents.
-  const [drawings, specBook, rfiAtts, subAtts, docs, tableRows] = await Promise.all([
+  const [drawings, specBook, rfiAtts, subAtts, docs, tableRows, emails] = await Promise.all([
     collectDrawingPdfs(supabase, projectId),
     collectSpecBook(supabase, projectId),
     collectRfiAttachments(supabase, projectId),
@@ -359,6 +429,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         rows: await fetchTable(supabase, t.table, projectId, t.idCol),
       })),
     ),
+    collectEmailContext(supabase, projectId),
   ]);
 
   const candidates: Candidate[] = [...specBook, ...drawings, ...rfiAtts, ...subAtts, ...docs];
@@ -368,8 +439,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ? `Project: ${project.name ?? "Unknown"}${project.project_type ? ` (${project.project_type})` : ""}${project.address ? ` — ${project.address}` : ""}${project.status ? ` — Status: ${project.status}` : ""}`
     : `Project ID: ${projectId}`;
 
-  const recordCount = tableRows.reduce((sum, b) => sum + b.rows.length, 0);
-  const context = buildContext(tableRows);
+  const tableRecordCount = tableRows.reduce((sum, b) => sum + b.rows.length, 0);
+  const recordCount = tableRecordCount + emails.threadCount;
+  const toolsSearched =
+    tableRows.filter((b) => b.rows.length).length + (emails.threadCount ? 1 : 0);
+  const emailBlock = emails.text
+    ? `### Emails (${emails.threadCount} thread${emails.threadCount === 1 ? "" : "s"}, ${emails.messageCount} message${emails.messageCount === 1 ? "" : "s"})\n${emails.text}\n`
+    : "";
+  const context = `${buildContext(tableRows)}${emailBlock}`;
   const manifest = uploaded.length
     ? uploaded.map((f) => `- [${f.fileId}] ${f.description}: ${f.filename}`).join("\n")
     : "(no files attached)";
@@ -390,7 +467,7 @@ Response format:
 
   const userPrompt = `${projectHeader}
 
-I have indexed ${recordCount} records across ${tableRows.filter((b) => b.rows.length).length} tools for this project.${uploaded.length ? ` ${uploaded.length} file${uploaded.length === 1 ? "" : "s"} attached.` : ""}
+I have indexed ${recordCount} records across ${toolsSearched} tools for this project.${uploaded.length ? ` ${uploaded.length} file${uploaded.length === 1 ? "" : "s"} attached.` : ""}
 
 === ATTACHED FILES ===
 ${manifest}
@@ -464,7 +541,7 @@ ${question}`;
       answer,
       stats: {
         recordCount,
-        toolsSearched: tableRows.filter((b) => b.rows.length).length,
+        toolsSearched,
         filesAttached: uploaded.length,
         filesCited: sourceDocuments.length,
       },

@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { fetchActiveThread } from "@/lib/email-connection";
+import { persistThreadMessages, getStoredThreadMessages } from "@/lib/email-messages";
 
 export async function GET(
   _req: NextRequest,
@@ -35,14 +36,29 @@ export async function GET(
       session.id,
       row.graph_conversation_id
     );
+    // Refresh the stored copy so the thread stays readable (and feeds Assist)
+    // even when no one with a live connection is around. Non-fatal.
+    await persistThreadMessages(supabase, { threadId, projectId, messages }).catch(() => {});
     return NextResponse.json({ provider, accountEmail, subject: row.subject, messages });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    if (
+    const notConnected =
       message.includes("No Gmail connection found") ||
       message.includes("No Outlook connection found") ||
-      message.includes("No email connection found")
-    ) {
+      message.includes("No email connection found");
+
+    // No live connection — fall back to the stored copy of the thread.
+    if (notConnected) {
+      const stored = await getStoredThreadMessages(supabase, threadId);
+      if (stored.length) {
+        return NextResponse.json({
+          provider: null,
+          accountEmail: null,
+          subject: row.subject,
+          messages: stored,
+          stored: true,
+        });
+      }
       return NextResponse.json({ error: "not_connected" }, { status: 403 });
     }
     return NextResponse.json({ error: message }, { status: 500 });
