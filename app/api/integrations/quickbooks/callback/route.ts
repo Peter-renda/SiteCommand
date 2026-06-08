@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { getQBOAppCredentials } from "@/lib/quickbooks";
+import { getQBOAppCredentials, getIntuitRedirectUri } from "@/lib/quickbooks";
 
 const QBO_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
 
@@ -25,7 +25,9 @@ export async function GET(req: NextRequest) {
   const settingsUrl = `${origin}/settings/integrations`;
 
   if (error) {
-    return NextResponse.redirect(`${settingsUrl}?error=qbo_denied`);
+    // Surface Intuit's own reason (e.g. access_denied) when present.
+    const reason = searchParams.get("error_description") || error;
+    return NextResponse.redirect(`${settingsUrl}?error=qbo_denied&reason=${encodeURIComponent(reason)}`);
   }
 
   if (!code || !realmId || !stateB64) {
@@ -47,7 +49,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${settingsUrl}?error=qbo_missing_app_creds`);
   }
 
-  const redirectUri = `${origin}/api/integrations/quickbooks/callback`;
+  // Must be byte-for-byte identical to the redirect_uri used on the authorize
+  // call in /connect, or Intuit rejects the token exchange.
+  const redirectUri = getIntuitRedirectUri(req);
   const basicAuth = Buffer.from(`${appCreds.clientId}:${appCreds.clientSecret}`).toString("base64");
 
   // Exchange code for tokens
@@ -68,11 +72,22 @@ export async function GET(req: NextRequest) {
       }).toString(),
     });
 
+    const rawText = await res.text();
+
     if (!res.ok) {
-      return NextResponse.redirect(`${settingsUrl}?error=qbo_token_exchange_failed`);
+      // Intuit returns { error, error_description } here (e.g. invalid_grant when
+      // the redirect_uri doesn't match the authorize call). Pass it through.
+      let reason = `HTTP ${res.status}`;
+      try {
+        const errJson = JSON.parse(rawText) as { error?: string; error_description?: string };
+        reason = errJson.error_description || errJson.error || reason;
+      } catch { /* non-JSON body */ }
+      return NextResponse.redirect(
+        `${settingsUrl}?error=qbo_token_exchange_failed&reason=${encodeURIComponent(reason)}`
+      );
     }
 
-    const json = await res.json() as { access_token: string; refresh_token: string };
+    const json = JSON.parse(rawText) as { access_token: string; refresh_token: string };
     accessToken  = json.access_token;
     refreshToken = json.refresh_token;
   } catch {

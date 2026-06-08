@@ -13,6 +13,10 @@ It supports both **QuickBooks Online (QBO)** and **Intuit Enterprise Suite (IES)
 - `ap_invoice` → creates a **QBO Bill** from commitment SOV billed-to-date amounts
 - `ar_invoice` → creates a **QBO AR Invoice** from prime contract SOV current-period amounts
 
+For the full field-by-field crosswalk between SiteCommand and the QBO object model
+(and the prioritized list of mapping gaps), see
+[`quickbooks-online-data-mapping.md`](./quickbooks-online-data-mapping.md).
+
 ## Setup (company super admin)
 
 1. Go to **Settings → Integrations → QuickBooks Online**.
@@ -22,6 +26,30 @@ It supports both **QuickBooks Online (QBO)** and **Intuit Enterprise Suite (IES)
    - `QBO_REALM_ID`
    - `QBO_ACCESS_TOKEN`
    - `QBO_REFRESH_TOKEN`
+
+### Redirect URI (the #1 cause of "didn't connect")
+
+Intuit shows a generic *"…didn't connect. Please try again later, or contact customer
+support"* page when the `redirect_uri` does **not exactly match** a URI registered on the
+app in the Intuit Developer portal. Matching rules:
+
+- Scheme + host + path + trailing slash must be byte-for-byte identical.
+- The URI must be registered under the **same key set** (Development vs Production) as the
+  Client ID/Secret in use. Development keys connect only to **sandbox** companies;
+  production keys connect to real companies.
+- The registered URI must be a real URL that routes to this app's callback handler.
+
+SiteCommand resolves the redirect URI via `getIntuitRedirectUri()` in `lib/quickbooks.ts`,
+in this order:
+
+1. `INTUIT_REDIRECT_URI` — explicit override. **Set this in the deployment env to the exact
+   value registered in the portal** (e.g. `https://<your-app-domain>/api/integrations/quickbooks/callback`).
+2. `NEXT_PUBLIC_APP_URL` + `/api/integrations/quickbooks/callback`.
+3. Request-derived origin (honors `x-forwarded-*`) — last resort; avoid relying on this in
+   production because Vercel proxying can yield the wrong scheme/host.
+
+When the callback fails, the settings page now shows Intuit's own reason (e.g.
+`invalid_grant`) appended to the error message.
 
 ## How to use it
 
@@ -81,11 +109,57 @@ a fresh record.
 Sub-hourly cron schedules require Vercel **Pro** or higher. On the Hobby plan
 use a once-daily cron expression in `vercel.json` (as configured here).
 
+## Reference resolution & posting config
+
+When creating transactions, SiteCommand resolves every QBO reference to an **Id**
+(`Ref.value`) rather than posting by name — names that don't exactly match an existing
+record silently fail. Vendors and Customers are created on demand from the contract
+company / owner name when they don't already exist.
+
+Bill expense lines post to a real expense/COGS account and PO/Invoice lines to a real
+Item (never to `Accounts Payable (A/P)`). The targets are configurable per company via
+`company_integrations` keys (or the matching env vars), and auto-detected when unset:
+
+| Key | Purpose | Default when unset |
+|---|---|---|
+| `QBO_AP_EXPENSE_ACCOUNT` | Account name to debit on Bills (AP) | first active **Cost of Goods Sold**, then **Expense**, account in the realm |
+| `QBO_DEFAULT_ITEM` | Item name for PO / Invoice lines | `Services` (created as a Service item wired to the first active Income account if missing) |
+| `QBO_BUDGET_CODE_MAP` | JSON map of SOV budget code → QBO refs | `{}` — unmapped codes fall back to the defaults above |
+| `QBO_RETAINAGE_RECEIVABLE_ACCOUNT` | Account behind the AR "Retainage" item | unset → no retainage line on invoices |
+| `QBO_RETAINAGE_PAYABLE_ACCOUNT` | Account for AP retainage withholding | unset → no retainage line on bills |
+
+If no valid account/item can be resolved, the sync fails fast with a clear message
+instead of posting an invalid transaction.
+
+### Schedule of Values, dates & retainage
+
+- **Line detail** — commitment Bills/POs and prime Invoices post one QBO line per SOV item
+  (description prefixed with the budget code; `Qty`/`UnitPrice` preserved when they
+  reconcile to the line amount). A commitment with no SOV lines falls back to a single
+  lump-sum line.
+- **Budget-code mapping** — each line's budget code is looked up in `QBO_BUDGET_CODE_MAP`:
+  ```json
+  { "01-100": { "account": "Job Materials", "class": "Phase 1", "item": "Materials" } }
+  ```
+  Any of `account` / `class` / `item` may be set; the Class is auto-created when missing
+  (skipped silently if class tracking is off). Unmapped codes use the transaction defaults.
+- **Document dates** — subcontract Bills use the commitment start/estimated-completion
+  dates, POs use the issued/contract date, prime Invoices use the contract start/estimated
+  dates — rather than the sync date.
+- **Retainage** — AR invoices withhold `work-completed × retainage %` per line and AP bills
+  withhold `billed × default retainage %`, each as a single negative line, **only** when the
+  matching retainage account key above is set.
+
 ## Current limitations
 
 - Sync is **push-only** from SiteCommand to QBO. There is no pull from QBO into
   SiteCommand.
-- Mapping is name-based for customer/vendor records when creating transactions.
+- Auto-created Vendors/Customers carry only a `DisplayName`; address/email/phone
+  enrichment from the directory is a planned follow-up (see data-mapping spec G2).
+- Budget-code → Account/Class/Item mapping works but is **config-driven**: it only takes
+  effect for codes listed in `QBO_BUDGET_CODE_MAP` (spec G5).
+- Projects are not yet mapped to a QBO Customer:Job/Class, and change orders are not pushed
+  (spec G3 / CO).
 
 
 ## Enterprise Suite compatibility
