@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/assist-recurring-workflows",
-      "schedule": "35 11 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }
