@@ -1427,11 +1427,11 @@ export default function SubmittalsClient({ projectId, role, username, userId, us
                 <span className="num">{submittals.length}</span> total
               </p>
             )}
-            <div className="mt-3 inline-flex rounded-md border hairline overflow-hidden bg-white">
-              <button onClick={() => { setActiveTab("items"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "items" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Items</button>
-              <button onClick={() => { setActiveTab("packages"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "packages" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Packages</button>
-              <button onClick={() => { setActiveTab("spec_sections"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "spec_sections" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Spec Sections</button>
-              <button onClick={() => { setActiveTab("recycle_bin"); setSelectedIds([]); }} className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === "recycle_bin" ? "bg-[color:var(--ink)] text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}>Recycle Bin</button>
+            <div className="seg mt-3">
+              <button onClick={() => { setActiveTab("items"); setSelectedIds([]); }} className={activeTab === "items" ? "active" : ""}>Items</button>
+              <button onClick={() => { setActiveTab("packages"); setSelectedIds([]); }} className={activeTab === "packages" ? "active" : ""}>Packages</button>
+              <button onClick={() => { setActiveTab("spec_sections"); setSelectedIds([]); }} className={activeTab === "spec_sections" ? "active" : ""}>Spec Sections</button>
+              <button onClick={() => { setActiveTab("recycle_bin"); setSelectedIds([]); }} className={activeTab === "recycle_bin" ? "active" : ""}>Recycle Bin</button>
             </div>
           </div>
           <div className="flex items-center gap-2">
