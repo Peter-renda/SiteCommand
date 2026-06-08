@@ -1077,6 +1077,7 @@ export default function DirectoryClient({
   const allSelectableIds = filtered.map(c => c.id);
   const allSelected = allSelectableIds.length > 0 && allSelectableIds.every(id => selectedContacts.has(id));
   const someSelected = allSelectableIds.some(id => selectedContacts.has(id));
+  const selectedPeopleCount = contacts.filter(c => selectedContacts.has(c.id) && c.type === "user").length;
 
   // Sync header checkbox indeterminate state
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1217,7 +1218,7 @@ export default function DirectoryClient({
         {/* Bulk selection note */}
         {!loading && selectedContacts.size > 0 && (
           <p className="sub mb-3">
-            <span className="num" style={{ color: "var(--brand-500)" }}>{selectedContacts.size}</span> selected
+            <span className="num" style={{ color: "var(--brand-500)" }}>{selectedPeopleCount}</span> {selectedPeopleCount === 1 ? "person" : "people"} selected
             <span className="sep">·</span>
             <button onClick={() => setSelectedContacts(new Set())} className="btn-quiet">Clear selection</button>
           </p>
@@ -1727,16 +1728,16 @@ function PersonCard({
   const sending = invitingId === c.id;
   const initials = getInitials(c.first_name, c.last_name);
   return (
-    <div className="dir-card">
+    <div className="dir-card cursor-pointer" onClick={() => onOpen(c)}>
       <div className="head">
         <div
           className={`av av-${warmTint(displayName)}`}
-          style={{ width: 40, height: 40, borderRadius: 8, display: "grid", placeItems: "center", fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: "var(--font-display, 'DM Serif Display'), serif", fontStyle: "italic" }}
+          style={{ width: 36, height: 36, borderRadius: 8, display: "grid", placeItems: "center", fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: "var(--font-display, 'DM Serif Display'), serif", fontStyle: "italic" }}
         >
           {initials}
         </div>
         <div className="min-w-0">
-          <button onClick={() => onOpen(c)} className="nm hover:text-[color:var(--brand-700)] transition-colors text-left truncate">{displayName}</button>
+          <div className="nm truncate">{displayName}</div>
           {c.job_title && <div className="role truncate">{c.job_title}</div>}
         </div>
         <input
@@ -1744,21 +1745,22 @@ function PersonCard({
           className="rounded border-gray-300 cursor-pointer ml-auto shrink-0"
           checked={selected}
           onChange={() => onToggleSelect(c.id)}
+          onClick={(e) => e.stopPropagation()}
           aria-label={`Select ${displayName}`}
         />
       </div>
       {(c.email || c.phone) && (
-        <div className="info">
+        <div className="info" onClick={(e) => e.stopPropagation()}>
           {c.email && <a href={`mailto:${c.email}`} className="hover:text-[color:var(--ink)] transition-colors">{c.email}</a>}
           {c.email && c.phone && <span className="sep"> · </span>}
           {c.phone && <span>{c.phone}</span>}
         </div>
       )}
       {c.permission && <div className="info">{c.permission}</div>}
-      <div className="flex items-center gap-2 mt-3">
+      <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
         {c.email && (
           <button
-            onClick={() => onInvite(c)}
+            onClick={(e) => { e.stopPropagation(); onInvite(c); }}
             disabled={sending}
             className="px-3 py-1 text-xs font-semibold rounded text-white bg-gray-900 hover:bg-gray-700 transition-colors disabled:opacity-60"
           >
