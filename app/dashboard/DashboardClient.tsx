@@ -1081,34 +1081,18 @@ export default function DashboardClient({ username, email, role, companyRole, us
                       </>
                     )}
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-6">
                       <div>
-                        <p className="mono-label mb-1">PROJECTS</p>
-                        <p className="font-display text-xl text-[color:var(--ink)] tabular-nums">{projects.length}</p>
+                        <p className="mono-label mb-2">PROJECTS</p>
+                        <p className="font-display text-3xl text-[color:var(--ink)] tabular-nums">{projects.length}</p>
                       </div>
                       <div>
-                        <p className="mono-label mb-1">ACTIVE</p>
-                        <p className="font-display text-xl text-[color:var(--ink)] tabular-nums">{activeCount}</p>
+                        <p className="mono-label mb-2">ACTIVE</p>
+                        <p className="font-display text-3xl text-[color:var(--ink)] tabular-nums">{activeCount}</p>
                       </div>
                       <div>
-                        <p className="mono-label mb-1">COMPLETE</p>
-                        <p className="font-display text-xl text-[color:var(--ink)] tabular-nums">{completedCount}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 pt-5 border-t hairline">
-                      <button
-                        type="button"
-                        className="mono-label mb-2 hover:text-gray-700 transition-colors underline-offset-2 hover:underline"
-                        onClick={() => myOpenItemsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                      >
-                        MY OPEN ITEMS
-                      </button>
-                      <div className="flex items-baseline gap-2">
-                        <p className="font-display text-2xl text-[color:var(--ink)] tabular-nums">{attentionCount}</p>
-                        <p className="text-xs text-gray-400">
-                          {attentionCount === 1 ? "item awaiting action" : "items awaiting action"}
-                        </p>
+                        <p className="mono-label mb-2">COMPLETE</p>
+                        <p className="font-display text-3xl text-[color:var(--ink)] tabular-nums">{completedCount}</p>
                       </div>
                     </div>
                   </div>
@@ -1363,45 +1347,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
             );
           })()}
         </div>
-
-        {/* My Open Items */}
-        <section ref={myOpenItemsRef} className="mt-12">
-          <div className="flex items-end justify-between mb-5">
-            <div>
-              <h2 className="font-display text-[28px] leading-[1.05] text-[color:var(--ink)]">My open items</h2>
-              <p className="sec-sub">
-                <span className="num">{myOpenItems.length}</span> item{myOpenItems.length !== 1 ? "s" : ""} awaiting action
-              </p>
-            </div>
-          </div>
-
-          {openItemDetailList.length > 0 && (
-            <ul className="divide-y divide-gray-50 border hairline rounded-xl bg-white">
-              {openItemDetailList.map((d, idx) => (
-                <li key={d.key}>
-                  <button
-                    type="button"
-                    onClick={() => openDetail(openItemDetailList, idx)}
-                    className="w-full text-left flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors"
-                  >
-                    <span className={`pill ${d.pillClass} shrink-0`}>{d.typeLabel}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-900 truncate">{d.title}</p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {d.projectName} · {d.status}
-                      </p>
-                    </div>
-                    {d.dueDate && (
-                      <span className="text-xs text-gray-500 shrink-0 mono-label">
-                        {dueDateLabel(d.dueDate)}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
 
         <section
           ref={whileAwayRef}
