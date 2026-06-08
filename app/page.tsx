@@ -399,12 +399,12 @@ export default function Home() {
               </a>
             </div>
 
-            {/* Bento grid — asymmetric 4-col layout */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Uniform 3-col grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {features.map((f) => (
                 <div
                   key={f.name}
-                  className={f.large ? "col-span-2" : "col-span-1"}
+                  className="col-span-1"
                 >
                   <Bezel size="md" elevation="flat" className="h-full" innerClassName="h-full">
                     <div className="h-full p-6 flex flex-col gap-4">
