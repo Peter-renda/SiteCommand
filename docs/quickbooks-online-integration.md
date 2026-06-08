@@ -13,6 +13,10 @@ It supports both **QuickBooks Online (QBO)** and **Intuit Enterprise Suite (IES)
 - `ap_invoice` → creates a **QBO Bill** from commitment SOV billed-to-date amounts
 - `ar_invoice` → creates a **QBO AR Invoice** from prime contract SOV current-period amounts
 
+For the full field-by-field crosswalk between SiteCommand and the QBO object model
+(and the prioritized list of mapping gaps), see
+[`quickbooks-online-data-mapping.md`](./quickbooks-online-data-mapping.md).
+
 ## Setup (company super admin)
 
 1. Go to **Settings → Integrations → QuickBooks Online**.
@@ -22,6 +26,30 @@ It supports both **QuickBooks Online (QBO)** and **Intuit Enterprise Suite (IES)
    - `QBO_REALM_ID`
    - `QBO_ACCESS_TOKEN`
    - `QBO_REFRESH_TOKEN`
+
+### Redirect URI (the #1 cause of "didn't connect")
+
+Intuit shows a generic *"…didn't connect. Please try again later, or contact customer
+support"* page when the `redirect_uri` does **not exactly match** a URI registered on the
+app in the Intuit Developer portal. Matching rules:
+
+- Scheme + host + path + trailing slash must be byte-for-byte identical.
+- The URI must be registered under the **same key set** (Development vs Production) as the
+  Client ID/Secret in use. Development keys connect only to **sandbox** companies;
+  production keys connect to real companies.
+- The registered URI must be a real URL that routes to this app's callback handler.
+
+SiteCommand resolves the redirect URI via `getIntuitRedirectUri()` in `lib/quickbooks.ts`,
+in this order:
+
+1. `INTUIT_REDIRECT_URI` — explicit override. **Set this in the deployment env to the exact
+   value registered in the portal** (e.g. `https://<your-app-domain>/api/integrations/quickbooks/callback`).
+2. `NEXT_PUBLIC_APP_URL` + `/api/integrations/quickbooks/callback`.
+3. Request-derived origin (honors `x-forwarded-*`) — last resort; avoid relying on this in
+   production because Vercel proxying can yield the wrong scheme/host.
+
+When the callback fails, the settings page now shows Intuit's own reason (e.g.
+`invalid_grant`) appended to the error message.
 
 ## How to use it
 

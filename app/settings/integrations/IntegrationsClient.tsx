@@ -297,8 +297,11 @@ function QuickBooksSection() {
       url.searchParams.delete("connected");
       window.history.replaceState({}, "", url.toString());
     } else if (error && error.startsWith("qbo_")) {
-      setErrorMsg(QBO_ERROR_MESSAGES[error] ?? "An error occurred connecting to QuickBooks.");
+      const reason = params.get("reason");
+      const base = QBO_ERROR_MESSAGES[error] ?? "An error occurred connecting to QuickBooks.";
+      setErrorMsg(reason ? `${base} (QuickBooks said: ${reason})` : base);
       url.searchParams.delete("error");
+      url.searchParams.delete("reason");
       window.history.replaceState({}, "", url.toString());
     }
   }, []);
@@ -404,8 +407,13 @@ function QuickBooksSection() {
 
       <div className="mt-5 pt-4 border-t border-gray-100">
         <p className="text-xs text-gray-400">
-          Set the redirect URI in the Intuit Developer Portal to{" "}
-          <code className="font-mono bg-gray-100 px-1 rounded">{typeof window !== "undefined" ? window.location.origin : ""}/api/integrations/quickbooks/callback</code>.
+          In the Intuit Developer Portal, the redirect URI must <strong>exactly match</strong>{" "}
+          (scheme, host, and path) the one below — a mismatch is what causes Intuit&apos;s
+          &ldquo;didn&apos;t connect&rdquo; error:
+          <br />
+          <code className="font-mono bg-gray-100 px-1 rounded">{(process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") || (typeof window !== "undefined" ? window.location.origin : ""))}/api/integrations/quickbooks/callback</code>.
+          <br />
+          Register it under the same key set (Development vs Production) as the Client ID/Secret you saved above.
           Required scope: <code className="font-mono bg-gray-100 px-1 rounded">com.intuit.quickbooks.accounting</code>.
         </p>
       </div>

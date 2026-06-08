@@ -20,6 +20,41 @@ const QBO_BASE = "https://quickbooks.api.intuit.com/v3/company";
 const QBO_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
 const QBO_MINOR_VERSION = "65";
 
+/** Path Intuit redirects back to after OAuth authorization. */
+export const QBO_CALLBACK_PATH = "/api/integrations/quickbooks/callback";
+
+/**
+ * Resolves the OAuth redirect_uri sent to Intuit.
+ *
+ * Intuit aborts the whole authorization with a generic "…didn't connect"
+ * error page when redirect_uri does not EXACTLY match a URI registered on the
+ * app in the Intuit Developer portal (scheme, host, path, trailing slash).
+ * Deriving the origin from the incoming request is fragile behind Vercel's
+ * proxy — the protocol can resolve to http and the host can be a per-deployment
+ * *.vercel.app domain — so we pin it to a stable, configured value:
+ *
+ *   1. INTUIT_REDIRECT_URI        – exact override; set to match the portal verbatim
+ *   2. NEXT_PUBLIC_APP_URL + path – the app's canonical origin (used elsewhere for links)
+ *   3. request-derived origin     – last resort; honors x-forwarded-* and assumes https off-localhost
+ *
+ * The authorize call and the token exchange MUST use the same value, so both
+ * routes call this helper.
+ */
+export function getIntuitRedirectUri(req: Request): string {
+  const explicit = process.env.INTUIT_REDIRECT_URI?.trim();
+  if (explicit) return explicit;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (appUrl) return `${appUrl.replace(/\/+$/, "")}${QBO_CALLBACK_PATH}`;
+
+  const fwdHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = fwdHost || req.headers.get("host") || new URL(req.url).host;
+  const fwdProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  const proto = fwdProto || (isLocal ? "http" : "https");
+  return `${proto}://${host}${QBO_CALLBACK_PATH}`;
+}
+
 // ── Credential types ──────────────────────────────────────────────────────────
 
 export type QBOAppCredentials = {

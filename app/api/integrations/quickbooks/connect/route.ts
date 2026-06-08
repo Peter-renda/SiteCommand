@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getQBOAppCredentials } from "@/lib/quickbooks";
+import { getQBOAppCredentials, getIntuitRedirectUri } from "@/lib/quickbooks";
 
 const QBO_AUTH_URL = "https://appcenter.intuit.com/connect/oauth2";
 const INTUIT_ACCOUNTING_SCOPE = "com.intuit.quickbooks.accounting";
@@ -35,7 +35,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${settingsUrl}?error=qbo_not_configured`);
   }
 
-  const redirectUri = `${origin}/api/integrations/quickbooks/callback`;
+  // Pinned to a stable value (env-driven) so it matches the URI registered in
+  // the Intuit Developer portal — a mismatch is what triggers Intuit's generic
+  // "…didn't connect" error page. Must be identical to the value the callback
+  // uses for the token exchange.
+  const redirectUri = getIntuitRedirectUri(req);
 
   // Encode company_id in state so the callback can associate tokens with the right company
   const state = Buffer.from(JSON.stringify({ companyId: session.company_id })).toString("base64url");
