@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import ProjectNav from "@/components/ProjectNav";
 import AppHeader from "@/app/components/AppHeader";
 import { Pill } from "@/components/design-system/Primitives";
+import BuildingCodeSection from "./BuildingCodeSection";
 
 type ProjectAdmin = {
   id: string;
@@ -76,6 +77,7 @@ const WORK_SCOPES = ["Commercial", "Residential", "Industrial"];
 const ADMIN_SECTIONS = [
   { id: "general-information", label: "General Information" },
   { id: "project-location", label: "Project Location" },
+  { id: "building-code", label: "Building Code" },
   { id: "erp-integration", label: "ERP Integration" },
   { id: "advanced", label: "Advanced" },
   { id: "dates", label: "Dates" },
@@ -585,6 +587,10 @@ export default function AdminClient({
                       <TextInput value="" readOnly placeholder="Enter fax number" />
                     </Field>
                   </div>
+                </SectionCard>
+
+                <SectionCard id="building-code" title="Building Code">
+                  <BuildingCodeSection projectId={projectId} isAdmin={isAdmin} />
                 </SectionCard>
 
                 <SectionCard id="erp-integration" title="ERP Integration">
