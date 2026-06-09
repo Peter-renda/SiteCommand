@@ -105,6 +105,7 @@ export async function PATCH(
     "official_response_id",
     "related_items",
     "schedule_impact", "cost_impact", "cost_code", "sub_job", "rfi_stage", "private",
+    "report_fields",
   ];
   const update: Record<string, unknown> = {};
   for (const key of allowed) {

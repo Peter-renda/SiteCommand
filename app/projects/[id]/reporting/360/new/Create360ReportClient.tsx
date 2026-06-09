@@ -3777,6 +3777,9 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const data = await res.json();
     const items: Row[] = Array.isArray(data) ? data : data.items ?? [];
     return items.map((c: Row) => ({
+      // New report-backed fields (stored in report_fields JSONB) come first so
+      // explicitly-mapped columns below win on any key collision.
+      ...((c.report_fields as Row) ?? {}),
       number: c.number,
       type: c.type,
       contract_company: c.contract_company,
@@ -3791,6 +3794,33 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
       signed_po_received_date: c.signed_po_received_date,
       erp_status: c.erp_status,
       created_at: c.created_at,
+      // Aliases so the catalog's Procore-style field keys also resolve.
+      date_created: c.created_at,
+      date_updated: c.updated_at,
+      contract_date: c.contract_date,
+      start_date: c.start_date,
+      estimated_completion_date: c.estimated_completion,
+      actual_completion_date: c.actual_completion,
+      signed_contract_received_date: c.signed_contract_received,
+      issued_on_date: c.issued_on_date,
+      default_retainage: c.default_retainage,
+      bond_amount: c.bond_amount,
+      inclusions: c.inclusions,
+      exclusions: c.exclusions,
+      private: c.is_private,
+      enable_subcontractor_sov: c.ssov_enabled,
+      enable_financial_markups: c.financial_markup_enabled,
+      subcontractor_contact: c.subcontractor_contact,
+      subcontractor_sov_status: c.ssov_status,
+      trades: c.trades,
+      bill_to: c.bill_to,
+      ship_to: c.ship_to,
+      ship_via: c.ship_via,
+      payment_terms: c.payment_terms,
+      assigned_to: c.assigned_to,
+      invoiced: c.invoiced,
+      payments_issued: c.payments_issued,
+      sign_with_docusign: c.sign_docusign,
     }));
   }
 
@@ -3926,6 +3956,7 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     return (contacts ?? [])
       .filter((c) => c.type === "company")
       .map((c) => ({
+        ...((c.report_fields as Row) ?? {}),
         id: c.id,
         name: c.company ?? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim(),
         abbreviated_name: c.abbreviated_name,
@@ -3979,10 +4010,12 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const p = (await res.json()) as Row;
     if (!p || typeof p !== "object") return [];
     return [{
+      ...((p.report_fields as Row) ?? {}),
       id: p.id,
       name: p.name,
       number: p.project_number,
       code: p.project_number,
+      work_scope: p.work_scope,
       description: p.description,
       address: p.address,
       city: p.city,
@@ -4060,11 +4093,15 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const rfis: Row[] = await res.json();
     if (source === "rfis") {
       return (rfis ?? []).map((r) => ({
+        ...((r.report_fields as Row) ?? {}),
         rfi_number: r.rfi_number,
+        number: r.rfi_number,
         subject: r.subject,
         status: r.status,
         rfi_stage: r.rfi_stage,
+        stage: r.rfi_stage,
         due_date: r.due_date,
+        date_created: r.created_at,
         rfi_manager: r.rfi_manager_name ?? r.rfi_manager_id,
         received_from: r.received_from_name ?? r.received_from_id,
         specification: r.specification_name ?? r.specification_id,
@@ -4106,11 +4143,17 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const subs: Row[] = await res.json();
     if (source === "submittals") {
       return (subs ?? []).map((s) => ({
+        ...((s.report_fields as Row) ?? {}),
         submittal_number: s.submittal_number,
+        number: s.submittal_number,
         revision: s.revision,
         title: s.title,
         submittal_type: s.submittal_type,
+        type: s.submittal_type,
         status: s.status,
+        date_created: s.created_at,
+        description: s.description,
+        ball_in_court: s.ball_in_court_name ?? s.ball_in_court_id,
         specification: s.specification_name ?? s.specification_id,
         responsible_contractor: s.responsible_contractor_name ?? s.responsible_contractor_id,
         received_from: s.received_from_name ?? s.received_from_id,
@@ -4163,7 +4206,9 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const items: Row[] = await res.json();
     if (source === "punch-items") {
       return (items ?? []).map((p) => ({
+        ...((p.report_fields as Row) ?? {}),
         item_number: p.item_number,
+        number: p.item_number,
         title: p.title,
         status: p.status,
         type: p.type,
@@ -4173,8 +4218,15 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
         due_date: p.due_date,
         schedule_impact: p.schedule_impact,
         cost_impact: p.cost_impact,
+        cost_code: p.cost_codes,
+        reference: p.reference,
+        description: p.description,
+        ball_in_court: p.ball_in_court,
+        punch_item_manager: p.punch_item_manager_name ?? p.punch_item_manager_id,
+        final_approver: p.final_approver_name ?? p.final_approver_id,
         private: p.private,
         created_at: p.created_at,
+        date_created: p.created_at,
       }));
     }
     const rows: Row[] = [];
@@ -4207,13 +4259,18 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const items: Row[] = await res.json();
     if (source === "tasks") {
       return (items ?? []).map((t) => ({
+        ...((t.report_fields as Row) ?? {}),
         task_number: t.task_number,
+        number: t.task_number,
         title: t.title,
         status: t.status,
         category: t.category,
         description: t.description,
+        due_date: t.due_date,
+        private: t.is_private,
         created_by: t.created_by_name ?? t.created_by,
         created_at: t.created_at,
+        date_created: t.created_at,
       }));
     }
     const rows: Row[] = [];
@@ -4236,15 +4293,25 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const items: Row[] = await res.json();
     if (source === "meetings") {
       return (items ?? []).map((m) => ({
+        ...((m.report_fields as Row) ?? {}),
         meeting_number: m.meeting_number,
+        number: m.meeting_number,
         title: m.title,
+        name: m.title,
         series: m.series,
         date: m.date,
         end_date: m.end_date,
         location: m.location,
         status: m.status,
+        overview: m.overview,
+        start_time: m.start_time,
+        finish_time: m.end_time,
+        timezone: m.timezone,
+        private: m.is_private,
         is_private: m.is_private,
+        draft_meeting: m.is_draft,
         created_by: m.created_by_name ?? m.created_by,
+        created_date: m.created_at,
       }));
     }
     const rows: Row[] = [];

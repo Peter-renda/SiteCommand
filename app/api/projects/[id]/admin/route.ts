@@ -37,6 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     "projected_finish_date", "warranty_start_date", "warranty_end_date",
     "erp_sync", "erp_job_cost_sync", "prevent_overbilling",
     "non_commitment_costs", "test_project", "sage_300_id",
+    "report_fields",
   ];
 
   // ERP integration + advanced project flags are editable by Company Super Admins only.
