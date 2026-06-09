@@ -5,6 +5,8 @@ import ProjectNav from "@/components/ProjectNav";
 import AppHeader from "@/app/components/AppHeader";
 import { Pill } from "@/components/design-system/Primitives";
 import BuildingCodeSection from "./BuildingCodeSection";
+import ReportFieldsSection, { type ReportFieldValues } from "@/components/ReportFieldsSection";
+import { PROJECT_REPORT_FIELDS } from "@/lib/report-fields";
 
 type ProjectAdmin = {
   id: string;
@@ -31,6 +33,7 @@ type ProjectAdmin = {
   non_commitment_costs: boolean | null;
   test_project: boolean | null;
   sage_300_id: string | null;
+  report_fields: ReportFieldValues | null;
 };
 
 type ProjectMember = {
@@ -234,6 +237,7 @@ export default function AdminClient({
   const [nonCommitmentCosts, setNonCommitmentCosts] = useState(false);
   const [testProject, setTestProject] = useState(false);
   const [sage300Id, setSage300Id] = useState("");
+  const [reportFields, setReportFields] = useState<ReportFieldValues>({});
 
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
@@ -287,6 +291,7 @@ export default function AdminClient({
         setNonCommitmentCosts(d.non_commitment_costs ?? false);
         setTestProject(d.test_project ?? false);
         setSage300Id(d.sage_300_id ?? "");
+        setReportFields(d.report_fields ?? {});
         setLoading(false);
       });
   }, [projectId]);
@@ -397,6 +402,7 @@ export default function AdminClient({
         non_commitment_costs: nonCommitmentCosts,
         test_project: testProject,
         sage_300_id: sage300Id,
+        report_fields: reportFields,
       }),
     });
     if (res.ok) {
@@ -745,6 +751,18 @@ export default function AdminClient({
                     <Field label="Parent Project">
                       <SelectInput value="" placeholder="Select parent project" options={["Corporate Program"]} disabled />
                     </Field>
+                    <div className="col-span-2">
+                      <ReportFieldsSection
+                        title="Report Fields"
+                        description="Extra project attributes surfaced as columns in 360 Reports. Saved with the project."
+                        fields={PROJECT_REPORT_FIELDS}
+                        values={reportFields}
+                        onChange={(key, value) =>
+                          setReportFields((prev) => ({ ...prev, [key]: value }))
+                        }
+                        columns={3}
+                      />
+                    </div>
                     <div className="col-span-2 border-t border-gray-200 pt-3">
                       <h3 className="mb-2 text-xl font-semibold text-gray-900">Project Members</h3>
                       {members.length === 0 ? (
