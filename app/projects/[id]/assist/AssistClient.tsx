@@ -68,6 +68,133 @@ function formatRelativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+// ── Looking Ahead ─────────────────────────────────────────────────────────────
+
+type LookingAheadNote = {
+  id: string;
+  headline: string;
+  detail: string;
+  source: string;
+  category: string | null;
+  priority: "high" | "medium" | "low";
+  pinned: boolean;
+  generated_at: string;
+};
+
+const LA_PRIORITY_BADGE: Record<string, string> = {
+  high: "bg-rose-50 text-rose-700 border-rose-200",
+  medium: "bg-amber-50 text-amber-700 border-amber-200",
+  low: "bg-slate-50 text-slate-600 border-slate-200",
+};
+
+const LA_SNOOZE_OPTIONS: { label: string; value: string }[] = [
+  { label: "Remind me in 1 day", value: "1d" },
+  { label: "Remind me in 1 week", value: "1w" },
+  { label: "Remind me in 2 weeks", value: "2w" },
+];
+
+function LookingAheadCard({
+  note,
+  busy,
+  onPin,
+  onDismiss,
+  onSnooze,
+}: {
+  note: LookingAheadNote;
+  busy: boolean;
+  onPin: () => void;
+  onDismiss: () => void;
+  onSnooze: (value: string) => void;
+}) {
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
+  const snoozeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (snoozeRef.current && !snoozeRef.current.contains(e.target as Node)) setSnoozeOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div className={`rounded-lg border border-gray-100 bg-white px-4 py-3 transition-opacity ${busy ? "opacity-50 pointer-events-none" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`px-1.5 py-0.5 rounded-full border text-[10px] font-medium capitalize ${LA_PRIORITY_BADGE[note.priority] ?? LA_PRIORITY_BADGE.low}`}>
+              {note.priority}
+            </span>
+            <span className="text-sm font-medium text-[color:var(--ink)]">{note.headline}</span>
+            {note.category && <span className="text-xs text-gray-400">· {note.category}</span>}
+            {note.pinned && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--brand-700)]">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.5 1.5a1 1 0 0 0-1 1V8L5.7 11.2a1 1 0 0 0 .8 1.6H9v4.7a1 1 0 0 0 2 0V12.8h2.5a1 1 0 0 0 .8-1.6L11.5 8V2.5a1 1 0 0 0-1-1h-1Z" />
+                </svg>
+                Pinned
+              </span>
+            )}
+          </div>
+          {note.detail && (
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">{note.detail}</p>
+          )}
+          {note.source && (
+            <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-400">
+              <span className="inline-flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {note.source}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={onPin}
+            className={`px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+              note.pinned
+                ? "text-[color:var(--brand-700)] border-[color:var(--brand-200)] bg-[color:var(--brand-50)] hover:bg-[color:var(--brand-100)]"
+                : "text-gray-600 border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            {note.pinned ? "Unpin" : "Pin"}
+          </button>
+          <div ref={snoozeRef} className="relative">
+            <button
+              onClick={() => setSnoozeOpen((o) => !o)}
+              className="px-2.5 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Later
+            </button>
+            {snoozeOpen && (
+              <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-20">
+                {LA_SNOOZE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setSnoozeOpen(false); onSnooze(opt.value); }}
+                    className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={onDismiss}
+            className="px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AssistClient({ projectId }: { projectId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -78,6 +205,11 @@ export default function AssistClient({ projectId }: { projectId: string }) {
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+
+  const [notes, setNotes] = useState<LookingAheadNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [notesRefreshing, setNotesRefreshing] = useState(false);
+  const [noteBusyId, setNoteBusyId] = useState<string | null>(null);
 
   const [workflows, setWorkflows] = useState<RecurringWorkflow[]>([]);
   const [wfName, setWfName] = useState("");
@@ -131,6 +263,61 @@ export default function AssistClient({ projectId }: { projectId: string }) {
     })();
     return () => { cancelled = true; };
   }, [projectId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/looking-ahead`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && Array.isArray(data)) setNotes(data);
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setNotesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  async function refreshNotes() {
+    setNotesRefreshing(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/looking-ahead`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.notes)) setNotes(data.notes);
+    } catch {
+      // ignore
+    } finally {
+      setNotesRefreshing(false);
+    }
+  }
+
+  async function actOnNote(noteId: string, body: { action: string; snooze?: string }) {
+    const previous = notes;
+    const isPinToggle = body.action === "pin" || body.action === "unpin";
+    // Pin/unpin updates in place; dismiss/snooze removes the card.
+    setNotes((prev) =>
+      isPinToggle
+        ? prev.map((n) => (n.id === noteId ? { ...n, pinned: body.action === "pin" } : n))
+        : prev.filter((n) => n.id !== noteId),
+    );
+    setNoteBusyId(noteId);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/looking-ahead/${noteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Action failed");
+    } catch {
+      setNotes(previous);
+    } finally {
+      setNoteBusyId(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -338,6 +525,60 @@ export default function AssistClient({ projectId }: { projectId: string }) {
             RFI/submittal attachments, project documents).
           </p>
         </div>
+
+        {/* Looking Ahead */}
+        {!notesLoading && (
+          <section className="mb-6 rounded-xl border hairline bg-[color:var(--surface-sunken)] p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-semibold text-[color:var(--ink)] flex items-center gap-2">
+                  <svg className="w-4 h-4 text-[color:var(--brand-600)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  Looking Ahead
+                  {notes.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-[color:var(--brand-100)] text-[color:var(--brand-700)] text-[10px] font-medium">
+                      {notes.length}
+                    </span>
+                  )}
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  <span className="serif-italic text-[color:var(--brand-700)]">A daily briefing</span> of things to know &amp; remember — drawn from your plans, specs, contracts, emails, and schedule.
+                </p>
+              </div>
+              <button
+                onClick={refreshNotes}
+                disabled={notesRefreshing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                <svg className={`w-3.5 h-3.5 ${notesRefreshing ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {notesRefreshing ? "Thinking..." : "Refresh"}
+              </button>
+            </div>
+
+            {notes.length === 0 ? (
+              <p className="text-xs text-gray-400 py-2">
+                {notesRefreshing ? "Reviewing where the project stands…" : "Nothing to flag right now. Check back tomorrow morning, or Refresh to generate now."}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {notes.map((note) => (
+                  <LookingAheadCard
+                    key={note.id}
+                    note={note}
+                    busy={noteBusyId === note.id}
+                    onPin={() => actOnNote(note.id, { action: note.pinned ? "unpin" : "pin" })}
+                    onDismiss={() => actOnNote(note.id, { action: "dismiss" })}
+                    onSnooze={(v) => actOnNote(note.id, { action: "snooze", snooze: v })}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="rounded-xl border border-[color:var(--border-base)] bg-white flex flex-col h-[calc(100vh-260px)]">
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">

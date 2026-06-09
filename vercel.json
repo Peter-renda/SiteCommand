@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/todo-recommendations",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/looking-ahead",
+      "schedule": "0 7 * * *"
     }
   ]
 }

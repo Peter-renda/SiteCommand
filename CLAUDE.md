@@ -1449,3 +1449,38 @@ The Tasks page has a **To Do** section above the tasks table that surfaces AI-re
 
 ### UI (SiteCommand)
 - `TasksClient.tsx`: `TodoSection` + `TodoCard` render above the stat strip. Each card shows priority badge, title, category, rationale, source label, and suggested due date, with Accept / Later (snooze dropdown) / Ignore controls. State: `recommendations`, `recsLoading`, `recsRefreshing`, `recBusyId`; handlers `handleRefreshRecs` and `actOnRec`. The section hides while the first load is in flight and renders an empty hint (with Refresh) when there are no items.
+
+## Assist – "Looking Ahead" Daily Briefing
+
+### Overview
+The Assist page has a **Looking Ahead** section (above the chat box) that surfaces a daily briefing of **things to know / remember** given where the project currently stands. A daily cron (~3am ET) studies the project — drawings/plans, specs, contracts/commitments, recent emails, schedule position, open RFIs/submittals, meetings, daily logs, change events/orders, punch list, transmittals — and writes a few grounded factual bullets the team should keep top of mind.
+
+These are **facts to commit to memory, not action items** (actionable to-dos live in the Tasks "To Do" section). Example notes: "The stormwater plans show 1,240 LF of 24\" RCP on site" or "Per the supplier's May 3 email, structure C15 will be ~2 weeks late."
+
+### User Actions (per note)
+- **Pin / Unpin** — keep an important fact at the top of the list (pinned notes sort first).
+- **Dismiss** — hide permanently (deduped against on future runs, never resurfaces).
+- **Later** (snooze) — resurfaces after **1 day**, **1 week**, or **2 weeks**.
+- **Refresh** — manually triggers a generation pass (same logic as the cron) instead of waiting for the morning.
+
+### Tool-Level Permissions
+- Any user who can access the project (`canAccessProject`) can view and act on notes — same gate as the rest of the Assist page (no per-tool level).
+
+### Generation & Dedupe
+- Shared generator: `lib/looking-ahead.ts` → `generateLookingAheadNotes(supabase, projectId)`. Builds a lean project context (generic row serialization for drawings, specs, commitments, RFIs, submittals, meetings, daily logs, schedules, change events/orders, punch list, transmittals + a dedicated fuller email block) and calls Gemini `gemini-2.5-flash` with a structured-output schema (`{ items: [{ headline, detail, source, category, priority }] }`).
+- **Dedupe**: each headline is normalized into a `dedupe_key` (lowercase, alphanumeric, collapsed whitespace); `UNIQUE(project_id, dedupe_key)` plus an in-generator check against ALL existing rows (any status) means a note already seen/pinned/dismissed is never re-surfaced.
+- **Caps**: stops generating once a project has `MAX_ACTIVE_NOTES` (10) actionable notes; inserts at most `MAX_NEW_PER_RUN` (6) per pass. Previously surfaced headlines are passed to the model so it won't repeat them. The system prompt explicitly forbids action-item phrasing ("call the supplier") and requires facts ("structure C15 is ~2 weeks late") grounded in the provided data.
+
+### Schedule (Cron)
+- `vercel.json` cron `/api/cron/looking-ahead` at `0 7 * * *` (~3am ET / before the workday and before the To Do cron at 8 UTC). Secured with `CRON_SECRET`. Iterates `projects` where `status = 'active'` and calls the shared generator; resilient to per-project failures. Requires `GEMINI_API_KEY`.
+
+### API
+- `GET /api/projects/[id]/looking-ahead` — active list (`status = 'pending'` AND not currently snoozed: `snoozed_until` null or ≤ now), sorted pinned-first then high→medium→low then newest first.
+- `POST /api/projects/[id]/looking-ahead` — manual generation pass, returns the refreshed active list under `notes` (`maxDuration = 120`).
+- `PATCH /api/projects/[id]/looking-ahead/[noteId]` — body `{ action: "pin" | "unpin" | "dismiss" | "snooze", snooze?: "1d" | "1w" | "2w" }`. Rejects if the note is no longer `pending` (409).
+
+### Schema
+- `project_looking_ahead_notes` (migration `153_project_looking_ahead_notes.sql`): `headline`, `detail`, `source`, `category`, `priority` (high/medium/low), `status` (pending/dismissed), `pinned` (bool), `snoozed_until` (future = hidden until then), `dedupe_key` (UNIQUE per project), `acted_by`/`acted_at`, `generated_at`.
+
+### UI (SiteCommand)
+- `AssistClient.tsx`: a `LookingAheadCard` component plus an inline **Looking Ahead** `<section>` rendered between the page header and the chat box. Each card shows priority badge, headline, category, detail, source label, and a Pinned marker, with Pin/Unpin · Later (snooze dropdown) · Dismiss controls. State: `notes`, `notesLoading`, `notesRefreshing`, `noteBusyId`; handlers `refreshNotes` and `actOnNote`. The section hides while the first load is in flight and renders an empty hint (with Refresh) when there are no notes. Pin/unpin updates in place; dismiss/snooze optimistically removes the card and reverts on failure.
