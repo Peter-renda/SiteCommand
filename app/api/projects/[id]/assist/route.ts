@@ -316,6 +316,48 @@ async function collectSubmittalAttachments(supabase: Supa, projectId: string): P
   return out;
 }
 
+// Building code references live under Admin → Building Code. Only approved
+// documents are surfaced: uploaded PDFs become attachable files, while saved
+// links are listed as a text block Assist can cite.
+async function collectBuildingCode(
+  supabase: Supa,
+  projectId: string,
+): Promise<{ files: Candidate[]; text: string }> {
+  const { data } = await supabase
+    .from("project_building_code_documents")
+    .select("title, jurisdiction, doc_type, url, storage_path, filename, notes")
+    .eq("project_id", projectId)
+    .eq("status", "approved");
+
+  const rows = (data ?? []) as Row[];
+  const files: Candidate[] = [];
+  const linkLines: string[] = [];
+
+  for (const row of rows) {
+    const title = (row.title as string | null) ?? "Building Code";
+    const jurisdiction = (row.jurisdiction as string | null) ?? "";
+    const label = jurisdiction ? `${title} (${jurisdiction})` : title;
+    if (row.doc_type === "file" && row.storage_path) {
+      files.push({
+        bucket: "project-drawings",
+        storagePath: row.storage_path as string,
+        filename: (row.filename as string | null) ?? "building-code.pdf",
+        mimeType: "application/pdf",
+        description: `Building Code — ${label}`,
+      });
+    } else if (row.doc_type === "link" && row.url) {
+      const notes = (row.notes as string | null)?.trim();
+      linkLines.push(`- ${label}: ${row.url}${notes ? ` — ${notes}` : ""}`);
+    }
+  }
+
+  const text = linkLines.length
+    ? `### Building Code References (${linkLines.length} link${linkLines.length === 1 ? "" : "s"})\n${linkLines.join("\n")}\n`
+    : "";
+
+  return { files, text };
+}
+
 async function collectDocuments(supabase: Supa, projectId: string): Promise<Candidate[]> {
   const { data } = await supabase
     .from("documents")
@@ -417,12 +459,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Gather candidates from all sources. Drawings + spec book first (typically larger
   // reference docs), then attachments, then general documents.
-  const [drawings, specBook, rfiAtts, subAtts, docs, tableRows, emails] = await Promise.all([
+  const [drawings, specBook, rfiAtts, subAtts, docs, buildingCode, tableRows, emails] = await Promise.all([
     collectDrawingPdfs(supabase, projectId),
     collectSpecBook(supabase, projectId),
     collectRfiAttachments(supabase, projectId),
     collectSubmittalAttachments(supabase, projectId),
     collectDocuments(supabase, projectId),
+    collectBuildingCode(supabase, projectId),
     Promise.all(
       TABLES.map(async (t) => ({
         label: t.label,
@@ -432,7 +475,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     collectEmailContext(supabase, projectId),
   ]);
 
-  const candidates: Candidate[] = [...specBook, ...drawings, ...rfiAtts, ...subAtts, ...docs];
+  const candidates: Candidate[] = [...specBook, ...drawings, ...buildingCode.files, ...rfiAtts, ...subAtts, ...docs];
   const uploaded = await downloadAndUpload(supabase, genai, candidates);
 
   const projectHeader = project
@@ -446,7 +489,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const emailBlock = emails.text
     ? `### Emails (${emails.threadCount} thread${emails.threadCount === 1 ? "" : "s"}, ${emails.messageCount} message${emails.messageCount === 1 ? "" : "s"})\n${emails.text}\n`
     : "";
-  const context = `${buildContext(tableRows)}${emailBlock}`;
+  const context = `${buildContext(tableRows)}${emailBlock}${buildingCode.text}`;
   const manifest = uploaded.length
     ? uploaded.map((f) => `- [${f.fileId}] ${f.description}: ${f.filename}`).join("\n")
     : "(no files attached)";
