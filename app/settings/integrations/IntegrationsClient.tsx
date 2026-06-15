@@ -261,6 +261,7 @@ const QBO_ERROR_MESSAGES: Record<string, string> = {
   qbo_invalid_state: "The authorization request could not be verified (expired or mismatched). Please try connecting again.",
   qbo_missing_app_creds: "QuickBooks app credentials are missing. Save your Client ID and Secret, then reconnect.",
   qbo_token_exchange_failed: "Failed to exchange authorization code. Please try again.",
+  qbo_other_erp_connected: "Sage 300 CRE is already connected. Only one ERP integration may be connected at a time — disconnect Sage 300 CRE first.",
 };
 
 function QuickBooksSection() {

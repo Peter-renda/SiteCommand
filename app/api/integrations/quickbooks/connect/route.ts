@@ -22,6 +22,11 @@ import {
   getAppOrigin,
   QBO_OAUTH_STATE_COOKIE,
 } from "@/lib/quickbooks";
+import {
+  getSage300CreAppCredentials,
+  getSage300CreCompanyCredentials,
+  isSage300CreConnected,
+} from "@/lib/sage300cre";
 
 const QBO_AUTH_URL = "https://appcenter.intuit.com/connect/oauth2";
 const INTUIT_ACCOUNTING_SCOPE = "com.intuit.quickbooks.accounting";
@@ -42,6 +47,16 @@ export async function GET(req: NextRequest) {
   const appCreds = await getQBOAppCredentials(session.company_id);
   if (!appCreds.clientId) {
     return NextResponse.redirect(`${settingsUrl}?error=qbo_not_configured`);
+  }
+
+  // Only one accounting ERP may be connected at a time. Block starting the QBO
+  // OAuth flow while Sage 300 CRE is connected.
+  const [sageApp, sageCo] = await Promise.all([
+    getSage300CreAppCredentials(session.company_id),
+    getSage300CreCompanyCredentials(session.company_id),
+  ]);
+  if (isSage300CreConnected(sageApp, sageCo)) {
+    return NextResponse.redirect(`${settingsUrl}?error=qbo_other_erp_connected`);
   }
 
   // Pinned to a stable value (env-driven) so it matches the URI registered in

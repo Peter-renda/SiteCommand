@@ -1206,43 +1206,90 @@ function BudgetModificationModal({
   );
 }
 
-// ── ERP Resend Confirm Modal ──────────────────────────────────────────────────
+// ── ERP Resync Confirm Modal ──────────────────────────────────────────────────
 
 function ErpConfirmModal({
+  connected,
+  busy,
+  result,
   onConfirm,
   onCancel,
 }: {
+  connected: "quickbooks" | "sage300cre" | "multiple" | null;
+  busy: boolean;
+  result: { kind: "success" | "error"; message: string } | null;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape" && !busy) onCancel();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  }, [onCancel, busy]);
+
+  const erpLabel =
+    connected === "quickbooks" ? "QuickBooks Online"
+    : connected === "sage300cre" ? "Sage 300 CRE"
+    : null;
+
+  const noErp = connected === null;
+  const bothErp = connected === "multiple";
+  const blocked = noErp || bothErp;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-        <h2 className="text-base font-semibold text-gray-900">Resend Budget to ERP</h2>
-        <p className="text-sm text-gray-500">
-          This will push the current budget data to your connected ERP system. Continue?
-        </p>
+        <h2 className="text-base font-semibold text-gray-900">Resync Budget with ERP</h2>
+
+        {noErp ? (
+          <p className="text-sm text-gray-500">
+            No ERP integration is connected. Connect QuickBooks Online or Sage 300 CRE in
+            Settings → Integrations first.
+          </p>
+        ) : bothErp ? (
+          <p className="text-sm text-gray-500">
+            Both QuickBooks and Sage 300 CRE are connected. Only one ERP may be connected at a
+            time — disconnect one in Settings → Integrations.
+          </p>
+        ) : (
+          <p className="text-sm text-gray-500">
+            This pulls job-to-date (actual) costs from <strong>{erpLabel}</strong> and writes them
+            into the <strong>Job to Date Costs</strong> column, matched by budget code. Existing
+            Job to Date Costs for matched codes will be overwritten. Continue?
+          </p>
+        )}
+
+        {result && (
+          <div
+            className={`text-sm rounded-md border p-3 ${
+              result.kind === "success"
+                ? "bg-green-50 border-green-200 text-green-800"
+                : "bg-red-50 border-red-200 text-red-700"
+            }`}
+          >
+            {result.message}
+          </div>
+        )}
+
         <div className="flex justify-end gap-3 pt-1">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
+            disabled={busy}
+            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
-            Cancel
+            {result?.kind === "success" ? "Close" : "Cancel"}
           </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors"
-          >
-            Resend to ERP
-          </button>
+          {result?.kind !== "success" && (
+            <button
+              onClick={onConfirm}
+              disabled={busy || blocked}
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              {busy ? "Resyncing…" : result?.kind === "error" ? "Try again" : "Resync"}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1330,6 +1377,9 @@ export default function BudgetClient({
   const [showBudgetChangeModal, setShowBudgetChangeModal] = useState(false);
   const [showBudgetModificationModal, setShowBudgetModificationModal] = useState(false);
   const [showErpModal, setShowErpModal] = useState(false);
+  const [erpStatus, setErpStatus] = useState<{ connected: "quickbooks" | "sage300cre" | "multiple" | null }>({ connected: null });
+  const [erpBusy, setErpBusy] = useState(false);
+  const [erpResult, setErpResult] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [showCommittedCostsModal, setShowCommittedCostsModal] = useState(false);
   const [committedCostsLoading, setCommittedCostsLoading] = useState(false);
   const [committedCostsError, setCommittedCostsError] = useState<string | null>(null);
@@ -1420,6 +1470,15 @@ export default function BudgetClient({
       setLoading(false);
     });
   }, [projectId]);
+
+  useEffect(() => {
+    fetch(`/api/integrations/erp/status`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data.connected !== "undefined") setErpStatus({ connected: data.connected });
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleAddLineItem(data: LineItemFormData) {
     const res = await fetch(`/api/projects/${projectId}/budget`, {
@@ -1708,9 +1767,34 @@ export default function BudgetClient({
     setShowBudgetModificationModal(false);
   }
 
-  function handleErpResend() {
-    // Placeholder: integrate with ERP API
-    setShowErpModal(false);
+  async function handleErpResync() {
+    setErpBusy(true);
+    setErpResult(null);
+    try {
+      const res = await fetch(`/api/integrations/erp/resync-budget`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErpResult({ kind: "error", message: data?.error || "Resync failed." });
+        return;
+      }
+      // Pull fresh budget data so the updated Job to Date Costs show immediately.
+      const refreshed = await fetch(`/api/projects/${projectId}/budget`).then((r) => r.json());
+      setItems(Array.isArray(refreshed) ? refreshed : []);
+      const erpLabel = data.erp === "sage300cre" ? "Sage 300 CRE" : "QuickBooks";
+      const base =
+        data.updated > 0
+          ? `Updated Job to Date Costs on ${data.updated} budget line${data.updated === 1 ? "" : "s"} from ${erpLabel}.`
+          : `No matching job-to-date costs were found in ${erpLabel}.`;
+      setErpResult({ kind: "success", message: data.warning ? `${base} ${data.warning}` : base });
+    } catch {
+      setErpResult({ kind: "error", message: "Network error while resyncing with the ERP." });
+    } finally {
+      setErpBusy(false);
+    }
   }
 
   function handleDownloadTemplate() {
@@ -1968,7 +2052,7 @@ export default function BudgetClient({
       key: "job_to_date_costs", label: "Job to Date Costs", width: "min-w-[110px]",
       tooltip: {
         subtitle: "(ERP Job Costs)", kind: "Source Column",
-        body: (<><p className="text-gray-300">ERP Job to Date Costs</p></>),
+        body: (<><p className="text-gray-300">ERP Job to Date Costs</p><p className="text-gray-400 mt-1">Pulled from your connected ERP (QuickBooks or Sage 300 CRE) by budget code via <span className="font-medium">Resync with ERP</span>.</p></>),
       },
     },
     {
@@ -2465,15 +2549,20 @@ export default function BudgetClient({
               </div>
             )}
 
-            {/* Resend to ERP */}
+            {/* Resync with ERP */}
             <button
-              onClick={() => setShowErpModal(true)}
+              onClick={() => { setErpResult(null); setShowErpModal(true); }}
+              title={
+                erpStatus.connected === "quickbooks" ? "Pull Job to Date Costs from QuickBooks Online"
+                : erpStatus.connected === "sage300cre" ? "Pull Job to Date Costs from Sage 300 CRE"
+                : "Pull Job to Date Costs from your connected ERP"
+              }
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Resend to ERP
+              Resync with ERP
             </button>
 
             {/* Export */}
@@ -3817,7 +3906,13 @@ export default function BudgetClient({
         />
       )}
       {showErpModal && (
-        <ErpConfirmModal onConfirm={handleErpResend} onCancel={() => setShowErpModal(false)} />
+        <ErpConfirmModal
+          connected={erpStatus.connected}
+          busy={erpBusy}
+          result={erpResult}
+          onConfirm={handleErpResync}
+          onCancel={() => { if (!erpBusy) { setShowErpModal(false); setErpResult(null); } }}
+        />
       )}
       {showCommittedCostsModal && (
         <CommittedCostsModal

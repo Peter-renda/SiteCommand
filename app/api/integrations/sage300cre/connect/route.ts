@@ -20,6 +20,7 @@ import {
   isSage300CreAppConfigured,
   createLinkToken,
 } from "@/lib/sage300cre";
+import { getQBOCompanyCredentials, isQBOConfigured } from "@/lib/quickbooks";
 
 export async function POST() {
   const session = await getSession();
@@ -35,6 +36,15 @@ export async function POST() {
   if (!isSage300CreAppConfigured(app)) {
     return NextResponse.json(
       { error: "Add your Agave Client ID and Client Secret first, then connect." },
+      { status: 422 }
+    );
+  }
+
+  // Only one accounting ERP may be connected at a time. Block connecting Sage
+  // 300 CRE while QuickBooks Online is connected.
+  if (isQBOConfigured(await getQBOCompanyCredentials(session.company_id))) {
+    return NextResponse.json(
+      { error: "QuickBooks Online is already connected. Only one ERP integration may be connected at a time — disconnect QuickBooks in Settings → Integrations first." },
       { status: 422 }
     );
   }
