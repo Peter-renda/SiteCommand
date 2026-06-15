@@ -137,10 +137,28 @@ button in the Accounting section of the detail pages); and the daily cron walks
 up to 25 synced records per table per company (stalest first) so payments
 entered in Sage surface within a day.
 
+## Pull direction: job-to-date costs → Budget
+
+The integration is two-way for budget actuals. The Budget tool's **Resync with
+ERP** button (`POST /api/integrations/erp/resync-budget`) pulls **job-to-date
+(actual) costs** out of Sage 300 CRE and writes them into each budget line's
+**Job to Date Costs** column, matched by budget code.
+
+- Sage 300 CRE is a true job-cost system, so the pull resolves the project to a
+  Sage **job** (`resolveSage300CreJobId`), reads that job's **cost codes**
+  (`GET /cost-codes?job_id=…`), and pulls each code's **actual** amount. The
+  actual-cost field name is connector-dependent, so several keys are probed
+  (`actual_cost`, `actual_amount`, `cost_to_date`, …); when the connector exposes
+  none, nothing is written and a warning is returned.
+- Sage cost codes are matched to SiteCommand budget codes by code, then by name.
+- A company may connect **only one** ERP (Sage 300 CRE **or** QuickBooks).
+  Connecting Sage 300 CRE is blocked while QuickBooks is connected, and vice versa.
+
 ## Logs
 
 Every attempt is written to `erp_sync_logs` with `integration = 'sage300cre'`.
 Per-record history: `GET /api/integrations/sage300cre/logs?recordType=…&recordId=…`.
+The budget pull logs as `record_type = 'budget_job_to_date'`.
 
 ## Environment variables (optional)
 

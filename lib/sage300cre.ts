@@ -441,6 +441,96 @@ async function resolveCostCodeIds(
   return out;
 }
 
+// ── Job-to-date costs (PULL: Sage 300 CRE → SiteCommand budget) ─────────────
+//
+// The reverse direction of the pushes below. Sage 300 CRE is a true job-cost
+// system, so actual cost-to-date lives on each job cost code. We resolve the
+// project to a Sage job, read that job's cost codes, and pull each code's actual
+// amount. Field names vary by Agave connector, so several plausible keys are
+// probed. Unmatched/empty values are simply omitted (non-destructive).
+
+export type Sage300CreJobToDateResult =
+  | { ok: true; costs: Record<string, number>; warning?: string }
+  | { ok: false; error: string };
+
+/** Reads the first present numeric actual-cost field from a cost-code row. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readActualCost(row: any): number | null {
+  const keys = [
+    "actual_cost", "actual_amount", "actual_total", "actual_costs",
+    "cost_to_date", "job_to_date_cost", "jtd_cost", "actual",
+  ];
+  const fromObj = (obj: unknown): number | null => {
+    if (!obj || typeof obj !== "object") return null;
+    for (const k of keys) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const v = (obj as any)[k];
+      if (v != null && v !== "" && !Number.isNaN(Number(v))) return Number(v);
+    }
+    return null;
+  };
+  return fromObj(row) ?? fromObj(row?.amounts) ?? fromObj(row?.balances);
+}
+
+/**
+ * Pulls job-to-date (actual) costs from Sage 300 CRE for the given budget codes.
+ * Returns a map of `budgetCode → cost`. Best-effort and non-destructive: when no
+ * Sage job matches the project, or the connector exposes no actual-cost field, an
+ * empty map + warning is returned instead of an error.
+ */
+export async function fetchSage300CreJobToDateCosts(
+  app: Sage300CreAppCredentials,
+  company: Sage300CreCompanyCredentials,
+  opts: { projectNumber?: string | null; projectName?: string | null; budgetCodes: string[] }
+): Promise<Sage300CreJobToDateResult> {
+  const codes = Array.from(new Set(opts.budgetCodes.map((c) => (c ?? "").trim()).filter(Boolean)));
+  if (codes.length === 0) return { ok: true, costs: {} };
+
+  const jobId = await resolveSage300CreJobId(app, company, opts.projectNumber, opts.projectName);
+  if (!jobId) {
+    return {
+      ok: true,
+      costs: {},
+      warning:
+        "No Sage 300 CRE job matching this project's number or name was found, so no job-to-date costs could be pulled.",
+    };
+  }
+
+  const { status, json, rawText } = await callAgave(
+    app, company, "GET", `cost-codes?page_size=500&job_id=${encodeURIComponent(jobId)}`
+  );
+  if (status < 200 || status >= 300) {
+    return { ok: false, error: extractAgaveError(json, rawText) };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = (json as any)?.data ?? [];
+  const list = Array.isArray(rows) ? rows : [rows];
+  const byCode = new Map<string, number>();
+  const byName = new Map<string, number>();
+  for (const r of list) {
+    const actual = readActualCost(r);
+    if (actual == null) continue;
+    const code = String(r?.code ?? "").trim().toLowerCase();
+    const name = String(r?.name ?? "").trim().toLowerCase();
+    if (code) byCode.set(code, (byCode.get(code) ?? 0) + actual);
+    if (name) byName.set(name, (byName.get(name) ?? 0) + actual);
+  }
+
+  const costs: Record<string, number> = {};
+  for (const code of codes) {
+    const lower = code.toLowerCase();
+    const amount = byCode.get(lower) ?? byName.get(lower);
+    if (amount != null) costs[code] = roundMoney(amount);
+  }
+
+  const warning =
+    Object.keys(costs).length === 0
+      ? "Sage 300 CRE returned no job-to-date cost amounts for this project's budget codes (the available cost fields depend on the Agave connector)."
+      : undefined;
+  return { ok: true, costs, warning };
+}
+
 // ── Shared line-item shaping ────────────────────────────────────────────────
 
 export type Sage300CreSovLine = {

@@ -17,6 +17,23 @@ For the full field-by-field crosswalk between SiteCommand and the QBO object mod
 (and the prioritized list of mapping gaps), see
 [`quickbooks-online-data-mapping.md`](./quickbooks-online-data-mapping.md).
 
+### Pull direction: job-to-date costs → Budget
+
+The integration is two-way for budget actuals. The Budget tool's **Resync with ERP**
+button (`POST /api/integrations/erp/resync-budget`) pulls **job-to-date (actual)
+costs** out of QuickBooks and writes them into each budget line's **Job to Date
+Costs** column, matched by budget code.
+
+- QBO has no native cost code, so the pull reuses **`QBO_BUDGET_CODE_MAP`** (budget
+  code → QBO account name). It runs a **Profit & Loss** report scoped to the
+  project's **Class** (`reports/ProfitAndLoss?accounting_method=Accrual&classid=…`),
+  sums each account, and attributes it back to the mapped budget code.
+- Budget codes with no account mapping, or whose account is shared by more than one
+  code, are skipped. If no project Class matches, nothing is written (costs are
+  never pulled company-wide).
+- A company may connect **only one** ERP (QuickBooks **or** Sage 300 CRE).
+  Connecting QuickBooks is blocked while Sage 300 CRE is connected, and vice versa.
+
 ## Setup (company super admin)
 
 1. Go to **Settings → Integrations → QuickBooks Online**.

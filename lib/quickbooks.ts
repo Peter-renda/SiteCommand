@@ -907,6 +907,22 @@ export async function findOrCreateClassId(
 }
 
 /**
+ * Resolves a Class by exact Name → Id WITHOUT creating it. Used by the
+ * job-to-date pull, which only reads (a read must never create master records).
+ */
+export async function findClassIdByName(
+  companyId: string, appCreds: QBOAppCredentials, companyCreds: QBOCompanyCredentials, className?: string | null
+): Promise<string | null> {
+  const name = (className ?? "").trim();
+  if (!name) return null;
+  const rows = await queryQBO(
+    companyId, appCreds, companyCreds,
+    `SELECT Id FROM Class WHERE Name = '${escapeQBOString(name)}'`, "Class"
+  );
+  return rows && rows.length > 0 ? String(rows[0].Id) : null;
+}
+
+/**
  * Resolves the per-line Account/Class/Item refs for the budget codes in use.
  * Only codes present in `map` are resolved; everything else falls back to
  * transaction defaults at line-build time.
@@ -1650,6 +1666,127 @@ export async function syncARInvoiceToQBO(
     const msg = err instanceof Error ? err.message : "Network error";
     return { ok: false, error: msg, rawResponse: "" };
   }
+}
+
+// ── Job-to-date costs (PULL: ERP → SiteCommand budget) ─────────────────────────
+//
+// The reverse direction of the pushes above. For each SiteCommand budget code we
+// want the actual cost posted in QBO. QBO has no native "cost code", so we reuse
+// the same QBO_BUDGET_CODE_MAP that drives pushes: a budget code maps to an
+// expense/COGS Account name. We pull a Profit & Loss report scoped to the
+// project's Class (the same Class every pushed cost line is tagged with), read
+// each account's total, and attribute it back to the budget code that maps to
+// that account. Codes with no account mapping — or whose account is shared by
+// more than one code (ambiguous) — are left untouched.
+
+export type QBOJobToDateResult =
+  | { ok: true; costs: Record<string, number>; warning?: string }
+  | { ok: false; error: string };
+
+/**
+ * Recursively walks a QBO report's row tree, summing each leaf account row's
+ * amount by account Id and (lowercased) account name. Section header/summary
+ * rows are skipped — only leaf rows (those carrying ColData with no nested
+ * Rows) are counted, so section subtotals are never double-added.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function collectReportAccountAmounts(node: any, byId: Map<string, number>, byName: Map<string, number>): void {
+  if (!node || typeof node !== "object") return;
+  const nested = node?.Rows?.Row;
+  if (Array.isArray(nested)) {
+    for (const child of nested) collectReportAccountAmounts(child, byId, byName);
+  }
+  const colData = node?.ColData;
+  const hasNested = Array.isArray(nested) && nested.length > 0;
+  if (Array.isArray(colData) && colData.length >= 2 && !hasNested) {
+    const first = colData[0];
+    const last = colData[colData.length - 1];
+    const amount = Number(last?.value);
+    if (!Number.isFinite(amount)) return;
+    if (first?.id != null && String(first.id).trim()) {
+      const id = String(first.id);
+      byId.set(id, (byId.get(id) ?? 0) + amount);
+    }
+    const name = String(first?.value ?? "").trim().toLowerCase();
+    if (name) byName.set(name, (byName.get(name) ?? 0) + amount);
+  }
+}
+
+/**
+ * Pulls job-to-date (actual) costs from QuickBooks for the given budget codes.
+ * Returns a map of `budgetCode → cost`. Best-effort and non-destructive:
+ *  - codes without an account mapping in QBO_BUDGET_CODE_MAP are omitted;
+ *  - when no Class matches the project, costs aren't project-scoped and an empty
+ *    map + warning is returned rather than company-wide totals.
+ */
+export async function fetchQBOJobToDateCosts(
+  companyId: string,
+  appCreds: QBOAppCredentials,
+  companyCreds: QBOCompanyCredentials,
+  opts: { projectName?: string | null; budgetCodes: string[] }
+): Promise<QBOJobToDateResult> {
+  const codes = Array.from(new Set(opts.budgetCodes.map((c) => (c ?? "").trim()).filter(Boolean)));
+  if (codes.length === 0) return { ok: true, costs: {} };
+
+  const map = await getQBOBudgetCodeMap(companyId);
+  // accountName(lower) → budget codes that map to it.
+  const accountToCodes = new Map<string, string[]>();
+  for (const code of codes) {
+    const account = (map[code]?.account ?? "").trim();
+    if (!account) continue;
+    const key = account.toLowerCase();
+    const list = accountToCodes.get(key) ?? [];
+    list.push(code);
+    accountToCodes.set(key, list);
+  }
+  if (accountToCodes.size === 0) {
+    return {
+      ok: true,
+      costs: {},
+      warning:
+        "No QuickBooks budget-code → account mappings are configured (QBO_BUDGET_CODE_MAP), so no job-to-date costs could be pulled. Map your budget codes to QuickBooks accounts in the integration settings.",
+    };
+  }
+
+  const config = await getQBOPostingConfig(companyId);
+  let classId: string | null = null;
+  if (config.projectTracking !== "none") {
+    classId = await findClassIdByName(companyId, appCreds, companyCreds, opts.projectName);
+  }
+
+  // P&L summary by account (accrual), scoped to the project Class when resolvable.
+  const reportPath = classId
+    ? `reports/ProfitAndLoss?accounting_method=Accrual&classid=${encodeURIComponent(classId)}`
+    : `reports/ProfitAndLoss?accounting_method=Accrual`;
+
+  let status: number;
+  let json: unknown;
+  let rawText: string;
+  try {
+    ({ status, json, rawText } = await callQBO(companyId, appCreds, companyCreds, "GET", reportPath));
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Network error" };
+  }
+  if (status !== 200) return { ok: false, error: extractQBOError(json, rawText) };
+
+  const byId = new Map<string, number>();
+  const byName = new Map<string, number>();
+  collectReportAccountAmounts(json, byId, byName);
+
+  const costs: Record<string, number> = {};
+  for (const [accountNameLower, codeList] of accountToCodes.entries()) {
+    if (codeList.length !== 1) continue; // shared account → can't attribute to one code
+    const amount = byName.get(accountNameLower);
+    if (amount == null) continue;
+    // Expenses report as positive; abs() guards against credit-normal presentation.
+    costs[codeList[0]] = roundMoney(Math.abs(amount));
+  }
+
+  const warning =
+    !classId && config.projectTracking !== "none"
+      ? "No QuickBooks Class matching this project was found, so costs could not be scoped to this project and were skipped."
+      : undefined;
+  return { ok: true, costs, warning };
 }
 
 // ── Error extraction ──────────────────────────────────────────────────────────

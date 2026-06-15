@@ -74,8 +74,8 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     if (path.startsWith("cost-codes") && method === "GET") {
       return json(200, {
         data: [
-          { id: "CC1", code: "03-100", name: "Footings" },
-          { id: "CC2", code: "03-200", name: "Slabs" },
+          { id: "CC1", code: "03-100", name: "Footings", actual_cost: 42000 },
+          { id: "CC2", code: "03-200", name: "Slabs", actual_cost: 18500 },
         ],
       });
     }
@@ -109,6 +109,7 @@ async function main() {
     syncPrimeContractToSage300Cre,
     syncAPInvoiceToSage300Cre,
     syncARInvoiceToSage300Cre,
+    fetchSage300CreJobToDateCosts,
   } = await import("../lib/sage300cre");
 
   const app = { clientId: "client-uuid", clientSecret: "client-secret-40chars" };
@@ -304,6 +305,22 @@ async function main() {
   assert.equal(arInvBody.amount, 50000, "AR invoice amount is the sum of this-period lines");
   assert.equal(arInvBody.retention_amount, 5000, "per-line retainage rolls up to the header retention_amount");
   pass("AR invoice rolls per-line retainage up to retention_amount");
+
+  // ── 10. Job-to-date cost pull (two-way: Sage 300 CRE → budget) ──────────────
+  console.log("\n[10] Job-to-date cost pull");
+  calls.length = 0;
+  const jtd = await fetchSage300CreJobToDateCosts(app, company, {
+    projectNumber: "P-100",
+    projectName: "Riverside Plaza",
+    budgetCodes: ["03-100", "03-200", "99-000"],
+  });
+  assert.ok(jtd.ok, `job-to-date pull failed: ${!jtd.ok ? jtd.error : ""}`);
+  assert.equal(jtd.ok && jtd.costs["03-100"], 42000, "actual_cost on cost code 03-100 maps to its budget code");
+  assert.equal(jtd.ok && jtd.costs["03-200"], 18500, "actual_cost on cost code 03-200 maps to its budget code");
+  assert.ok(jtd.ok && jtd.costs["99-000"] === undefined, "unmatched budget code must be omitted (not zeroed)");
+  const ccLookup = agaveCalls().find((c) => c.url.includes("/cost-codes") && c.url.includes("job_id=J1"));
+  assert.ok(ccLookup, "must read cost codes scoped to the resolved job id");
+  pass("pulls job-to-date costs by budget code from the project's Sage job, skipping unmatched codes");
 
   console.log(`\nAll ${passed} Sage 300 CRE integration checks passed.`);
 }

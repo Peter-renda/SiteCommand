@@ -1611,4 +1611,29 @@ Per-company integration that syncs commitments (subcontract/PO → **Purchase Or
 - Logs: every attempt → `erp_sync_logs` (`integration='sage300cre'`); per-record via `GET /api/integrations/sage300cre/logs`.
 
 ### Verification
-- Offline check: `npx tsx scripts/sage300cre-integration-check.ts` — mocked-fetch assertions for Agave headers/base URL, link create+exchange, vendor resolution + "not found" guard, Purchase Order create payload (job + cost-code resolution, quantity detail, due date), idempotent PUT + 404→recreate fallback, AR invoice revised-amount + due date, AP retention + financial feedback parsing, AR retention rollup. Run after touching `lib/sage300cre.ts`.
+- Offline check: `npx tsx scripts/sage300cre-integration-check.ts` — mocked-fetch assertions for Agave headers/base URL, link create+exchange, vendor resolution + "not found" guard, Purchase Order create payload (job + cost-code resolution, quantity detail, due date), idempotent PUT + 404→recreate fallback, AR invoice revised-amount + due date, AP retention + financial feedback parsing, AR retention rollup, **job-to-date cost pull**. Run after touching `lib/sage300cre.ts`.
+
+## ERP Two-Way Sync — Pull Job to Date Costs into the Budget
+
+### Overview
+The Budget tool's ERP button is **Resync with ERP** (formerly the placeholder "Resend to ERP"). It is the **pull** side of the integration: it reads job-to-date (actual) costs from the company's connected accounting ERP and writes them into each budget line item's **Job to Date Costs** column, matched by **budget code** (the budget line's `cost_code` — the same key used everywhere else to join budget ↔ commitments, see `committed-costs/route.ts`). The pushes (commitments/prime contracts/AP-AR invoices → ERP) are unchanged; this adds the reverse direction for budget actuals.
+
+### One ERP at a time
+- A company may connect **either** QuickBooks Online **or** Sage 300 CRE, not both. Enforced at:
+  - **QBO connect** (`/api/integrations/quickbooks/connect`): redirects with `error=qbo_other_erp_connected` if Sage 300 CRE is connected.
+  - **Sage connect** (`/api/integrations/sage300cre/connect`): 422 if QBO is connected.
+  - **Resync** (`/api/integrations/erp/resync-budget`): 422 if both are connected (pre-existing dual connections), and 422 if neither is.
+- `GET /api/integrations/erp/status` returns `{ quickbooks, sage300cre, connected: "quickbooks"|"sage300cre"|"multiple"|null }` so the Budget UI can label/disable the button.
+
+### Where the number comes from
+- **QuickBooks** (`fetchQBOJobToDateCosts` in `lib/quickbooks.ts`): QBO has no native cost code, so it reuses the existing **`QBO_BUDGET_CODE_MAP`** (budget code → account name). It pulls a **Profit & Loss** report scoped to the project's **Class** (`reports/ProfitAndLoss?accounting_method=Accrual&classid=…`, class resolved read-only via `findClassIdByName`), sums each leaf account row, and attributes the total back to the budget code mapped to that account. Codes with no account mapping — or whose account is shared by >1 code (ambiguous) — are skipped. No map → empty result + warning; no matching Class → empty result + warning (never company-wide totals).
+- **Sage 300 CRE** (`fetchSage300CreJobToDateCosts` in `lib/sage300cre.ts`): native job costing. Resolves the project to a Sage **job** (`resolveSage300CreJobId`), reads that job's **cost codes** (`GET /cost-codes?job_id=…`), and pulls each code's actual amount (probes `actual_cost`/`actual_amount`/`cost_to_date`/… — field name is connector-dependent). Matches Sage cost code → budget code by code then name. No job, or no actuals from the connector → empty result + warning.
+
+### API
+- `POST /api/integrations/erp/resync-budget` — body `{ projectId }`. Auth: a member of the company that **owns** the project (ERP data is company-scoped; external collaborators are rejected). Detects the single connected ERP, loads distinct budget `cost_code`s, pulls costs, and updates `budget_line_items.job_to_date_costs` per matching code. Returns `{ ok, erp, matched, updated, warning? }`. Every run writes an `erp_sync_logs` row (`record_type='budget_job_to_date'`, `integration='quickbooks'|'sage300cre'`).
+
+### UI (SiteCommand)
+- `BudgetClient.tsx`: **Resync with ERP** button (top-right actions). `ErpConfirmModal` reads `/api/integrations/erp/status`, names the connected ERP, warns when none/both are connected, runs the pull, then refetches `/api/projects/[id]/budget` so updated Job to Date Costs render immediately. The Job to Date Costs column tooltip notes it is pulled via Resync with ERP.
+
+### Verification
+- Both offline checks cover the pull: `fetchQBOJobToDateCosts` (P&L report parse, Class scoping, account→code reverse-map, unmapped codes skipped) and `fetchSage300CreJobToDateCosts` (job-scoped cost-code actuals, code/name match, unmatched skipped).

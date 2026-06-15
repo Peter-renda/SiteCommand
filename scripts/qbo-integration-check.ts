@@ -42,6 +42,7 @@ const calls: RecordedCall[] = [];
 const scenario = {
   vendorExists: false,
   failFirstQboCallWith401: false,
+  classExists: false,
 };
 
 function json(status: number, body: unknown): Response {
@@ -115,9 +116,34 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         return json(200, { QueryResponse: { Term: [{ Id: "33" }] } });
       }
       if (q.includes("FROM Class")) {
-        return json(200, { QueryResponse: {} }); // no existing class → create
+        return scenario.classExists
+          ? json(200, { QueryResponse: { Class: [{ Id: "44" }] } })
+          : json(200, { QueryResponse: {} }); // no existing class → create
       }
       return json(200, { QueryResponse: {} });
+    }
+
+    // Profit & Loss report (job-to-date cost pull). Section + summary present to
+    // verify section subtotals are NOT double-counted.
+    if (path.endsWith("/reports/ProfitAndLoss") && method === "GET") {
+      return json(200, {
+        Header: { ReportName: "ProfitAndLoss" },
+        Rows: {
+          Row: [
+            {
+              type: "Section",
+              Header: { ColData: [{ value: "Expenses" }] },
+              Rows: {
+                Row: [
+                  { type: "Data", ColData: [{ value: "Job Materials", id: "82" }, { value: "30000.00" }] },
+                  { type: "Data", ColData: [{ value: "Subcontractors", id: "95" }, { value: "50000.00" }] },
+                ],
+              },
+              Summary: { ColData: [{ value: "Total Expenses" }, { value: "80000.00" }] },
+            },
+          ],
+        },
+      });
     }
 
     if (path.endsWith("/vendor") && method === "POST") {
@@ -181,6 +207,7 @@ async function main() {
     syncPrimeContractToQBO,
     syncARInvoiceToQBO,
     getIntuitRedirectUri,
+    fetchQBOJobToDateCosts,
   } = await import("../lib/quickbooks");
 
   const appCreds = { clientId: "test-client-id", clientSecret: "test-client-secret" };
@@ -485,6 +512,30 @@ async function main() {
   const prefixedBill = calls.find((c) => /\/bill\?minorversion/.test(c.url) && c.method === "POST");
   assert.equal(JSON.parse(prefixedBill!.body).DocNumber, "P-100-14", "QBO_DOC_NUMBER_PREFIX=project prefixes the project number");
   pass("DocNumber carries the project number when QBO_DOC_NUMBER_PREFIX=project");
+
+  // ── 10. Job-to-date cost pull (two-way: QBO → budget) ───────────────────────
+  console.log("\n[10] Job-to-date cost pull");
+  process.env.QBO_BUDGET_CODE_MAP = JSON.stringify({
+    "03-100": { account: "Job Materials" },
+    "03-200": { account: "Subcontractors" },
+  });
+  scenario.classExists = true;
+  calls.length = 0;
+  const jtd = await fetchQBOJobToDateCosts("co-1", appCreds, prodCreds, {
+    projectName: "Riverside Plaza",
+    budgetCodes: ["03-100", "03-200", "09-999"],
+  });
+  scenario.classExists = false;
+  delete process.env.QBO_BUDGET_CODE_MAP;
+
+  assert.ok(jtd.ok, `job-to-date pull failed: ${!jtd.ok ? jtd.error : ""}`);
+  assert.equal(jtd.ok && jtd.costs["03-100"], 30000, "Job Materials account total maps to budget code 03-100");
+  assert.equal(jtd.ok && jtd.costs["03-200"], 50000, "Subcontractors account total maps to budget code 03-200");
+  assert.ok(jtd.ok && jtd.costs["09-999"] === undefined, "unmapped budget code must be omitted (not zeroed)");
+  const reportCall = calls.find((c) => c.url.includes("/reports/ProfitAndLoss"));
+  assert.ok(reportCall, "must request the ProfitAndLoss report");
+  assert.match(reportCall!.url, /classid=44/, "P&L must be scoped to the project's Class id");
+  pass("pulls job-to-date costs by budget code, scoped to project Class, skipping unmapped codes");
 
   console.log(`\nAll ${passed} QBO integration checks passed.`);
 }
