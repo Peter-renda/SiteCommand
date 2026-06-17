@@ -781,6 +781,33 @@ Effect: all new commitments created after saving will have the SSOV tab enabled 
 - `exportCSV()` exports all currently visible items (post-filter/sort).
 - `exportPDF()` builds an HTML table and prints via hidden iframe.
 
+## Commitments – Unified ERP Sync Button
+
+### Overview
+The Commitments list page exposes a **single** Sync button that auto-detects the company's connected accounting ERP and pushes every active commitment to it. There are no longer per-platform sync buttons (the old per-row "Sync to Sage" action and the two **Sync to QuickBooks** / **Sync to Sage 300 CRE** buttons on the individual commitment detail header were removed).
+
+### Workflow
+1. Open the Commitments tool → **Contracts** tab.
+2. Click **Sync** (top-right actions; label reads "Sync to QuickBooks" / "Sync to Sage 300 CRE" once the connected platform is known, otherwise "Sync to ERP").
+3. Every active commitment is pushed to the detected ERP; a bottom toast reports the result.
+
+### Implementation Notes (SiteCommand)
+- `CommitmentsClient.tsx`: on mount fetches `GET /api/integrations/erp/status` → `erpConnected` (`"quickbooks" | "sage300cre" | "multiple" | null`, `undefined` while loading).
+- `handleSyncAll()` short-circuits with a toast when nothing/multiple ERPs are connected; otherwise loops the active `items` sequentially, POSTing each to `/api/integrations/quickbooks/sync` or `/api/integrations/sage300cre/sync` (`{ recordType: "commitments", recordId }`), updating each row's `erp_status` (pending → synced/not_synced) and summarizing successes/failures in `syncNotice`.
+- The commitment **detail** page (`CommitmentDetailClient.tsx`) no longer renders any ERP sync buttons; prime contracts keep their own per-record QBO/Sage buttons.
+
+## Create a Subcontract – Required Fields & SOV Columns
+
+### Required Fields (subcontracts only)
+Creating a subcontract requires all of: **Title**, **Contract Company**, **Default Retainage** (a valid number), a **Description**, and **at least one Schedule of Values line item** (group headers don't count). Purchase orders are unaffected.
+
+### SOV Columns
+- The **Billed to Date** and **Amount Remaining** columns are hidden on the subcontract create form (they are always $0 / full amount on a brand-new record). Purchase orders still show them.
+
+### Implementation Notes (SiteCommand)
+- `new/NewCommitmentClient.tsx`: required fields carry a `required` asterisk (gated on `commitmentType === "subcontract"`); `handleSave()` validates them up front and shows a red banner listing what's missing (scrolls to top) before any POST. `htmlHasText()` strips tags/`&nbsp;` to detect an empty rich-text Description.
+- `SovTable` takes a `showBilledColumns` prop (`commitmentType !== "subcontract"`) that conditionally renders the two columns in the header, body rows, footer totals, and adjusts the empty-state / group-header `colSpan`s.
+
 ## Import a Subcontractor Schedule of Values from a CSV
 
 ### Required Permissions
@@ -1570,7 +1597,7 @@ Per-company OAuth connection to QuickBooks Online (and Intuit Enterprise Suite t
 - Tokens auto-refresh on 401 (one retry) and persist back to `company_integrations`.
 
 ### Sync Surfaces
-- Manual: **Sync to QuickBooks** button on commitment + prime contract detail headers → `POST /api/integrations/quickbooks/sync` `{ recordType: commitments|prime_contracts|ap_invoice|ar_invoice, recordId }`.
+- Manual: **Sync to QuickBooks** button on the prime contract detail header → `POST /api/integrations/quickbooks/sync` `{ recordType: commitments|prime_contracts|ap_invoice|ar_invoice, recordId }`. (Commitments no longer have per-record QBO/Sage buttons — they sync via the single auto-detecting **Sync** button on the Commitments list page; see "Commitments – Unified ERP Sync Button".)
 - Cron: `GET /api/cron/quickbooks-sync` daily 17:00 UTC (vercel.json), `CRON_SECRET`-gated; pushes dirty rows (updated_at > last_synced_at), capped 25/type/company.
 - Idempotency: `qbo_id`/`qbo_sync_token`/`last_synced_at` (+ `qbo_ap_invoice_*`, `qbo_ar_invoice_*`) from migration `113_qbo_idempotency_columns.sql`; updates re-fetch the live SyncToken and POST `?operation=update` with `sparse: true`; deleted-on-QBO records are recreated.
 - Posting config (per-company keys or env): `QBO_AP_EXPENSE_ACCOUNT`, `QBO_DEFAULT_ITEM`, `QBO_BUDGET_CODE_MAP` (JSON code → account/class/item), `QBO_RETAINAGE_RECEIVABLE_ACCOUNT`, `QBO_RETAINAGE_PAYABLE_ACCOUNT`, `QBO_PROJECT_TRACKING` (`none` disables the project-Class line fallback; default on), `QBO_DOC_NUMBER_PREFIX` (`project` → `{project_number}-{number}` DocNumbers, any other value = literal prefix, 21-char cap). All refs post by **Id**, never name; sync fails fast when no valid account/item resolves.
@@ -1602,7 +1629,7 @@ Per-company integration that syncs commitments (subcontract/PO → **Purchase Or
 - UI: `Sage300CreSection` (company) + `Sage300CreAppSection` (site_admin) in `IntegrationsClient.tsx`.
 
 ### Sync surfaces
-- Manual: **Sync to Sage 300 CRE** button on commitment + prime contract detail headers (next to the QuickBooks button) → `POST /api/integrations/sage300cre/sync` `{ recordType: commitments|prime_contracts|ap_invoice|ar_invoice, recordId }`.
+- Manual: **Sync to Sage 300 CRE** button on the prime contract detail header (next to the QuickBooks button) → `POST /api/integrations/sage300cre/sync` `{ recordType: commitments|prime_contracts|ap_invoice|ar_invoice, recordId }`. (Commitments sync via the single auto-detecting **Sync** button on the Commitments list page — see "Commitments – Unified ERP Sync Button".)
 - Cron: `GET /api/cron/sage300cre-sync` daily 18:00 UTC (vercel.json, staggered after QBO), `CRON_SECRET`-gated; pushes dirty rows (`updated_at > sage300cre_synced_at`), capped 25/type/company.
 - Mapping: commitment → `POST/PUT /purchase-orders` (revised amount, `due_date` from delivery/estimated completion); ap_invoice → `/ap-invoices` (`retention_amount` = billed × default retainage %); prime/ar_invoice → `/ar-invoices` (`due_date` from estimated completion; per-line retainage rolls up to `retention_amount`). Vendors/customers resolved **by name** via `GET /vendors|/customers` — sync fails fast (no auto-create) when the party isn't already in Sage 300 CRE (the ERP is the system of record). AR is connector-dependent; unsupported resources surface as logged errors.
 - Job costing: the project resolves to a Sage **job** (`GET /jobs`, project number first then name → `resolveSage300CreJobId`) and SOV budget codes resolve to Sage **cost codes** (`GET /cost-codes`, exact code then name). Resolved ids post as header + per-line `job_id` / `cost_code_id`; unresolved values are omitted (budget code stays folded into the line description). Lines with consistent qty × unit cost also carry `quantity`/`unit_cost`/`unit_of_measure`. Jobs/cost codes are never auto-created.
