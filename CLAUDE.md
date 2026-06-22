@@ -1692,6 +1692,10 @@ The **Training → Guides** section (left-nav tree, alongside Practice and Video
 - Assign modal (Super Admin): pick employees from `GET /api/company/members`, set a due date, and assign. Current assignees are listed with a Remove control. Upsert on `(guide_id, user_id)` so re-assigning refreshes the due date and re-opens the item.
 - The assignee sees an **"Assigned to you"** section on the Guides page with due dates, **overdue** highlighting, and a **Mark complete / Reopen** toggle. Completing is allowed for the assignee or a Super Admin of the owning company.
 
+### Assignment Notifications (email + dashboard)
+- **Email**: `POST /api/training/guides/[guideId]/assignments` sends `sendGuideAssignmentEmail` (`lib/email.ts`, Resend) to each assigned employee with an email — guide title, who assigned it, the due date, and a link to `/training/guides`. Fire-and-forget / non-fatal (no-ops without `RESEND_API_KEY`); the assignment persists regardless.
+- **Dashboard "needs your attention"**: assigned guides surface as an open item on the portfolio dashboard. `app/api/dashboard/my-tasks/route.ts` adds the `training_guide_assignment` open-item type — it queries `training_guide_assignments` for the current user where `status = 'assigned'` (company-scoped, `project_id = ""`, `project_name = "Company guides"`). `DashboardClient.tsx` routes it to `/training/guides` (via `openItemHref`), labels it **"assigned guide"**, and `lib/dashboard-preferences.ts` registers it (`OPEN_ITEM_TYPES` / labels / default-on) so it shows in the attention list and the Dashboard Settings toggles. Empty `project_id`s are filtered out of the project-name lookup so the UUID `in` query doesn't break.
+
 ### Storage / Schema (migrations 165–166)
 - Private `training-guides` bucket (250 MB limit, signed URLs). Upload path: `{companyId}/{ts}-{safeFilename}`; converted HTML: `{originalPath}.html`.
 - `training_guides`: `company_id`, `title`, `description`, `storage_path`, `content_html_path` (Word→HTML rendition, null otherwise), `filename`, `file_type`, `sort_order`, `created_by`. (`content_html_path` added in migration 166.)
