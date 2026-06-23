@@ -73,9 +73,13 @@ const DEFAULT_BRIEF = { value: 40_000_000, size: "", scope: "a new construction 
 const OWNER = "Meridian Development Partners";
 const ARCHITECT = "Halford Studio Architects";
 
-// Bid addenda handed off with the email. The PDFs are served as static assets
+// Bid documents handed off with the email. The PDFs are served as static assets
 // from public/training, so the links are stable (no signed-URL expiry) and work
-// without any mailbox connection.
+// without any mailbox connection. Add parts by dropping the PDF in
+// public/training and appending to the relevant list.
+const DRAWINGS: { label: string; file: string }[] = [
+  { label: "Bid Drawings — Part 1", file: "208570-bid-drawings-part-1.pdf" },
+];
 const ADDENDA: { label: string; file: string }[] = [
   { label: "Addendum No. 1", file: "208570-addendum-no-1.pdf" },
   { label: "Addendum No. 2 — Final", file: "208570-addendum-no-2-final.pdf" },
@@ -140,9 +144,10 @@ function buildHandoffHtml(opts: {
   const subComplete = formatLong(addMonths(startDate, brief.months));
   const sizeLine = brief.size ? `${brief.size} — ` : "";
   const base = appBaseUrl();
-  const addendaList = ADDENDA.map(
-    (a) => `  <li><a href="${base}/training/${a.file}">${a.label}</a> (PDF)</li>`,
-  ).join("\n");
+  const linkItem = (a: { label: string; file: string }) =>
+    `  <li><a href="${base}/training/${a.file}">${a.label}</a> (PDF)</li>`;
+  const drawingsList = DRAWINGS.map(linkItem).join("\n");
+  const addendaList = ADDENDA.map(linkItem).join("\n");
 
   return `
 <p>Hi ${pmFirst},</p>
@@ -161,17 +166,9 @@ function buildHandoffHtml(opts: {
 </ul>
 
 <h3>IFC Drawings (Issued for Construction)</h3>
-<p>The full IFC set is released and attached for the following disciplines. Please get these loaded into the Drawings tool and confirm we're building to the current revision:</p>
+<p>The full bid drawing set is attached below. Please get it loaded into the Drawings tool and confirm we're building to the current revision. The set spans the project disciplines (civil/site, architectural, structural, mechanical/HVAC, electrical, plumbing, fire protection, landscape, and low-voltage/technology).</p>
 <ul>
-  <li>Civil &amp; Site (C-series)</li>
-  <li>Architectural (A-series)</li>
-  <li>Structural (S-series)</li>
-  <li>Mechanical / HVAC (M-series)</li>
-  <li>Electrical (E-series)</li>
-  <li>Plumbing (P-series)</li>
-  <li>Fire Protection (FP-series)</li>
-  <li>Landscape (L-series)</li>
-  <li>Low Voltage / Technology (T-series)</li>
+${drawingsList}
 </ul>
 
 <h3>Specifications</h3>
