@@ -1756,10 +1756,17 @@ This replaces the previous text-based, day-by-day **grading game** (scoring freq
 - `GET /api/dashboard/my-tasks` drops tasks/open-items belonging to training projects (resolved via the project-name lookup, now also selecting `is_training`).
 - Known minor leaks not yet filtered: global search and the Project Admin **Copy Directory From** dropdown can still surface sandbox projects (harmless — sandboxes are empty and owned by the user).
 
+### Auto-save / "Save progress"
+- The sandbox's tool records already persist per-action, so there is no unsaved client buffer to flush. "Save progress" is therefore a Google-Docs-style **checkpoint + reassurance**: it bumps `projects.training_last_saved_at` (migration `169_training_last_saved_at.sql`) and drives an **All changes saved · <relative time>** indicator.
+- The `TrainingBanner` (client component) auto-saves on a **60s heartbeat**, on **tab hide** and **page close** (`navigator.sendBeacon`, which carries session cookies through unload), and on demand via the **Save progress** button in the banner's top-right corner. Failed saves show "Couldn't save — retry" and the button retries.
+- `training_last_saved_at` is set at create time and surfaced as **Last saved …** on each Practice list row.
+
 ### API
-- `GET /api/training/projects` — list the current user's sandboxes (`is_training` + `training_owner_id = me`, non-archived).
-- `POST /api/training/projects` — body `{ role, projectType }`; validates against `simulation-constants`, creates the project (`name: "Training: <Type>"`, `sector` = type label, `company_id` = the user's company or null), adds the `project_admin` membership (rolls back the project if that insert fails), returns `{ id }`. Any logged-in user may launch one.
+- `GET /api/training/projects` — list the current user's sandboxes (`is_training` + `training_owner_id = me`, non-archived); includes `training_last_saved_at`.
+- `POST /api/training/projects` — body `{ role, projectType }`; validates against `simulation-constants`, creates the project (`name: "Training: <Type>"`, `sector` = type label, `company_id` = the user's company or null, `training_last_saved_at = now`), adds the `project_admin` membership (rolls back the project if that insert fails), returns `{ id }`. Any logged-in user may launch one.
+- `POST /api/training/projects/[projectId]/save` — owner-only, training-only; sets `training_last_saved_at = now`, returns `{ savedAt }`. Accepts `navigator.sendBeacon` (no body required).
 - `DELETE /api/training/projects/[projectId]` — owner-only, training-projects-only; cascade-deletes the sandbox.
 
 ### UI (SiteCommand)
-- `app/training/practice/PracticeClient.tsx` — role cards + project-type select + **Launch training project ↗** (opens a blank tab synchronously to dodge popup blockers, then points it at `/projects/{id}`), plus a **Your training projects** list with open-in-new-tab + delete. Reuses `ROLES` / `PROJECT_TYPES` / `roleLabel` / `projectTypeLabel` from `lib/simulation-constants.ts`.
+- `app/training/practice/PracticeClient.tsx` — role cards + project-type select + **Launch training project ↗** (opens a blank tab synchronously to dodge popup blockers, then points it at `/projects/{id}`), plus a **Your training projects** list (open-in-new-tab, delete, "Last saved …"). Reuses `ROLES` / `PROJECT_TYPES` / `roleLabel` / `projectTypeLabel` from `lib/simulation-constants.ts`.
+- `app/projects/[id]/components/TrainingBanner.tsx` — client banner with branding + the auto-save heartbeat, status indicator, and Save progress button; rendered from `app/projects/[id]/layout.tsx` (which passes `projectId` + `initialSavedAt`) when `is_training`.

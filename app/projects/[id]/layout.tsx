@@ -21,23 +21,26 @@ export default async function ProjectLayout({
   // Those projects don't exist in the database, so we skip the DB access check for demo
   // accounts and trust the client-side interceptor to handle data correctly.
   let isTraining = false;
+  let trainingSavedAt: string | null = null;
   if (session.user_type !== "demo") {
     const hasAccess = await canAccessProject(id, session);
     if (!hasAccess) redirect("/dashboard");
 
-    // Sandbox projects get a persistent "SiteCommand Training" banner so it's
-    // always clear this is a practice environment, not a real project.
+    // Sandbox projects get a persistent "SiteCommand Training" banner (with the
+    // auto-save / Save progress controls) so it's always clear this is a practice
+    // environment, not a real project.
     const { data: project } = await getSupabase()
       .from("projects")
-      .select("is_training")
+      .select("is_training, training_last_saved_at")
       .eq("id", id)
       .maybeSingle();
     isTraining = !!project?.is_training;
+    trainingSavedAt = project?.training_last_saved_at ?? null;
   }
 
   return (
     <>
-      {isTraining && <TrainingBanner />}
+      {isTraining && <TrainingBanner projectId={id} initialSavedAt={trainingSavedAt} />}
       {children}
       <AssistWidget projectId={id} />
     </>

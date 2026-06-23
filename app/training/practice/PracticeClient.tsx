@@ -26,8 +26,20 @@ type TrainingProject = {
   training_role: SimRole | null;
   training_project_type: string | null;
   training_day: number;
+  training_last_saved_at: string | null;
   created_at: string;
 };
+
+function lastSavedLabel(iso: string | null): string {
+  if (!iso) return "";
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return "Last saved just now";
+  const m = Math.round(s / 60);
+  if (m < 60) return `Last saved ${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `Last saved ${h} hr ago`;
+  return `Last saved ${new Date(iso).toLocaleDateString()}`;
+}
 
 export default function PracticeClient({ username }: { username: string }) {
   const [role, setRole] = useState<SimRole>("superintendent");
@@ -200,7 +212,9 @@ function ProjectRow({ project, reload }: { project: TrainingProject; reload: () 
     >
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{project.name}</p>
-        {meta && <p className="text-xs text-gray-500 mt-0.5">{meta}</p>}
+        <p className="text-xs text-gray-500 mt-0.5">
+          {[meta, lastSavedLabel(project.training_last_saved_at)].filter(Boolean).join(" · ")}
+        </p>
       </div>
       <span className="shrink-0 text-xs font-medium text-gray-500 group-hover:text-gray-900">
         Open ↗
