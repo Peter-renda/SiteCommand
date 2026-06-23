@@ -27,8 +27,9 @@ export default async function ProjectLayout({
     const hasAccess = await canAccessProject(id, session);
     if (!hasAccess) redirect("/dashboard");
 
-    // Sandbox projects get a persistent "SiteCommand Training" banner so it's
-    // always clear this is a practice environment, not a real project.
+    // Sandbox projects get a persistent "SiteCommand Training" banner (with the
+    // auto-save / Save progress controls) so it's always clear this is a practice
+    // environment, not a real project.
     const { data: project } = await getSupabase()
       .from("projects")
       .select("is_training, training_role")
@@ -40,7 +41,7 @@ export default async function ProjectLayout({
 
   return (
     <>
-      {isTraining && <TrainingBanner />}
+      {isTraining && <TrainingBanner projectId={id} initialSavedAt={trainingSavedAt} />}
       {children}
       <AssistWidget projectId={id} />
       {isTraining && trainingRole === "project_manager" && <TrainingDayOnePanel projectId={id} />}

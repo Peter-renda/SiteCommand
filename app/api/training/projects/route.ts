@@ -32,7 +32,7 @@ export async function GET() {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("projects")
-    .select("id, name, status, training_role, training_project_type, training_day, created_at")
+    .select("id, name, status, training_role, training_project_type, training_day, training_last_saved_at, created_at")
     .eq("is_training", true)
     .eq("training_owner_id", session.id)
     .is("archived_at", null)
@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
       training_project_type: projectType,
       training_owner_id: session.id,
       training_day: 0,
+      training_last_saved_at: new Date().toISOString(),
     })
     .select("id")
     .single();
