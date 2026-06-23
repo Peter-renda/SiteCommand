@@ -24,6 +24,11 @@ import {
 // reworking the control — PROJECT_TYPES stays the source of truth for labels.
 const OFFERED_TYPES = PROJECT_TYPES.filter((p) => p.value === "higher_ed");
 const DEFAULT_TYPE = OFFERED_TYPES[0]?.value ?? "higher_ed";
+const TRAINING_MODES = [
+  { value: "guided", label: "Guided", disabled: false },
+  { value: "unguided", label: "Unguided", disabled: true },
+] as const;
+const DEFAULT_MODE = "guided";
 
 type TrainingProject = {
   id: string;
@@ -50,6 +55,7 @@ function lastSavedLabel(iso: string | null): string {
 export default function PracticeClient({ username }: { username: string }) {
   const [role, setRole] = useState<SimRole>("superintendent");
   const [projectType, setProjectType] = useState<string>(DEFAULT_TYPE);
+  const [trainingMode, setTrainingMode] = useState<string>(DEFAULT_MODE);
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,21 +144,47 @@ export default function PracticeClient({ username }: { username: string }) {
           ))}
         </div>
 
-        {/* Project type */}
-        <div className="max-w-xs mb-5">
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">Project type</label>
-          <select
-            value={projectType}
-            onChange={(e) => setProjectType(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-          >
-            {OFFERED_TYPES.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+        {/* Project type and mode */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mb-5">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Project type</label>
+            <select
+              value={projectType}
+              onChange={(e) => setProjectType(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            >
+              {OFFERED_TYPES.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Training mode</label>
+            <select
+              value={trainingMode}
+              onChange={(e) => setTrainingMode(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            >
+              {TRAINING_MODES.map((mode) => (
+                <option key={mode.value} value={mode.value} disabled={mode.disabled}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
+
+        {trainingMode === "guided" && (
+          <div className="mb-5 max-w-2xl rounded-lg border border-blue-100 bg-blue-50 p-3.5 text-sm text-blue-950">
+            <p className="font-medium">Guided training cadence</p>
+            <p className="mt-1 text-xs leading-5 text-blue-900/80">
+              Each day includes new emails and phone calls, tasks to complete, and end-of-day
+              tests. After each week, you&apos;ll receive a score and a list of areas to improve.
+            </p>
+          </div>
+        )}
 
         {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
