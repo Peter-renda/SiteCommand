@@ -1,15 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ROLES,
   PROJECT_TYPES,
-  ROLE_ACTION_TYPES,
   roleLabel,
   projectTypeLabel,
-  actionTypeLabel,
   type SimRole,
-  type ScoringFrequency,
 } from "@/lib/simulation-constants";
 
 // ───────────────────────────── Types ─────────────────────────────
@@ -78,29 +75,7 @@ type JobReview = {
 
 type ScoreReport = {
   id: string;
-  period_kind: string;
-  label: string;
-  from_day: number;
-  to_day: number;
-  score: number;
-  max_score: number;
-  grade: string;
-  review: string;
-  created_at: string;
-};
-
-type Game = {
-  id: string;
-  role: SimRole;
-  project_type: string;
-  project_name: string;
-  project_overview: string;
-  location: string;
-  contract_value: number;
-  total_days: number;
-  current_day: number;
-  scoring_frequency: ScoringFrequency;
-  days_per_advance: number;
+  name: string;
   status: string;
   score: number;
   max_score: number;
@@ -123,8 +98,15 @@ const SEVERITY_STYLES: Record<string, string> = {
   critical: "bg-red-100 text-red-800 border-red-300",
 };
 
-function money(n: number): string {
-  return "$" + Math.round(n).toLocaleString();
+function lastSavedLabel(iso: string | null): string {
+  if (!iso) return "";
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return "Last saved just now";
+  const m = Math.round(s / 60);
+  if (m < 60) return `Last saved ${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `Last saved ${h} hr ago`;
+  return `Last saved ${new Date(iso).toLocaleDateString()}`;
 }
 
 function pct(earned: number, possible: number): number {
@@ -154,89 +136,60 @@ function weekSpanLabel(r: JobReview): string {
 // ───────────────────────────── Component ─────────────────────────────
 
 export default function PracticeClient({ username }: { username: string }) {
-  const [games, setGames] = useState<Game[]>([]);
-  const [loadingList, setLoadingList] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [role, setRole] = useState<SimRole>("project_manager");
+  const [projectType, setProjectType] = useState<string>(DEFAULT_TYPE);
+  const [trainingMode, setTrainingMode] = useState<string>(DEFAULT_MODE);
+  const [launching, setLaunching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadGames = useCallback(async () => {
+  const [projects, setProjects] = useState<TrainingProject[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+
+  const loadProjects = useCallback(async () => {
     setLoadingList(true);
     try {
-      const res = await fetch("/api/training/games");
+      // no-store so a freshly-deleted/launched sandbox is never masked by a
+      // cached list response.
+      const res = await fetch("/api/training/projects", { cache: "no-store" });
       const data = await res.json();
-      setGames(data.games ?? []);
+      setProjects(data.projects ?? []);
     } finally {
       setLoadingList(false);
     }
   }, []);
 
+  // Drop a sandbox from the list the instant its delete is confirmed, so the row
+  // disappears immediately without waiting on (or trusting) a reload round-trip.
+  const removeProjectFromList = useCallback((id: string) => {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   useEffect(() => {
-    loadGames();
-  }, [loadGames]);
+    loadProjects();
+  }, [loadProjects]);
 
-  if (selectedId) {
-    return (
-      <GameView
-        gameId={selectedId}
-        onBack={() => {
-          setSelectedId(null);
-          loadGames();
-        }}
-      />
-    );
-  }
-
-  return (
-    <Hub
-      username={username}
-      games={games}
-      loading={loadingList}
-      onOpen={(id) => setSelectedId(id)}
-      onCreated={(id) => setSelectedId(id)}
-      reload={loadGames}
-    />
-  );
-}
-
-// ───────────────────────────── Hub / setup ─────────────────────────────
-
-function Hub({
-  username,
-  games,
-  loading,
-  onOpen,
-  onCreated,
-  reload,
-}: {
-  username: string;
-  games: Game[];
-  loading: boolean;
-  onOpen: (id: string) => void;
-  onCreated: (id: string) => void;
-  reload: () => void;
-}) {
-  const [role, setRole] = useState<SimRole>("superintendent");
-  const [projectType, setProjectType] = useState<string>("multifamily");
-  const [scoringFrequency, setScoringFrequency] = useState<ScoringFrequency>("weekly");
-  const [daysPerAdvance, setDaysPerAdvance] = useState(1);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function start() {
-    setCreating(true);
+  async function launch() {
+    setLaunching(true);
     setError(null);
+    // Open the tab synchronously on click so popup blockers allow it; we point
+    // it at the new sandbox once the server has created it.
+    const tab = window.open("", "_blank");
     try {
-      const res = await fetch("/api/training/games", {
+      const res = await fetch("/api/training/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, projectType, scoringFrequency, daysPerAdvance }),
+        body: JSON.stringify({ role, projectType }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to start project");
-      onCreated(data.id);
+      if (!res.ok) throw new Error(data.error || "Failed to launch training project");
+      if (tab) tab.location.href = `/projects/${data.id}`;
+      else window.open(`/projects/${data.id}`, "_blank");
+      loadProjects();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start project");
+      tab?.close();
+      setError(e instanceof Error ? e.message : "Failed to launch training project");
     } finally {
-      setCreating(false);
+      setLaunching(false);
     }
   }
 
@@ -247,42 +200,62 @@ function Hub({
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Project Simulation</h1>
         <p className="mt-1 text-sm text-gray-500 max-w-2xl">
-          Run a simulated construction project end to end, {firstName}. Pick your role and a
-          project type, then play through it one day at a time — read the daily rundown, handle the
-          problems that come up, and file the daily logs, PCOs, RFIs, and emails the job needs.
-          Everything you submit is graded and scored.
+          Run a simulated construction project end to end, {firstName}. Pick your role and a project
+          type, then launch a hands-on <span className="font-medium text-gray-700">SiteCommand
+          Training</span> sandbox — a real, private copy of SiteCommand that opens in a new tab.
+          Fake emails, plans, and specs come through as you go, so you can practice running the whole
+          job.
         </p>
       </div>
 
-      {/* New simulation */}
+      {/* New sandbox */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 mb-8">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Start a new project</h2>
+        <h2 className="text-sm font-semibold text-gray-900 mb-4">Launch a training project</h2>
 
         {/* Role */}
         <label className="block text-xs font-medium text-gray-500 mb-2">Your role</label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          {ROLES.map((r) => (
-            <button
-              key={r.value}
-              onClick={() => setRole(r.value)}
-              className={`text-left rounded-lg border p-3.5 transition-colors ${
-                role === r.value
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 hover:border-gray-300 bg-white"
-              }`}
-            >
-              <p className={`text-sm font-medium ${role === r.value ? "text-white" : "text-gray-900"}`}>
-                {r.label}
-              </p>
-              <p className={`mt-1 text-xs ${role === r.value ? "text-gray-300" : "text-gray-500"}`}>
-                {r.blurb}
-              </p>
-            </button>
-          ))}
+          {ROLES.map((r) => {
+            const available = AVAILABLE_ROLES.has(r.value);
+            const selected = role === r.value;
+            return (
+              <div key={r.value} className="relative group h-full">
+                <button
+                  type="button"
+                  onClick={() => available && setRole(r.value)}
+                  aria-disabled={!available}
+                  tabIndex={available ? undefined : -1}
+                  className={`w-full h-full text-left rounded-lg border p-3.5 transition-colors ${
+                    selected
+                      ? "border-gray-900 bg-gray-900 text-white"
+                      : available
+                        ? "border-gray-200 hover:border-gray-300 bg-white"
+                        : "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
+                  }`}
+                >
+                  <p className={`text-sm font-medium ${selected ? "text-white" : "text-gray-900"}`}>
+                    {r.label}
+                  </p>
+                  <p className={`mt-1 text-xs ${selected ? "text-gray-300" : "text-gray-500"}`}>
+                    {r.blurb}
+                  </p>
+                </button>
+                {!available && (
+                  <div
+                    role="tooltip"
+                    className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
+                  >
+                    Coming soon
+                    <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {/* Project type + settings */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+        {/* Project type and mode */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mb-5">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Project type</label>
             <select
@@ -290,7 +263,7 @@ function Hub({
               onChange={(e) => setProjectType(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
             >
-              {PROJECT_TYPES.map((p) => (
+              {OFFERED_TYPES.map((p) => (
                 <option key={p.value} value={p.value}>
                   {p.label}
                 </option>
@@ -298,57 +271,54 @@ function Hub({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Scoring</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Training mode</label>
             <select
-              value={scoringFrequency}
-              onChange={(e) => setScoringFrequency(e.target.value as ScoringFrequency)}
+              value={trainingMode}
+              onChange={(e) => setTrainingMode(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
             >
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="project_end">End of project</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              Speed (days per advance)
-            </label>
-            <select
-              value={daysPerAdvance}
-              onChange={(e) => setDaysPerAdvance(Number(e.target.value))}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-            >
-              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                <option key={n} value={n}>
-                  {n} {n === 1 ? "day" : "days"} / advance
+              {TRAINING_MODES.map((mode) => (
+                <option key={mode.value} value={mode.value} disabled={mode.disabled}>
+                  {mode.label}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
+        {trainingMode === "guided" && (
+          <div className="mb-5 max-w-2xl rounded-lg border border-blue-100 bg-blue-50 p-3.5 text-sm text-blue-950">
+            <p className="font-medium">Guided training cadence</p>
+            <p className="mt-1 text-xs leading-5 text-blue-900/80">
+              Each day includes new emails and phone calls, tasks to complete, and end-of-day
+              tests. After each week, you&apos;ll receive a score and a list of areas to improve.
+            </p>
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
         <button
-          onClick={start}
-          disabled={creating}
+          onClick={launch}
+          disabled={launching}
           className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
         >
-          {creating ? "Setting up your project…" : "Start project"}
+          {launching ? "Launching sandbox…" : "Launch training project ↗"}
         </button>
+        <p className="mt-2 text-xs text-gray-400">Opens in a new tab.</p>
       </div>
 
-      {/* Existing games */}
+      {/* Existing sandboxes */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-900 mb-3">Your projects</h2>
-        {loading ? (
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">Your training projects</h2>
+        {loadingList ? (
           <p className="text-sm text-gray-400">Loading…</p>
-        ) : games.length === 0 ? (
-          <p className="text-sm text-gray-400">No projects yet. Start one above.</p>
+        ) : projects.length === 0 ? (
+          <p className="text-sm text-gray-400">No training projects yet. Launch one above.</p>
         ) : (
           <div className="space-y-2">
-            {games.map((g) => (
-              <GameRow key={g.id} game={g} onOpen={() => onOpen(g.id)} reload={reload} />
+            {projects.map((p) => (
+              <ProjectRow key={p.id} project={p} onDeleted={removeProjectFromList} />
             ))}
           </div>
         )}
@@ -357,14 +327,20 @@ function Hub({
   );
 }
 
-function GameRow({ game, onOpen, reload }: { game: Game; onOpen: () => void; reload: () => void }) {
+function ProjectRow({
+  project,
+  onDeleted,
+}: {
+  project: TrainingProject;
+  onDeleted: (id: string) => void;
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const progress = Math.round((game.current_day / Math.max(1, game.total_days)) * 100);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  async function remove(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!confirm(`Delete "${game.project_name}"? This can't be undone.`)) return;
+  async function remove() {
     setDeleting(true);
+    setDeleteError(null);
     try {
       await fetch(`/api/training/games/${game.id}`, { method: "DELETE" });
       reload();
@@ -585,97 +561,34 @@ function GameView({ gameId, onBack }: { gameId: string; onBack: () => void }) {
   const openReview = jobReviews.find((r) => r.status === "open") ?? null;
 
   return (
-    <div>
-      <button onClick={onBack} className="text-sm text-gray-500 hover:text-gray-900 mb-4">
-        ← All projects
-      </button>
-
-      {/* Project header */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 mb-5">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-semibold text-gray-900">{game.project_name}</h1>
-              {completed && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
-                  Complete
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {projectTypeLabel(game.project_type)} · {game.location} · {money(game.contract_value)}
-            </p>
-            <p className="text-sm text-gray-600 mt-2 max-w-2xl">{game.project_overview}</p>
-            <p className="text-xs text-gray-400 mt-2">
-              Running this project as <span className="font-medium text-gray-600">{roleLabel(game.role)}</span>
+    <div className="rounded-lg border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all">
+      <div className="group flex items-center">
+        <a
+          href={`/projects/${project.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 min-w-0 flex items-center gap-4 p-4"
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">{project.name}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {[meta, lastSavedLabel(project.training_last_saved_at)].filter(Boolean).join(" · ")}
             </p>
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-3xl font-semibold text-gray-900">{pct(game.score, game.max_score)}%</p>
-            <p className="text-xs text-gray-400">
-              {Math.round(game.score)}/{game.max_score} pts
-            </p>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
-            <span>
-              Day {game.current_day} of {game.total_days}
-            </span>
-            <span>{Math.round((game.current_day / game.total_days) * 100)}%</span>
-          </div>
-          <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className="h-full bg-gray-900 transition-all"
-              style={{ width: `${(game.current_day / game.total_days) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Settings + advance */}
-        <div className="mt-5 flex items-end justify-between gap-4 flex-wrap">
-          <div className="flex items-end gap-4">
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Scoring</label>
-              <select
-                value={game.scoring_frequency}
-                onChange={(e) => updateSetting({ scoringFrequency: e.target.value as ScoringFrequency })}
-                className="rounded-md border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-              >
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="project_end">End of project</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Speed</label>
-              <select
-                value={game.days_per_advance}
-                onChange={(e) => updateSetting({ daysPerAdvance: Number(e.target.value) })}
-                className="rounded-md border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-              >
-                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                  <option key={n} value={n}>
-                    {n} {n === 1 ? "day" : "days"}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {!completed && (
+          <span className="shrink-0 text-xs font-medium text-gray-500 group-hover:text-gray-900">
+            Open ↗
+          </span>
+        </a>
+        {/* Delete button is outside the anchor so clicks never trigger navigation */}
+        {confirmDelete ? (
+          <div className="shrink-0 flex items-center gap-1.5 px-3">
             <button
-              onClick={advance}
-              disabled={advancing}
-              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              type="button"
+              onClick={remove}
+              disabled={deleting}
+              className="rounded px-2 py-1 text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
             >
-              {advancing
-                ? `Simulating ${advanceCount} ${advanceCount === 1 ? "day" : "days"}…`
-                : game.current_day === 0
-                  ? `Start day 1${advanceCount > 1 ? `–${advanceCount}` : ""}`
-                  : `Advance ${advanceCount} ${advanceCount === 1 ? "day" : "days"}`}
+              {deleting ? "Deleting…" : "Delete"}
             </button>
           )}
         </div>
@@ -1272,37 +1185,6 @@ function ActionEditor({
           </select>
         </div>
       )}
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Title / subject (optional)"
-        className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-      />
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        rows={6}
-        placeholder={`Write your ${actionTypeLabel(actionType).toLowerCase()} here — be as thorough and professional as you would on a real job.`}
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-      />
-      {error && <p className="text-xs text-red-600 mt-1.5">{error}</p>}
-      <div className="flex items-center gap-2 mt-2">
-        <button
-          onClick={submit}
-          disabled={submitting}
-          className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
-        >
-          {submitting ? "Grading…" : "Submit & grade"}
-        </button>
-        <button
-          onClick={onCancel}
-          disabled={submitting}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
     </div>
   );
 }

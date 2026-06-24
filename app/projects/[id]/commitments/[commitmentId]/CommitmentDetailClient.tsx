@@ -58,6 +58,24 @@ type Commitment = {
   // DocuSign / markup
   sign_docusign: boolean;
   financial_markup_enabled: boolean;
+  // ERP accounting feedback (pulled back from QuickBooks / Sage 300 CRE)
+  qbo_id: string | null;
+  qbo_ap_invoice_id: string | null;
+  qbo_total_amount: number | null;
+  qbo_balance: number | null;
+  qbo_payment_status: string | null;
+  qbo_ap_invoice_total_amount: number | null;
+  qbo_ap_invoice_balance: number | null;
+  qbo_ap_invoice_payment_status: string | null;
+  qbo_payments_refreshed_at: string | null;
+  sage300cre_id: string | null;
+  sage300cre_ap_invoice_id: string | null;
+  sage300cre_status: string | null;
+  sage300cre_ap_invoice_total_amount: number | null;
+  sage300cre_ap_invoice_amount_paid: number | null;
+  sage300cre_ap_invoice_balance: number | null;
+  sage300cre_ap_invoice_status: string | null;
+  sage300cre_payments_refreshed_at: string | null;
 };
 
 type SsovItem = {
@@ -155,6 +173,36 @@ const ERP_COLORS: Record<string, string> = {
   not_synced: "text-gray-400",
   pending: "text-amber-500",
 };
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  paid: "Paid",
+  partially_paid: "Partially Paid",
+  unpaid: "Unpaid",
+  open: "Open",
+  closed: "Closed",
+};
+
+const PAYMENT_STATUS_COLORS: Record<string, string> = {
+  paid: "bg-green-100 text-green-700",
+  partially_paid: "bg-amber-100 text-amber-700",
+  unpaid: "bg-gray-100 text-gray-600",
+  open: "bg-blue-50 text-blue-600",
+  closed: "bg-gray-100 text-gray-500",
+};
+
+function PaymentStatusPill({ status }: { status: string | null }) {
+  if (!status) return <span className="text-gray-400">—</span>;
+  const key = status.toLowerCase();
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[key] ?? "bg-gray-100 text-gray-600"}`}>
+      {PAYMENT_STATUS_LABELS[key] ?? status}
+    </span>
+  );
+}
+
+function fmtMoneyOrDash(n: number | null): string {
+  return n == null ? "—" : fmt(Number(n));
+}
 
 // ── Export helpers ────────────────────────────────────────────────────────────
 
@@ -475,8 +523,7 @@ export default function CommitmentDetailClient({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [qbSyncing, setQbSyncing] = useState(false);
-  const [qbSyncMsg, setQbSyncMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [payRefreshing, setPayRefreshing] = useState(false);
   const [changeHistory, setChangeHistory] = useState<ChangeHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -503,32 +550,6 @@ export default function CommitmentDetailClient({
     }
   }
 
-  async function handleSyncToQBO() {
-    setQbSyncing(true);
-    setQbSyncMsg(null);
-    setCommitment((c) => (c ? { ...c, erp_status: "pending" } : c));
-    try {
-      const res = await fetch("/api/integrations/quickbooks/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recordType: "commitments", recordId: commitmentId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setCommitment((c) => (c ? { ...c, erp_status: "not_synced" } : c));
-        setQbSyncMsg({ ok: false, text: data.error ?? "Sync failed" });
-      } else {
-        setCommitment((c) => (c ? { ...c, erp_status: "synced" } : c));
-        setQbSyncMsg({ ok: true, text: "Synced to QuickBooks Online." });
-      }
-    } catch {
-      setCommitment((c) => (c ? { ...c, erp_status: "not_synced" } : c));
-      setQbSyncMsg({ ok: false, text: "Network error while syncing." });
-    } finally {
-      setQbSyncing(false);
-    }
-  }
-
   async function reloadCommitment() {
     const [c, ssov] = await Promise.all([
       fetch(`/api/projects/${projectId}/commitments/${commitmentId}`).then((r) => r.json()),
@@ -536,6 +557,28 @@ export default function CommitmentDetailClient({
     ]);
     setCommitment(c);
     setSsovItems(Array.isArray(ssov) ? ssov : []);
+  }
+
+  async function handleRefreshPayments() {
+    if (!commitment) return;
+    setPayRefreshing(true);
+    try {
+      const targets: string[] = [];
+      if (commitment.qbo_id || commitment.qbo_ap_invoice_id) targets.push("quickbooks");
+      if (commitment.sage300cre_id || commitment.sage300cre_ap_invoice_id) targets.push("sage300cre");
+      await Promise.all(
+        targets.map((integration) =>
+          fetch(`/api/integrations/${integration}/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ recordType: "commitments", recordId: commitmentId }),
+          })
+        )
+      );
+      await reloadCommitment();
+    } finally {
+      setPayRefreshing(false);
+    }
   }
 
   useEffect(() => {
@@ -675,17 +718,6 @@ export default function CommitmentDetailClient({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleSyncToQBO}
-              disabled={qbSyncing}
-              title="Push this commitment to QuickBooks Online"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#2CA01C] rounded hover:bg-[#237d16] transition-colors disabled:opacity-50"
-            >
-              <svg className={`w-4 h-4 ${qbSyncing ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {qbSyncing ? "Syncing…" : "Sync to QuickBooks"}
-            </button>
-            <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={commitment?.status === "approved"}
               title={commitment?.status === "approved" ? "Cannot delete an Approved contract. Change status first." : "Delete this contract"}
@@ -740,12 +772,6 @@ export default function CommitmentDetailClient({
             </a>
           </div>
         </div>
-        {qbSyncMsg && (
-          <div className={`px-4 sm:px-8 py-2 text-xs flex items-center justify-between border-t border-gray-100 ${qbSyncMsg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-            <span>{qbSyncMsg.text}</span>
-            <button onClick={() => setQbSyncMsg(null)} className="opacity-60 hover:opacity-100 ml-3">✕</button>
-          </div>
-        )}
         {/* Tab bar */}
         <div className="px-8 flex items-center border-t border-gray-100 overflow-x-auto">
           {(
@@ -1044,6 +1070,84 @@ export default function CommitmentDetailClient({
             </div>
           )}
         </Section>
+
+        {/* ── Accounting (ERP feedback) ── */}
+        {(commitment.qbo_id || commitment.qbo_ap_invoice_id || commitment.sage300cre_id || commitment.sage300cre_ap_invoice_id) && (
+          <Section title="Accounting">
+            <div className="flex items-center justify-between mb-4 -mt-2">
+              <p className="text-xs text-gray-400">
+                Pulled from the connected accounting system
+                {(commitment.qbo_payments_refreshed_at || commitment.sage300cre_payments_refreshed_at) && (
+                  <> · last refreshed {new Date(commitment.qbo_payments_refreshed_at ?? commitment.sage300cre_payments_refreshed_at!).toLocaleString()}</>
+                )}
+              </p>
+              <button
+                onClick={handleRefreshPayments}
+                disabled={payRefreshing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                <svg className={`w-3.5 h-3.5 ${payRefreshing ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {payRefreshing ? "Refreshing…" : "Refresh payment status"}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {(commitment.qbo_id || commitment.qbo_ap_invoice_id) && (
+                <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+                  <p className="text-xs font-semibold text-gray-700 mb-3">QuickBooks Online</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <DetailField label={commitment.type === "subcontract" ? "Bill Total" : "PO Total"}>
+                      <span className="tabular-nums">{fmtMoneyOrDash(commitment.qbo_total_amount)}</span>
+                    </DetailField>
+                    <DetailField label="Open Balance">
+                      <span className="tabular-nums">{fmtMoneyOrDash(commitment.qbo_balance)}</span>
+                    </DetailField>
+                    <DetailField label="Payment Status">
+                      <PaymentStatusPill status={commitment.qbo_payment_status} />
+                    </DetailField>
+                  </div>
+                  {commitment.qbo_ap_invoice_id && (
+                    <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200">
+                      <DetailField label="AP Invoice Total">
+                        <span className="tabular-nums">{fmtMoneyOrDash(commitment.qbo_ap_invoice_total_amount)}</span>
+                      </DetailField>
+                      <DetailField label="AP Invoice Balance">
+                        <span className="tabular-nums">{fmtMoneyOrDash(commitment.qbo_ap_invoice_balance)}</span>
+                      </DetailField>
+                      <DetailField label="AP Invoice Status">
+                        <PaymentStatusPill status={commitment.qbo_ap_invoice_payment_status} />
+                      </DetailField>
+                    </div>
+                  )}
+                </div>
+              )}
+              {(commitment.sage300cre_id || commitment.sage300cre_ap_invoice_id) && (
+                <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+                  <p className="text-xs font-semibold text-gray-700 mb-3">Sage 300 CRE</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <DetailField label="PO Status">
+                      <PaymentStatusPill status={commitment.sage300cre_status} />
+                    </DetailField>
+                  </div>
+                  {commitment.sage300cre_ap_invoice_id && (
+                    <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200">
+                      <DetailField label="AP Invoice Total">
+                        <span className="tabular-nums">{fmtMoneyOrDash(commitment.sage300cre_ap_invoice_total_amount)}</span>
+                      </DetailField>
+                      <DetailField label="Amount Paid">
+                        <span className="tabular-nums">{fmtMoneyOrDash(commitment.sage300cre_ap_invoice_amount_paid)}</span>
+                      </DetailField>
+                      <DetailField label="Balance">
+                        <span className="tabular-nums">{fmtMoneyOrDash(commitment.sage300cre_ap_invoice_balance)}</span>
+                      </DetailField>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Section>
+        )}
 
         {/* ── Financial Summary ── */}
         <Section title="Financial Summary">

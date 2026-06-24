@@ -41,6 +41,9 @@ function calcDurationHours(start: string, end: string): string {
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+// Values for super-admin-defined custom columns, keyed by custom field key.
+type CustomValues = Record<string, string>;
+
 type InspectionEntry = {
   id: string;
   start_time: string;
@@ -51,6 +54,7 @@ type InspectionEntry = {
   location: string;
   inspection_area: string;
   comments: string;
+  custom?: CustomValues;
   attachments?: Attachment[];
 };
 
@@ -61,6 +65,7 @@ type DeliveryEntry = {
   tracking_number: string;
   contents: string;
   comments: string;
+  custom?: CustomValues;
   attachments?: Attachment[];
 };
 
@@ -70,6 +75,7 @@ type VisitorEntry = {
   start_time: string;
   end_time: string;
   comments: string;
+  custom?: CustomValues;
   attachments?: Attachment[];
 };
 
@@ -81,6 +87,7 @@ type SafetyViolationEntry = {
   issued_to: string;
   compliance_due: string;
   comments: string;
+  custom?: CustomValues;
   attachments?: Attachment[];
 };
 
@@ -90,6 +97,7 @@ type AccidentEntry = {
   party_involved: string;
   company_involved: string;
   comments: string;
+  custom?: CustomValues;
   attachments?: Attachment[];
 };
 
@@ -101,6 +109,7 @@ type DelayEntry = {
   duration_hours: string;
   location: string;
   comments: string;
+  custom?: CustomValues;
   attachments?: Attachment[];
 };
 
@@ -109,6 +118,7 @@ type NoteEntry = {
   is_issue: boolean;
   location: string;
   comments: string;
+  custom?: CustomValues;
   attachments?: Attachment[];
 };
 
@@ -120,6 +130,7 @@ type ManpowerEntry = {
   location: string;
   cost_code: string;
   comments: string;
+  custom?: CustomValues;
   attachments?: Attachment[];
 };
 
@@ -134,6 +145,7 @@ type WeatherObservation = {
   wind: string;
   ground_sea: string;
   comments: string;
+  custom?: CustomValues;
   attachments?: Attachment[];
 };
 
@@ -223,6 +235,170 @@ const DELAY_TYPES = [
   "Design", "Owner", "Subcontractor", "Other",
 ];
 
+// ── Column configuration (super admin) ───────────────────────────────────────
+
+type FieldType = "text" | "number" | "time" | "date" | "checkbox";
+
+type FieldDef = {
+  key: string;
+  label: string;
+  type?: FieldType;
+  isCustom?: boolean;
+  // Derived column (e.g. Manpower Total Hrs) — rendered by the section itself.
+  computed?: boolean;
+  placeholder?: string;
+  options?: string[]; // renders a <select>
+  minW?: string;
+  step?: string;
+  min?: string;
+  emphasis?: "strong" | "muted";
+  // checkbox display: badge shown when true
+  badgeText?: string;
+  badgeClass?: string;
+  suffix?: string;
+  // display "—" instead of omitting the column when empty
+  showDash?: boolean;
+  readOnly?: boolean;
+};
+
+type CustomFieldDef = { key: string; label: string; type?: FieldType };
+type DailyLogFieldConfig = Record<string, { hidden?: string[]; custom?: CustomFieldDef[]; order?: string[] }>;
+type SectionCfg = { hidden: Set<string>; custom: CustomFieldDef[]; order: string[] };
+
+const EMPTY_SECTION_CFG: SectionCfg = { hidden: new Set(), custom: [], order: [] };
+
+const CUSTOM_FIELD_TYPES: { value: FieldType; label: string }[] = [
+  { value: "text", label: "Text" },
+  { value: "number", label: "Number" },
+  { value: "time", label: "Time" },
+  { value: "date", label: "Date" },
+  { value: "checkbox", label: "Checkbox" },
+];
+
+function resolveSectionCfg(config: DailyLogFieldConfig, key: string): SectionCfg {
+  const c = config[key];
+  if (!c) return EMPTY_SECTION_CFG;
+  return { hidden: new Set(c.hidden ?? []), custom: c.custom ?? [], order: c.order ?? [] };
+}
+
+// Built-in columns per configurable section, used by the column-config modal,
+// the section renderers, and the voice-entry review editor.
+const SECTION_FIELD_DEFS: { key: string; label: string; fields: FieldDef[] }[] = [
+  {
+    key: "manpower", label: "Manpower", fields: [
+      { key: "company", label: "Company", placeholder: "Trade / company", minW: "150px", emphasis: "strong", showDash: true },
+      { key: "workers", label: "Workers", type: "number", min: "0", placeholder: "0", minW: "70px", showDash: true },
+      { key: "hours", label: "Hrs/Worker", type: "number", min: "0", step: "0.5", placeholder: "0", minW: "80px", showDash: true },
+      { key: "total_hours", label: "Total Hrs", computed: true, minW: "80px", showDash: true },
+      { key: "location", label: "Location", placeholder: "Work area", minW: "120px", showDash: true },
+      { key: "cost_code", label: "Cost Code", placeholder: "Optional", minW: "100px", showDash: true },
+      { key: "comments", label: "Comments", placeholder: "Optional notes...", minW: "160px", emphasis: "muted", showDash: true },
+    ],
+  },
+  {
+    key: "inspections", label: "Inspections", fields: [
+      { key: "inspection_type", label: "Type", placeholder: "e.g. Fire Safety", minW: "120px", emphasis: "strong" },
+      { key: "start_time", label: "Start", type: "time", minW: "90px" },
+      { key: "end_time", label: "End", type: "time", minW: "90px" },
+      { key: "inspecting_entity", label: "Entity", placeholder: "City Inspector", minW: "120px" },
+      { key: "inspector_name", label: "Inspector", placeholder: "Full name", minW: "120px" },
+      { key: "location", label: "Location", placeholder: "e.g. Level 3", minW: "110px" },
+      { key: "inspection_area", label: "Area", placeholder: "e.g. Electrical", minW: "110px" },
+      { key: "comments", label: "Comments", placeholder: "Notes...", minW: "160px", emphasis: "muted" },
+    ],
+  },
+  {
+    key: "deliveries", label: "Deliveries", fields: [
+      { key: "time", label: "Time", type: "time", minW: "90px" },
+      { key: "delivery_from", label: "From", placeholder: "Supplier / vendor", minW: "130px", emphasis: "strong" },
+      { key: "contents", label: "Contents", placeholder: "Material description", minW: "140px" },
+      { key: "tracking_number", label: "Tracking #", placeholder: "Optional", minW: "120px" },
+      { key: "comments", label: "Comments", placeholder: "Notes...", minW: "160px", emphasis: "muted" },
+    ],
+  },
+  {
+    key: "visitors", label: "Visitors", fields: [
+      { key: "visitor", label: "Visitor", placeholder: "Name and company", minW: "160px", emphasis: "strong" },
+      { key: "start_time", label: "Start", type: "time", minW: "90px" },
+      { key: "end_time", label: "End", type: "time", minW: "90px" },
+      { key: "comments", label: "Comments", placeholder: "Purpose of visit...", minW: "180px", emphasis: "muted" },
+    ],
+  },
+  {
+    key: "safety_violations", label: "Safety Violations", fields: [
+      { key: "subject", label: "Subject", placeholder: "Brief description", minW: "140px", emphasis: "strong" },
+      { key: "time", label: "Time", type: "time", minW: "90px" },
+      { key: "issued_to", label: "Issued To", placeholder: "Person / company", minW: "120px" },
+      { key: "safety_notice", label: "Notice #", placeholder: "Notice # or type", minW: "100px" },
+      { key: "compliance_due", label: "Due", type: "date", minW: "110px" },
+      { key: "comments", label: "Comments", placeholder: "Details...", minW: "160px", emphasis: "muted" },
+    ],
+  },
+  {
+    key: "accidents", label: "Accidents", fields: [
+      { key: "time", label: "Time", type: "time", minW: "90px" },
+      { key: "party_involved", label: "Party Involved", placeholder: "Person's name", minW: "140px", emphasis: "strong" },
+      { key: "company_involved", label: "Company", placeholder: "Company name", minW: "130px" },
+      { key: "comments", label: "Comments", placeholder: "Describe the incident...", minW: "180px", emphasis: "muted" },
+    ],
+  },
+  {
+    key: "delays", label: "Delays", fields: [
+      { key: "delay_type", label: "Type", options: DELAY_TYPES, minW: "130px", emphasis: "strong" },
+      { key: "start_time", label: "Start", type: "time", minW: "90px" },
+      { key: "end_time", label: "End", type: "time", minW: "90px" },
+      { key: "duration_hours", label: "Duration", placeholder: "Auto", readOnly: true, suffix: "h", minW: "90px" },
+      { key: "location", label: "Location", placeholder: "Area affected", minW: "120px" },
+      { key: "comments", label: "Comments", placeholder: "Cause and impact...", minW: "160px", emphasis: "muted" },
+    ],
+  },
+  {
+    key: "note_entries", label: "Notes", fields: [
+      { key: "is_issue", label: "Issue?", type: "checkbox", badgeText: "Issue", badgeClass: "bg-red-50 text-red-700", showDash: true, minW: "60px" },
+      { key: "location", label: "Location", placeholder: "Area or location", minW: "140px" },
+      { key: "comments", label: "Note", placeholder: "Note details...", minW: "240px" },
+    ],
+  },
+  {
+    key: "weather_observations", label: "Observed Weather Conditions", fields: [
+      { key: "time_observed", label: "Time", type: "time", minW: "90px", emphasis: "strong" },
+      { key: "sky", label: "Sky", options: SKY_OPTIONS, minW: "110px" },
+      { key: "temperature", label: "Temp", placeholder: "e.g. 68°F", minW: "90px" },
+      { key: "wind", label: "Wind", placeholder: "e.g. 15 mph NE", minW: "110px" },
+      { key: "avg_precipitation", label: "Precip", placeholder: "e.g. Light rain", minW: "110px" },
+      { key: "ground_sea", label: "Ground", placeholder: "e.g. Wet", minW: "90px" },
+      { key: "calamity", label: "Calamity", placeholder: "e.g. Flooding", minW: "110px" },
+      { key: "delay", label: "Delay?", type: "checkbox", badgeText: "Weather", badgeClass: "bg-yellow-50 text-yellow-700", minW: "60px" },
+      { key: "comments", label: "Comments", placeholder: "Additional notes...", minW: "160px", emphasis: "muted" },
+    ],
+  },
+];
+
+// All columns (built-in + custom) in their configured order. Unknown keys in
+// the saved order are skipped; fields missing from it keep their default
+// position appended at the end (covers newly added built-ins/customs).
+function orderedFields(sectionKey: string, cfg: SectionCfg): FieldDef[] {
+  const builtIn = SECTION_FIELD_DEFS.find((s) => s.key === sectionKey)?.fields ?? [];
+  const custom: FieldDef[] = cfg.custom.map((c) => ({
+    key: c.key, label: c.label, type: c.type ?? "text", isCustom: true,
+  }));
+  const all = [...builtIn, ...custom];
+  const byKey = new Map(all.map((f) => [f.key, f]));
+  const ordered: FieldDef[] = [];
+  for (const k of cfg.order) {
+    const f = byKey.get(k);
+    if (f) { ordered.push(f); byKey.delete(k); }
+  }
+  for (const f of all) {
+    if (byKey.has(f.key)) { ordered.push(f); byKey.delete(f.key); }
+  }
+  return ordered;
+}
+
+function visibleFields(sectionKey: string, cfg: SectionCfg): FieldDef[] {
+  return orderedFields(sectionKey, cfg).filter((f) => f.isCustom || !cfg.hidden.has(f.key));
+}
+
 // ── Shared UI primitives ─────────────────────────────────────────────────────
 
 function SectionCard({
@@ -262,6 +438,85 @@ function Col({ label, minW, children }: { label: string; minW: string; children:
       <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">{label}</span>
       {children}
     </div>
+  );
+}
+
+// Displays one saved column value inside an EntryRow, driven by FieldDef
+// metadata. Custom-column values are read from entry.custom; checkbox columns
+// render a badge. Returns null for empty values unless the def asks for "—".
+function FieldDisplay({ f, entry }: {
+  f: FieldDef;
+  entry: Record<string, unknown> & { custom?: CustomValues };
+}) {
+  const raw = f.isCustom ? entry.custom?.[f.key] : entry[f.key];
+  if (f.type === "checkbox") {
+    const on = f.isCustom ? raw === "Yes" : !!raw;
+    if (!on && !f.showDash) return null;
+    return (
+      <Col label={f.label} minW={f.minW ?? "60px"}>
+        {on
+          ? <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${f.badgeClass ?? "bg-gray-100 text-gray-700"}`}>{f.badgeText ?? "Yes"}</span>
+          : <span className="text-gray-400">—</span>}
+      </Col>
+    );
+  }
+  const v = raw == null ? "" : String(raw);
+  if (!v && !f.showDash) return null;
+  const cls = f.emphasis === "strong" ? "text-gray-800 font-medium" : f.emphasis === "muted" ? "text-gray-500" : "text-gray-700";
+  return (
+    <Col label={f.label} minW={f.minW ?? "100px"}>
+      <span className={cls}>{v ? `${v}${f.suffix ?? ""}` : "—"}</span>
+    </Col>
+  );
+}
+
+// One form input driven by FieldDef metadata (text/number/time/date/checkbox
+// or a select when options are provided). Custom checkbox values are kept as
+// "Yes"/"" strings so they fit the string-valued custom store.
+function FieldInput({ f, value, onChange }: {
+  f: FieldDef;
+  value: string | boolean;
+  onChange: (v: string | boolean) => void;
+}) {
+  if (f.type === "checkbox") {
+    const checked = f.isCustom ? value === "Yes" : !!value;
+    return (
+      <Col label={f.label} minW={f.minW ?? "60px"}>
+        <label className="flex items-center gap-1.5 cursor-pointer py-1">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onChange(f.isCustom ? (e.target.checked ? "Yes" : "") : e.target.checked)}
+            className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+          />
+          <span className="text-xs text-gray-600">Yes</span>
+        </label>
+      </Col>
+    );
+  }
+  if (f.options) {
+    return (
+      <Col label={f.label} minW={f.minW ?? "110px"}>
+        <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} className={selCls}>
+          {f.options.map((o) => <option key={o} value={o}>{o || "— Select —"}</option>)}
+        </select>
+      </Col>
+    );
+  }
+  return (
+    <Col label={f.label} minW={f.minW ?? "110px"}>
+      <input
+        type={f.type === "number" ? "number" : f.type === "time" ? "time" : f.type === "date" ? "date" : "text"}
+        min={f.min}
+        step={f.step}
+        value={String(value ?? "")}
+        readOnly={f.readOnly}
+        disabled={f.readOnly}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={f.placeholder}
+        className={inCls}
+      />
+    </Col>
   );
 }
 
@@ -454,6 +709,32 @@ function FormRow({
   );
 }
 
+// Draft state for a section's form row: built-in values live in a typed draft,
+// custom-column values in a parallel string map. FieldInput reads/writes both
+// through value()/set().
+function useSectionDraft<T extends Record<string, unknown>>(makeEmpty: () => T) {
+  const [draft, setDraft] = useState<T>(makeEmpty());
+  const [customDraft, setCustomDraft] = useState<CustomValues>({});
+
+  function value(f: FieldDef): string | boolean {
+    if (f.isCustom) return customDraft[f.key] ?? "";
+    const v = draft[f.key];
+    return typeof v === "boolean" ? v : v == null ? "" : String(v);
+  }
+
+  function set(f: FieldDef, v: string | boolean) {
+    if (f.isCustom) setCustomDraft((p) => ({ ...p, [f.key]: v as string }));
+    else setDraft((d) => ({ ...d, [f.key]: v }));
+  }
+
+  function reset() {
+    setDraft(makeEmpty());
+    setCustomDraft({});
+  }
+
+  return { draft, customDraft, value, set, reset, setDraft };
+}
+
 // ── Inspections ──────────────────────────────────────────────────────────────
 
 const emptyInspection = (): Omit<InspectionEntry, "id"> => ({
@@ -461,19 +742,20 @@ const emptyInspection = (): Omit<InspectionEntry, "id"> => ({
   inspector_name: "", location: "", inspection_area: "", comments: "",
 });
 
-function InspectionsSection({ projectId, entries, onAdd, onDelete }: {
+function InspectionsSection({ projectId, entries, onAdd, onDelete, cfg = EMPTY_SECTION_CFG }: {
   projectId: string;
   entries: InspectionEntry[];
   onAdd: (e: InspectionEntry) => void;
   onDelete: (id: string) => void;
+  cfg?: SectionCfg;
 }) {
-  const [draft, setDraft] = useState(emptyInspection());
+  const d = useSectionDraft(emptyInspection);
   const att = useDraftAttachments(projectId);
-  const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
+  const fields = visibleFields("inspections", cfg);
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft, attachments: att.items });
-    setDraft(emptyInspection());
+    onAdd({ id: uid(), ...d.draft, custom: d.customDraft, attachments: att.items });
+    d.reset();
     att.reset();
   }
 
@@ -481,14 +763,7 @@ function InspectionsSection({ projectId, entries, onAdd, onDelete }: {
     <SectionCard title="Inspections">
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          {e.inspection_type && <Col label="Type" minW="120px"><span className="text-gray-800 font-medium">{e.inspection_type}</span></Col>}
-          {e.start_time && <Col label="Start" minW="60px"><span className="text-gray-700">{e.start_time}</span></Col>}
-          {e.end_time && <Col label="End" minW="60px"><span className="text-gray-700">{e.end_time}</span></Col>}
-          {e.inspecting_entity && <Col label="Entity" minW="110px"><span className="text-gray-700">{e.inspecting_entity}</span></Col>}
-          {e.inspector_name && <Col label="Inspector" minW="110px"><span className="text-gray-700">{e.inspector_name}</span></Col>}
-          {e.location && <Col label="Location" minW="100px"><span className="text-gray-700">{e.location}</span></Col>}
-          {e.inspection_area && <Col label="Area" minW="100px"><span className="text-gray-700">{e.inspection_area}</span></Col>}
-          {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          {fields.map((f) => <FieldDisplay key={f.key} f={f} entry={e} />)}
           <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
@@ -500,14 +775,9 @@ function InspectionsSection({ projectId, entries, onAdd, onDelete }: {
         onAttachFiles={att.handleFiles}
         onRemoveAttachment={att.remove}
       >
-        <Col label="Type" minW="120px"><input value={draft.inspection_type} onChange={(e) => set("inspection_type", e.target.value)} placeholder="e.g. Fire Safety" className={inCls} /></Col>
-        <Col label="Start" minW="90px"><input type="time" value={draft.start_time} onChange={(e) => set("start_time", e.target.value)} className={inCls} /></Col>
-        <Col label="End" minW="90px"><input type="time" value={draft.end_time} onChange={(e) => set("end_time", e.target.value)} className={inCls} /></Col>
-        <Col label="Entity" minW="120px"><input value={draft.inspecting_entity} onChange={(e) => set("inspecting_entity", e.target.value)} placeholder="City Inspector" className={inCls} /></Col>
-        <Col label="Inspector" minW="120px"><input value={draft.inspector_name} onChange={(e) => set("inspector_name", e.target.value)} placeholder="Full name" className={inCls} /></Col>
-        <Col label="Location" minW="110px"><input value={draft.location} onChange={(e) => set("location", e.target.value)} placeholder="e.g. Level 3" className={inCls} /></Col>
-        <Col label="Area" minW="110px"><input value={draft.inspection_area} onChange={(e) => set("inspection_area", e.target.value)} placeholder="e.g. Electrical" className={inCls} /></Col>
-        <Col label="Comments" minW="160px"><input value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Notes..." className={inCls} /></Col>
+        {fields.map((f) => (
+          <FieldInput key={f.key} f={f} value={d.value(f)} onChange={(v) => d.set(f, v)} />
+        ))}
       </FormRow>
     </SectionCard>
   );
@@ -519,19 +789,20 @@ const emptyDelivery = (): Omit<DeliveryEntry, "id"> => ({
   time: "", delivery_from: "", tracking_number: "", contents: "", comments: "",
 });
 
-function DeliveriesSection({ projectId, entries, onAdd, onDelete }: {
+function DeliveriesSection({ projectId, entries, onAdd, onDelete, cfg = EMPTY_SECTION_CFG }: {
   projectId: string;
   entries: DeliveryEntry[];
   onAdd: (e: DeliveryEntry) => void;
   onDelete: (id: string) => void;
+  cfg?: SectionCfg;
 }) {
-  const [draft, setDraft] = useState(emptyDelivery());
+  const d = useSectionDraft(emptyDelivery);
   const att = useDraftAttachments(projectId);
-  const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
+  const fields = visibleFields("deliveries", cfg);
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft, attachments: att.items });
-    setDraft(emptyDelivery());
+    onAdd({ id: uid(), ...d.draft, custom: d.customDraft, attachments: att.items });
+    d.reset();
     att.reset();
   }
 
@@ -539,11 +810,7 @@ function DeliveriesSection({ projectId, entries, onAdd, onDelete }: {
     <SectionCard title="Deliveries">
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          {e.time && <Col label="Time" minW="60px"><span className="text-gray-700">{e.time}</span></Col>}
-          {e.delivery_from && <Col label="From" minW="110px"><span className="text-gray-800 font-medium">{e.delivery_from}</span></Col>}
-          {e.contents && <Col label="Contents" minW="120px"><span className="text-gray-700">{e.contents}</span></Col>}
-          {e.tracking_number && <Col label="Tracking #" minW="100px"><span className="text-gray-700">{e.tracking_number}</span></Col>}
-          {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          {fields.map((f) => <FieldDisplay key={f.key} f={f} entry={e} />)}
           <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
@@ -555,11 +822,9 @@ function DeliveriesSection({ projectId, entries, onAdd, onDelete }: {
         onAttachFiles={att.handleFiles}
         onRemoveAttachment={att.remove}
       >
-        <Col label="Time" minW="90px"><input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inCls} /></Col>
-        <Col label="From" minW="130px"><input value={draft.delivery_from} onChange={(e) => set("delivery_from", e.target.value)} placeholder="Supplier / vendor" className={inCls} /></Col>
-        <Col label="Contents" minW="140px"><input value={draft.contents} onChange={(e) => set("contents", e.target.value)} placeholder="Material description" className={inCls} /></Col>
-        <Col label="Tracking #" minW="120px"><input value={draft.tracking_number} onChange={(e) => set("tracking_number", e.target.value)} placeholder="Optional" className={inCls} /></Col>
-        <Col label="Comments" minW="160px"><input value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Notes..." className={inCls} /></Col>
+        {fields.map((f) => (
+          <FieldInput key={f.key} f={f} value={d.value(f)} onChange={(v) => d.set(f, v)} />
+        ))}
       </FormRow>
     </SectionCard>
   );
@@ -571,19 +836,20 @@ const emptyVisitor = (): Omit<VisitorEntry, "id"> => ({
   visitor: "", start_time: "", end_time: "", comments: "",
 });
 
-function VisitorsSection({ projectId, entries, onAdd, onDelete }: {
+function VisitorsSection({ projectId, entries, onAdd, onDelete, cfg = EMPTY_SECTION_CFG }: {
   projectId: string;
   entries: VisitorEntry[];
   onAdd: (e: VisitorEntry) => void;
   onDelete: (id: string) => void;
+  cfg?: SectionCfg;
 }) {
-  const [draft, setDraft] = useState(emptyVisitor());
+  const d = useSectionDraft(emptyVisitor);
   const att = useDraftAttachments(projectId);
-  const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
+  const fields = visibleFields("visitors", cfg);
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft, attachments: att.items });
-    setDraft(emptyVisitor());
+    onAdd({ id: uid(), ...d.draft, custom: d.customDraft, attachments: att.items });
+    d.reset();
     att.reset();
   }
 
@@ -591,10 +857,7 @@ function VisitorsSection({ projectId, entries, onAdd, onDelete }: {
     <SectionCard title="Visitors">
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          {e.visitor && <Col label="Visitor" minW="140px"><span className="text-gray-800 font-medium">{e.visitor}</span></Col>}
-          {e.start_time && <Col label="Start" minW="60px"><span className="text-gray-700">{e.start_time}</span></Col>}
-          {e.end_time && <Col label="End" minW="60px"><span className="text-gray-700">{e.end_time}</span></Col>}
-          {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          {fields.map((f) => <FieldDisplay key={f.key} f={f} entry={e} />)}
           <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
@@ -606,10 +869,9 @@ function VisitorsSection({ projectId, entries, onAdd, onDelete }: {
         onAttachFiles={att.handleFiles}
         onRemoveAttachment={att.remove}
       >
-        <Col label="Visitor" minW="160px"><input value={draft.visitor} onChange={(e) => set("visitor", e.target.value)} placeholder="Name and company" className={inCls} /></Col>
-        <Col label="Start" minW="90px"><input type="time" value={draft.start_time} onChange={(e) => set("start_time", e.target.value)} className={inCls} /></Col>
-        <Col label="End" minW="90px"><input type="time" value={draft.end_time} onChange={(e) => set("end_time", e.target.value)} className={inCls} /></Col>
-        <Col label="Comments" minW="180px"><input value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Purpose of visit..." className={inCls} /></Col>
+        {fields.map((f) => (
+          <FieldInput key={f.key} f={f} value={d.value(f)} onChange={(v) => d.set(f, v)} />
+        ))}
       </FormRow>
     </SectionCard>
   );
@@ -621,19 +883,20 @@ const emptySafetyViolation = (): Omit<SafetyViolationEntry, "id"> => ({
   time: "", subject: "", safety_notice: "", issued_to: "", compliance_due: "", comments: "",
 });
 
-function SafetyViolationsSection({ projectId, entries, onAdd, onDelete }: {
+function SafetyViolationsSection({ projectId, entries, onAdd, onDelete, cfg = EMPTY_SECTION_CFG }: {
   projectId: string;
   entries: SafetyViolationEntry[];
   onAdd: (e: SafetyViolationEntry) => void;
   onDelete: (id: string) => void;
+  cfg?: SectionCfg;
 }) {
-  const [draft, setDraft] = useState(emptySafetyViolation());
+  const d = useSectionDraft(emptySafetyViolation);
   const att = useDraftAttachments(projectId);
-  const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
+  const fields = visibleFields("safety_violations", cfg);
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft, attachments: att.items });
-    setDraft(emptySafetyViolation());
+    onAdd({ id: uid(), ...d.draft, custom: d.customDraft, attachments: att.items });
+    d.reset();
     att.reset();
   }
 
@@ -641,12 +904,7 @@ function SafetyViolationsSection({ projectId, entries, onAdd, onDelete }: {
     <SectionCard title="Safety Violations">
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          {e.subject && <Col label="Subject" minW="140px"><span className="text-gray-800 font-medium">{e.subject}</span></Col>}
-          {e.time && <Col label="Time" minW="60px"><span className="text-gray-700">{e.time}</span></Col>}
-          {e.issued_to && <Col label="Issued To" minW="110px"><span className="text-gray-700">{e.issued_to}</span></Col>}
-          {e.safety_notice && <Col label="Notice" minW="90px"><span className="text-gray-700">{e.safety_notice}</span></Col>}
-          {e.compliance_due && <Col label="Due" minW="90px"><span className="text-gray-700">{e.compliance_due}</span></Col>}
-          {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          {fields.map((f) => <FieldDisplay key={f.key} f={f} entry={e} />)}
           <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
@@ -658,12 +916,9 @@ function SafetyViolationsSection({ projectId, entries, onAdd, onDelete }: {
         onAttachFiles={att.handleFiles}
         onRemoveAttachment={att.remove}
       >
-        <Col label="Subject" minW="140px"><input value={draft.subject} onChange={(e) => set("subject", e.target.value)} placeholder="Brief description" className={inCls} /></Col>
-        <Col label="Time" minW="90px"><input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inCls} /></Col>
-        <Col label="Issued To" minW="120px"><input value={draft.issued_to} onChange={(e) => set("issued_to", e.target.value)} placeholder="Person / company" className={inCls} /></Col>
-        <Col label="Notice #" minW="100px"><input value={draft.safety_notice} onChange={(e) => set("safety_notice", e.target.value)} placeholder="Notice # or type" className={inCls} /></Col>
-        <Col label="Due" minW="110px"><input type="date" value={draft.compliance_due} onChange={(e) => set("compliance_due", e.target.value)} className={inCls} /></Col>
-        <Col label="Comments" minW="160px"><input value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Details..." className={inCls} /></Col>
+        {fields.map((f) => (
+          <FieldInput key={f.key} f={f} value={d.value(f)} onChange={(v) => d.set(f, v)} />
+        ))}
       </FormRow>
     </SectionCard>
   );
@@ -675,19 +930,20 @@ const emptyAccident = (): Omit<AccidentEntry, "id"> => ({
   time: "", party_involved: "", company_involved: "", comments: "",
 });
 
-function AccidentsSection({ projectId, entries, onAdd, onDelete }: {
+function AccidentsSection({ projectId, entries, onAdd, onDelete, cfg = EMPTY_SECTION_CFG }: {
   projectId: string;
   entries: AccidentEntry[];
   onAdd: (e: AccidentEntry) => void;
   onDelete: (id: string) => void;
+  cfg?: SectionCfg;
 }) {
-  const [draft, setDraft] = useState(emptyAccident());
+  const d = useSectionDraft(emptyAccident);
   const att = useDraftAttachments(projectId);
-  const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
+  const fields = visibleFields("accidents", cfg);
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft, attachments: att.items });
-    setDraft(emptyAccident());
+    onAdd({ id: uid(), ...d.draft, custom: d.customDraft, attachments: att.items });
+    d.reset();
     att.reset();
   }
 
@@ -695,10 +951,7 @@ function AccidentsSection({ projectId, entries, onAdd, onDelete }: {
     <SectionCard title="Accidents">
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          {e.time && <Col label="Time" minW="60px"><span className="text-gray-700">{e.time}</span></Col>}
-          {e.party_involved && <Col label="Party Involved" minW="110px"><span className="text-gray-800 font-medium">{e.party_involved}</span></Col>}
-          {e.company_involved && <Col label="Company" minW="110px"><span className="text-gray-700">{e.company_involved}</span></Col>}
-          {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          {fields.map((f) => <FieldDisplay key={f.key} f={f} entry={e} />)}
           <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
@@ -710,10 +963,9 @@ function AccidentsSection({ projectId, entries, onAdd, onDelete }: {
         onAttachFiles={att.handleFiles}
         onRemoveAttachment={att.remove}
       >
-        <Col label="Time" minW="90px"><input type="time" value={draft.time} onChange={(e) => set("time", e.target.value)} className={inCls} /></Col>
-        <Col label="Party Involved" minW="140px"><input value={draft.party_involved} onChange={(e) => set("party_involved", e.target.value)} placeholder="Person's name" className={inCls} /></Col>
-        <Col label="Company" minW="130px"><input value={draft.company_involved} onChange={(e) => set("company_involved", e.target.value)} placeholder="Company name" className={inCls} /></Col>
-        <Col label="Comments" minW="180px"><input value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Describe the incident..." className={inCls} /></Col>
+        {fields.map((f) => (
+          <FieldInput key={f.key} f={f} value={d.value(f)} onChange={(v) => d.set(f, v)} />
+        ))}
       </FormRow>
     </SectionCard>
   );
@@ -725,31 +977,33 @@ const emptyDelay = (): Omit<DelayEntry, "id"> => ({
   delay_type: "", start_time: "", end_time: "", duration_hours: "", location: "", comments: "",
 });
 
-function DelaysSection({ projectId, entries, onAdd, onDelete }: {
+function DelaysSection({ projectId, entries, onAdd, onDelete, cfg = EMPTY_SECTION_CFG }: {
   projectId: string;
   entries: DelayEntry[];
   onAdd: (e: DelayEntry) => void;
   onDelete: (id: string) => void;
+  cfg?: SectionCfg;
 }) {
-  const [draft, setDraft] = useState(emptyDelay());
+  const d = useSectionDraft(emptyDelay);
   const att = useDraftAttachments(projectId);
+  const fields = visibleFields("delays", cfg);
 
-  function setField(f: keyof typeof draft, v: string) {
-    setDraft((d) => {
-      const updated = { ...d, [f]: v };
-      if (f === "start_time" || f === "end_time") {
-        updated.duration_hours = calcDurationHours(
-          f === "start_time" ? v : d.start_time,
-          f === "end_time" ? v : d.end_time,
-        );
-      }
-      return updated;
-    });
+  // Built-in start/end edits recalculate the auto duration
+  function setValue(f: FieldDef, v: string | boolean) {
+    if (!f.isCustom && (f.key === "start_time" || f.key === "end_time")) {
+      d.setDraft((prev) => {
+        const updated = { ...prev, [f.key]: v as string };
+        updated.duration_hours = calcDurationHours(updated.start_time, updated.end_time);
+        return updated;
+      });
+      return;
+    }
+    d.set(f, v);
   }
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft, attachments: att.items });
-    setDraft(emptyDelay());
+    onAdd({ id: uid(), ...d.draft, custom: d.customDraft, attachments: att.items });
+    d.reset();
     att.reset();
   }
 
@@ -759,12 +1013,7 @@ function DelaysSection({ projectId, entries, onAdd, onDelete }: {
     <SectionCard title="Delays" badge={`${totalHours.toFixed(2)} Total Hours`}>
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          {e.delay_type && <Col label="Type" minW="110px"><span className="text-gray-800 font-medium">{e.delay_type}</span></Col>}
-          {e.start_time && <Col label="Start" minW="60px"><span className="text-gray-700">{e.start_time}</span></Col>}
-          {e.end_time && <Col label="End" minW="60px"><span className="text-gray-700">{e.end_time}</span></Col>}
-          {e.duration_hours && <Col label="Duration" minW="70px"><span className="text-gray-700">{e.duration_hours}h</span></Col>}
-          {e.location && <Col label="Location" minW="100px"><span className="text-gray-700">{e.location}</span></Col>}
-          {e.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments}</span></Col>}
+          {fields.map((f) => <FieldDisplay key={f.key} f={f} entry={e} />)}
           <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
@@ -776,16 +1025,9 @@ function DelaysSection({ projectId, entries, onAdd, onDelete }: {
         onAttachFiles={att.handleFiles}
         onRemoveAttachment={att.remove}
       >
-        <Col label="Type" minW="130px">
-          <select value={draft.delay_type} onChange={(e) => setField("delay_type", e.target.value)} className={selCls}>
-            {DELAY_TYPES.map((t) => <option key={t} value={t}>{t || "— Select —"}</option>)}
-          </select>
-        </Col>
-        <Col label="Start" minW="90px"><input type="time" value={draft.start_time} onChange={(e) => setField("start_time", e.target.value)} className={inCls} /></Col>
-        <Col label="End" minW="90px"><input type="time" value={draft.end_time} onChange={(e) => setField("end_time", e.target.value)} className={inCls} /></Col>
-        <Col label="Duration" minW="90px"><input value={draft.duration_hours} readOnly disabled placeholder="Auto" className={inCls} /></Col>
-        <Col label="Location" minW="120px"><input value={draft.location} onChange={(e) => setField("location", e.target.value)} placeholder="Area affected" className={inCls} /></Col>
-        <Col label="Comments" minW="160px"><input value={draft.comments} onChange={(e) => setField("comments", e.target.value)} placeholder="Cause and impact..." className={inCls} /></Col>
+        {fields.map((f) => (
+          <FieldInput key={f.key} f={f} value={d.value(f)} onChange={(v) => setValue(f, v)} />
+        ))}
       </FormRow>
     </SectionCard>
   );
@@ -797,18 +1039,20 @@ const emptyNoteEntry = (): Omit<NoteEntry, "id"> => ({
   is_issue: false, location: "", comments: "",
 });
 
-function NoteEntriesSection({ projectId, entries, onAdd, onDelete }: {
+function NoteEntriesSection({ projectId, entries, onAdd, onDelete, cfg = EMPTY_SECTION_CFG }: {
   projectId: string;
   entries: NoteEntry[];
   onAdd: (e: NoteEntry) => void;
   onDelete: (id: string) => void;
+  cfg?: SectionCfg;
 }) {
-  const [draft, setDraft] = useState(emptyNoteEntry());
+  const d = useSectionDraft(emptyNoteEntry);
   const att = useDraftAttachments(projectId);
+  const fields = visibleFields("note_entries", cfg);
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft, attachments: att.items });
-    setDraft(emptyNoteEntry());
+    onAdd({ id: uid(), ...d.draft, custom: d.customDraft, attachments: att.items });
+    d.reset();
     att.reset();
   }
 
@@ -816,14 +1060,7 @@ function NoteEntriesSection({ projectId, entries, onAdd, onDelete }: {
     <SectionCard title="Notes">
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          <Col label="Flag" minW="50px">
-            {e.is_issue
-              ? <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700">Issue</span>
-              : <span className="text-gray-400">—</span>
-            }
-          </Col>
-          {e.location && <Col label="Location" minW="110px"><span className="text-gray-700">{e.location}</span></Col>}
-          {e.comments && <Col label="Note" minW="200px"><span className="text-gray-600">{e.comments}</span></Col>}
+          {fields.map((f) => <FieldDisplay key={f.key} f={f} entry={e} />)}
           <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
@@ -835,19 +1072,9 @@ function NoteEntriesSection({ projectId, entries, onAdd, onDelete }: {
         onAttachFiles={att.handleFiles}
         onRemoveAttachment={att.remove}
       >
-        <Col label="Issue?" minW="60px">
-          <label className="flex items-center gap-1.5 cursor-pointer py-1">
-            <input
-              type="checkbox"
-              checked={draft.is_issue}
-              onChange={(e) => setDraft((d) => ({ ...d, is_issue: e.target.checked }))}
-              className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-            />
-            <span className="text-xs text-gray-600">Yes</span>
-          </label>
-        </Col>
-        <Col label="Location" minW="140px"><input value={draft.location} onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))} placeholder="Area or location" className={inCls} /></Col>
-        <Col label="Note" minW="240px"><input value={draft.comments} onChange={(e) => setDraft((d) => ({ ...d, comments: e.target.value }))} placeholder="Note details..." className={inCls} /></Col>
+        {fields.map((f) => (
+          <FieldInput key={f.key} f={f} value={d.value(f)} onChange={(v) => d.set(f, v)} />
+        ))}
       </FormRow>
     </SectionCard>
   );
@@ -859,20 +1086,21 @@ const emptyManpower = (): Omit<ManpowerEntry, "id"> => ({
   company: "", workers: "", hours: "", location: "", cost_code: "", comments: "",
 });
 
-function ManpowerSection({ projectId, entries, onAdd, onDelete, companySuggestions }: {
+function ManpowerSection({ projectId, entries, onAdd, onDelete, companySuggestions, cfg = EMPTY_SECTION_CFG }: {
   projectId: string;
   entries: ManpowerEntry[];
   onAdd: (e: ManpowerEntry) => void;
   onDelete: (id: string) => void;
   companySuggestions: string[];
+  cfg?: SectionCfg;
 }) {
-  const [draft, setDraft] = useState(emptyManpower());
+  const d = useSectionDraft(emptyManpower);
   const att = useDraftAttachments(projectId);
-  const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
+  const fields = visibleFields("manpower", cfg);
 
   function handleCreate() {
-    onAdd({ id: uid(), ...draft, attachments: att.items });
-    setDraft(emptyManpower());
+    onAdd({ id: uid(), ...d.draft, custom: d.customDraft, attachments: att.items });
+    d.reset();
     att.reset();
   }
 
@@ -882,8 +1110,8 @@ function ManpowerSection({ projectId, entries, onAdd, onDelete, companySuggestio
     0,
   );
   const draftTotalHours =
-    draft.workers && draft.hours
-      ? ((parseInt(draft.workers) || 0) * (parseFloat(draft.hours) || 0)).toFixed(1)
+    d.draft.workers && d.draft.hours
+      ? ((parseInt(d.draft.workers) || 0) * (parseFloat(d.draft.hours) || 0)).toFixed(1)
       : "";
 
   return (
@@ -893,13 +1121,16 @@ function ManpowerSection({ projectId, entries, onAdd, onDelete, companySuggestio
     >
       {entries.map((e) => (
         <EntryRow key={e.id} onDelete={() => onDelete(e.id)}>
-          <Col label="Company" minW="120px"><span className="text-gray-800 font-medium">{e.company || "—"}</span></Col>
-          <Col label="Workers" minW="60px"><span className="text-gray-700">{e.workers || "—"}</span></Col>
-          <Col label="Hrs/Worker" minW="70px"><span className="text-gray-700">{e.hours || "—"}</span></Col>
-          <Col label="Total Hrs" minW="70px"><span className="text-gray-700">{((parseInt(e.workers) || 0) * (parseFloat(e.hours) || 0)).toFixed(1)}h</span></Col>
-          <Col label="Location" minW="100px"><span className="text-gray-700">{e.location || "—"}</span></Col>
-          <Col label="Cost Code" minW="80px"><span className="text-gray-700">{e.cost_code || "—"}</span></Col>
-          <Col label="Comments" minW="140px"><span className="text-gray-500">{e.comments || "—"}</span></Col>
+          {fields.map((f) => {
+            if (f.key === "total_hours") {
+              return (
+                <Col key={f.key} label="Total Hrs" minW="70px">
+                  <span className="text-gray-700">{((parseInt(e.workers) || 0) * (parseFloat(e.hours) || 0)).toFixed(1)}h</span>
+                </Col>
+              );
+            }
+            return <FieldDisplay key={f.key} f={f} entry={e} />;
+          })}
           <AttachmentLinks items={e.attachments} />
         </EntryRow>
       ))}
@@ -911,24 +1142,32 @@ function ManpowerSection({ projectId, entries, onAdd, onDelete, companySuggestio
         onAttachFiles={att.handleFiles}
         onRemoveAttachment={att.remove}
       >
-        <Col label="Company" minW="150px">
-          <input
-            list="manpower-companies"
-            value={draft.company}
-            onChange={(e) => set("company", e.target.value)}
-            placeholder="Trade / company"
-            className={inCls}
-          />
-          <datalist id="manpower-companies">
-            {companySuggestions.map((name) => <option key={name} value={name} />)}
-          </datalist>
-        </Col>
-        <Col label="Workers" minW="70px"><input type="number" min="0" value={draft.workers} onChange={(e) => set("workers", e.target.value)} placeholder="0" className={inCls} /></Col>
-        <Col label="Hrs/Worker" minW="80px"><input type="number" min="0" step="0.5" value={draft.hours} onChange={(e) => set("hours", e.target.value)} placeholder="0" className={inCls} /></Col>
-        <Col label="Total Hrs" minW="80px"><input value={draftTotalHours} readOnly disabled placeholder="Auto" className={inCls} /></Col>
-        <Col label="Location" minW="120px"><input value={draft.location} onChange={(e) => set("location", e.target.value)} placeholder="Work area" className={inCls} /></Col>
-        <Col label="Cost Code" minW="100px"><input value={draft.cost_code} onChange={(e) => set("cost_code", e.target.value)} placeholder="Optional" className={inCls} /></Col>
-        <Col label="Comments" minW="160px"><input value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Optional notes..." className={inCls} /></Col>
+        {fields.map((f) => {
+          if (f.key === "company") {
+            return (
+              <Col key={f.key} label="Company" minW="150px">
+                <input
+                  list="manpower-companies"
+                  value={d.draft.company}
+                  onChange={(e) => d.set(f, e.target.value)}
+                  placeholder="Trade / company"
+                  className={inCls}
+                />
+                <datalist id="manpower-companies">
+                  {companySuggestions.map((name) => <option key={name} value={name} />)}
+                </datalist>
+              </Col>
+            );
+          }
+          if (f.key === "total_hours") {
+            return (
+              <Col key={f.key} label="Total Hrs" minW="80px">
+                <input value={draftTotalHours} readOnly disabled placeholder="Auto" className={inCls} />
+              </Col>
+            );
+          }
+          return <FieldInput key={f.key} f={f} value={d.value(f)} onChange={(v) => d.set(f, v)} />;
+        })}
       </FormRow>
     </SectionCard>
   );
@@ -942,7 +1181,7 @@ const emptyWeatherObs = (): Omit<WeatherObservation, "id"> => ({
 });
 
 function WeatherSection({
-  projectId, form, patch, observations, onAddObs, onDeleteObs,
+  projectId, form, patch, observations, onAddObs, onDeleteObs, cfg = EMPTY_SECTION_CFG,
 }: {
   projectId: string;
   form: LogForm;
@@ -950,14 +1189,15 @@ function WeatherSection({
   observations: WeatherObservation[];
   onAddObs: (o: WeatherObservation) => void;
   onDeleteObs: (id: string) => void;
+  cfg?: SectionCfg;
 }) {
-  const [draft, setDraft] = useState(emptyWeatherObs());
+  const d = useSectionDraft(emptyWeatherObs);
   const att = useDraftAttachments(projectId);
-  const set = (f: keyof typeof draft, v: string) => setDraft((d) => ({ ...d, [f]: v }));
+  const fields = visibleFields("weather_observations", cfg);
 
   function handleCreate() {
-    onAddObs({ id: uid(), ...draft, attachments: att.items });
-    setDraft(emptyWeatherObs());
+    onAddObs({ id: uid(), ...d.draft, custom: d.customDraft, attachments: att.items });
+    d.reset();
     att.reset();
   }
 
@@ -1013,19 +1253,7 @@ function WeatherSection({
 
         {observations.map((o) => (
           <EntryRow key={o.id} onDelete={() => onDeleteObs(o.id)}>
-            {o.time_observed && <Col label="Time" minW="60px"><span className="text-gray-800 font-medium">{o.time_observed}</span></Col>}
-            {o.sky && <Col label="Sky" minW="80px"><span className="text-gray-700">{o.sky}</span></Col>}
-            {o.temperature && <Col label="Temp" minW="70px"><span className="text-gray-700">{o.temperature}</span></Col>}
-            {o.wind && <Col label="Wind" minW="80px"><span className="text-gray-700">{o.wind}</span></Col>}
-            {o.avg_precipitation && <Col label="Precip" minW="80px"><span className="text-gray-700">{o.avg_precipitation}</span></Col>}
-            {o.ground_sea && <Col label="Ground" minW="70px"><span className="text-gray-700">{o.ground_sea}</span></Col>}
-            {o.calamity && <Col label="Calamity" minW="90px"><span className="text-gray-700">{o.calamity}</span></Col>}
-            {o.delay && (
-              <Col label="Delay" minW="70px">
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-50 text-yellow-700">Weather</span>
-              </Col>
-            )}
-            {o.comments && <Col label="Comments" minW="140px"><span className="text-gray-500">{o.comments}</span></Col>}
+            {fields.map((f) => <FieldDisplay key={f.key} f={f} entry={o} />)}
             <AttachmentLinks items={o.attachments} />
           </EntryRow>
         ))}
@@ -1038,29 +1266,9 @@ function WeatherSection({
           onAttachFiles={att.handleFiles}
           onRemoveAttachment={att.remove}
         >
-          <Col label="Time" minW="90px"><input type="time" value={draft.time_observed} onChange={(e) => set("time_observed", e.target.value)} className={inCls} /></Col>
-          <Col label="Sky" minW="110px">
-            <select value={draft.sky} onChange={(e) => set("sky", e.target.value)} className={selCls}>
-              {SKY_OPTIONS.map((s) => <option key={s} value={s}>{s || "— Select —"}</option>)}
-            </select>
-          </Col>
-          <Col label="Temp" minW="90px"><input value={draft.temperature} onChange={(e) => set("temperature", e.target.value)} placeholder="e.g. 68°F" className={inCls} /></Col>
-          <Col label="Wind" minW="110px"><input value={draft.wind} onChange={(e) => set("wind", e.target.value)} placeholder="e.g. 15 mph NE" className={inCls} /></Col>
-          <Col label="Precip" minW="110px"><input value={draft.avg_precipitation} onChange={(e) => set("avg_precipitation", e.target.value)} placeholder="e.g. Light rain" className={inCls} /></Col>
-          <Col label="Ground" minW="90px"><input value={draft.ground_sea} onChange={(e) => set("ground_sea", e.target.value)} placeholder="e.g. Wet" className={inCls} /></Col>
-          <Col label="Calamity" minW="110px"><input value={draft.calamity} onChange={(e) => set("calamity", e.target.value)} placeholder="e.g. Flooding" className={inCls} /></Col>
-          <Col label="Delay?" minW="60px">
-            <label className="flex items-center gap-1.5 cursor-pointer py-1">
-              <input
-                type="checkbox"
-                checked={draft.delay}
-                onChange={(e) => setDraft((d) => ({ ...d, delay: e.target.checked }))}
-                className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-              />
-              <span className="text-xs text-gray-600">Yes</span>
-            </label>
-          </Col>
-          <Col label="Comments" minW="160px"><input value={draft.comments} onChange={(e) => set("comments", e.target.value)} placeholder="Additional notes..." className={inCls} /></Col>
+          {fields.map((f) => (
+            <FieldInput key={f.key} f={f} value={d.value(f)} onChange={(v) => d.set(f, v)} />
+          ))}
         </FormRow>
       </div>
     </SectionCard>
@@ -1371,52 +1579,26 @@ type ParsedVoiceEntries = {
   note_entries?: Omit<NoteEntry, "id">[];
 };
 
-// Sections we can populate from parsed JSON, in display order.
+// Sections we can populate from parsed JSON, in display order. Field metadata
+// (labels, input types) comes from SECTION_FIELD_DEFS so every parsed value is
+// editable in the review step.
 const VOICE_SECTIONS: {
-  key: keyof ParsedVoiceEntries;
+  key: keyof ParsedVoiceEntries & string;
   formKey: keyof LogForm;
   label: string;
-  summarize: (e: Record<string, unknown>) => string;
 }[] = [
-  {
-    key: "manpower", formKey: "manpower", label: "Manpower",
-    summarize: (e) => [
-      e.company, e.workers ? `${e.workers} workers` : "",
-      e.hours ? `${e.hours} hrs` : "", e.location, e.cost_code, e.comments,
-    ].filter(Boolean).join(" · "),
-  },
-  {
-    key: "inspections", formKey: "inspections", label: "Inspections",
-    summarize: (e) => [
-      e.inspection_type, e.start_time, e.inspecting_entity, e.inspector_name,
-      e.location, e.inspection_area, e.comments,
-    ].filter(Boolean).join(" · "),
-  },
-  {
-    key: "deliveries", formKey: "deliveries", label: "Deliveries",
-    summarize: (e) => [e.time, e.delivery_from, e.contents, e.tracking_number, e.comments].filter(Boolean).join(" · "),
-  },
-  {
-    key: "visitors", formKey: "visitors", label: "Visitors",
-    summarize: (e) => [e.visitor, e.start_time, e.end_time, e.comments].filter(Boolean).join(" · "),
-  },
-  {
-    key: "safety_violations", formKey: "safety_violations", label: "Safety Violations",
-    summarize: (e) => [e.subject, e.time, e.issued_to, e.safety_notice, e.compliance_due, e.comments].filter(Boolean).join(" · "),
-  },
-  {
-    key: "accidents", formKey: "accidents", label: "Accidents",
-    summarize: (e) => [e.time, e.party_involved, e.company_involved, e.comments].filter(Boolean).join(" · "),
-  },
-  {
-    key: "delays", formKey: "delays", label: "Delays",
-    summarize: (e) => [e.delay_type, e.start_time, e.end_time, e.location, e.comments].filter(Boolean).join(" · "),
-  },
-  {
-    key: "note_entries", formKey: "note_entries", label: "Notes",
-    summarize: (e) => [e.is_issue ? "ISSUE" : "", e.location, e.comments].filter(Boolean).join(" · "),
-  },
+  { key: "manpower", formKey: "manpower", label: "Manpower" },
+  { key: "inspections", formKey: "inspections", label: "Inspections" },
+  { key: "deliveries", formKey: "deliveries", label: "Deliveries" },
+  { key: "visitors", formKey: "visitors", label: "Visitors" },
+  { key: "safety_violations", formKey: "safety_violations", label: "Safety Violations" },
+  { key: "accidents", formKey: "accidents", label: "Accidents" },
+  { key: "delays", formKey: "delays", label: "Delays" },
+  { key: "note_entries", formKey: "note_entries", label: "Notes" },
 ];
+
+const voiceFieldsFor = (key: string): FieldDef[] =>
+  (SECTION_FIELD_DEFS.find((s) => s.key === key)?.fields ?? []).filter((f) => !f.computed);
 
 function VoiceLogModal({
   projectId, companySuggestions, onClose, onApply,
@@ -1559,6 +1741,28 @@ function VoiceLogModal({
     });
   }
 
+  function updateEntryField(sectionKey: string, index: number, field: string, value: string | boolean) {
+    setParsed((prev) => {
+      if (!prev) return prev;
+      const list = [...(((prev as Record<string, unknown>)[sectionKey] ?? []) as Record<string, unknown>[])];
+      if (!list[index]) return prev;
+      list[index] = { ...list[index], [field]: value };
+      // The delay duration column is auto-calculated, so keep it in sync
+      if (sectionKey === "delays" && (field === "start_time" || field === "end_time")) {
+        const e = list[index];
+        list[index] = {
+          ...e,
+          duration_hours: calcDurationHours(String(e.start_time ?? ""), String(e.end_time ?? "")),
+        };
+      }
+      return { ...prev, [sectionKey]: list };
+    });
+  }
+
+  function updateWeatherField(field: "conditions" | "temperature" | "wind" | "humidity", value: string) {
+    setParsed((prev) => (prev ? { ...prev, weather: { ...(prev.weather ?? {}), [field]: value } } : prev));
+  }
+
   function handleApply() {
     if (!parsed) return;
     onApply(parsed, applyWeather, selections);
@@ -1634,7 +1838,7 @@ function VoiceLogModal({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v4m0 8v4m8-8h-4M8 12H4m13.66-5.66l-2.83 2.83m-5.66 5.66l-2.83 2.83m11.32 0l-2.83-2.83M9.17 9.17L6.34 6.34" />
               </svg>
               <p className="text-sm text-gray-600 mt-3">
-                {phase === "transcribing" ? "Transcribing with ElevenLabs…" : "Mapping speech to form fields…"}
+                {phase === "transcribing" ? "Transcribing…" : "Mapping speech to form fields…"}
               </p>
             </div>
           )}
@@ -1662,7 +1866,7 @@ function VoiceLogModal({
 
               {parsed.weather && (parsed.weather.conditions || parsed.weather.temperature || parsed.weather.wind || parsed.weather.humidity) && (
                 <div className="border border-gray-200 rounded-lg p-3">
-                  <label className="flex items-start gap-2 cursor-pointer">
+                  <div className="flex items-start gap-2.5">
                     <input
                       type="checkbox"
                       checked={applyWeather}
@@ -1671,11 +1875,25 @@ function VoiceLogModal({
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Weather</p>
-                      <p className="text-sm text-gray-700 mt-0.5">
-                        {[parsed.weather.conditions, parsed.weather.temperature, parsed.weather.wind, parsed.weather.humidity].filter(Boolean).join(" · ")}
-                      </p>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-2">
+                        {([
+                          ["conditions", "Conditions"],
+                          ["temperature", "Temperature"],
+                          ["wind", "Wind"],
+                          ["humidity", "Humidity"],
+                        ] as const).map(([k, label]) => (
+                          <div key={k} className="flex flex-col gap-0.5" style={{ minWidth: "120px" }}>
+                            <span className="text-gray-400 font-medium uppercase tracking-wide text-[10px]">{label}</span>
+                            <input
+                              value={(parsed.weather?.[k] as string) ?? ""}
+                              onChange={(e) => updateWeatherField(k, e.target.value)}
+                              className={inCls}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </label>
+                  </div>
                 </div>
               )}
 
@@ -1683,6 +1901,7 @@ function VoiceLogModal({
                 const list = (parsed[section.key] ?? []) as Record<string, unknown>[];
                 if (!list || list.length === 0) return null;
                 const sel = selections[section.key] ?? new Set<number>();
+                const fields = voiceFieldsFor(section.key);
                 return (
                   <div key={section.key} className="border border-gray-200 rounded-lg">
                     <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide px-3 pt-3">
@@ -1690,21 +1909,26 @@ function VoiceLogModal({
                     </p>
                     <div className="divide-y divide-gray-100">
                       {list.map((entry, i) => {
-                        const summary = section.summarize(entry) || "(no details)";
                         const checked = sel.has(i);
                         return (
-                          <label
-                            key={i}
-                            className="flex items-start gap-2 cursor-pointer px-3 py-2 hover:bg-gray-50"
-                          >
+                          <div key={i} className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-gray-50">
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => toggleSelection(section.key, i)}
-                              className="mt-0.5 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                              className="mt-1 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
                             />
-                            <span className="text-sm text-gray-700 flex-1">{summary}</span>
-                          </label>
+                            <div className="flex-1 flex flex-wrap gap-x-3 gap-y-2">
+                              {fields.map((f) => (
+                                <FieldInput
+                                  key={f.key}
+                                  f={f}
+                                  value={f.type === "checkbox" ? !!entry[f.key] : String(entry[f.key] ?? "")}
+                                  onChange={(v) => updateEntryField(section.key, i, f.key, v)}
+                                />
+                              ))}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -1747,6 +1971,245 @@ function VoiceLogModal({
   );
 }
 
+// ── Column configuration modal (super admin) ────────────────────────────────
+
+function ConfigureColumnsModal({
+  config, saving, onClose, onSave,
+}: {
+  config: DailyLogFieldConfig;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (next: DailyLogFieldConfig) => void;
+}) {
+  // Materialize a full column order for every section so rows can be dragged
+  // even when the saved config has no order yet.
+  const [draft, setDraft] = useState<DailyLogFieldConfig>(() => {
+    const base = JSON.parse(JSON.stringify(config ?? {})) as DailyLogFieldConfig;
+    for (const s of SECTION_FIELD_DEFS) {
+      const sec = base[s.key] ?? {};
+      const cfg: SectionCfg = { hidden: new Set(sec.hidden ?? []), custom: sec.custom ?? [], order: sec.order ?? [] };
+      base[s.key] = { ...sec, order: orderedFields(s.key, cfg).map((f) => f.key) };
+    }
+    return base;
+  });
+  const [newLabels, setNewLabels] = useState<Record<string, string>>({});
+  const [newTypes, setNewTypes] = useState<Record<string, FieldType>>({});
+  const [drag, setDrag] = useState<{ section: string; key: string } | null>(null);
+
+  function fieldFor(sectionKey: string, key: string): FieldDef | undefined {
+    const builtIn = SECTION_FIELD_DEFS.find((s) => s.key === sectionKey)?.fields.find((f) => f.key === key);
+    if (builtIn) return builtIn;
+    const cf = (draft[sectionKey]?.custom ?? []).find((c) => c.key === key);
+    return cf ? { key: cf.key, label: cf.label, type: cf.type ?? "text", isCustom: true } : undefined;
+  }
+
+  function isHidden(section: string, field: string) {
+    return (draft[section]?.hidden ?? []).includes(field);
+  }
+
+  function toggleField(section: string, field: string) {
+    setDraft((prev) => {
+      const sec = prev[section] ?? {};
+      const hidden = new Set(sec.hidden ?? []);
+      if (hidden.has(field)) hidden.delete(field);
+      else hidden.add(field);
+      return { ...prev, [section]: { ...sec, hidden: Array.from(hidden) } };
+    });
+  }
+
+  // Live reorder while dragging: when the dragged row enters another row,
+  // move it to that row's position.
+  function moveDraggedTo(section: string, targetKey: string) {
+    if (!drag || drag.section !== section || drag.key === targetKey) return;
+    setDraft((prev) => {
+      const sec = prev[section] ?? {};
+      const order = [...(sec.order ?? [])];
+      const from = order.indexOf(drag.key);
+      const to = order.indexOf(targetKey);
+      if (from < 0 || to < 0) return prev;
+      order.splice(from, 1);
+      order.splice(to, 0, drag.key);
+      return { ...prev, [section]: { ...sec, order } };
+    });
+  }
+
+  function addCustomField(section: string) {
+    const label = (newLabels[section] ?? "").trim();
+    if (!label) return;
+    const key = `c_${uid()}`;
+    const type = newTypes[section] ?? "text";
+    setDraft((prev) => {
+      const sec = prev[section] ?? {};
+      return {
+        ...prev,
+        [section]: {
+          ...sec,
+          custom: [...(sec.custom ?? []), { key, label, type }],
+          order: [...(sec.order ?? []), key],
+        },
+      };
+    });
+    setNewLabels((p) => ({ ...p, [section]: "" }));
+  }
+
+  function removeCustomField(section: string, key: string) {
+    setDraft((prev) => {
+      const sec = prev[section] ?? {};
+      return {
+        ...prev,
+        [section]: {
+          ...sec,
+          custom: (sec.custom ?? []).filter((c) => c.key !== key),
+          order: (sec.order ?? []).filter((k) => k !== key),
+        },
+      };
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-white rounded-xl max-w-2xl w-full max-h-[88vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Configure daily log columns</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Drag columns to reorder, toggle visibility, or add custom fields per section. Applies to this project for all users.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-700" aria-label="Close">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {SECTION_FIELD_DEFS.map((section) => {
+            const order = draft[section.key]?.order ?? [];
+            return (
+              <div key={section.key} className="border border-gray-200 rounded-lg p-3">
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">{section.label}</p>
+                <div className="space-y-1">
+                  {order.map((key) => {
+                    const f = fieldFor(section.key, key);
+                    if (!f) return null;
+                    const dragging = drag?.section === section.key && drag.key === key;
+                    return (
+                      <div
+                        key={key}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = "move";
+                          setDrag({ section: section.key, key });
+                        }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDragEnter={() => moveDraggedTo(section.key, key)}
+                        onDragEnd={() => setDrag(null)}
+                        onDrop={(e) => { e.preventDefault(); setDrag(null); }}
+                        className={`flex items-center gap-2.5 px-2 py-1.5 border rounded-md bg-white cursor-grab active:cursor-grabbing ${
+                          dragging ? "opacity-50 border-gray-400 shadow-sm" : "border-gray-200"
+                        }`}
+                      >
+                        <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
+                          <circle cx="7" cy="5" r="1.3" /><circle cx="13" cy="5" r="1.3" />
+                          <circle cx="7" cy="10" r="1.3" /><circle cx="13" cy="10" r="1.3" />
+                          <circle cx="7" cy="15" r="1.3" /><circle cx="13" cy="15" r="1.3" />
+                        </svg>
+                        <span className={`flex-1 text-xs ${f.isCustom || !isHidden(section.key, key) ? "text-gray-800" : "text-gray-400 line-through"}`}>
+                          {f.label}
+                        </span>
+                        {f.isCustom ? (
+                          <>
+                            <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-gray-200 rounded px-1.5 py-0.5">
+                              {CUSTOM_FIELD_TYPES.find((t) => t.value === (f.type ?? "text"))?.label ?? "Text"}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-wide text-[color:var(--brand-600,#2C7B8C)]">Custom</span>
+                            <button
+                              type="button"
+                              onClick={() => removeCustomField(section.key, key)}
+                              className="p-0.5 text-gray-400 hover:text-red-500"
+                              aria-label={`Remove ${f.label}`}
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </>
+                        ) : (
+                          <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-500">
+                            <input
+                              type="checkbox"
+                              checked={!isHidden(section.key, key)}
+                              onChange={() => toggleField(section.key, key)}
+                              className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                            />
+                            Visible
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <input
+                    value={newLabels[section.key] ?? ""}
+                    onChange={(e) => setNewLabels((p) => ({ ...p, [section.key]: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomField(section.key); } }}
+                    placeholder="New custom field name..."
+                    className={`${inCls} max-w-[220px]`}
+                  />
+                  <select
+                    value={newTypes[section.key] ?? "text"}
+                    onChange={(e) => setNewTypes((p) => ({ ...p, [section.key]: e.target.value as FieldType }))}
+                    className={`${selCls} w-auto`}
+                    aria-label="Custom field type"
+                  >
+                    {CUSTOM_FIELD_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => addCustomField(section.key)}
+                    disabled={!(newLabels[section.key] ?? "").trim()}
+                    className="px-2.5 py-1 text-xs font-semibold text-gray-700 border border-gray-200 bg-white rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Add field
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/40">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm text-gray-700 border border-gray-200 bg-white rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(draft)}
+            disabled={saving}
+            className="px-4 py-1.5 text-sm font-semibold text-white bg-[color:var(--ink)] rounded-md hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 const DAILY_LOG_SECTIONS = [
@@ -1766,10 +2229,12 @@ export default function DailyLogClient({
   projectId,
   role,
   username,
+  companyRole = "",
 }: {
   projectId: string;
   role: string;
   username: string;
+  companyRole?: string;
 }) {
   const searchParams = useSearchParams();
   const requestedDate = searchParams.get("date");
@@ -1785,6 +2250,10 @@ export default function DailyLogClient({
   const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
   const [photoAlbums, setPhotoAlbums] = useState<PhotoAlbum[]>([]);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [fieldConfig, setFieldConfig] = useState<DailyLogFieldConfig>({});
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+  const isSuperAdmin = companyRole === "super_admin";
 
   const formRef = useRef<LogForm>(emptyForm(initialDate));
   const logIdRef = useRef<string | null>(null);
@@ -1818,6 +2287,31 @@ export default function DailyLogClient({
       })
       .catch(() => {});
   }, [projectId]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/daily-log-config`)
+      .then((r) => (r.ok ? r.json() : { config: {} }))
+      .then((d: { config?: DailyLogFieldConfig }) => setFieldConfig(d?.config ?? {}))
+      .catch(() => {});
+  }, [projectId]);
+
+  async function handleSaveConfig(next: DailyLogFieldConfig) {
+    setConfigSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/daily-log-config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: next }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFieldConfig(data.config ?? next);
+        setConfigOpen(false);
+      }
+    } finally {
+      setConfigSaving(false);
+    }
+  }
 
   async function loadLog(d: string) {
     setLoading(true);
@@ -2096,6 +2590,18 @@ export default function DailyLogClient({
                 Jump to today
               </button>
             )}
+            {isSuperAdmin && (
+              <button
+                onClick={() => setConfigOpen(true)}
+                className="btn-secondary"
+                title="Configure daily log columns and custom fields"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                </svg>
+                Configure columns
+              </button>
+            )}
             <button
               onClick={() => setVoiceOpen(true)}
               className="btn-secondary"
@@ -2284,6 +2790,7 @@ export default function DailyLogClient({
                   onAdd={(e) => addToList("manpower", e)}
                   onDelete={(id) => removeFromList("manpower", id)}
                   companySuggestions={companySuggestions}
+                  cfg={resolveSectionCfg(fieldConfig, "manpower")}
                 />
               </section>
 
@@ -2293,6 +2800,7 @@ export default function DailyLogClient({
                   entries={form.inspections}
                   onAdd={(e) => addToList("inspections", e)}
                   onDelete={(id) => removeFromList("inspections", id)}
+                  cfg={resolveSectionCfg(fieldConfig, "inspections")}
                 />
               </section>
 
@@ -2302,6 +2810,7 @@ export default function DailyLogClient({
                   entries={form.deliveries}
                   onAdd={(e) => addToList("deliveries", e)}
                   onDelete={(id) => removeFromList("deliveries", id)}
+                  cfg={resolveSectionCfg(fieldConfig, "deliveries")}
                 />
               </section>
 
@@ -2311,6 +2820,7 @@ export default function DailyLogClient({
                   entries={form.visitors}
                   onAdd={(e) => addToList("visitors", e)}
                   onDelete={(id) => removeFromList("visitors", id)}
+                  cfg={resolveSectionCfg(fieldConfig, "visitors")}
                 />
               </section>
 
@@ -2320,6 +2830,7 @@ export default function DailyLogClient({
                   entries={form.safety_violations}
                   onAdd={(e) => addToList("safety_violations", e)}
                   onDelete={(id) => removeFromList("safety_violations", id)}
+                  cfg={resolveSectionCfg(fieldConfig, "safety_violations")}
                 />
               </section>
 
@@ -2329,6 +2840,7 @@ export default function DailyLogClient({
                   entries={form.accidents}
                   onAdd={(e) => addToList("accidents", e)}
                   onDelete={(id) => removeFromList("accidents", id)}
+                  cfg={resolveSectionCfg(fieldConfig, "accidents")}
                 />
               </section>
 
@@ -2338,6 +2850,7 @@ export default function DailyLogClient({
                   entries={form.delays}
                   onAdd={(e) => addToList("delays", e)}
                   onDelete={(id) => removeFromList("delays", id)}
+                  cfg={resolveSectionCfg(fieldConfig, "delays")}
                 />
               </section>
 
@@ -2347,6 +2860,7 @@ export default function DailyLogClient({
                   entries={form.note_entries}
                   onAdd={(e) => addToList("note_entries", e)}
                   onDelete={(id) => removeFromList("note_entries", id)}
+                  cfg={resolveSectionCfg(fieldConfig, "note_entries")}
                 />
               </section>
 
@@ -2358,6 +2872,7 @@ export default function DailyLogClient({
                   observations={form.weather_observations}
                   onAddObs={(o) => addToList("weather_observations", o)}
                   onDeleteObs={(id) => removeFromList("weather_observations", id)}
+                  cfg={resolveSectionCfg(fieldConfig, "weather_observations")}
                 />
               </section>
             </div>
@@ -2371,6 +2886,15 @@ export default function DailyLogClient({
           companySuggestions={companySuggestions}
           onClose={() => setVoiceOpen(false)}
           onApply={applyVoiceEntries}
+        />
+      )}
+
+      {configOpen && (
+        <ConfigureColumnsModal
+          config={fieldConfig}
+          saving={configSaving}
+          onClose={() => setConfigOpen(false)}
+          onSave={handleSaveConfig}
         />
       )}
     </div>

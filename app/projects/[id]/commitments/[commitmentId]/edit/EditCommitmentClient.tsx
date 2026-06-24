@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
+import ReportFieldsSection, { type ReportFieldValues } from "@/components/ReportFieldsSection";
+import { COMMITMENT_REPORT_FIELDS } from "@/lib/report-fields";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -622,6 +624,7 @@ export default function EditCommitmentClient({
 
   // SOV
   const [sovMethod, setSovMethod] = useState<"unit_quantity" | "amount">("unit_quantity");
+  const [reportFields, setReportFields] = useState<ReportFieldValues>({});
   const [sovLines, setSovLines] = useState<SovLine[]>([]);
   // Track original dbIds so we can delete removed existing items
   const removedDbIds = useRef<string[]>([]);
@@ -681,6 +684,7 @@ export default function EditCommitmentClient({
       setShowExecutedCoverLetter(c.show_executed_cover_letter ?? false);
       setSovMethod(c.sov_accounting_method ?? "unit_quantity");
       setSsovEnabled(c.ssov_enabled ?? false);
+      setReportFields(c.report_fields ?? {});
 
       // Map SOV items
       if (Array.isArray(sov)) {
@@ -1076,6 +1080,7 @@ export default function EditCommitmentClient({
           sov_accounting_method: sovMethod,
           ssov_enabled: sovMethod === "amount" ? ssovEnabled : false,
           original_contract_amount: sovTotal,
+          report_fields: reportFields,
         }),
       });
 
@@ -1508,6 +1513,17 @@ export default function EditCommitmentClient({
               </Field>
             </div>
           </div>
+        </Section>
+
+        <Section title="Report Fields">
+          <ReportFieldsSection
+            title="Report Fields"
+            description="Extra commitment attributes surfaced as columns in 360 Reports. Saved with this commitment."
+            fields={COMMITMENT_REPORT_FIELDS}
+            values={reportFields}
+            onChange={(key, value) => setReportFields((prev) => ({ ...prev, [key]: value }))}
+            columns={3}
+          />
         </Section>
 
       </div>

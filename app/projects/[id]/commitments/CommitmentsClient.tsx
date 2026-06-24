@@ -557,9 +557,12 @@ export default function CommitmentsClient({
   const [rowMenuId, setRowMenuId] = useState<string | null>(null);
   const rowMenuRef = useRef<HTMLDivElement>(null);
 
-  // Sage sync
-  const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [syncError, setSyncError] = useState<{ id: string; message: string } | null>(null);
+  // ERP sync (auto-detects the company's connected accounting platform)
+  const [erpConnected, setErpConnected] = useState<
+    "quickbooks" | "sage300cre" | "multiple" | null | undefined
+  >(undefined);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Column & display management
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -597,6 +600,15 @@ export default function CommitmentsClient({
       setLoading(false);
     });
   }, [projectId]);
+
+  // Detect which accounting ERP the company has connected so the single Sync
+  // button can route to the right platform automatically.
+  useEffect(() => {
+    fetch(`/api/integrations/erp/status`)
+      .then((r) => r.json())
+      .then((data) => setErpConnected(data?.connected ?? null))
+      .catch(() => setErpConnected(null));
+  }, []);
 
   async function handleEdit(data: CommitmentFormData) {
     if (!editingItem) return;
@@ -660,27 +672,81 @@ export default function CommitmentsClient({
     setRestoringItem(null);
   }
 
-  async function handleSyncToSage(item: Commitment) {
-    setRowMenuId(null);
-    setSyncError(null);
-    setSyncingId(item.id);
-    // Optimistically show pending
-    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, erp_status: "pending" } : i));
+  // Single Sync action: figures out the connected ERP and pushes every active
+  // commitment to it, so users don't have to pick a platform per record.
+  async function handleSyncAll() {
+    if (syncingAll) return;
+    setSyncNotice(null);
 
-    const res = await fetch("/api/integrations/sage/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recordType: "commitments", recordId: item.id }),
-    });
-    const data = await res.json();
-    setSyncingId(null);
-
-    if (!res.ok) {
-      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, erp_status: "not_synced" } : i));
-      setSyncError({ id: item.id, message: data.error ?? "Sync failed" });
-    } else {
-      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, erp_status: "synced" } : i));
+    if (erpConnected === undefined) {
+      setSyncNotice({ ok: false, message: "Checking ERP connection… please try again in a moment." });
+      return;
     }
+    if (erpConnected === null) {
+      setSyncNotice({
+        ok: false,
+        message: "No accounting ERP is connected. Connect QuickBooks or Sage 300 CRE in Settings → Integrations.",
+      });
+      return;
+    }
+    if (erpConnected === "multiple") {
+      setSyncNotice({
+        ok: false,
+        message: "Multiple ERPs are connected. Disconnect one in Settings → Integrations before syncing.",
+      });
+      return;
+    }
+
+    const endpoint =
+      erpConnected === "quickbooks"
+        ? "/api/integrations/quickbooks/sync"
+        : "/api/integrations/sage300cre/sync";
+    const erpLabel = erpConnected === "quickbooks" ? "QuickBooks Online" : "Sage 300 CRE";
+
+    const targets = items;
+    if (targets.length === 0) {
+      setSyncNotice({ ok: false, message: "There are no commitments to sync." });
+      return;
+    }
+
+    setSyncingAll(true);
+    let ok = 0;
+    let fail = 0;
+    let firstError = "";
+
+    for (const item of targets) {
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, erp_status: "pending" } : i)));
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recordType: "commitments", recordId: item.id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          ok++;
+          setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, erp_status: "synced" } : i)));
+        } else {
+          fail++;
+          if (!firstError) firstError = data?.error ?? `Sync failed (${res.status})`;
+          setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, erp_status: "not_synced" } : i)));
+        }
+      } catch {
+        fail++;
+        if (!firstError) firstError = "Network error while syncing.";
+        setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, erp_status: "not_synced" } : i)));
+      }
+    }
+
+    setSyncingAll(false);
+    setSyncNotice(
+      fail === 0
+        ? { ok: true, message: `Synced ${ok} commitment${ok === 1 ? "" : "s"} to ${erpLabel}.` }
+        : {
+            ok: false,
+            message: `Synced ${ok} of ${targets.length} commitment${targets.length === 1 ? "" : "s"} to ${erpLabel}. ${fail} failed${firstError ? `: ${firstError}` : "."}`,
+          }
+    );
   }
 
   async function handleLogout() {
@@ -881,6 +947,37 @@ export default function CommitmentsClient({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Unified ERP sync — auto-detects the connected platform */}
+            <button
+              onClick={handleSyncAll}
+              disabled={syncingAll}
+              title={
+                erpConnected === "quickbooks"
+                  ? "Sync all commitments to QuickBooks Online"
+                  : erpConnected === "sage300cre"
+                  ? "Sync all commitments to Sage 300 CRE"
+                  : "Sync all commitments to your connected accounting ERP"
+              }
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg
+                className={`w-4 h-4 ${syncingAll ? "animate-spin" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {syncingAll
+                ? "Syncing…"
+                : erpConnected === "quickbooks"
+                ? "Sync to QuickBooks"
+                : erpConnected === "sage300cre"
+                ? "Sync to Sage 300 CRE"
+                : "Sync to ERP"}
+            </button>
+
             {/* Export dropdown */}
             <div ref={exportRef} className="relative">
               <button
@@ -1414,16 +1511,6 @@ export default function CommitmentsClient({
                                       Edit
                                     </button>
                                     <button
-                                      onClick={() => handleSyncToSage(item)}
-                                      disabled={syncingId === item.id}
-                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50"
-                                    >
-                                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                      </svg>
-                                      Sync to Sage
-                                    </button>
-                                    <button
                                       onClick={() => handleDelete(item.id)}
                                       className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                     >
@@ -1492,14 +1579,22 @@ export default function CommitmentsClient({
         )}
       </main>
 
-      {/* Sage sync error toast */}
-      {syncError && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-red-600 text-white text-sm px-4 py-3 rounded-lg shadow-lg max-w-sm">
+      {/* ERP sync notice toast */}
+      {syncNotice && (
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 text-white text-sm px-4 py-3 rounded-lg shadow-lg max-w-md ${
+            syncNotice.ok ? "bg-green-600" : "bg-red-600"
+          }`}
+        >
           <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            {syncNotice.ok ? (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            )}
           </svg>
-          <span className="flex-1">Sage sync failed: {syncError.message}</span>
-          <button onClick={() => setSyncError(null)} className="text-white/70 hover:text-white">
+          <span className="flex-1">{syncNotice.message}</span>
+          <button onClick={() => setSyncNotice(null)} className="text-white/70 hover:text-white">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>

@@ -21,7 +21,8 @@ const TREE: Section[] = [
   },
   {
     label: "Guides",
-    items: [{ label: "Coming soon" }],
+    defaultOpen: true,
+    items: [{ label: "Company Guides", href: "/training/guides" }],
   },
   {
     label: "Videos",
@@ -36,7 +37,7 @@ export default function TrainingNav() {
   );
 
   return (
-    <nav className="w-52 shrink-0">
+    <nav className="w-full sm:w-52 shrink-0">
       <p className="px-2 mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
         Training
       </p>

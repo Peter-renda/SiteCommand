@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ProjectNav from "@/components/ProjectNav";
+import { REPORT_RECORD_SLUGS } from "@/lib/report-record-fields";
 import { loadSavedReports, saveReport, type StoredReport } from "../../saved-reports-store";
 import {
   FiltersPanel,
@@ -3777,6 +3778,9 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const data = await res.json();
     const items: Row[] = Array.isArray(data) ? data : data.items ?? [];
     return items.map((c: Row) => ({
+      // New report-backed fields (stored in report_fields JSONB) come first so
+      // explicitly-mapped columns below win on any key collision.
+      ...((c.report_fields as Row) ?? {}),
       number: c.number,
       type: c.type,
       contract_company: c.contract_company,
@@ -3791,6 +3795,33 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
       signed_po_received_date: c.signed_po_received_date,
       erp_status: c.erp_status,
       created_at: c.created_at,
+      // Aliases so the catalog's Procore-style field keys also resolve.
+      date_created: c.created_at,
+      date_updated: c.updated_at,
+      contract_date: c.contract_date,
+      start_date: c.start_date,
+      estimated_completion_date: c.estimated_completion,
+      actual_completion_date: c.actual_completion,
+      signed_contract_received_date: c.signed_contract_received,
+      issued_on_date: c.issued_on_date,
+      default_retainage: c.default_retainage,
+      bond_amount: c.bond_amount,
+      inclusions: c.inclusions,
+      exclusions: c.exclusions,
+      private: c.is_private,
+      enable_subcontractor_sov: c.ssov_enabled,
+      enable_financial_markups: c.financial_markup_enabled,
+      subcontractor_contact: c.subcontractor_contact,
+      subcontractor_sov_status: c.ssov_status,
+      trades: c.trades,
+      bill_to: c.bill_to,
+      ship_to: c.ship_to,
+      ship_via: c.ship_via,
+      payment_terms: c.payment_terms,
+      assigned_to: c.assigned_to,
+      invoiced: c.invoiced,
+      payments_issued: c.payments_issued,
+      sign_with_docusign: c.sign_docusign,
     }));
   }
 
@@ -3911,11 +3942,77 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     return rows;
   }
 
-  if (source === "commitment-change-orders") {
-    const res = await fetch(`/api/projects/${projectId}/change-orders?type=commitment`);
+  if (source === "commitment-change-orders" || source === "prime-contract-change-orders") {
+    const type = source === "prime-contract-change-orders" ? "prime" : "commitment";
+    const res = await fetch(`/api/projects/${projectId}/change-orders?type=${type}`);
     if (!res.ok) return [];
     const data = await res.json();
-    return Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+    const items: Row[] = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+    return items.map((co: Row) => ({
+      // report_fields-backed columns first, then explicit/aliased keys.
+      ...((co.report_fields as Row) ?? {}),
+      ...co,
+      number: co.number,
+      title: co.title,
+      status: co.status,
+      amount: co.amount,
+      change_reason: co.change_reason,
+      contract_company: co.contract_company,
+      contract_name: co.contract_name,
+      due_date: co.due_date,
+      description: co.description,
+      designated_reviewer: co.designated_reviewer,
+      reviewer: co.reviewer,
+      review_date: co.review_date,
+      revision: co.revision,
+      executed: co.executed,
+      private: co.is_private,
+      date_created: co.created_at,
+      date_updated: co.updated_at,
+      approved_date: co.approved_at,
+      invoiced_date: co.invoiced_date,
+      paid_date: co.paid_date,
+      schedule_impact_days: co.schedule_impact,
+      signed_change_order_received_date: co.signed_change_order_received_date,
+    }));
+  }
+
+  if (source === "prime-contracts") {
+    const res = await fetch(`/api/projects/${projectId}/prime-contracts`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items: Row[] = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+    return items.map((pc: Row) => ({
+      ...((pc.report_fields as Row) ?? {}),
+      number: pc.contract_number,
+      title: pc.title,
+      status: pc.status,
+      owner_client: pc.owner_client,
+      contractor: pc.contractor,
+      architect_engineer: pc.architect_engineer,
+      description: pc.description,
+      inclusions: pc.inclusions,
+      exclusions: pc.exclusions,
+      executed: pc.executed,
+      private: pc.is_private,
+      default_retainage: pc.default_retainage,
+      original_contract_amount: pc.original_contract_amount,
+      approved_change_orders: pc.approved_change_orders,
+      pending_change_orders: pc.pending_change_orders,
+      draft_change_orders: pc.draft_change_orders,
+      revised_contract_amount:
+        Number(pc.original_contract_amount ?? 0) + Number(pc.approved_change_orders ?? 0),
+      invoiced: pc.invoiced,
+      payments_received: pc.payments_received,
+      start_date: pc.start_date,
+      estimated_completion_date: pc.estimated_completion_date,
+      actual_completion_date: pc.actual_completion_date,
+      signed_contract_received_date: pc.signed_contract_received_date,
+      contract_termination_date: pc.contract_termination_date,
+      date_created: pc.created_at,
+      date_updated: pc.updated_at,
+      erp_latest_status: pc.erp_status,
+    }));
   }
 
   // ── Directory & Portfolio ────────────────────────────────────────────────
@@ -3926,6 +4023,7 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     return (contacts ?? [])
       .filter((c) => c.type === "company")
       .map((c) => ({
+        ...((c.report_fields as Row) ?? {}),
         id: c.id,
         name: c.company ?? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim(),
         abbreviated_name: c.abbreviated_name,
@@ -3979,10 +4077,12 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const p = (await res.json()) as Row;
     if (!p || typeof p !== "object") return [];
     return [{
+      ...((p.report_fields as Row) ?? {}),
       id: p.id,
       name: p.name,
       number: p.project_number,
       code: p.project_number,
+      work_scope: p.work_scope,
       description: p.description,
       address: p.address,
       city: p.city,
@@ -4060,11 +4160,15 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const rfis: Row[] = await res.json();
     if (source === "rfis") {
       return (rfis ?? []).map((r) => ({
+        ...((r.report_fields as Row) ?? {}),
         rfi_number: r.rfi_number,
+        number: r.rfi_number,
         subject: r.subject,
         status: r.status,
         rfi_stage: r.rfi_stage,
+        stage: r.rfi_stage,
         due_date: r.due_date,
+        date_created: r.created_at,
         rfi_manager: r.rfi_manager_name ?? r.rfi_manager_id,
         received_from: r.received_from_name ?? r.received_from_id,
         specification: r.specification_name ?? r.specification_id,
@@ -4106,11 +4210,17 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const subs: Row[] = await res.json();
     if (source === "submittals") {
       return (subs ?? []).map((s) => ({
+        ...((s.report_fields as Row) ?? {}),
         submittal_number: s.submittal_number,
+        number: s.submittal_number,
         revision: s.revision,
         title: s.title,
         submittal_type: s.submittal_type,
+        type: s.submittal_type,
         status: s.status,
+        date_created: s.created_at,
+        description: s.description,
+        ball_in_court: s.ball_in_court_name ?? s.ball_in_court_id,
         specification: s.specification_name ?? s.specification_id,
         responsible_contractor: s.responsible_contractor_name ?? s.responsible_contractor_id,
         received_from: s.received_from_name ?? s.received_from_id,
@@ -4163,7 +4273,9 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const items: Row[] = await res.json();
     if (source === "punch-items") {
       return (items ?? []).map((p) => ({
+        ...((p.report_fields as Row) ?? {}),
         item_number: p.item_number,
+        number: p.item_number,
         title: p.title,
         status: p.status,
         type: p.type,
@@ -4173,8 +4285,15 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
         due_date: p.due_date,
         schedule_impact: p.schedule_impact,
         cost_impact: p.cost_impact,
+        cost_code: p.cost_codes,
+        reference: p.reference,
+        description: p.description,
+        ball_in_court: p.ball_in_court,
+        punch_item_manager: p.punch_item_manager_name ?? p.punch_item_manager_id,
+        final_approver: p.final_approver_name ?? p.final_approver_id,
         private: p.private,
         created_at: p.created_at,
+        date_created: p.created_at,
       }));
     }
     const rows: Row[] = [];
@@ -4207,13 +4326,18 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const items: Row[] = await res.json();
     if (source === "tasks") {
       return (items ?? []).map((t) => ({
+        ...((t.report_fields as Row) ?? {}),
         task_number: t.task_number,
+        number: t.task_number,
         title: t.title,
         status: t.status,
         category: t.category,
         description: t.description,
+        due_date: t.due_date,
+        private: t.is_private,
         created_by: t.created_by_name ?? t.created_by,
         created_at: t.created_at,
+        date_created: t.created_at,
       }));
     }
     const rows: Row[] = [];
@@ -4236,15 +4360,25 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const items: Row[] = await res.json();
     if (source === "meetings") {
       return (items ?? []).map((m) => ({
+        ...((m.report_fields as Row) ?? {}),
         meeting_number: m.meeting_number,
+        number: m.meeting_number,
         title: m.title,
+        name: m.title,
         series: m.series,
         date: m.date,
         end_date: m.end_date,
         location: m.location,
         status: m.status,
+        overview: m.overview,
+        start_time: m.start_time,
+        finish_time: m.end_time,
+        timezone: m.timezone,
+        private: m.is_private,
         is_private: m.is_private,
+        draft_meeting: m.is_draft,
         created_by: m.created_by_name ?? m.created_by,
+        created_date: m.created_at,
       }));
     }
     const rows: Row[] = [];
@@ -4270,15 +4404,21 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     const data = await res.json();
     const drawings: Row[] = Array.isArray(data?.drawings) ? data.drawings : Array.isArray(data) ? data : [];
     return drawings.map((d) => ({
+      ...((d.report_fields as Row) ?? {}),
       drawing_no: d.drawing_no,
+      number: d.drawing_no,
       title: d.title,
       revision: d.revision,
-      discipline: d.discipline,
+      current_revision: d.revision,
+      discipline: d.discipline ?? d.category,
       drawing_set: d.drawing_set ?? d.set_name,
+      set: d.drawing_set ?? d.set_name,
       drawing_date: d.drawing_date,
       received_date: d.received_date,
       page_number: d.page_number,
+      position: d.page_number,
       updated_at: d.updated_at,
+      date_updated: d.updated_at,
     }));
   }
 
@@ -4288,13 +4428,20 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
     if (!res.ok) return [];
     const data: Row[] = await res.json();
     return (data ?? []).map((d) => ({
+      ...((d.report_fields as Row) ?? {}),
       name: d.name,
       type: d.type,
+      is_folder: d.type === "folder",
       mime_type: d.mime_type,
       size: d.size,
+      file_size_bytes: d.size,
       parent_name: d.parent_name ?? d.parent_id,
+      name_with_path: d.name_with_path ?? d.name,
+      private: d.is_private,
       created_by: d.created_by_name ?? d.created_by,
       created_at: d.created_at,
+      date_created: d.created_at,
+      date_updated: d.updated_at,
     }));
   }
 
@@ -4502,6 +4649,19 @@ async function loadSource(projectId: string, source: string): Promise<Row[]> {
       }
     }
     return rows;
+  }
+
+  // Source-less report entities backed by the generic report_records table.
+  if (REPORT_RECORD_SLUGS.includes(source)) {
+    const res = await fetch(`/api/projects/${projectId}/report-records?entity=${encodeURIComponent(source)}`);
+    if (!res.ok) return [];
+    const records: Row[] = await res.json();
+    return (records ?? []).map((r) => ({
+      ...((r.report_fields as Row) ?? {}),
+      id: r.id,
+      date_created: r.created_at,
+      date_updated: r.updated_at,
+    }));
   }
 
   // Unknown / not-yet-backed source — render an empty table.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/project-access";
 import { getSupabase } from "@/lib/supabase";
+import { getCompanyBestPracticesText } from "@/lib/company-best-practices";
 import { GoogleGenAI, Type } from "@google/genai";
 
 export const maxDuration = 300;
@@ -11,9 +12,21 @@ type Supa = ReturnType<typeof getSupabase>;
 
 const PER_TABLE_LIMIT = 100;
 const MAX_VALUE_CHARS = 1500;
-// Safety cap on total bytes uploaded to Gemini per question.
-const MAX_PDF_BYTES_TOTAL = 500 * 1024 * 1024;
+// Safety cap on total bytes + file count uploaded to Gemini per question. This
+// pipeline runs on every chat message, so it has to stay well inside the
+// function's time budget — downloading and uploading a whole 500MB drawing set
+// per question made the chat hang.
+const MAX_PDF_BYTES_TOTAL = 100 * 1024 * 1024;
+const MAX_FILES = 25;
 const UPLOAD_CONCURRENCY = 5;
+// A file is in PROCESSING right after upload; passing its URI to
+// generateContent before it goes ACTIVE makes the request fail. We poll for
+// readiness under a shared deadline — anything not ACTIVE in time is dropped and
+// the answer still comes from the structured project data.
+const FILE_READY_DEADLINE_MS = 30_000;
+const FILE_POLL_INTERVAL_MS = 1_000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const TABLES: Array<{ label: string; table: string; idCol?: string }> = [
   { label: "RFIs", table: "rfis" },
@@ -316,6 +329,48 @@ async function collectSubmittalAttachments(supabase: Supa, projectId: string): P
   return out;
 }
 
+// Building code references live under Admin → Building Code. Only approved
+// documents are surfaced: uploaded PDFs become attachable files, while saved
+// links are listed as a text block Assist can cite.
+async function collectBuildingCode(
+  supabase: Supa,
+  projectId: string,
+): Promise<{ files: Candidate[]; text: string }> {
+  const { data } = await supabase
+    .from("project_building_code_documents")
+    .select("title, jurisdiction, doc_type, url, storage_path, filename, notes")
+    .eq("project_id", projectId)
+    .eq("status", "approved");
+
+  const rows = (data ?? []) as Row[];
+  const files: Candidate[] = [];
+  const linkLines: string[] = [];
+
+  for (const row of rows) {
+    const title = (row.title as string | null) ?? "Building Code";
+    const jurisdiction = (row.jurisdiction as string | null) ?? "";
+    const label = jurisdiction ? `${title} (${jurisdiction})` : title;
+    if (row.doc_type === "file" && row.storage_path) {
+      files.push({
+        bucket: "project-drawings",
+        storagePath: row.storage_path as string,
+        filename: (row.filename as string | null) ?? "building-code.pdf",
+        mimeType: "application/pdf",
+        description: `Building Code — ${label}`,
+      });
+    } else if (row.doc_type === "link" && row.url) {
+      const notes = (row.notes as string | null)?.trim();
+      linkLines.push(`- ${label}: ${row.url}${notes ? ` — ${notes}` : ""}`);
+    }
+  }
+
+  const text = linkLines.length
+    ? `### Building Code References (${linkLines.length} link${linkLines.length === 1 ? "" : "s"})\n${linkLines.join("\n")}\n`
+    : "";
+
+  return { files, text };
+}
+
 async function collectDocuments(supabase: Supa, projectId: string): Promise<Candidate[]> {
   const { data } = await supabase
     .from("documents")
@@ -334,20 +389,27 @@ async function collectDocuments(supabase: Supa, projectId: string): Promise<Cand
 }
 
 type UploadedFile = Candidate & { fileId: string; geminiUri: string; geminiMime: string };
+type RawUpload = Candidate & { name: string; geminiUri: string; geminiMime: string };
 
 async function downloadAndUpload(
   supabase: Supa,
   ai: GoogleGenAI,
   candidates: Candidate[],
 ): Promise<UploadedFile[]> {
-  // Download sequentially with shared byte budget.
+  // The whole download → upload → activation phase shares one deadline so a
+  // large project can never hang the chat: whatever isn't ready in time is
+  // simply left out of the answer.
+  const deadline = Date.now() + FILE_READY_DEADLINE_MS;
+
+  // Download sequentially under a shared byte + file-count budget.
   const downloaded: Array<Candidate & { blob: Blob }> = [];
   let bytesUsed = 0;
   for (const cand of candidates) {
+    if (downloaded.length >= MAX_FILES || Date.now() > deadline) break;
     try {
       const { data: blob, error } = await supabase.storage.from(cand.bucket).download(cand.storagePath);
       if (error || !blob) continue;
-      if (bytesUsed + blob.size > MAX_PDF_BYTES_TOTAL) break;
+      if (bytesUsed + blob.size > MAX_PDF_BYTES_TOTAL) continue; // skip oversized, keep scanning for smaller files
       bytesUsed += blob.size;
       downloaded.push({ ...cand, blob });
     } catch {
@@ -355,21 +417,26 @@ async function downloadAndUpload(
     }
   }
 
-  // Upload to Gemini Files API with limited concurrency.
-  const out: UploadedFile[] = [];
+  // Upload to the Gemini Files API with limited concurrency.
+  const raw: RawUpload[] = [];
   for (let i = 0; i < downloaded.length; i += UPLOAD_CONCURRENCY) {
+    if (Date.now() > deadline) break;
     const batch = downloaded.slice(i, i + UPLOAD_CONCURRENCY);
     const results = await Promise.all(
-      batch.map(async (item, idxInBatch) => {
+      batch.map(async (item): Promise<RawUpload | null> => {
         try {
           const file = await ai.files.upload({
             file: item.blob,
             config: { mimeType: item.mimeType, displayName: item.filename },
           });
-          if (!file.uri || !file.mimeType) return null;
+          if (!file.name || !file.uri || !file.mimeType) return null;
           return {
-            ...item,
-            fileId: `file-${i + idxInBatch + 1}`,
+            bucket: item.bucket,
+            storagePath: item.storagePath,
+            filename: item.filename,
+            mimeType: item.mimeType,
+            description: item.description,
+            name: file.name,
             geminiUri: file.uri,
             geminiMime: file.mimeType,
           };
@@ -378,10 +445,42 @@ async function downloadAndUpload(
         }
       }),
     );
-    for (const r of results) if (r) out.push(r);
+    for (const r of results) if (r) raw.push(r);
   }
-  // Renumber sequentially in case some failed.
-  return out.map((f, idx) => ({ ...f, fileId: `file-${idx + 1}` }));
+
+  // Poll each file until it reaches ACTIVE. A file referenced while still
+  // PROCESSING makes generateContent throw, so only ACTIVE files are kept;
+  // FAILED files and any still processing past the deadline are dropped.
+  const ready: RawUpload[] = [];
+  let pending = raw.slice();
+  while (pending.length && Date.now() < deadline) {
+    const still: RawUpload[] = [];
+    for (const f of pending) {
+      try {
+        const info = await ai.files.get({ name: f.name });
+        const state = String(info.state ?? "");
+        if (state === "ACTIVE") ready.push(f);
+        else if (state === "FAILED") continue; // drop permanently failed files
+        else still.push(f); // PROCESSING / unspecified — check again
+      } catch {
+        still.push(f); // transient lookup error — retry until the deadline
+      }
+    }
+    pending = still;
+    if (pending.length) await sleep(FILE_POLL_INTERVAL_MS);
+  }
+
+  // Renumber sequentially over the files that are actually usable.
+  return ready.map((f, idx) => ({
+    bucket: f.bucket,
+    storagePath: f.storagePath,
+    filename: f.filename,
+    mimeType: f.mimeType,
+    description: f.description,
+    fileId: `file-${idx + 1}`,
+    geminiUri: f.geminiUri,
+    geminiMime: f.geminiMime,
+  }));
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -409,7 +508,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: project } = await supabase
     .from("projects")
-    .select("name, project_type, address, status")
+    .select("name, project_type, address, status, company_id")
     .eq("id", projectId)
     .single();
 
@@ -417,12 +516,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Gather candidates from all sources. Drawings + spec book first (typically larger
   // reference docs), then attachments, then general documents.
-  const [drawings, specBook, rfiAtts, subAtts, docs, tableRows, emails] = await Promise.all([
+  const [drawings, specBook, rfiAtts, subAtts, docs, buildingCode, tableRows, emails, bestPractices] = await Promise.all([
     collectDrawingPdfs(supabase, projectId),
     collectSpecBook(supabase, projectId),
     collectRfiAttachments(supabase, projectId),
     collectSubmittalAttachments(supabase, projectId),
     collectDocuments(supabase, projectId),
+    collectBuildingCode(supabase, projectId),
     Promise.all(
       TABLES.map(async (t) => ({
         label: t.label,
@@ -430,9 +530,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       })),
     ),
     collectEmailContext(supabase, projectId),
+    getCompanyBestPracticesText(supabase, (project?.company_id as string | null) ?? null),
   ]);
 
-  const candidates: Candidate[] = [...specBook, ...drawings, ...rfiAtts, ...subAtts, ...docs];
+  const candidates: Candidate[] = [...specBook, ...drawings, ...buildingCode.files, ...rfiAtts, ...subAtts, ...docs];
   const uploaded = await downloadAndUpload(supabase, genai, candidates);
 
   const projectHeader = project
@@ -446,7 +547,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const emailBlock = emails.text
     ? `### Emails (${emails.threadCount} thread${emails.threadCount === 1 ? "" : "s"}, ${emails.messageCount} message${emails.messageCount === 1 ? "" : "s"})\n${emails.text}\n`
     : "";
-  const context = `${buildContext(tableRows)}${emailBlock}`;
+  const bestPracticesBlock = bestPractices ? `${bestPractices}\n\n` : "";
+  const context = `${bestPracticesBlock}${buildContext(tableRows)}${emailBlock}${buildingCode.text}`;
   const manifest = uploaded.length
     ? uploaded.map((f) => `- [${f.fileId}] ${f.description}: ${f.filename}`).join("\n")
     : "(no files attached)";
@@ -455,6 +557,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
 Rules:
 - Ground every answer in the provided project data and attached files. Quote relevant record fields or file content when useful.
+- Treat the COMPANY BEST PRACTICES & STANDARDS block (when present) as authoritative company policy. Apply those standards when answering — including deriving target dates from any stated deadlines/lead times against the relevant project records — and cite the standard you applied.
 - When you cite a record, reference it by its tool and identifying fields (e.g., "RFI #12 — Subject: Roof flashing detail" or "Daily Log on 2026-04-01").
 - If the answer isn't in the data, say so clearly and suggest where the user might add the information.
 - Keep responses concise and scannable. Use short paragraphs or bullet lists.
@@ -505,16 +608,43 @@ ${question}`;
     });
 
     const raw = (result.text ?? "").trim();
-    let answer = raw || "(no response)";
+    let answer = "";
     let citedFileIds: string[] = [];
-    try {
-      const parsed = JSON.parse(raw) as { answer?: string; citedFileIds?: string[] };
-      if (typeof parsed.answer === "string" && parsed.answer.trim()) answer = parsed.answer.trim();
-      if (Array.isArray(parsed.citedFileIds)) {
-        citedFileIds = parsed.citedFileIds.filter((id): id is string => typeof id === "string");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { answer?: string; citedFileIds?: string[] };
+        if (typeof parsed.answer === "string" && parsed.answer.trim()) answer = parsed.answer.trim();
+        if (Array.isArray(parsed.citedFileIds)) {
+          citedFileIds = parsed.citedFileIds.filter((id): id is string => typeof id === "string");
+        }
+      } catch {
+        // Not valid JSON — treat the whole response as the answer text.
+        answer = raw;
       }
-    } catch {
-      // Fall back to raw text if JSON parsing fails.
+    }
+
+    // gemini-2.5-flash, when forced into a JSON schema over a large context, can
+    // occasionally spend its whole output budget "thinking" and return empty
+    // text. Retry once as plain text with thinking disabled so the user always
+    // gets a real answer instead of a blank bubble.
+    if (!answer) {
+      try {
+        const fallback = await genai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts }],
+          config: {
+            systemInstruction: `${systemInstruction}\n\nIMPORTANT: Reply with your answer as plain text only — do not return JSON.`,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        });
+        answer = (fallback.text ?? "").trim();
+      } catch {
+        // fall through to the generic message below
+      }
+    }
+
+    if (!answer) {
+      answer = "I couldn't generate an answer for that. Please try rephrasing your question.";
     }
 
     const citedSet = new Set(citedFileIds);
