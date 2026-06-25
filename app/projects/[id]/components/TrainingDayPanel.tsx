@@ -5,7 +5,12 @@ import type { SimRole } from "@/lib/simulation-constants";
 import {
   getTrainingSchedule,
   getRecurringCadence,
+  getScheduledDay,
   resolveDayIndex,
+  firstScheduledDay,
+  lastScheduledDay,
+  clampTrainingDay,
+  phaseForDay,
   type TrainingDay,
   type RecurringCadenceGroup,
   type RecurringFrequency,
@@ -13,16 +18,21 @@ import {
 
 /**
  * Day-by-day task panel shown in a training sandbox. It surfaces the tasks
- * scheduled for the trainee's current in-sim week/period (from
- * projects.training_day), lets them check tasks off (per project + day, in
- * localStorage), and advances to the next period with a "Complete" button
- * (which persists the new training_day server-side). Periods are not
- * contiguous — e.g. Week 6 → Week 8 → Month 2 etc.
+ * scheduled for the trainee's current in-sim day (from projects.training_day),
+ * lets them check tasks off (per project + day, in localStorage), and advances
+ * one day at a time with a "Complete Day" button (which persists the new
+ * training_day server-side).
+ *
+ * The trainee always moves to the very next calendar day — even on days with no
+ * scheduled task batch, which render as a quiet "no new tasks today" day. Task
+ * batches and phase changes land on specific days (e.g. Day 1-7 of
+ * pre-construction, then Day 14 foundations, Day 28 framing, …); the days in
+ * between keep the current phase context and the recurring cadence.
  *
  * A collapsible "Recurring Cadence" section below the day's tasks surfaces the
  * standing Daily / Weekly / Bi-weekly / Monthly responsibilities.
  *
- * Day 1 / Week 1 also surfaces the role-specific company onboarding PDF.
+ * Day 1 also surfaces the role-specific company onboarding PDF.
  */
 
 const ONBOARDING_BY_ROLE: Record<SimRole, { label: string; href: string }> = {
@@ -275,70 +285,79 @@ export default function TrainingDayPanel({
     [schedule, checks, projectId],
   );
 
-  const [currentIndex, setCurrentIndex] = useState(() => resolveDayIndex(schedule, initialDay));
+  const [currentDay, setCurrentDay] = useState(() => clampTrainingDay(schedule, initialDay));
   const [advancing, setAdvancing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Broadcast the active scheduled day so the Coach narrator (a sibling in the
-  // project layout) can surface the right message — on mount and on each advance.
+  // Broadcast the active day so the Coach narrator (a sibling in the project
+  // layout) can surface the right message — on mount and on each advance.
   useEffect(() => {
-    if (currentIndex < 0) return;
-    const day = schedule[currentIndex]?.day;
-    if (typeof day === "number") {
-      writeString(`sc-training-active-day-${projectId}`, String(day));
-    }
-  }, [currentIndex, schedule, projectId]);
+    if (schedule.length === 0) return;
+    writeString(`sc-training-active-day-${projectId}`, String(currentDay));
+  }, [currentDay, schedule.length, projectId]);
 
   // No schedule for this role yet — render nothing.
-  if (currentIndex < 0) return null;
+  if (schedule.length === 0) return null;
 
-  const current: TrainingDay = schedule[currentIndex];
-  const nextDay = currentIndex < schedule.length - 1 ? schedule[currentIndex + 1] : null;
+  const firstDay = firstScheduledDay(schedule);
+  const lastDay = lastScheduledDay(schedule);
+  // The task batch landing on exactly this day (null on the many in-between
+  // days, which render as a quiet "no new tasks today" day).
+  const taskEntry: TrainingDay | null = getScheduledDay(schedule, currentDay);
+  // The phase/period context in effect (sticks to the most recent batch).
+  const contextEntry: TrainingDay = schedule[resolveDayIndex(schedule, currentDay)];
+  const tasks = taskEntry?.tasks ?? [];
+  const hasNextDay = currentDay < lastDay;
   const onboarding = ONBOARDING_BY_ROLE[role];
-  const isFirstDay = currentIndex === 0;
+  const isFirstDay = currentDay === firstDay;
+  const currentPhase = contextEntry.phase;
 
-  const doneCount = current.tasks.reduce(
-    (n, _t, i) => n + (checks[`${current.day}-${i}`] ? 1 : 0),
+  const doneCount = tasks.reduce(
+    (n, _t, i) => n + (checks[`${currentDay}-${i}`] ? 1 : 0),
     0,
   );
 
-  // Finishing this period crosses into a new phase → its Job Review is due.
-  const finishesPhase = !!nextDay && nextDay.phase !== current.phase;
+  // Advancing to tomorrow crosses into a new phase → today wraps a phase, so its
+  // Job Review is due.
+  const nextPhase = hasNextDay ? phaseForDay(schedule, currentDay + 1) : currentPhase;
+  const finishesPhase = hasNextDay && nextPhase !== currentPhase;
   // A prior phase was completed but hasn't been reviewed yet (persists across
-  // reloads / dismissing the popup).
-  const priorEntry = currentIndex > 0 ? schedule[currentIndex - 1] : null;
+  // reloads / dismissing the popup). The representative day is that phase's most
+  // recent scheduled batch as of yesterday.
+  const priorPhase = currentDay > firstDay ? phaseForDay(schedule, currentDay - 1) : currentPhase;
   const pendingReview =
-    priorEntry && priorEntry.phase !== current.phase && !reviewedPhases.has(priorEntry.phase)
-      ? { day: priorEntry.day, phase: priorEntry.phase }
+    currentDay > firstDay && priorPhase !== currentPhase && !reviewedPhases.has(priorPhase)
+      ? { day: schedule[resolveDayIndex(schedule, currentDay - 1)].day, phase: priorPhase }
       : null;
-  // On the final period, its review is the project closeout review.
-  const finalReviewDue = !nextDay && !reviewedPhases.has(current.phase);
+  // On the final day, its review is the project closeout review.
+  const finalReviewDue = !hasNextDay && !reviewedPhases.has(currentPhase);
 
   async function completeDay() {
-    if (!nextDay) return;
+    if (!hasNextDay) return;
     setAdvancing(true);
     setError(null);
+    const next = currentDay + 1;
     try {
       const res = await fetch(`/api/training/projects/${projectId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ training_day: nextDay.day }),
+        body: JSON.stringify({ training_day: next }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to advance to the next period");
+        throw new Error(data.error || "Failed to advance to the next day");
       }
-      const completedPhase = current.phase;
-      const completedDay = current.day;
-      setCurrentIndex((i) => i + 1);
+      const completedPhase = currentPhase;
+      const repDay = contextEntry.day;
+      setCurrentDay(next);
       if (finishesPhase) {
         // Save the review now (background) so it's listed under the sandbox even
         // if the trainee picks "Later" on the popup below.
-        persistPhaseReview(completedPhase, completedDay);
-        setReviewPopup({ day: completedDay, phase: completedPhase });
+        persistPhaseReview(completedPhase, repDay);
+        setReviewPopup({ day: repDay, phase: completedPhase });
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to advance to the next period");
+      setError(e instanceof Error ? e.message : "Failed to advance to the next day");
     } finally {
       setAdvancing(false);
     }
@@ -349,15 +368,15 @@ export default function TrainingDayPanel({
       <button
         type="button"
         onClick={() => setCollapsed("0")}
-        title={`Open ${current.timeframe} tasks`}
-        aria-label={`Open ${current.timeframe} tasks`}
+        title={`Open Day ${currentDay} tasks`}
+        aria-label={`Open Day ${currentDay} tasks`}
         className="fixed right-0 top-1/2 z-40 -translate-y-1/2 flex flex-col items-center gap-1.5 rounded-l-lg bg-amber-500 py-3 pl-2 pr-1.5 text-white shadow-lg transition-colors hover:bg-amber-600"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
         <span className="text-xs font-semibold tracking-wide [writing-mode:vertical-rl]">
-          {current.timeframe}
+          Day {currentDay}
         </span>
       </button>
     );
@@ -404,7 +423,7 @@ export default function TrainingDayPanel({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
-          <span className="text-sm font-semibold">{current.timeframe}</span>
+          <span className="text-sm font-semibold">Day {currentDay}</span>
         </div>
         <button
           type="button"
@@ -419,11 +438,13 @@ export default function TrainingDayPanel({
         </button>
       </header>
 
-      {/* Period context */}
+      {/* Phase / period context */}
       <div className="border-b border-gray-100 px-4 py-2.5">
-        <p className="text-sm font-semibold text-gray-900">{current.phase}</p>
+        <p className="text-sm font-semibold text-gray-900">{currentPhase}</p>
         <p className="text-xs text-gray-500">
-          {doneCount}/{current.tasks.length} tasks done
+          {contextEntry.timeframe}
+          {" · "}
+          {taskEntry ? `${doneCount}/${tasks.length} tasks done` : "No new tasks today"}
         </p>
       </div>
 
@@ -469,41 +490,51 @@ export default function TrainingDayPanel({
         )}
 
         <p className="mb-2 text-xs font-medium text-gray-500">
-          {isFirstDay ? "This week's tasks" : "Tasks"}
+          {isFirstDay ? "Day 1 tasks" : taskEntry ? "Today's tasks" : "Today"}
         </p>
-        <ul className="space-y-3">
-          {current.tasks.map((t, i) => {
-            const checked = !!checks[`${current.day}-${i}`];
-            return (
-              <li key={i} className="flex items-start gap-2">
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={checked}
-                  onClick={() => toggleCheck(current.day, i)}
-                  className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border border-gray-300 text-[10px] font-bold text-white transition-colors data-[checked=true]:border-green-600 data-[checked=true]:bg-green-600"
-                  data-checked={checked}
-                >
-                  {checked ? "✓" : ""}
-                </button>
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm leading-snug ${checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
-                    {t.task}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryClass(t.category)}`}>
-                      {t.category}
-                    </span>
-                    <span className="text-[11px] text-gray-400">{t.collaborators}</span>
+        {taskEntry ? (
+          <ul className="space-y-3">
+            {tasks.map((t, i) => {
+              const checked = !!checks[`${currentDay}-${i}`];
+              return (
+                <li key={i} className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    onClick={() => toggleCheck(currentDay, i)}
+                    className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border border-gray-300 text-[10px] font-bold text-white transition-colors data-[checked=true]:border-green-600 data-[checked=true]:bg-green-600"
+                    data-checked={checked}
+                  >
+                    {checked ? "✓" : ""}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm leading-snug ${checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
+                      {t.task}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryClass(t.category)}`}>
+                        {t.category}
+                      </span>
+                      <span className="text-[11px] text-gray-400">{t.collaborators}</span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-gray-400">
+                      <span className="font-medium text-gray-500">Deliverable:</span> {t.deliverable}
+                    </p>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-gray-400">
-                    <span className="font-medium text-gray-500">Deliverable:</span> {t.deliverable}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-center">
+            <p className="text-sm text-gray-600">No new tasks scheduled for today.</p>
+            <p className="mt-1 text-[11px] text-gray-400">
+              Stay on top of your open items and the recurring cadence below, then move to the next
+              day.
+            </p>
+          </div>
+        )}
 
         {cadence.length > 0 && (
           <RecurringSection
@@ -517,7 +548,7 @@ export default function TrainingDayPanel({
       {/* Advance control */}
       <div className="border-t border-gray-100 p-3">
         {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
-        {nextDay ? (
+        {hasNextDay ? (
           <>
             <button
               type="button"
@@ -525,17 +556,18 @@ export default function TrainingDayPanel({
               disabled={advancing}
               className="w-full rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
             >
-              {advancing ? "Advancing…" : `Complete ${current.timeframe} →`}
+              {advancing ? "Advancing…" : `Complete Day ${currentDay} →`}
             </button>
             <p className="mt-1.5 text-center text-[11px] text-gray-400">
-              Next: {nextDay.timeframe} — {nextDay.phase}
+              Next: Day {currentDay + 1}
+              {finishesPhase ? ` — ${nextPhase} begins` : ""}
             </p>
           </>
         ) : finalReviewDue ? (
           <>
             <button
               type="button"
-              onClick={() => openReview(current.day)}
+              onClick={() => openReview(contextEntry.day)}
               className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
             >
               Review your project →
@@ -546,7 +578,7 @@ export default function TrainingDayPanel({
           </>
         ) : (
           <div className="rounded-md bg-green-50 px-3 py-2 text-center text-sm font-medium text-green-700">
-            🎉 Project complete — all periods finished
+            🎉 Project complete — job finished
           </div>
         )}
       </div>

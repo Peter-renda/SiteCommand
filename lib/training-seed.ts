@@ -21,6 +21,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { htmlToText } from "@/lib/email-messages";
 import { projectTypeLabel } from "@/lib/simulation-constants";
+import {
+  TRAINING_SUBS,
+  BUYOUT_THREAD_COUNT,
+  subEmailFor,
+  buildBuyoutOutreachHtml,
+  buildSeededBidResponseHtml,
+} from "@/lib/training-emails";
 
 type SeedOpts = {
   projectId: string;
@@ -326,5 +333,143 @@ export async function seedTrainingProjectManager(
       snippet: bodyText.slice(0, 200),
       synced_at: nowIso,
     });
+  }
+
+  // 3) Subcontractors — seed the buyout roster into the Directory plus a few
+  // buyout email threads. One sub (random) is left unanswered (the "slow" sub),
+  // so the trainee has to chase them by phone or follow up by email.
+  await seedBuyoutEmails(supabase, {
+    projectId,
+    ownerUserId,
+    pmName,
+    pmEmail,
+    pmFirst,
+    projectLabel: label,
+  });
+}
+
+function tradeSlug(trade: string): string {
+  return trade
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** ISO timestamp `daysAgo` days before now. */
+function daysAgoIso(daysAgo: number): string {
+  return new Date(Date.now() - daysAgo * 86_400_000).toISOString();
+}
+
+/**
+ * Seeds the subcontractor directory and a set of buyout email threads
+ * (trainee → sub). The non-slow subs come with a prompt bid response; one
+ * randomly-chosen sub is left unanswered so the trainee experiences a sub who's
+ * slow to respond. Best-effort.
+ */
+async function seedBuyoutEmails(
+  supabase: SupabaseClient,
+  opts: {
+    projectId: string;
+    ownerUserId: string;
+    pmName: string;
+    pmEmail: string;
+    pmFirst: string;
+    projectLabel: string;
+  },
+): Promise<void> {
+  const { projectId, ownerUserId, pmName, pmEmail, pmFirst, projectLabel } = opts;
+
+  // Directory — every sub in the roster, with email + phone so the trainee can
+  // either email or call them.
+  const subContacts = TRAINING_SUBS.map((s) => ({
+    project_id: projectId,
+    type: "user" as const,
+    first_name: s.first,
+    last_name: s.last,
+    email: subEmailFor(s),
+    phone: s.phone,
+    company: s.company,
+    job_title: `${s.trade} — Subcontractor`,
+  }));
+  await supabase.from("directory_contacts").insert(subContacts);
+
+  // Buyout threads for the early-buyout trades; one (random) is the slow sub.
+  const buyoutSubs = TRAINING_SUBS.slice(0, BUYOUT_THREAD_COUNT);
+  const slowIndex = Math.floor(Math.random() * buyoutSubs.length);
+
+  for (let i = 0; i < buyoutSubs.length; i++) {
+    const sub = buyoutSubs[i];
+    const isSlow = i === slowIndex;
+    const subName = `${sub.first} ${sub.last}`;
+    const subAddr = subEmailFor(sub);
+    const convId = `training-buyout-${tradeSlug(sub.trade)}`;
+    const subject = `Buyout — ${sub.trade} Scope & Pricing`;
+
+    // The trainee's outreach is a few days old. Responsive subs replied a couple
+    // days later; the slow sub's (older) outreach is still unanswered.
+    const outreachIso = daysAgoIso(isSlow ? 6 : 4);
+    const responseIso = daysAgoIso(2);
+
+    const outreachHtml = buildBuyoutOutreachHtml({ pmFirst, sub, projectLabel });
+    const outreachText = htmlToText(outreachHtml);
+    const responseHtml = buildSeededBidResponseHtml({ pmFirst, sub });
+    const responseText = htmlToText(responseHtml);
+
+    const latestText = isSlow ? outreachText : responseText;
+    const latestIso = isSlow ? outreachIso : responseIso;
+
+    const { data: t } = await supabase
+      .from("project_email_threads")
+      .insert({
+        project_id: projectId,
+        graph_conversation_id: convId,
+        subject,
+        participants: [pmName, subName],
+        latest_message_preview: latestText.slice(0, 280),
+        latest_received_at: latestIso,
+        message_count: isSlow ? 1 : 2,
+        linked_by: ownerUserId,
+        linked_at: outreachIso,
+      })
+      .select("id")
+      .single();
+
+    if (!t?.id) continue;
+
+    const messages: Record<string, unknown>[] = [
+      {
+        thread_id: t.id,
+        project_id: projectId,
+        provider_message_id: `${convId}-1`,
+        from_name: pmName,
+        from_address: pmEmail,
+        to_recipients: [{ name: subName, address: subAddr }],
+        cc_recipients: [],
+        subject,
+        sent_at: outreachIso,
+        body_text: outreachText,
+        body_html: outreachHtml,
+        snippet: outreachText.slice(0, 200),
+        synced_at: outreachIso,
+      },
+    ];
+    if (!isSlow) {
+      messages.push({
+        thread_id: t.id,
+        project_id: projectId,
+        provider_message_id: `${convId}-2`,
+        from_name: subName,
+        from_address: subAddr,
+        to_recipients: [{ name: pmName, address: pmEmail }],
+        cc_recipients: [],
+        subject: `Re: ${subject}`,
+        sent_at: responseIso,
+        body_text: responseText,
+        body_html: responseHtml,
+        snippet: responseText.slice(0, 200),
+        synced_at: responseIso,
+      });
+    }
+    await supabase.from("project_email_messages").insert(messages);
   }
 }

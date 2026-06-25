@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { SimRole } from "@/lib/simulation-constants";
-import { getTrainingSchedule, resolveDayIndex } from "@/lib/training-schedule";
+import {
+  getTrainingSchedule,
+  getScheduledDay,
+  clampTrainingDay,
+  firstScheduledDay,
+} from "@/lib/training-schedule";
 
 /**
  * The "coach" narrator for a "SiteCommand Training" sandbox. On launch — and
@@ -78,17 +83,18 @@ export default function TrainingCoach({
 }) {
   const schedule = useMemo(() => getTrainingSchedule(role), [role]);
 
-  // Active scheduled day — synced live from the Day panel, falling back to the
-  // server-provided initial day.
+  // Active day — synced live from the Day panel, falling back to the server-
+  // provided initial day. The trainee advances one day at a time; the coach only
+  // has a message on days that carry a scheduled task batch, so the in-between
+  // days surface nothing (no pill, no popup).
   const [activeDayRaw] = useLocalStorageString(`sc-training-active-day-${projectId}`);
-  const activeIndex = useMemo(() => {
+  const activeDay = useMemo(() => {
     const stored = Number(activeDayRaw);
     const raw = activeDayRaw && Number.isFinite(stored) ? stored : initialDay;
-    return resolveDayIndex(schedule, raw);
+    return clampTrainingDay(schedule, raw);
   }, [activeDayRaw, initialDay, schedule]);
-  const activeEntry = activeIndex >= 0 ? schedule[activeIndex] : null;
-  const activeDay = activeEntry?.day ?? 0;
-  const isFirstDay = !!activeEntry && activeEntry.day === schedule[0]?.day;
+  const activeEntry = getScheduledDay(schedule, activeDay);
+  const isFirstDay = !!activeEntry && activeEntry.day === firstScheduledDay(schedule);
 
   // Days whose coach message the trainee has acknowledged.
   const [heardRaw, setHeardRaw] = useLocalStorageString(`sc-training-coach-heard-${projectId}`);

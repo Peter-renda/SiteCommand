@@ -811,10 +811,14 @@ export function getRecurringCadence(role: SimRole): RecurringCadenceGroup[] {
 }
 
 /**
- * Maps a stored `training_day` value to the index of the active day entry in a
- * schedule: the entry whose `.day` is the largest value ≤ trainingDay. A value
+ * Maps a stored `training_day` value to the index of the active *phase* entry in
+ * a schedule: the entry whose `.day` is the largest value ≤ trainingDay. A value
  * of 0 (freshly launched) or below the first scheduled day resolves to the first
  * entry. Returns -1 for an empty schedule.
+ *
+ * Note this "sticks" to the most recent scheduled entry, so it answers "what
+ * phase/period am I in?" — not "is there a task batch on exactly this day?". For
+ * the latter, use {@link getScheduledDay}.
  */
 export function resolveDayIndex(schedule: TrainingDay[], trainingDay: number): number {
   if (schedule.length === 0) return -1;
@@ -824,4 +828,46 @@ export function resolveDayIndex(schedule: TrainingDay[], trainingDay: number): n
     if (schedule[i].day <= target) idx = i;
   }
   return idx;
+}
+
+/**
+ * The scheduled entry whose task batch lands on exactly `day`, or null when no
+ * tasks are scheduled for that day. The trainee advances one day at a time, so
+ * most days fall between batches (return null) — those render as a quiet "no new
+ * tasks today" day rather than re-showing the previous batch.
+ */
+export function getScheduledDay(schedule: TrainingDay[], day: number): TrainingDay | null {
+  return schedule.find((d) => d.day === day) ?? null;
+}
+
+/** First scheduled day in a schedule (1 for the PM schedule), or 0 if empty. */
+export function firstScheduledDay(schedule: TrainingDay[]): number {
+  return schedule.length ? schedule[0].day : 0;
+}
+
+/**
+ * Last scheduled day — the day the job wraps (closeout). The trainee can advance
+ * up to, but not past, this day.
+ */
+export function lastScheduledDay(schedule: TrainingDay[]): number {
+  return schedule.length ? schedule[schedule.length - 1].day : 0;
+}
+
+/**
+ * Clamps an arbitrary stored `training_day` to a real day on the calendar: never
+ * before the first scheduled day, never past the last. 0 (fresh launch) becomes
+ * the first day.
+ */
+export function clampTrainingDay(schedule: TrainingDay[], day: number): number {
+  if (schedule.length === 0) return 0;
+  const first = firstScheduledDay(schedule);
+  const last = lastScheduledDay(schedule);
+  if (!day || day < first) return first;
+  return Math.min(day, last);
+}
+
+/** The phase name in effect on a given day (sticks to the most recent entry). */
+export function phaseForDay(schedule: TrainingDay[], day: number): string {
+  const idx = resolveDayIndex(schedule, day);
+  return idx >= 0 ? schedule[idx].phase : "";
 }
