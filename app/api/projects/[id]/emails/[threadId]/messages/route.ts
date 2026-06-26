@@ -40,9 +40,11 @@ export async function GET(
     .maybeSingle();
   if (project?.is_training) {
     const stored = await getStoredThreadMessages(supabase, threadId);
+    // Report the trainee's own address as the account so the reply composer
+    // treats their seeded outreach as "sent by me" and targets the sub.
     return NextResponse.json({
       provider: null,
-      accountEmail: null,
+      accountEmail: session.email ?? null,
       subject: row.subject,
       messages: stored,
       stored: true,
