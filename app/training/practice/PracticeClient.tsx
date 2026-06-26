@@ -44,6 +44,7 @@ type TrainingProject = {
   training_day: number;
   training_last_saved_at: string | null;
   created_at: string;
+  archived_at: string | null;
 };
 
 function lastSavedLabel(iso: string | null): string {
@@ -67,6 +68,13 @@ export default function PracticeClient({ username }: { username: string }) {
   const [projects, setProjects] = useState<TrainingProject[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
+  // Archived (soft-deleted) sandboxes — shown when the user opens the "Archived
+  // projects" view. Loaded lazily the first time it's opened and refreshed on
+  // archive/recover so the two lists stay in sync.
+  const [showArchived, setShowArchived] = useState(false);
+  const [archived, setArchived] = useState<TrainingProject[]>([]);
+  const [loadingArchived, setLoadingArchived] = useState(false);
+
   const loadProjects = useCallback(async () => {
     setLoadingList(true);
     try {
@@ -80,15 +88,56 @@ export default function PracticeClient({ username }: { username: string }) {
     }
   }, []);
 
-  // Drop a sandbox from the list the instant its delete is confirmed, so the row
-  // disappears immediately without waiting on (or trusting) a reload round-trip.
-  const removeProjectFromList = useCallback((id: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== id));
+  const loadArchived = useCallback(async () => {
+    setLoadingArchived(true);
+    try {
+      const res = await fetch("/api/training/projects?archived=true", { cache: "no-store" });
+      const data = await res.json();
+      setArchived(data.projects ?? []);
+    } finally {
+      setLoadingArchived(false);
+    }
+  }, []);
+
+  // Archiving a sandbox: drop it from the active list immediately, and refresh
+  // the archived list so it shows up there (if that view is/becomes open).
+  const handleArchived = useCallback(
+    (id: string) => {
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+      loadArchived();
+    },
+    [loadArchived],
+  );
+
+  // Recovering a sandbox: drop it from the archived list and refresh the active
+  // list so it returns to "Your training projects".
+  const handleRecovered = useCallback(
+    (id: string) => {
+      setArchived((prev) => prev.filter((p) => p.id !== id));
+      loadProjects();
+    },
+    [loadProjects],
+  );
+
+  // Permanently deleting an archived sandbox: just drop it from the archived list.
+  const removeArchivedFromList = useCallback((id: string) => {
+    setArchived((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+    // Load archived too so the count badge is accurate on first paint (without
+    // requiring the user to open the archived view first).
+    loadArchived();
+  }, [loadProjects, loadArchived]);
+
+  function toggleArchived() {
+    setShowArchived((open) => {
+      const next = !open;
+      if (next) loadArchived();
+      return next;
+    });
+  }
 
   async function launch() {
     setLaunching(true);
@@ -232,15 +281,60 @@ export default function PracticeClient({ username }: { username: string }) {
 
       {/* Existing sandboxes */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-900 mb-3">Your training projects</h2>
-        {loadingList ? (
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-900">Your training projects</h2>
+          <button
+            type="button"
+            onClick={toggleArchived}
+            aria-pressed={showArchived}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              showArchived
+                ? "border-gray-900 bg-gray-900 text-white hover:bg-gray-800"
+                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8M10 12h4" />
+            </svg>
+            {showArchived ? "Hide archived" : "Archived projects"}
+            {!showArchived && archived.length > 0 && (
+              <span className="ml-0.5 rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-700">
+                {archived.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {showArchived ? (
+          <div>
+            <p className="mb-3 text-xs text-gray-500">
+              Deleted training projects are kept here. Recover one to return it to your active list.
+            </p>
+            {loadingArchived ? (
+              <p className="text-sm text-gray-400">Loading…</p>
+            ) : archived.length === 0 ? (
+              <p className="text-sm text-gray-400">No archived training projects.</p>
+            ) : (
+              <div className="space-y-2">
+                {archived.map((p) => (
+                  <ArchivedRow
+                    key={p.id}
+                    project={p}
+                    onRecovered={handleRecovered}
+                    onDeleted={removeArchivedFromList}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : loadingList ? (
           <p className="text-sm text-gray-400">Loading…</p>
         ) : projects.length === 0 ? (
           <p className="text-sm text-gray-400">No training projects yet. Launch one above.</p>
         ) : (
           <div className="space-y-2">
             {projects.map((p) => (
-              <ProjectRow key={p.id} project={p} onDeleted={removeProjectFromList} />
+              <ProjectRow key={p.id} project={p} onDeleted={handleArchived} />
             ))}
           </div>
         )}
@@ -355,7 +449,7 @@ function ProjectRow({
             type="button"
             onClick={() => setConfirmDelete(true)}
             className="shrink-0 text-gray-300 hover:text-red-500 transition-colors px-3 py-4"
-            title="Delete sandbox"
+            title="Delete sandbox (moves to Archived projects)"
           >
             ✕
           </button>
@@ -365,6 +459,134 @@ function ProjectRow({
       {deleteError && (
         <p className="px-4 pb-3 text-xs text-red-600">{deleteError}</p>
       )}
+    </div>
+  );
+}
+
+function archivedLabel(iso: string | null): string {
+  if (!iso) return "Archived";
+  return `Archived ${new Date(iso).toLocaleDateString()}`;
+}
+
+/**
+ * A row in the "Archived projects" view: a soft-deleted sandbox the user can
+ * Recover (back to the active list) or Delete permanently (hard delete for good).
+ */
+function ArchivedRow({
+  project,
+  onRecovered,
+  onDeleted,
+}: {
+  project: TrainingProject;
+  onRecovered: (id: string) => void;
+  onDeleted: (id: string) => void;
+}) {
+  const [recovering, setRecovering] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function recover() {
+    setRecovering(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/training/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "recover" }),
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to recover training project");
+      }
+      onRecovered(project.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to recover training project");
+      setRecovering(false);
+    }
+  }
+
+  async function remove() {
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/training/projects/${project.id}?permanent=true`, {
+        method: "DELETE",
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete training project");
+      }
+      onDeleted(project.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete training project");
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
+  const meta = [
+    project.training_role ? roleLabel(project.training_role) : null,
+    project.training_project_type ? projectTypeLabel(project.training_project_type) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const busy = recovering || deleting;
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50/60">
+      <div className="flex items-center gap-4 px-4 py-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-700 truncate">{project.name}</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {[meta, archivedLabel(project.archived_at)].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        {confirmDelete ? (
+          <div className="shrink-0 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={remove}
+              disabled={busy}
+              className="rounded px-2 py-1 text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              {deleting ? "Deleting…" : "Delete forever"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setConfirmDelete(false); setError(null); }}
+              disabled={busy}
+              className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className="shrink-0 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={recover}
+              disabled={busy}
+              className="rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {recovering ? "Recovering…" : "Recover"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              disabled={busy}
+              className="text-xs font-medium text-gray-400 hover:text-red-600 disabled:opacity-50 transition-colors"
+              title="Delete permanently"
+            >
+              Delete permanently
+            </button>
+          </div>
+        )}
+      </div>
+      {error && <p className="px-4 pb-3 text-xs text-red-600">{error}</p>}
     </div>
   );
 }
