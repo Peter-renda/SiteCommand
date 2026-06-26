@@ -26,18 +26,27 @@ import { seedTrainingProjectManager } from "@/lib/training-seed";
 const VALID_ROLES = new Set(ROLES.map((r) => r.value));
 const VALID_TYPES = new Set(PROJECT_TYPES.map((p) => p.value));
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // ?archived=true returns the user's archived (soft-deleted) sandboxes so the
+  // Practice page can show an "Archived projects" view they can recover from.
+  const archived = new URL(req.url).searchParams.get("archived") === "true";
+
   const supabase = getSupabase();
-  const { data, error } = await supabase
+  let query = supabase
     .from("projects")
-    .select("id, name, status, training_role, training_project_type, training_day, training_last_saved_at, created_at")
+    .select("id, name, status, training_role, training_project_type, training_day, training_last_saved_at, created_at, archived_at")
     .eq("is_training", true)
-    .eq("training_owner_id", session.id)
-    .is("archived_at", null)
-    .order("created_at", { ascending: false });
+    .eq("training_owner_id", session.id);
+
+  // Archived sandboxes sort by most-recently-archived; active ones by newest.
+  query = archived
+    ? query.not("archived_at", "is", null).order("archived_at", { ascending: false })
+    : query.is("archived_at", null).order("created_at", { ascending: false });
+
+  const { data, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ projects: data ?? [] });
