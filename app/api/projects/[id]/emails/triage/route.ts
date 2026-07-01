@@ -34,6 +34,17 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Training sandboxes are isolated from the user's real mailbox — never read
+  // their inbox there, even when they have a live connection for real projects.
+  const { data: trainingCheck } = await getSupabase()
+    .from("projects")
+    .select("is_training")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (trainingCheck?.is_training) {
+    return NextResponse.json({ connected: false, messages: [] });
+  }
+
   const connection = await getActiveEmailConnection(session.id);
   if (!connection) return NextResponse.json({ connected: false, messages: [] });
 

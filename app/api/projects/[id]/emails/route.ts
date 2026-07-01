@@ -52,6 +52,21 @@ export async function POST(
   }
 
   const supabase = getSupabase();
+
+  // Training sandboxes are isolated from the user's real mailbox — real inbox
+  // threads can't be linked there. Sandbox mail is created via the seeder and
+  // the training compose endpoint instead.
+  const { data: project } = await supabase
+    .from("projects")
+    .select("is_training")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (project?.is_training) {
+    return NextResponse.json(
+      { error: "Training projects use a simulated inbox — real emails can't be linked." },
+      { status: 400 }
+    );
+  }
   const { data, error } = await supabase
     .from("project_email_threads")
     .upsert(
