@@ -7,8 +7,9 @@
  *         replyAll?: boolean, latestMessageId?: string, inReplyTo?: string }
  *
  * Training sandboxes have no live mailbox, so a reply there is stored locally and
- * the counterparty's response is synthesized (a sub who'd gone quiet finally
- * answering once chased) — see lib/training-emails.ts.
+ * the counterparty's response is synthesized — realistically via Gemini
+ * (lib/training-email-reply.ts), falling back to the canned reply in
+ * lib/training-emails.ts when the AI is unavailable.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -17,7 +18,16 @@ import { getSupabase } from "@/lib/supabase";
 import { sendActiveReply } from "@/lib/email-connection";
 import { getStoredThreadMessages, htmlToText } from "@/lib/email-messages";
 import { buildCounterpartyReply, firstNameOf } from "@/lib/training-emails";
+import {
+  generateTrainingCounterpartyReply,
+  lookupTrainingCounterparty,
+} from "@/lib/training-email-reply";
+import { projectTypeLabel } from "@/lib/simulation-constants";
+import type { ThreadMessage } from "@/lib/email-types";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+// Gemini reply synthesis can take a while on long threads.
+export const maxDuration = 60;
 
 type Trainee = { id: string; email: string; username: string };
 
@@ -59,12 +69,16 @@ export async function POST(
   // the counterparty answer.
   const { data: project } = await supabase
     .from("projects")
-    .select("is_training")
+    .select("is_training, name, training_project_type")
     .eq("id", projectId)
     .maybeSingle();
   if (project?.is_training) {
     return handleTrainingReply(supabase, {
       projectId,
+      projectName: project.name ?? "Training project",
+      projectType: project.training_project_type
+        ? projectTypeLabel(project.training_project_type)
+        : null,
       threadId,
       threadSubject: row.subject ?? "",
       session,
@@ -96,14 +110,17 @@ export async function POST(
 
 /**
  * Stores the trainee's reply in a sandbox thread, then synthesizes the
- * counterparty's response. The first time a counterparty answers in a thread —
- * i.e. the "slow" sub finally replying after being chased — the tone is
- * apologetic; subsequent replies are brief acknowledgements.
+ * counterparty's response with Gemini (grounded in who the counterparty is and
+ * the thread so far). The first time a counterparty answers in a thread — i.e.
+ * the "slow" sub finally replying after being chased — the tone is apologetic.
+ * When the AI is unavailable, falls back to the canned reply.
  */
 async function handleTrainingReply(
   supabase: SupabaseClient,
   opts: {
     projectId: string;
+    projectName: string;
+    projectType: string | null;
     threadId: string;
     threadSubject: string;
     session: Trainee;
@@ -111,7 +128,8 @@ async function handleTrainingReply(
     to: string;
   },
 ): Promise<NextResponse> {
-  const { projectId, threadId, threadSubject, session, replyBody, to } = opts;
+  const { projectId, projectName, projectType, threadId, threadSubject, session, replyBody, to } =
+    opts;
 
   const stored = await getStoredThreadMessages(supabase, threadId);
   const meEmail = (session.email || "").toLowerCase();
@@ -180,7 +198,38 @@ async function handleTrainingReply(
   if (counterpartyAddr) {
     const respMs = nowMs + 1000;
     const respIso = new Date(respMs).toISOString();
-    const { html, text } = buildCounterpartyReply({ firstResponse, counterpartyName, pmFirst });
+
+    // Realistic Gemini reply, grounded in the counterparty's directory persona
+    // and the whole thread (including the reply the trainee just sent).
+    const counterparty = (await lookupTrainingCounterparty(
+      supabase,
+      projectId,
+      counterpartyAddr,
+    )) ?? { name: counterpartyName || counterpartyAddr, email: counterpartyAddr };
+    if (!counterpartyName) counterpartyName = counterparty.name;
+    const traineeMessage: ThreadMessage = {
+      id: `training-reply-${nowMs}`,
+      from: { name: meName, address: session.email || "" },
+      to: [{ name: counterpartyName, address: counterpartyAddr }],
+      cc: [],
+      date: nowIso,
+      subject: reSubject || threadSubject,
+      bodyHtml: replyBody,
+      bodyText: replyText,
+      snippet: replyText.slice(0, 200),
+    };
+    const generated = await generateTrainingCounterpartyReply({
+      projectName,
+      projectType,
+      counterparty,
+      traineeName: meName,
+      traineeEmail: session.email || "",
+      threadSubject: reSubject || threadSubject,
+      history: [...stored, traineeMessage],
+      lateFirstResponse: firstResponse,
+    });
+    const { html, text } =
+      generated ?? buildCounterpartyReply({ firstResponse, counterpartyName, pmFirst });
     const respRow: Record<string, unknown> = {
       thread_id: threadId,
       project_id: projectId,

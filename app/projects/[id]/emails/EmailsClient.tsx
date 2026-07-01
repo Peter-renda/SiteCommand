@@ -41,6 +41,16 @@ type LinkedThread = {
   linked_at: string;
 };
 
+type DirectoryContact = {
+  id: string;
+  type: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  company: string | null;
+  job_title: string | null;
+};
+
 type TriageSuggestion = {
   id: string;
   type: "rfi_comment" | "create_task";
@@ -109,8 +119,17 @@ function getActiveProvider(conns: Connections): { provider: EmailProvider; info:
   return null;
 }
 
-export default function EmailsClient({ projectId }: { projectId: string }) {
+export default function EmailsClient({
+  projectId,
+  isTraining = false,
+}: {
+  projectId: string;
+  isTraining?: boolean;
+}) {
   const [connections, setConnections] = useState<Connections | null>(null);
+  // Training sandbox: the fake people the trainee can email (Directory
+  // contacts with an email address).
+  const [directoryContacts, setDirectoryContacts] = useState<DirectoryContact[]>([]);
   const [threads, setThreads] = useState<LinkedThread[]>([]);
   const [loadingThreads, setLoadingThreads] = useState(true);
   const [unlinking, setUnlinking] = useState<string | null>(null);
@@ -158,12 +177,28 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
   }, [projectId]);
 
   useEffect(() => {
-    fetch("/api/emails/connection")
-      .then((r) => r.json())
-      .then((data: Connections) => setConnections(data))
-      .catch(() => setConnections({ outlook: { connected: false }, gmail: { connected: false } }));
+    // Training sandboxes never touch the user's real email connection — the
+    // inbox there is fully simulated, so we load the Directory (the fake
+    // people who can be emailed) instead of the connection status.
+    if (isTraining) {
+      fetch(`/api/projects/${projectId}/directory`)
+        .then((r) => r.json())
+        .then((data: DirectoryContact[]) =>
+          setDirectoryContacts(
+            (Array.isArray(data) ? data : []).filter(
+              (c) => c.type !== "distribution_group" && (c.email ?? "").trim() !== ""
+            )
+          )
+        )
+        .catch(() => setDirectoryContacts([]));
+    } else {
+      fetch("/api/emails/connection")
+        .then((r) => r.json())
+        .then((data: Connections) => setConnections(data))
+        .catch(() => setConnections({ outlook: { connected: false }, gmail: { connected: false } }));
+    }
     loadThreads();
-  }, [loadThreads]);
+  }, [loadThreads, isTraining, projectId]);
 
   const openLinkModal = () => {
     setShowLinkModal(true);
@@ -311,23 +346,36 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
     setSending(true);
     setSendError(null);
     try {
-      const res = await fetch("/api/emails/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: composeTo.trim(),
-          subject: composeSubject.trim(),
-          body: composeBody,
-          cc: composeCc.trim()
-            ? composeCc.split(",").map((s) => s.trim()).filter(Boolean)
-            : [],
-        }),
-      });
+      // Training sandbox: the email is stored locally and the recipient's
+      // reply is generated — the user's real account is never used.
+      const res = isTraining
+        ? await fetch(`/api/projects/${projectId}/emails/compose`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: composeTo.trim(),
+              subject: composeSubject.trim(),
+              body: composeBody,
+            }),
+          })
+        : await fetch("/api/emails/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: composeTo.trim(),
+              subject: composeSubject.trim(),
+              body: composeBody,
+              cc: composeCc.trim()
+                ? composeCc.split(",").map((s) => s.trim()).filter(Boolean)
+                : [],
+            }),
+          });
       if (!res.ok) {
         const data = await res.json();
         setSendError(data.error ?? "Failed to send. Please try again.");
       } else {
         setSendSuccess(true);
+        if (isTraining) loadThreads();
         setTimeout(closeCompose, 1500);
       }
     } catch {
@@ -479,7 +527,7 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
             <h1 className="text-2xl font-semibold text-gray-900">Emails</h1>
             <p className="text-sm text-gray-500 mt-1">Email threads linked to this project</p>
           </div>
-          {active && (
+          {(active || isTraining) && (
             <div className="flex items-center gap-2">
               <button
                 onClick={openCompose}
@@ -490,15 +538,17 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
                 </svg>
                 Compose
               </button>
-              <button
-                onClick={openLinkModal}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                Link Emails to Project
-              </button>
+              {!isTraining && (
+                <button
+                  onClick={openLinkModal}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  Link Emails to Project
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -515,8 +565,17 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
           </div>
         )}
 
+        {/* Training sandbox: simulated-inbox notice instead of the connection banner */}
+        {isTraining && (
+          <div className="mb-6 px-4 py-3 rounded-lg border text-sm bg-blue-50 border-blue-200 text-blue-800">
+            This training project uses a <strong>simulated inbox</strong> — your real email
+            account is never connected here. Compose an email to anyone in the project
+            Directory and they&apos;ll reply automatically.
+          </div>
+        )}
+
         {/* Connection banner */}
-        {connections !== null && (
+        {!isTraining && connections !== null && (
           <div
             className={`mb-6 px-4 py-3 rounded-lg border text-sm flex items-center justify-between gap-4 ${
               active
@@ -560,8 +619,8 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
           </div>
         )}
 
-        {/* New Emails triage deck */}
-        {active && (
+        {/* New Emails triage deck — reads the real inbox, so never in training */}
+        {!isTraining && active && (
           <TriageDeck
             projectId={projectId}
             linkedConvIds={linkedConvIds}
@@ -589,7 +648,9 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
             </svg>
             <p className="text-sm font-medium text-gray-500 mb-1">No email threads linked yet</p>
             <p className="text-xs text-gray-400">
-              {active
+              {isTraining
+                ? 'Click "Compose" to email someone in the project Directory.'
+                : active
                 ? 'Click "Link Emails to Project" to attach conversations to this project.'
                 : "Connect an Outlook or Gmail account to get started."}
             </p>
@@ -820,27 +881,49 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
             <div className="px-6 py-5 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">To</label>
-                <input
-                  type="email"
-                  value={composeTo}
-                  onChange={(e) => setComposeTo(e.target.value)}
-                  placeholder="recipient@example.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
+                {isTraining ? (
+                  <select
+                    value={composeTo}
+                    onChange={(e) => setComposeTo(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  >
+                    <option value="">Select a Directory contact…</option>
+                    {directoryContacts.map((c) => {
+                      const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email;
+                      const detail = [c.job_title, c.company].filter(Boolean).join(", ");
+                      return (
+                        <option key={c.id} value={c.email ?? ""}>
+                          {name}
+                          {detail ? ` — ${detail}` : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                ) : (
+                  <input
+                    type="email"
+                    value={composeTo}
+                    onChange={(e) => setComposeTo(e.target.value)}
+                    placeholder="recipient@example.com"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                )}
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  CC{" "}
-                  <span className="text-gray-400 font-normal">(optional — comma-separated)</span>
-                </label>
-                <input
-                  type="text"
-                  value={composeCc}
-                  onChange={(e) => setComposeCc(e.target.value)}
-                  placeholder="cc@example.com, another@example.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
-              </div>
+              {!isTraining && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    CC{" "}
+                    <span className="text-gray-400 font-normal">(optional — comma-separated)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={composeCc}
+                    onChange={(e) => setComposeCc(e.target.value)}
+                    placeholder="cc@example.com, another@example.com"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Subject</label>
                 <input
@@ -870,11 +953,15 @@ export default function EmailsClient({ projectId }: { projectId: string }) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between gap-4">
-              {active && (
+              {isTraining ? (
+                <span className="text-xs text-gray-400 truncate">
+                  Simulated email — the recipient will reply automatically.
+                </span>
+              ) : active ? (
                 <span className="text-xs text-gray-400 truncate">
                   From: <strong>{active.info.email}</strong>
                 </span>
-              )}
+              ) : null}
               <div className="flex items-center gap-2 ml-auto shrink-0">
                 <button
                   onClick={closeCompose}
