@@ -355,11 +355,15 @@ export async function seedTrainingProjectManager(
     projectLabel: label,
   });
 
-  // 4) External inbox senders — the owner's rep and the vendors who will email
-  // the trainee as days advance (see lib/training-inbox.ts). Seeded into the
-  // Directory with email + phone so the trainee can reach out to them.
-  // (Internal senders like the accounting manager are part of TEAM above.)
-  const externalSenders = Object.values(INBOX_SENDERS).filter((s) => !s.internal);
+  // 4) External inbox senders — the owner's rep, vendors, and the
+  // utility/AHJ/design-team scenario contacts who will email the trainee as
+  // days advance (see lib/training-inbox.ts). Seeded into the Directory with
+  // email + phone so the trainee can reach out to them. (Internal senders
+  // like the accounting manager are part of TEAM above; seedContact:false
+  // senders are already in the Directory via the sub roster.)
+  const externalSenders = Object.values(INBOX_SENDERS).filter(
+    (s) => !s.internal && s.seedContact !== false,
+  );
   const externalContacts = externalSenders.map((s) => ({
     project_id: projectId,
     type: "user" as const,
@@ -439,6 +443,42 @@ export async function deliverTrainingInboxThroughDay(
     projectLabel: projectTypeLabel(project.training_project_type ?? ""),
     companyName,
   };
+
+  // Self-heal the Directory: sandboxes launched before a sender existed won't
+  // have their contact, so insert any missing external senders for the mail
+  // being delivered (phone lookup + reply-persona grounding both depend on it).
+  const senderKeys = [...new Set(missing.map((e) => e.senderKey))];
+  const needContacts = senderKeys
+    .map((k) => INBOX_SENDERS[k])
+    .filter((s): s is NonNullable<typeof s> => !!s && !s.internal && s.seedContact !== false);
+  if (needContacts.length > 0) {
+    const { data: contacts } = await supabase
+      .from("directory_contacts")
+      .select("email")
+      .eq("project_id", opts.projectId)
+      .in(
+        "email",
+        needContacts.map((s) => inboxSenderEmail(s, domain)),
+      );
+    const haveEmails = new Set(
+      ((contacts ?? []) as { email: string | null }[]).map((c) =>
+        (c.email ?? "").toLowerCase(),
+      ),
+    );
+    const inserts = needContacts
+      .filter((s) => !haveEmails.has(inboxSenderEmail(s, domain).toLowerCase()))
+      .map((s) => ({
+        project_id: opts.projectId,
+        type: "user" as const,
+        first_name: s.first,
+        last_name: s.last,
+        email: inboxSenderEmail(s, domain),
+        phone: s.phone,
+        company: s.company,
+        job_title: s.title,
+      }));
+    if (inserts.length > 0) await supabase.from("directory_contacts").insert(inserts);
+  }
 
   // Older scheduled days deliver first; stagger sent_at by a minute so the
   // thread list orders deterministically when several land in one catch-up.
