@@ -17,6 +17,7 @@ import {
 } from "@/lib/training-schedule";
 import { INBOX_SENDERS, inboxEmailsForDay } from "@/lib/training-inbox";
 import { getLesson } from "@/lib/training-lessons";
+import { meetingForTask } from "@/lib/training-meetings";
 
 /**
  * Day-by-day task panel shown in a training sandbox. It surfaces the tasks
@@ -557,6 +558,9 @@ export default function TrainingDayPanel({
           <ul className="space-y-3">
             {tasks.map((t, i) => {
               const checked = !!checks[`${currentDay}-${i}`];
+              // Tasks with a defined meeting hyperlink to the interactive
+              // text meeting, opened in a new tab.
+              const meeting = meetingForTask(role, currentDay, t.task);
               return (
                 <li key={i} className="flex items-start gap-2">
                   <button
@@ -570,9 +574,23 @@ export default function TrainingDayPanel({
                     {checked ? "✓" : ""}
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className={`text-sm leading-snug ${checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
-                      {t.task}
-                    </p>
+                    {meeting ? (
+                      <a
+                        href={`/training/meeting?project=${projectId}&meeting=${meeting.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`block text-sm leading-snug font-medium hover:underline ${checked ? "text-gray-400 line-through" : "text-blue-600 hover:text-blue-800"}`}
+                      >
+                        {t.task}
+                        <span className="ml-1 text-[11px] font-normal text-gray-400">
+                          (join meeting ↗)
+                        </span>
+                      </a>
+                    ) : (
+                      <p className={`text-sm leading-snug ${checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
+                        {t.task}
+                      </p>
+                    )}
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryClass(t.category)}`}>
                         {t.category}
