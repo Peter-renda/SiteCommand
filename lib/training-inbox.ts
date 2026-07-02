@@ -11,6 +11,14 @@
  *   - The GC's own accounting department — vendor invoices to code + approve
  *     (rendered as an in-body invoice), billing-cycle reminders, missing lien
  *     waivers, retainage/closeout billing prep.
+ *   - Lesson-driven scenario mail — the utility company (load letter, panel
+ *     locations, the energization gate), the AHJ (permit conditions, the fire
+ *     alarm acceptance test, ERRC), the civil engineer of record (LOD/tree
+ *     save, bioretention protection, site closeout), the testing agency
+ *     (failed compaction, low breaks, unsuitable soils), the architect
+ *     (submittal returns, mock-ups), subs and the controls integrator. Each of
+ *     these maps to Training → Lessons content (lesson ids noted per email)
+ *     so the trainee gets to apply what the curriculum teaches.
  *
  * This module is pure content and client-safe: the Day panel imports
  * `inboxEmailsForDay` to show a "new mail" hint, and the server-side delivery
@@ -29,6 +37,12 @@ export type InboxSender = {
   phone: string;
   /** Internal = works for the GC (accounting); email derived from the GC domain. */
   internal?: boolean;
+  /**
+   * false = don't seed a Directory contact for this sender (used when the
+   * persona is already in the Directory another way — e.g. a TRAINING_SUBS
+   * roster member, whose subEmailFor() address matches inboxSenderEmail()).
+   */
+  seedContact?: boolean;
 };
 
 export type InboxCtx = {
@@ -97,6 +111,75 @@ export const INBOX_SENDERS: Record<string, InboxSender> = {
     title: "Equipment Sales Manager",
     company: "Pinnacle HVAC Equipment",
     phone: "(770) 555-0377",
+  },
+  // ── Lesson-driven scenario senders ──────────────────────────────────────
+  utility_rep: {
+    key: "utility_rep",
+    first: "Marcus",
+    last: "Reed",
+    title: "Service Design Consultant",
+    company: "Piedmont Power & Light",
+    phone: "(770) 555-0455",
+  },
+  building_dept: {
+    key: "building_dept",
+    first: "Angela",
+    last: "Torres",
+    title: "Inspections Coordinator, Building Department",
+    company: "City of Riverton",
+    phone: "(770) 555-0470",
+  },
+  fire_marshal: {
+    key: "fire_marshal",
+    first: "Sandra",
+    last: "Okoye",
+    title: "Deputy Fire Marshal",
+    company: "City of Riverton",
+    phone: "(770) 555-0482",
+  },
+  civil_engineer: {
+    key: "civil_engineer",
+    first: "Priya",
+    last: "Sharma",
+    title: "Project Engineer, PE (Civil)",
+    company: "Harlan Civil Group",
+    phone: "(404) 555-0510",
+  },
+  testing_agency: {
+    key: "testing_agency",
+    first: "Owen",
+    last: "Blake",
+    title: "Field Operations Manager",
+    company: "Meridian Testing Labs",
+    phone: "(770) 555-0429",
+  },
+  architect: {
+    key: "architect",
+    first: "Laura",
+    last: "Chen",
+    title: "Project Architect",
+    company: "Halford Studio Architects",
+    phone: "(404) 555-0520",
+  },
+  controls_sub: {
+    key: "controls_sub",
+    first: "Alan",
+    last: "Reyes",
+    title: "Senior Systems Engineer",
+    company: "Corebridge Controls",
+    phone: "(678) 555-0533",
+  },
+  // Matches the TRAINING_SUBS fire protection roster member — same
+  // first/last/company, so inboxSenderEmail() equals subEmailFor() and the
+  // existing Directory contact (seeded with the sub roster) is reused.
+  fire_sub: {
+    key: "fire_sub",
+    first: "Aisha",
+    last: "Coleman",
+    title: "Fire Protection — Subcontractor",
+    company: "Sentinel Fire Systems",
+    phone: "(404) 555-0291",
+    seedContact: false,
   },
 };
 
@@ -530,6 +613,458 @@ ${invoiceHtml({
 <p>Send me the list of subs whose scopes are fully complete and punch-clear, and I'll start staging their final paperwork. Nice work getting this one to the finish line.</p>
 
 <p>Janet</p>
+`.trim(),
+  },
+
+  // ── Lesson-driven scenario mail ────────────────────────────────────────
+  // Each of these exercises specific Training → Lessons content (lesson ids
+  // noted per email) so the trainee applies the curriculum, not just reads it.
+
+  // Lessons: mep-electrical-distribution, cn-longlead — the utility as the
+  // longest external dependency; the load letter and equipment locations ask.
+  {
+    day: 5,
+    slug: "utility-service-application",
+    senderKey: "utility_rep",
+    subject: "New Service Application — Load Letter & Equipment Locations Needed",
+    html: (ctx) =>
+      `
+<p>Good morning ${ctx.pmFirst},</p>
+
+<p>I've been assigned as the service design consultant for the ${ctx.projectLabel} project. Before I can start the service design and get you into our engineering queue, I need the following from your team:</p>
+
+<ul>
+  <li><strong>Completed service application</strong> — form attached on our portal; the owner or GC can submit.</li>
+  <li><strong>Load letter from your electrical engineer</strong> — total connected load and demand load in amps, service voltage (I'm assuming 480/277V, 3-phase — confirm), and any large motor or EV charging loads we should plan for.</li>
+  <li><strong>Load center / panel locations and ampacities</strong> — where your main switchgear and distribution panels will sit, and the main service size, so we can work out the metering configuration.</li>
+  <li><strong>Site plan showing the proposed transformer pad location</strong> and the primary conduit route from our nearest point of service. You build the pad and primary conduit to our standards; we set the transformer.</li>
+  <li><strong>Easement execution</strong> — our legal team needs the recorded easement before we'll energize. This one takes owners longer than anyone expects; start it now.</li>
+</ul>
+
+<p>Timeline reality: once I have a complete package, service design takes <strong>6-8 weeks</strong>, and transformer procurement on our side is running <strong>several months</strong>. If your schedule needs permanent power next year, the clock starts when this package is complete — not when the building is ready.</p>
+
+<p>Happy to do a site walk once your team has a proposed pad location.</p>
+
+<p>Marcus Reed<br/>Service Design Consultant, Piedmont Power &amp; Light<br/>(770) 555-0455</p>
+`.trim(),
+  },
+
+  // Lesson: sc-esc — SWPPP inspection log, corrective actions, tracking; the
+  // compliance layer the PM owns daily, surfaced through owner pressure.
+  {
+    day: 9,
+    slug: "owner-erosion-control",
+    senderKey: "owner_rep",
+    subject: "Erosion Control — Question From Our Lender's Site Visit",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Our construction lender's inspector drove the site after the storms this weekend and sent me photos I didn't love: a run of <strong>silt fence laid over along the east property line</strong>, and what looks like <strong>mud tracked onto the public road</strong> at the entrance.</p>
+
+<p>I need to be able to answer their questions, so please get back to me on:</p>
+<ul>
+  <li>Is the <strong>SWPPP inspection log current</strong> — including the required post-rain-event inspections from this weekend?</li>
+  <li>Who is your designated erosion control inspector, and what <strong>corrective actions</strong> are open right now with what completion dates?</li>
+  <li>When do the disturbed slopes on the east side get <strong>stabilized</strong>? The inspector specifically asked.</li>
+</ul>
+
+<p>You know I don't micromanage means and methods, but environmental compliance is a lender covenant on this deal — a notice of violation would be a genuine problem upstairs. Tell me it's handled and show me the paper.</p>
+
+<p>Elaine</p>
+`.trim(),
+  },
+
+  // Lessons: wf-permits, tech-testing-cx — permit conditions, the inspection
+  // sequence, and the statement of special inspections as a CO prerequisite.
+  {
+    day: 11,
+    slug: "city-permit-conditions",
+    senderKey: "building_dept",
+    subject: "Building Permit Issued — Conditions & Inspection Scheduling",
+    html: (ctx) =>
+      `
+<p>Good afternoon,</p>
+
+<p>Your building permit for the ${ctx.projectLabel} project has been issued. Please note the following conditions before you call for your first inspection:</p>
+
+<ul>
+  <li>The <strong>statement of special inspections</strong> is part of your permit. Your owner's testing agency must submit reports as work proceeds, and the <strong>final special inspections report is required before a Certificate of Occupancy</strong> will be issued.</li>
+  <li>Inspections are requested through the city portal <strong>by 3:00 PM for next-business-day service</strong>. Footing inspections require the excavation open, reinforcing in place, and the approved plans on site.</li>
+  <li>A full <strong>approved, stamped drawing set must be on site</strong> at every inspection. Inspectors will not inspect against unstamped or superseded sheets.</li>
+  <li>Your <strong>land disturbance permit inspections are separate</strong> from building inspections and are handled by the stormwater division — different inspector, different scheduling line.</li>
+  <li>Failed inspections require a re-inspection request and may carry a re-inspection fee after the second failure.</li>
+</ul>
+
+<p>Please make sure your superintendent has portal access set up before your footing work begins. Reply to this address with any scheduling questions.</p>
+
+<p>Angela Torres<br/>Inspections Coordinator, Building Department — City of Riverton<br/>(770) 555-0470</p>
+`.trim(),
+  },
+
+  // Lessons: sc-grading, sc-stormwater, sc-landscape — LOD/tree save fencing,
+  // protecting bioretention from compaction, spot grade vs. rim conflicts.
+  {
+    day: 13,
+    slug: "civil-grading-release",
+    senderKey: "civil_engineer",
+    subject: "Grading Release + Three Things to Protect Before the Dozer Starts",
+    html: (ctx) =>
+      `
+<p>Hi ${ctx.pmFirst},</p>
+
+<p>The revised grading plan is released for construction — the updated sheets are in the current set. Before mass grading starts, three things I'd ask your team to walk and physically verify, because they're the ones that go wrong on every project:</p>
+
+<ul>
+  <li><strong>Limits of disturbance and tree save fencing</strong> — the LOD line and both tree save areas need fencing up <em>before</em> clearing starts. The city arborist photographs these on their first drive-by, and replacement trees are priced per caliper inch.</li>
+  <li><strong>Bioretention cell footprints</strong> — the two cells in the south parking area must be fenced off from equipment traffic for the whole job. If those subgrades get compacted by machines crossing them, the infiltration testing at closeout <strong>will fail</strong> and the cells get excavated and rebuilt at your cost. Treat them like tree save areas.</li>
+  <li><strong>Structure ST-14</strong> — heads-up that I'm checking a discrepancy: the grading plan shows a spot grade at that inlet that doesn't match the rim elevation on the storm profile. I should have a plan revision or confirmation within the week — please have your sitework contractor <strong>hold off setting that structure</strong> until I confirm. If your team spots any other rim/grade conflicts during layout, send them my way as RFIs and I'll turn them around fast.</li>
+</ul>
+
+<p>I'd also recommend we get a grading start-up meeting on the calendar with your super and the sitework foreman — 45 minutes now saves everyone a rework fight later.</p>
+
+<p>Priya Sharma, PE<br/>Project Engineer, Harlan Civil Group<br/>(404) 555-0510</p>
+`.trim(),
+  },
+
+  // Lessons: tech-sitework, wf-quality — compaction verified lift by lift; a
+  // failed lift buried under more lifts is expensive to find again.
+  {
+    day: 19,
+    slug: "testing-failed-compaction",
+    senderKey: "testing_agency",
+    subject: "Failed Density Tests — Sanitary Trench Backfill, Area B",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Flagging today's field results so this doesn't get buried under another lift of fill:</p>
+
+<ul>
+  <li>Two density tests on the <strong>sanitary trench backfill in Area B failed</strong> — 89% and 91% against a 95% standard proctor requirement. The material looked wet of optimum to our tech.</li>
+  <li>More importantly: the crew had <strong>already placed the next lift over one of the failed areas</strong> before our results were in. That lift needs to come back out, the failed lift re-compacted (probably after drying), and both re-tested before anything goes back over it.</li>
+</ul>
+
+<p>Two asks for your super and the sitework foreman:</p>
+<ul>
+  <li>Hold the schedule on that trench run until we've retested — passing tests <strong>lift by lift</strong> is the requirement, and a failed lift under three more lifts becomes an excavation project.</li>
+  <li>Call our office for testing <strong>before</strong> covering work, not after. Same-day service if you call by 2 PM.</li>
+</ul>
+
+<p>Full reports are in today's transmittal. Failed test locations are staked in the field.</p>
+
+<p>Owen Blake<br/>Field Operations Manager, Meridian Testing Labs<br/>(770) 555-0429</p>
+`.trim(),
+  },
+
+  // Lessons: sc-environmental, wf-change-events, com-clauses — the suspect-soil
+  // field protocol and the differing-site-condition notice clock.
+  {
+    day: 21,
+    slug: "testing-suspect-soils",
+    senderKey: "testing_agency",
+    subject: "Unsuitable Material at NE Building Pad — Recommend You Stop & Evaluate",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Our field tech flagged something at the northeast corner of the building pad this morning that you need to know about today, not in the weekly report:</p>
+
+<ul>
+  <li>The cut exposed a pocket of <strong>undocumented fill — construction debris, brick, and what looks like decayed organic material</strong> — roughly 40' × 60' in plan, depth unknown. This does <strong>not</strong> appear in the geotechnical borings, which were clean in that area.</li>
+  <li>There's also a <strong>faint petroleum-like odor</strong> in one portion of the exposure. Could be nothing, but I'm obligated to mention it.</li>
+</ul>
+
+<p>Our recommendations:</p>
+<ul>
+  <li><strong>Stop excavation in that zone</strong> and keep equipment from spreading material around the site.</li>
+  <li>Photograph and document the exposure — location, extent, appearance — while it's open.</li>
+  <li>Get your geotechnical engineer out for an evaluation; if the odor is real, the owner's environmental consultant should be involved before anyone hauls anything off site. Contaminated spoil is manifested waste, not fill.</li>
+  <li>You know your contract better than I do, but conditions that differ from the geotech report usually carry a <strong>notice requirement with a short clock</strong> — worth papering today.</li>
+</ul>
+
+<p>Our tech is on site until 3 PM if your super wants to walk it together.</p>
+
+<p>Owen Blake<br/>Field Operations Manager, Meridian Testing Labs<br/>(770) 555-0429</p>
+`.trim(),
+  },
+
+  // Lesson: tech-concrete — chasing low breaks to closure; strength governs
+  // stripping/loading decisions, not the calendar.
+  {
+    day: 26,
+    slug: "testing-low-breaks",
+    senderKey: "testing_agency",
+    subject: "Low 7-Day Breaks — Foundation Wall Pour #6",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Lab results from foundation wall pour #6 (last week, east wing): the <strong>7-day cylinder breaks came in at 62% of design strength</strong> — we'd normally expect around 70% at 7 days for this mix. Not a failure yet (the 28-day breaks govern), but low enough that I want it on your radar:</p>
+
+<ul>
+  <li>The 28-day cylinders are in the cure room; we'll break on schedule and can add an intermediate break at 14 days if you want an early read — just say the word.</li>
+  <li>Until then, I'd recommend your team <strong>hold off on stripping wall forms early or backfilling against that pour</strong> — loading decisions should ride on strength results, not the calendar.</li>
+  <li>Worth checking with the concrete sub whether anything was different on that pour — added water at the truck, a cold night without protection, a different batch plant. If the 28-day breaks come in low, the engineer of record will ask, and cores may follow.</li>
+</ul>
+
+<p>Report attached in today's transmittal. We'll flag the 28-day results the day they break.</p>
+
+<p>Owen Blake<br/>Field Operations Manager, Meridian Testing Labs<br/>(770) 555-0429</p>
+`.trim(),
+  },
+
+  // Lessons: wf-submittals, tech-envelope, wf-quality — partial release
+  // mechanics, resubmittal scope, and the envelope mock-up gate.
+  {
+    day: 33,
+    slug: "architect-submittal-mockup",
+    senderKey: "architect",
+    subject: "Elevator Package Returned (Partial Release) + Envelope Mock-Up Reminder",
+    html: (ctx) =>
+      `
+<p>Hi ${ctx.pmFirst},</p>
+
+<p>Two items from our review desk:</p>
+
+<p><strong>1) Elevator submittal — returned today, split action.</strong> The hoistway layout, rail, and structural interface drawings are <strong>Approved as Noted</strong> — released so fabrication can hold its slot. The <strong>cab interior finishes are Revise &amp; Resubmit</strong>: the proposed panel laminate doesn't match the interior finish schedule (see markups), and the cab lighting cut sheet is missing the required photometrics. Please have Apex resubmit the finishes portion only — don't hold the structural release for it.</p>
+
+<p><strong>2) Envelope mock-up.</strong> Reminder that spec section 072700 requires an <strong>approved exterior wall mock-up before any cladding is released for installation</strong> — WRB, window, flashings, and both cladding types, built as a freestanding panel. Based on your schedule, that mock-up needs to be built and reviewed within the next few weeks. Please coordinate a date; I'll walk it with our envelope consultant. The approved mock-up becomes the quality benchmark for the elevation work, so protect it once it's signed off.</p>
+
+<p>Both formal responses are in the submittal log. Call me if the split action on the elevator package causes your vendor any confusion.</p>
+
+<p>Laura Chen<br/>Project Architect, Halford Studio Architects<br/>(404) 555-0520</p>
+`.trim(),
+  },
+
+  // Lesson: mep-electrical-distribution — the temp-to-perm energization gate
+  // and everything conditioned on it, planned backward.
+  {
+    day: 36,
+    slug: "utility-energization-checklist",
+    senderKey: "utility_rep",
+    subject: "Transformer Set & Energization — What We Need From Your Side",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Good progress on our end — the service design is complete and your transformer is allocated. Now the sequencing part, because <strong>energization dates are lost on the customer side</strong> far more often than on ours. Our checklist before we set and energize:</p>
+
+<ul>
+  <li><strong>Pad and primary conduit</strong> — built to our standards and inspected by our field engineer (I'll schedule him when you're a week out).</li>
+  <li><strong>Recorded easement</strong> — still showing as pending with your owner's attorney. This is currently your longest pole; nothing energizes without it.</li>
+  <li><strong>City electrical inspection release</strong> — the city releases the meter to us directly; we can't take your electrician's word for it.</li>
+  <li><strong>Meter base set and switchgear room complete</strong> — dry, lockable, and clear working space at the gear.</li>
+  <li><strong>Crew scheduling</strong> — we book energization crews about <strong>3 weeks out</strong>, and storm response can bump construction work. Build slack around the date.</li>
+</ul>
+
+<p>Friendly planning note from someone who watches this movie every month: your elevator startup, HVAC startup, and controls checkout are all sitting behind this date. Work the list backward from when you need those running, and get me the easement status this week.</p>
+
+<p>Marcus Reed<br/>Service Design Consultant, Piedmont Power &amp; Light<br/>(770) 555-0455</p>
+`.trim(),
+  },
+
+  // Lessons: mep-fire-suppression, mep-coordination-scheduling — no installation
+  // ahead of coordination sign-off; tested sprinkler pipe yields to nothing.
+  {
+    day: 40,
+    slug: "sub-sprinkler-early-start",
+    senderKey: "fire_sub",
+    subject: "Request — Start Level 2 Branch Piping Ahead of Coordination Sign-Off",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>I'll be straight with you — I have a crew coming off another job Monday and I'd rather keep them on your project than lose them to another GC for a month. Here's my ask:</p>
+
+<p>Let us start hanging <strong>Level 2 branch piping</strong> next week. I know the above-ceiling coordination for Level 2 isn't signed off yet — mechanical is still moving their medium-pressure duct around — but my foreman has looked at it and thinks we can work around wherever the duct lands. Mains stay off; branches only, and we'll be flexible.</p>
+
+<p>I'd need your answer by Thursday to hold the crew. If we can't start, I have to send them elsewhere and Level 2 sprinkler slides at least three weeks, which I know backs into your inspection sequence.</p>
+
+<p>Your call — you know how I feel about re-doing work, but a parked crew costs me money either way.</p>
+
+<p>Aisha Coleman<br/>Sentinel Fire Systems<br/>(404) 555-0291</p>
+`.trim(),
+  },
+
+  // Lessons: mep-coordination-scheduling, wf-sov-payapp — installed quantities
+  // as the check on percent-complete claims; the pencil draw adjustment.
+  {
+    day: 46,
+    slug: "acct-mech-overbilling",
+    senderKey: "accounting",
+    subject: "Northwind Mechanical Pay App — 80% on Ductwork, Field Walk Says Otherwise",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Reviewing this month's sub pay applications ahead of the pencil draw, and one needs your eyes before I load it:</p>
+
+<ul>
+  <li><strong>Northwind Mechanical is billing ductwork at 80% complete</strong> ($412,000 of their $515,000 duct line).</li>
+  <li>Your super's notes from Tuesday's walk say Levels 1-2 duct is hung and Level 3 is maybe half done — his words were <em>"call it 55% of the pounds, tops."</em></li>
+  <li>They're also billing their controls allowance at 40%, and I don't believe the controls sub has pulled a single wire yet.</li>
+</ul>
+
+<p>Per our process, please <strong>adjust their percentages in the pencil draw against the commitment SOV</strong> and send it back to them with the walk notes attached — installed quantities, not narrative. If they want to dispute it, the walk happens together with your super and a copy of the coordination drawings.</p>
+
+<p>Not the fun part of the job, but overbilled subs are underbilled risk for us — if they default at 80% billed and 55% built, we eat the difference.</p>
+
+<p>Janet</p>
+`.trim(),
+  },
+
+  // Lesson: mep-bms — points list review, controls prerequisites, and
+  // protecting the controls duration from end-of-job compression.
+  {
+    day: 48,
+    slug: "controls-points-list",
+    senderKey: "controls_sub",
+    subject: "Points List for Review + A Warning About Our Runway",
+    html: (ctx) =>
+      `
+<p>Hi ${ctx.pmFirst},</p>
+
+<p>Two things, one routine and one that keeps me up at night.</p>
+
+<p><strong>Routine:</strong> our BMS points list submittal went in today — every monitored and controlled point, per equipment, mapped against the mechanical engineer's sequences of operations. Please push your team and the engineer to review it against the sequences <em>carefully</em>: a point missing from this list is a function missing from the building, and adding it after rough-in means conduit, wire, and a mobilization instead of a line on a spreadsheet.</p>
+
+<p><strong>The warning:</strong> our finish work is the last domino in the building. Point-to-point checkout can't start until we have <strong>permanent power, started-up equipment, and completed wiring</strong> — and our durations only work if those land on the dates in the schedule. Every week the switchgear energization or AHU startup slips, our window compresses while the CO date stays put. I've watched projects skip our checkout to "save time" and then burn three weeks of commissioning debugging wiring that point-to-point would have caught in three days.</p>
+
+<p>Ask: can you send me your current dates for <strong>permanent power, AHU startup, and TAB start</strong>? I'll level with you immediately if our duration doesn't fit between them and the CO.</p>
+
+<p>Alan Reyes<br/>Senior Systems Engineer, Corebridge Controls<br/>(678) 555-0533</p>
+`.trim(),
+  },
+
+  // Lessons: sc-streets-parking, sc-pedestrian-ada, sc-entitlements — parking
+  // geometry, ADA counts, and entitlement commitments you can't restripe away.
+  {
+    day: 50,
+    slug: "owner-parking-restripe",
+    senderKey: "owner_rep",
+    subject: "Leasing Ask — Can We Add ~10 Parking Spaces by Restriping?",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Leasing is telling me we're going to be tight on parking at lease-up, and they've asked a question I want your honest read on before I spend money on our civil engineer:</p>
+
+<ul>
+  <li>Can we pick up <strong>roughly 10 more spaces by restriping</strong> the main lot — tighter stalls, maybe compact spaces along the north edge?</li>
+  <li>Separately, our property manager wants the <strong>dumpster enclosure relocated</strong> closer to the building so staff aren't walking as far.</li>
+</ul>
+
+<p>My instinct says striping is cheap so this should be easy — but I've been surprised before, and I'd rather hear the catch from you now than from the city later. Is there anything in the parking geometry, the <strong>accessible stalls</strong>, or our site plan approval that makes either of these more than a paint-and-move job?</p>
+
+<p>If it's genuinely easy, give me a number. If it's not, tell me why in terms I can repeat to leasing.</p>
+
+<p>Elaine</p>
+`.trim(),
+  },
+
+  // Lessons: mep-startup-cx, mep-hvac-air — beneficial use: warranty clocks,
+  // construction filters, and the written agreement before early operation.
+  {
+    day: 53,
+    slug: "owner-early-hvac",
+    senderKey: "owner_rep",
+    subject: "Can We Run the HVAC Early? Humidity Is Beating Up the Millwork Schedule",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Your super mentioned the millwork and flooring installers are worried about humidity in the building, and honestly so am I — we can't afford acclimation delays on the finish schedule.</p>
+
+<p>Simple question from my side: <strong>the rooftop units are sitting up there — can we just turn them on and condition the building?</strong></p>
+
+<p>Before you say yes, I want your professional read on whether there's a catch. I've had a GC on another project do this without telling us and we ended up in an ugly warranty argument with the equipment manufacturer a year later. If there's a right way to run permanent equipment early — whatever protections or paperwork that involves — lay it out for me and let's do it the right way.</p>
+
+<p>Need an answer this week; the millwork delivery is scheduled and I don't want it sitting in a humid building.</p>
+
+<p>Elaine</p>
+`.trim(),
+  },
+
+  // Lessons: mep-security-fire-alarm, mep-low-voltage — the acceptance test
+  // gate, the pre-test discipline, and the ERRC/DAS late surprise.
+  {
+    day: 59,
+    slug: "fire-marshal-acceptance",
+    senderKey: "fire_marshal",
+    subject: "Fire Alarm Acceptance Test — Scheduling Requirements (Read Before Booking)",
+    html: (ctx) =>
+      `
+<p>Good morning,</p>
+
+<p>Your fire alarm contractor contacted our office about scheduling the acceptance test for the ${ctx.projectLabel} project. Before anyone books a date, understand our requirements — failed acceptance tests are the single biggest cause of delayed occupancies in this jurisdiction:</p>
+
+<ul>
+  <li>We are currently booking acceptance tests <strong>3 weeks out</strong>. A failed test goes to the back of the queue, not the front.</li>
+  <li>The test is <strong>100% of devices</strong> — every initiating device activated, every notification appliance verified, no sampling.</li>
+  <li>The <strong>sequence of operations matrix</strong> must be submitted to this office for review <strong>before</strong> the test date.</li>
+  <li>All interfaced systems must be complete and functional at test time: <strong>elevator recall, HVAC shutdown, door holders, and access control release</strong>. If the elevator isn't ready to demonstrate recall, do not book the date.</li>
+  <li>We require your contractor's <strong>completed pre-test documentation</strong> — a full dry run of the matrix — submitted with the booking. I strongly recommend you attend that pre-test yourself.</li>
+</ul>
+
+<p>Separately: our records show no <strong>emergency responder radio coverage (ERRC) test</strong> on file for this building. Coverage must be verified before CO — if the building needs a DAS, you want to know that <em>now</em>, not at final. Have your low-voltage contractor run the grid test and submit results to this office.</p>
+
+<p>Lt. Sandra Okoye<br/>Deputy Fire Marshal, City of Riverton<br/>(770) 555-0482</p>
+`.trim(),
+  },
+
+  // Lesson: tech-vertical-lv — the state elevator inspection backlog and its
+  // prerequisite chain (permanent power, fire alarm recall interface).
+  {
+    day: 62,
+    slug: "vendor-elevator-inspection",
+    senderKey: "elevator_vendor",
+    subject: "State Elevator Inspection — Backlog Is 4 Weeks, Book It Now",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Installation is tracking well, so now the part that catches every project off guard: <strong>the state elevator inspector's current backlog is about 4 weeks</strong>, and that's a different agency with a different calendar than your city inspections. If occupancy depends on the elevator (it does), we need to request the inspection date <em>now</em> and build to it.</p>
+
+<p>What must be complete before the state inspector will certify:</p>
+<ul>
+  <li><strong>Permanent power</strong> — the inspection cannot run on temp power.</li>
+  <li><strong>Machine room / controller space finished</strong> — dedicated, lockable, code-compliant lighting and ventilation.</li>
+  <li><strong>Fire alarm recall interface tested</strong> — the inspector will demonstrate recall live with your alarm contractor present. Coordinate this with your fire alarm acceptance testing.</li>
+  <li><strong>Pit clean and dry</strong>, ladder and pit light in, hoistway free of other trades' anything.</li>
+  <li>Our completed pre-inspection checklist — my techs run it the week before.</li>
+</ul>
+
+<p>Give me the green light and I'll file the request this week. Miss this window and the next slot pushes past where I suspect your CO needs to be.</p>
+
+<p>Tom Garrity<br/>Project Sales Engineer, Apex Elevator Systems<br/>(678) 555-0348</p>
+`.trim(),
+  },
+
+  // Lessons: sc-stormwater, sc-esc, sc-landscape — sediment basin conversion,
+  // NPDES notice of termination, landscape establishment at closeout.
+  {
+    day: 64,
+    slug: "civil-closeout-site",
+    senderKey: "civil_engineer",
+    subject: "Site Closeout — Basin Conversion, As-Builts & Landscape Establishment",
+    html: (ctx) =>
+      `
+<p>Hi ${ctx.pmFirst},</p>
+
+<p>As the site work winds down, here's the civil closeout list — these items gate your stormwater permit closure and parts of the CO package, and they always take longer than anyone budgets:</p>
+
+<ul>
+  <li><strong>Sediment basin conversion</strong> — the construction basin converts to the permanent stormwater pond per the detail: muck out accumulated sediment, regrade to design contours, install the permanent outlet structure, and stabilize. The city will not accept the pond with construction sediment in it.</li>
+  <li><strong>Bioretention cells</strong> — final media, plantings, and the infiltration verification test. This is where equipment traffic during construction comes home to roost; if the cells were protected, this is routine.</li>
+  <li><strong>As-built survey</strong> — rim and invert elevations on every storm structure, pond volumes, and the BMPs, sealed by your surveyor. Required for the stormwater permit closeout and the city's GIS intake.</li>
+  <li><strong>NPDES notice of termination</strong> — can only be filed once <strong>final stabilization</strong> is achieved (established vegetation, not just seeded dirt). Until it's filed, your SWPPP inspections continue — rain events included.</li>
+  <li><strong>Landscape establishment</strong> — confirm with your landscape contractor who owns watering and maintenance through the establishment period, and get the tree save areas walked before their fencing comes down. Grade-change damage shows up at the end.</li>
+</ul>
+
+<p>Happy to walk the site with your super and build the punch for these — earlier is cheaper on every one of them.</p>
+
+<p>Priya Sharma, PE<br/>Project Engineer, Harlan Civil Group<br/>(404) 555-0510</p>
 `.trim(),
   },
 ];
