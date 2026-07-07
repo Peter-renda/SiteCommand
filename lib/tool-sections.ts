@@ -48,6 +48,12 @@ export const TOOL_SECTIONS = [
     ],
   },
   {
+    label: "Development",
+    items: [
+      { name: "Zoning Analysis", slug: "zoning-analysis" },
+    ],
+  },
+  {
     label: "Financial Management",
     items: [
       { name: "Prime Contracts", slug: "prime-contracts" },
