@@ -26,6 +26,9 @@ function isToolEnabled(slug: string, enabledFeatures: string[] | null | undefine
   // company allowlists were created, so default to visible unless explicitly
   // removed through project/user tool permissions.
   if (slug === "permit-applications") return true;
+  // Development → Zoning Analysis launched after many existing company
+  // allowlists were created, so default to visible unless explicitly removed.
+  if (slug === "zoning-analysis") return true;
   // Core Tools → Emails launched after existing company allowlists were
   // created, so it shows everywhere by default until allowlists are updated.
   if (slug === "emails") return true;
@@ -326,7 +329,7 @@ export default function ProjectNav({
             </button>
             {open && (
               <div className="absolute left-0 top-full mt-1 w-[min(92vw,224px)] sm:w-[min(96vw,1120px)] bg-white border border-gray-100 rounded-xl shadow-xl z-[9999] p-5 max-h-[80vh] overflow-y-auto">
-                <div className="grid grid-cols-1 gap-1 sm:grid-cols-5 sm:gap-6">
+                <div className="grid grid-cols-1 gap-1 sm:grid-cols-6 sm:gap-6">
                   {visibleSections.map((section) => (
                     <div key={section.label}>
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 mt-3 sm:mt-0">
