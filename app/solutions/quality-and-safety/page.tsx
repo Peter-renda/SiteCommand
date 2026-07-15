@@ -122,9 +122,6 @@ export default function QualityAndSafetyPage() {
                 <span className="relative z-10">Get started free</span>
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
               </Link>
-              <Link href="/demo" className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:border-gray-300 hover:bg-white active:scale-[0.98]" style={{ background: "rgba(255,255,255,0.6)" }}>
-                See a demo <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </Link>
             </div>
           </div>
         </div>
@@ -253,8 +250,8 @@ export default function QualityAndSafetyPage() {
             <p className="text-sm text-gray-500">Schedule a 20-minute walkthrough. No slides — just live software on a real project.</p>
           </div>
           <div className="flex gap-3 flex-wrap shrink-0">
-            <Link href="/demo" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
-              <span className="relative z-10">Explore the Demo</span>
+            <Link href="/signup" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+              <span className="relative z-10">Start free trial</span>
               <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
             </Link>
             <Link href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-all">View pricing</Link>
@@ -299,7 +296,6 @@ export default function QualityAndSafetyPage() {
                     <span className="relative z-10">Get started free</span>
                     <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
                   </Link>
-                  <Link href="/demo" className="px-8 py-4 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98]">Explore the Demo</Link>
                 </div>
               </div>
             </div>
@@ -313,7 +309,6 @@ export default function QualityAndSafetyPage() {
           <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
-            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>

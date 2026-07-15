@@ -127,12 +127,6 @@ export default function ProjectManagementPage() {
                 <span className="relative z-10">Get started free</span>
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
               </Link>
-              <Link
-                href="/demo"
-                className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-all"
-              >
-                See a demo
-              </Link>
             </div>
           </div>
         </div>
@@ -276,8 +270,8 @@ export default function ProjectManagementPage() {
             <p className="text-sm text-gray-500">Schedule a 20-minute walkthrough with our team. No slides — just live software on a real project.</p>
           </div>
           <div className="flex gap-3 flex-wrap shrink-0">
-            <a href="/demo" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
-              <span className="relative z-10">Explore the Demo</span>
+            <a href="/signup" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+              <span className="relative z-10">Start free trial</span>
               <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
             </a>
             <a href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-all">View pricing</a>
@@ -332,7 +326,6 @@ export default function ProjectManagementPage() {
                     <span className="relative z-10">Get started free</span>
                     <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
                   </a>
-                  <a href="/demo" className="px-8 py-4 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98]">Explore the Demo</a>
                 </div>
               </div>
             </div>
@@ -346,7 +339,6 @@ export default function ProjectManagementPage() {
           <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
-            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>

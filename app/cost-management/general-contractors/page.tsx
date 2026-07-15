@@ -110,11 +110,11 @@ export default function CostManagementGeneralContractorsPage() {
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href="/demo"
+                  href="/signup"
                   className="inline-flex items-center rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
                   style={{ background: "#111110" }}
                 >
-                  See a demo
+                  Start free trial
                 </Link>
                 <Link
                   href="/pricing"

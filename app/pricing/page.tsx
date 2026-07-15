@@ -237,7 +237,6 @@ export default function PricingPage() {
           </span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/" className="hover:text-gray-700 transition-colors">Home</a>
-            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>
