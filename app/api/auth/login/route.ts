@@ -69,30 +69,11 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Redirect logic ──────────────────────────────────────────────────────────
-  let redirect: string | null = null;
+  // SiteCommand is a training-only program: the whole site is the sandbox, so
+  // every signed-in user lands in the training launcher regardless of role,
+  // company, or billing state. (No pricing/subscription gate anymore.)
   const orgRole: string | null = user.company_role ?? null;
-
-  if (user.role === "contractor") {
-    redirect = "/teammate";
-  } else if (user.user_type === "external") {
-    redirect = "/subcontractor";
-  } else {
-    if (!user.company_id) {
-      redirect = "/pricing";
-    } else if (isCompanyAdmin(orgRole)) {
-      // Company owner / admin — verify active subscription
-      const ACTIVE_STATUSES = ["active", "trialing"];
-      if (
-        !company ||
-        (company.stripe_subscription_id &&
-          company.subscription_status !== null &&
-          !ACTIVE_STATUSES.includes(company.subscription_status))
-      ) {
-        redirect = "/pricing";
-      }
-    }
-    // Regular members always go to /dashboard regardless of billing status
-  }
+  const redirect = "/training/practice";
 
   // ── Build rich user/org/project payload ─────────────────────────────────────
   // Lets the frontend know exactly what the user can see and edit without
