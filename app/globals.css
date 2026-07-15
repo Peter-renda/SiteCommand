@@ -1940,3 +1940,69 @@ p           { text-wrap: pretty; }
   }
 }
 
+
+/* ============================================================
+   Home page — "Field Command / Blueprint" redesign utilities
+   (scoped with the sc- prefix to avoid collisions)
+   ============================================================ */
+
+/* Blueprint graph-paper grids — light lines for dark bg, dark for light bg */
+.sc-bp-grid-dark {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+.sc-bp-grid-light {
+  background-image:
+    linear-gradient(rgba(14, 14, 12, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 14, 12, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+/* Scrolling "tool tape" ticker. Track holds the items twice for a seamless loop. */
+@keyframes sc-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.sc-marquee-track {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  will-change: transform;
+  animation: sc-marquee 42s linear infinite;
+}
+
+/* Slow glow pulse for hero light sources */
+@keyframes sc-glow {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.85; }
+}
+.sc-glow { animation: sc-glow 7s ease-in-out infinite; }
+
+/* Orange gradient text for headline accents */
+.sc-text-orange-grad {
+  background: linear-gradient(180deg, #F9A03F 0%, #EA580C 58%, #C2410C 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Technical card: hairline border + blueprint hover lift */
+.sc-card {
+  transition:
+    transform 0.2s var(--ease-out),
+    box-shadow 0.25s var(--ease-out),
+    border-color 0.2s var(--ease-out);
+}
+.sc-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 44px rgba(14, 14, 12, 0.10);
+  border-color: rgba(234, 88, 12, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-marquee-track { animation: none; }
+  .sc-glow { animation: none; }
+  .sc-card:hover { transform: none; }
+}
