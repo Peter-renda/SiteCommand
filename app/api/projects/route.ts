@@ -26,10 +26,33 @@ export async function GET() {
 
   const supabase = getSupabase();
 
-  // Training sandboxes (is_training = true) never appear in the dashboard /
-  // project list — they're reached only from Training → Practice. Every branch
-  // below filters them out. (Listing the user's own sandboxes is the dedicated
-  // job of GET /api/training/projects.)
+  // The user's own training sandboxes (is_training = true) now surface in their
+  // project list alongside regular projects — the platform is training-first, so
+  // a launched sandbox is "saved under Projects". They stay scoped to the user
+  // who launched them (training_owner_id), so an org admin still won't see other
+  // people's sandboxes cluttering their list. (Training → Practice keeps its own
+  // dedicated view via GET /api/training/projects.)
+  const ownSandboxes = async () => {
+    const { data } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("is_training", true)
+      .eq("training_owner_id", session.id)
+      .is("archived_at", null)
+      .order("created_at", { ascending: false });
+    return Array.isArray(data) ? data : [];
+  };
+
+  // Merge the "regular" project set (which always excludes is_training rows) with
+  // the user's sandboxes, newest first, then attach schedule flags in one pass.
+  const respond = async (
+    regular: Array<{ id: string; created_at?: string; [k: string]: unknown }>,
+  ) => {
+    const merged = [...regular, ...(await ownSandboxes())].sort(
+      (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
+    );
+    return NextResponse.json(await withSchedules(supabase, merged));
+  };
 
   // Org-level admins see all projects under their company
   const isOrgAdmin =
@@ -43,7 +66,7 @@ export async function GET() {
       .eq("is_training", false)
       .is("archived_at", null)
       .order("created_at", { ascending: false });
-    return NextResponse.json(await withSchedules(supabase, Array.isArray(data) ? data : []));
+    return respond(Array.isArray(data) ? data : []);
   }
 
   // Standard members and external collaborators: only projects explicitly assigned
@@ -52,7 +75,7 @@ export async function GET() {
     .select("project_id")
     .eq("user_id", session.id);
 
-  if (!memberships || memberships.length === 0) return NextResponse.json([]);
+  if (!memberships || memberships.length === 0) return respond([]);
 
   const projectIds = memberships.map((m: { project_id: string }) => m.project_id);
   let projectQuery = supabase
@@ -70,7 +93,7 @@ export async function GET() {
   }
 
   const { data } = await projectQuery;
-  return NextResponse.json(await withSchedules(supabase, Array.isArray(data) ? data : []));
+  return respond(Array.isArray(data) ? data : []);
 }
 
 export async function POST(req: NextRequest) {
