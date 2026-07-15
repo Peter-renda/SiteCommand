@@ -51,9 +51,7 @@ function SignupFormInner() {
       return;
     }
 
-    // The whole site is the training program — drop new accounts straight into
-    // the training sandbox launcher rather than a company/billing setup flow.
-    router.push("/training/practice");
+    router.push("/company");
   }
 
   return (

@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     user_type: "demo",
   });
 
-  const res = NextResponse.json({ success: true, redirect: "/training/practice" });
+  const res = NextResponse.json({ success: true, redirect: "/dashboard" });
   res.cookies.set("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
