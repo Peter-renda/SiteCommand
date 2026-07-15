@@ -423,6 +423,16 @@ export default function DashboardClient({ username, email, role, companyRole, us
   // reflects edits live.
   const [dashPrefs, setDashPrefs] = useState<DashboardPreferences>(DEFAULT_DASHBOARD_PREFS);
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+  // Left-hand hamburger navigation drawer (collapsible).
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => {
+    if (!navOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setNavOpen(false);
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [navOpen]);
   // User menu (Support / Training / Settings / Logout). Toggled on click/tap so
   // it works on touch devices, which have no hover.
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -880,9 +890,88 @@ export default function DashboardClient({ username, email, role, companyRole, us
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Left-hand collapsible nav drawer (hamburger menu) */}
+      <div
+        className={`fixed inset-0 z-[60] transition-opacity duration-200 ${navOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        aria-hidden={!navOpen}
+      >
+        <div className="absolute inset-0 bg-black/30" onClick={() => setNavOpen(false)} />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+          className={`absolute left-0 top-0 h-full w-64 max-w-[80vw] bg-white border-r border-gray-200 shadow-xl flex flex-col transition-transform duration-200 ${navOpen ? "translate-x-0" : "-translate-x-full"}`}
+        >
+          <div className="h-14 shrink-0 flex items-center justify-between px-4 border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-900">Menu</span>
+            <button
+              type="button"
+              onClick={() => setNavOpen(false)}
+              aria-label="Close menu"
+              className="p-1.5 -mr-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <nav className="flex-1 overflow-y-auto py-2">
+            <button
+              type="button"
+              onClick={() => { setNavOpen(false); loadUsers(); setShowModal(true); }}
+              className="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Start a new project
+            </button>
+            <a
+              href="/training"
+              className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+              </svg>
+              Training modules
+            </a>
+            <a
+              href="/support"
+              className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Resources
+            </a>
+            <a
+              href="/careers"
+              className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Career center
+            </a>
+          </nav>
+        </div>
+      </div>
+
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={navOpen}
+            className="-ml-1.5 p-1.5 text-gray-500 hover:text-gray-900 rounded-md hover:bg-gray-100 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
           <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           {companies.length > 0 && (
             <div ref={companyMenuRef} className="relative">
