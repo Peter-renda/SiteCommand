@@ -19,14 +19,6 @@ const INK = "#0E0E0C";
 const ORANGE = "#EA580C";
 const LIGHT_BG = "#FAF9F6";
 
-// Honest, specific numbers pulled from the real product.
-const stats = [
-  { value: "70", label: "Lessons · 7 tracks" },
-  { value: "70-day", label: "Simulated build" },
-  { value: "Real", label: "Tools, not slides" },
-  { value: "24/7", label: "AI coach & subs" },
-];
-
 // The whole production toolset, scrolled as a "tool tape."
 const tools = [
   "RFIs", "Submittals", "Buyout", "Change Events", "Commitments", "Budget",
@@ -106,7 +98,7 @@ export default function Home() {
       <Navbar />
 
       <main id="main-content">
-        {/* ═══════════ Dark command block: hero + tool tape + stats ═══════════ */}
+        {/* ═══════════ Dark command block: hero + tool tape ═══════════ */}
         <div className="relative overflow-hidden" style={{ background: INK }}>
           {/* Blueprint grid */}
           <div className="absolute inset-0 sc-bp-grid-dark pointer-events-none" aria-hidden="true" />
@@ -172,11 +164,11 @@ export default function Home() {
 
                   {/* Mono proof line */}
                   <div className="animate-fade-up delay-400 mt-11 pt-8 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] tracking-wider uppercase" style={{ borderTop: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)" }}>
-                    <span><span style={{ color: ORANGE }}>70</span> guided lessons</span>
+                    <span><span style={{ color: ORANGE }}>70+</span> guided lessons</span>
                     <span style={{ color: "rgba(255,255,255,0.2)" }}>/</span>
-                    <span><span style={{ color: ORANGE }}>1</span> full project to run</span>
+                    <span><span style={{ color: ORANGE }}>10+</span> projects</span>
                     <span style={{ color: "rgba(255,255,255,0.2)" }}>/</span>
-                    <span><span style={{ color: ORANGE }}>24/7</span> AI coach</span>
+                    <span>tangible experience and feedback</span>
                   </div>
                 </div>
 
@@ -303,21 +295,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ── Stats spec bar ── */}
-          <section className="relative px-6 sm:px-10 py-12">
-            <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4">
-              {stats.map((s, i) => (
-                <div
-                  key={s.label}
-                  className={`flex flex-col gap-1 px-2 md:px-6 ${i !== 0 ? "md:border-l" : ""} ${i % 2 !== 0 ? "border-l md:border-l" : ""} ${i >= 2 ? "mt-6 md:mt-0" : ""}`}
-                  style={{ borderColor: "rgba(255,255,255,0.1)" }}
-                >
-                  <span className="font-display text-3xl sm:text-4xl text-white tabular-nums">{s.value}</span>
-                  <span className="font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.4)" }}>{s.label}</span>
-                </div>
-              ))}
-            </div>
-          </section>
         </div>
 
         {/* ═══════════ The opportunity — industry, salary, what you'll learn ═══════════ */}
@@ -688,7 +665,6 @@ export default function Home() {
           <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.45)" }}>
             <a href="/signup?plan=starter" className="hover:text-white transition-colors">Start training</a>
             <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
-            <a href="/demo" className="hover:text-white transition-colors">Demo</a>
             <a href="#" className="hover:text-white transition-colors">Privacy</a>
             <a href="#" className="hover:text-white transition-colors">Terms</a>
           </div>
