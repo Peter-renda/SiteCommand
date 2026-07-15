@@ -224,7 +224,7 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-8 text-center text-sm text-gray-400">
-          All plans include a 14-day free trial. No credit card required.
+          All plans include a 7-day free trial.
         </p>
       </main>
 

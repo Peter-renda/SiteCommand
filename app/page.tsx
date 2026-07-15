@@ -114,7 +114,7 @@ export default function Home() {
                 {/* CTAs */}
                 <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
                   <a
-                    href="/signup"
+                    href="/signup?plan=starter"
                     className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98]"
                     style={{ background: "#111110" }}
                   >
@@ -585,7 +585,7 @@ export default function Home() {
 
                   <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
                     <a
-                      href="/signup"
+                      href="/signup?plan=starter"
                       className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98]"
                       style={{ background: "#111110" }}
                     >
@@ -616,7 +616,7 @@ export default function Home() {
             SiteCommand
           </span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
-            <a href="/signup" className="hover:text-gray-700 transition-colors">
+            <a href="/signup?plan=starter" className="hover:text-gray-700 transition-colors">
               Start training
             </a>
             <a href="/pricing" className="hover:text-gray-700 transition-colors">

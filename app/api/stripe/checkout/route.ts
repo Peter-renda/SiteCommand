@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
     checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: PRICE_IDS[plan], quantity: 1 }],
+      // 7-day free trial before the first charge, matching the signup flow.
+      subscription_data: { trial_period_days: 7 },
       client_reference_id: session.company_id ?? session.id,
       customer_email: session.email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
