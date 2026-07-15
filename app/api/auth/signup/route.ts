@@ -13,12 +13,19 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabase();
   const { firstName, lastName, email, password, company, plan } = await req.json();
 
-  if (!firstName || !lastName || !email || !password || !company) {
+  if (!firstName || !lastName || !email || !password) {
     return NextResponse.json(
       { error: "All fields are required" },
       { status: 400 }
     );
   }
+
+  // The signup form no longer collects a company name. Every account still
+  // needs a company record (the signup user becomes its Super Admin and
+  // billing is per-company), so default it — the Super Admin can rename the
+  // company later in settings.
+  const companyName =
+    typeof company === "string" && company.trim() ? company.trim() : "My Company";
 
   const { data: existing } = await supabase
     .from("users")
@@ -39,7 +46,7 @@ export async function POST(req: NextRequest) {
   // Create the company for this new account
   const { data: newCompany, error: companyError } = await supabase
     .from("companies")
-    .insert({ name: company })
+    .insert({ name: companyName })
     .select("id")
     .single();
 
@@ -63,7 +70,7 @@ export async function POST(req: NextRequest) {
       last_name: lastName,
       email,
       password_hash,
-      company,
+      company: companyName,
       role: "user",
       company_id: companyId,
       company_role: companyRole,
