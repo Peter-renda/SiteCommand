@@ -109,14 +109,14 @@ export default function Navbar() {
         {/* Logo */}
         <a
           href="https://sitecommand.xyz"
-          className="text-base font-semibold tracking-tight text-gray-900 hover:opacity-80 transition-opacity shrink-0"
+          className="text-sm sm:text-base font-semibold tracking-tight text-gray-900 hover:opacity-80 transition-opacity shrink-0 whitespace-nowrap"
           style={{ letterSpacing: "-0.01em" }}
         >
-          SiteCommand
+          Break Into Construction Management
         </a>
 
         {/* Desktop nav items */}
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden lg:flex items-center gap-1">
           {navItems.map((item) => (
             <div
               key={item.label}
@@ -220,14 +220,14 @@ export default function Navbar() {
           {/* Login — plain text link */}
           <Link
             href="/login"
-            className="hidden md:inline text-sm text-gray-500 hover:text-gray-900 transition-colors duration-150"
+            className="hidden lg:inline text-sm text-gray-500 hover:text-gray-900 transition-colors duration-150"
           >
             Login
           </Link>
 
           {/* Hamburger — mobile only */}
           <button
-            className="md:hidden p-2 text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 transition-colors"
+            className="lg:hidden p-2 text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 transition-colors"
             onClick={() => setMobileOpen((o) => !o)}
             aria-label="Toggle menu"
           >
@@ -246,7 +246,7 @@ export default function Navbar() {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
+        <div className="lg:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
           {navItems.map((item) => (
             <div key={item.label}>
               {item.items.length === 0 && item.label !== "Solutions" ? (
