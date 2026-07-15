@@ -240,7 +240,6 @@ export default function AboutPage() {
                     <span className="relative z-10">Get started free</span>
                     <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
                   </Link>
-                  <Link href="/demo" className="px-8 py-4 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl transition-all hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98]">Watch a demo</Link>
                 </div>
               </div>
             </div>
@@ -254,7 +253,6 @@ export default function AboutPage() {
           <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
-            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>

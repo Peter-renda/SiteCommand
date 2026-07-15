@@ -106,8 +106,8 @@ export default function BIMPage() {
               Revolutionize your projects with BIM that&apos;s simple, intuitive, and designed to unlock collaboration for everyone, everywhere — from the design table to the jobsite.
             </p>
             <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
-              <a href="/demo" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
-                <span className="relative z-10">Explore the Demo</span>
+              <a href="/signup" className="group relative inline-flex items-center px-7 py-3.5 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                <span className="relative z-10">Start free trial</span>
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
               </a>
               <a href="/pricing" className="px-7 py-3.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-all" style={{ background: "rgba(255,255,255,0.6)" }}>See pricing</a>
@@ -229,8 +229,8 @@ export default function BIMPage() {
                   Give every member of your team — from the design studio to the field — access to the same intelligent model.
                 </p>
                 <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-                  <a href="/demo" className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
-                    <span className="relative z-10">Explore the Demo</span>
+                  <a href="/signup" className="group relative inline-flex items-center px-8 py-4 text-sm font-semibold text-white rounded-xl overflow-hidden active:scale-[0.98]" style={{ background: "#111110" }}>
+                    <span className="relative z-10">Start free trial</span>
                     <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-[0.08] transition-opacity" />
                   </a>
                   <a href="/pricing" className="px-8 py-4 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98]">See pricing</a>
@@ -247,7 +247,6 @@ export default function BIMPage() {
           <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
-            <a href="/demo" className="hover:text-gray-700 transition-colors">Demo</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>
