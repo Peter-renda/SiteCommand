@@ -6,11 +6,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://sitecommand.com"),
   title: {
-    default: "SiteCommand – Construction Management Software",
+    default: "SiteCommand – Learn Construction Project Management by Doing It",
     template: "%s | SiteCommand",
   },
   description:
-    "SiteCommand is modern construction management software for contractors and project managers. Track RFIs, submittals, daily logs, drawings, and schedules — all in one place.",
+    "SiteCommand is a hands-on training ground for construction project management. Run a real, sandboxed project day by day with the actual tools — a living inbox, AI counterparties, an audio coach, scored meetings, milestone reviews, and a 70-lesson curriculum.",
   alternates: {
     canonical: "/",
   },
