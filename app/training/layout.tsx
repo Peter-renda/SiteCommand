@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import AppHeader from "@/app/components/AppHeader";
 import TrainingNav from "./TrainingNav";
 
 export default async function TrainingLayout({ children }: { children: React.ReactNode }) {
@@ -9,7 +8,18 @@ export default async function TrainingLayout({ children }: { children: React.Rea
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AppHeader username={session.username} />
+      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-700 transition-colors">
+            SiteCommand
+          </a>
+          <span className="text-gray-300">/</span>
+          <span className="text-sm text-gray-500">Training</span>
+        </div>
+        <a href="/dashboard" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
+          Back to Dashboard
+        </a>
+      </header>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row gap-6 sm:gap-8">
         <TrainingNav />
