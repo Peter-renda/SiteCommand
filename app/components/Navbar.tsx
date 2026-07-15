@@ -62,6 +62,8 @@ const navItems: { label: string; items: NavSubItem[]; href?: string }[] = [
     label: "About Us",
     items: [
       { label: "Company", href: "/about" },
+      { label: "Blog", href: "/blog" },
+      { label: "Success Stories", href: "/success-stories" },
       { label: "Press", href: "#" },
     ],
   },
@@ -69,7 +71,7 @@ const navItems: { label: string; items: NavSubItem[]; href?: string }[] = [
     label: "Resources",
     items: [
       { label: "Documentation", href: "#" },
-      { label: "Blog", href: "#" },
+      { label: "Blog", href: "/blog" },
       { label: "Case Studies", href: "/case-studies" },
       { label: "Community", href: "#" },
     ],

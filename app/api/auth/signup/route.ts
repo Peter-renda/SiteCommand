@@ -20,10 +20,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // The sign-up form no longer collects a company name, but the account model
-  // still needs a company to own the tenant. Derive a sensible placeholder
-  // from the person's name; they can rename it later in Company settings.
-  const company = `${firstName} ${lastName}'s Company`;
+  // The signup form no longer collects a company name. Every account still
+  // needs a company record (the signup user becomes its Super Admin and
+  // billing is per-company), so default it — the Super Admin can rename the
+  // company later in settings.
+  const companyName =
+    typeof company === "string" && company.trim() ? company.trim() : "My Company";
 
   const { data: existing } = await supabase
     .from("users")
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
   // Create the company for this new account
   const { data: newCompany, error: companyError } = await supabase
     .from("companies")
-    .insert({ name: company })
+    .insert({ name: companyName })
     .select("id")
     .single();
 
@@ -68,7 +70,7 @@ export async function POST(req: NextRequest) {
       last_name: lastName,
       email,
       password_hash,
-      company,
+      company: companyName,
       role: "user",
       company_id: companyId,
       company_role: companyRole,
