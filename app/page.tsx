@@ -174,6 +174,46 @@ export default function Home() {
 
                 {/* Right: the command console */}
                 <div className="relative hidden lg:block animate-scale-in delay-200">
+                  {/* Jobsite backdrop — tower crane & building under construction (blueprint line-art) */}
+                  <svg
+                    className="absolute -top-24 -right-6 w-[125%] h-[300px] pointer-events-none"
+                    viewBox="0 0 560 300"
+                    fill="none"
+                    aria-hidden="true"
+                    style={{ opacity: 0.55 }}
+                  >
+                    {/* building frame under construction */}
+                    <g stroke="rgba(255,255,255,0.22)" strokeWidth="1.5">
+                      <line x1="330" y1="150" x2="330" y2="300" />
+                      <line x1="380" y1="120" x2="380" y2="300" />
+                      <line x1="430" y1="105" x2="430" y2="300" />
+                      <line x1="480" y1="120" x2="480" y2="300" />
+                      <line x1="530" y1="150" x2="530" y2="300" />
+                      <line x1="325" y1="300" x2="535" y2="300" />
+                      <line x1="328" y1="255" x2="532" y2="255" />
+                      <line x1="330" y1="210" x2="530" y2="210" />
+                      <line x1="335" y1="165" x2="525" y2="165" />
+                      <line x1="430" y1="105" x2="430" y2="90" />
+                      <line x1="420" y1="108" x2="420" y2="95" />
+                      <line x1="440" y1="108" x2="440" y2="95" />
+                    </g>
+                    {/* tower crane */}
+                    <g stroke="rgba(255,255,255,0.3)" strokeWidth="1.5">
+                      <line x1="150" y1="40" x2="150" y2="300" />
+                      <line x1="164" y1="40" x2="164" y2="300" />
+                      <path d="M150 60 L164 82 M164 60 L150 82 M150 104 L164 126 M164 104 L150 126 M150 148 L164 170 M164 148 L150 170 M150 192 L164 214 M164 192 L150 214 M150 236 L164 258 M164 236 L150 258" />
+                      <line x1="157" y1="40" x2="500" y2="40" />
+                      <line x1="157" y1="54" x2="470" y2="54" />
+                      <path d="M200 40 L200 54 M260 40 L260 54 M320 40 L320 54 M380 40 L380 54 M440 40 L440 54" />
+                      <line x1="157" y1="40" x2="80" y2="40" />
+                      <path d="M157 14 L80 40 M157 14 L500 40 M157 14 L157 40" />
+                      <line x1="360" y1="40" x2="360" y2="130" />
+                    </g>
+                    {/* counterweight + hook — orange accents */}
+                    <rect x="74" y="40" width="20" height="16" fill="rgba(234,88,12,0.55)" />
+                    <path d="M354 130 h12 l-6 10 z" fill="rgba(234,88,12,0.7)" />
+                  </svg>
+
                   {/* Glow behind the console */}
                   <div
                     className="absolute -inset-6 rounded-3xl pointer-events-none"
@@ -255,28 +295,55 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {/* Desk surface with hard hat, rolled plans & mug */}
+                  <div className="relative -mt-1 h-24">
+                    {/* desk top edge + surface */}
+                    <div
+                      className="absolute left-[-6%] right-[-6%] top-6 h-16 rounded-b-2xl"
+                      style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01))", borderTop: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 24px 34px rgba(0,0,0,0.4)" }}
+                      aria-hidden="true"
+                    />
+
+                    {/* hard hat */}
+                    <svg className="absolute left-3 top-1 w-20 h-16" viewBox="0 0 100 70" fill="none" aria-hidden="true">
+                      <ellipse cx="50" cy="55" rx="45" ry="10" fill="#F59E0B" />
+                      <ellipse cx="50" cy="52" rx="45" ry="10" fill="#FBBF24" />
+                      <path d="M16 52 C16 23 31 13 50 13 C69 13 84 23 84 52 Z" fill="#FBBF24" stroke="#D97706" strokeWidth="1.5" />
+                      <path d="M50 14 L50 51" stroke="#E0930B" strokeWidth="2" />
+                      <path d="M34 17 C33 31 33 43 33 51" stroke="#E0930B" strokeWidth="1.5" />
+                      <path d="M66 17 C67 31 67 43 67 51" stroke="#E0930B" strokeWidth="1.5" />
+                      <rect x="43" y="32" width="14" height="11" rx="2" fill="#D97706" />
+                    </svg>
+
+                    {/* coffee mug */}
+                    <svg className="absolute left-28 top-6 w-7 h-9" viewBox="0 0 40 52" fill="none" aria-hidden="true">
+                      <path d="M10 14 C11 10 9 9 10 5 M17 14 C18 10 16 9 17 5" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" />
+                      <rect x="5" y="20" width="21" height="24" rx="3" fill="#E5E7EB" />
+                      <path d="M26 24 h4 a5 5 0 0 1 0 12 h-4" stroke="#E5E7EB" strokeWidth="3" fill="none" />
+                      <ellipse cx="15.5" cy="20" rx="10.5" ry="3" fill="#F3F4F6" />
+                    </svg>
+
+                    {/* rolled blueprints */}
+                    <svg className="absolute right-3 top-4 w-32 h-14" viewBox="0 0 150 60" fill="none" aria-hidden="true">
+                      <g transform="rotate(-7 75 26)">
+                        <rect x="14" y="16" width="120" height="17" rx="8.5" fill="#1D4ED8" />
+                        <rect x="14" y="16" width="120" height="6" rx="3" fill="#3B82F6" />
+                        <ellipse cx="16" cy="24.5" rx="4.5" ry="8.5" fill="#BFDBFE" />
+                        <ellipse cx="16" cy="24.5" rx="2" ry="5" fill="#1D4ED8" />
+                      </g>
+                      <g transform="rotate(5 75 42)">
+                        <rect x="22" y="36" width="110" height="15" rx="7.5" fill="#2563EB" />
+                        <ellipse cx="132" cy="43.5" rx="4" ry="7.5" fill="#DBEAFE" />
+                      </g>
+                    </svg>
+                  </div>
+
                   {/* Floating annotation — AI replies */}
                   <div
                     className="absolute -top-3 -right-3 px-3 py-2 rounded-lg font-mono text-[10px] tracking-wide backdrop-blur animate-fade-up delay-400"
                     style={{ background: "rgba(14,14,12,0.72)", border: "1px solid rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.85)" }}
                   >
                     <span style={{ color: "#60A5FA" }}>◦</span> AI replies in-thread
-                  </div>
-
-                  {/* Floating annotation — coach */}
-                  <div
-                    className="absolute -bottom-4 -left-5 px-4 py-3 rounded-xl flex items-center gap-3 backdrop-blur animate-fade-up delay-500"
-                    style={{ background: "rgba(14,14,12,0.78)", border: "1px solid rgba(255,255,255,0.14)", boxShadow: "0 16px 32px rgba(0,0,0,0.4)" }}
-                  >
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(234,88,12,0.18)" }}>
-                      <svg className="w-4 h-4" style={{ color: "#F9A03F" }} fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold leading-tight text-white">Message from your coach</p>
-                      <p className="font-mono text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Day 14 briefing · 1:12</p>
-                    </div>
                   </div>
                 </div>
               </div>
