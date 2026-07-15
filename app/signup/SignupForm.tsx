@@ -10,7 +10,6 @@ function SignupFormInner() {
   const plan = searchParams.get("plan");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -35,7 +34,7 @@ function SignupFormInner() {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName, lastName, company, email, password, plan }),
+      body: JSON.stringify({ firstName, lastName, email, password, plan }),
     });
 
     const data = await res.json();
@@ -118,24 +117,6 @@ function SignupFormInner() {
                     placeholder="Rivera"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5 tracking-wide">Company name</label>
-                <input
-                  type="text"
-                  required
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border rounded-xl text-sm text-gray-900 bg-white transition-all focus:outline-none"
-                  style={{
-                    borderColor: "rgba(0,0,0,0.1)",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
-                  }}
-                  onFocus={e => e.currentTarget.style.borderColor = "#2563EB"}
-                  onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
-                  placeholder="Hendricks Construction"
-                />
               </div>
 
               <div>

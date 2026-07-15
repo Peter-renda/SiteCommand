@@ -13,14 +13,7 @@ const plans = [
     plan: "starter" as const,
     ctaHref: null,
     highlight: false,
-    features: [
-      "Up to 10 team members",
-      "Daily logs & manpower tracking",
-      "Document & drawing management",
-      "RFIs, submittals & punch lists",
-      "Photo albums",
-      "Email support",
-    ],
+    features: [],
   },
   {
     name: "Professional",
@@ -193,30 +186,32 @@ export default function PricingPage() {
                   )}
 
                   {/* Feature list */}
-                  <ul
-                    className="space-y-3 pt-8 mt-auto"
-                    style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
-                  >
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2.5 text-sm">
-                        <svg
-                          className="w-4 h-4 shrink-0 mt-0.5"
-                          style={{ color: "#2563EB" }}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        <span className="text-gray-600">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {plan.features.length > 0 && (
+                    <ul
+                      className="space-y-3 pt-8 mt-auto"
+                      style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
+                    >
+                      {plan.features.map((f) => (
+                        <li key={f} className="flex items-start gap-2.5 text-sm">
+                          <svg
+                            className="w-4 h-4 shrink-0 mt-0.5"
+                            style={{ color: "#2563EB" }}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2.5}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          <span className="text-gray-600">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             );

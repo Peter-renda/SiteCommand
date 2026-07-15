@@ -11,14 +11,19 @@ const PRICE_IDS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   const supabase = getSupabase();
-  const { firstName, lastName, email, password, company, plan } = await req.json();
+  const { firstName, lastName, email, password, plan } = await req.json();
 
-  if (!firstName || !lastName || !email || !password || !company) {
+  if (!firstName || !lastName || !email || !password) {
     return NextResponse.json(
       { error: "All fields are required" },
       { status: 400 }
     );
   }
+
+  // The sign-up form no longer collects a company name, but the account model
+  // still needs a company to own the tenant. Derive a sensible placeholder
+  // from the person's name; they can rename it later in Company settings.
+  const company = `${firstName} ${lastName}'s Company`;
 
   const { data: existing } = await supabase
     .from("users")
