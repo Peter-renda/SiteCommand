@@ -11,7 +11,7 @@ const PRICE_IDS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   const supabase = getSupabase();
-  const { firstName, lastName, email, password, company, plan } = await req.json();
+  const { firstName, lastName, email, password, plan } = await req.json();
 
   if (!firstName || !lastName || !email || !password) {
     return NextResponse.json(
