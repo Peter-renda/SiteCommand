@@ -74,6 +74,31 @@ const audiences = [
   "Companies onboarding field-to-office staff",
 ];
 
+// The construction management career ladder — realistic U.S. ranges, entry to exec.
+const salaryLadder = [
+  { tier: "Start", pay: "$58K", role: "Coordinator · Project Engineer · Assistant PM", note: "Entry — no degree required" },
+  { tier: "Grow", pay: "$100K+", role: "Project Manager", note: "A few years of reps in" },
+  { tier: "Lead", pay: "$200–300K+", role: "Senior PM · Director · VP", note: "Senior & executive" },
+];
+
+// Why the field is hiring — the demand side of the opportunity.
+const demandStats = [
+  { value: "10,000+", label: "open roles right now" },
+  { value: "Months", label: "to hire, not years" },
+  { value: "No degree", label: "required to start" },
+  { value: "Merit", label: "-based advancement" },
+];
+
+// Outcome-focused "what you'll walk away able to do" (the tracks cover the detail).
+const learnOutcomes = [
+  "How the industry works — owners, GCs, subs, and the project lifecycle",
+  "The paperwork that runs a job — contracts, budgets, RFIs, submittals, closeout",
+  "How the trades sequence — structural, MEP, and sitework",
+  "How to read drawings, specs, and the CSI system",
+  "How the money moves — change orders, pay apps, and protecting margin",
+  "How to lead — communication, safety, and calls under pressure",
+];
+
 export default function Home() {
   return (
     <div className="min-h-dvh" style={{ background: LIGHT_BG }}>
@@ -294,6 +319,92 @@ export default function Home() {
             </div>
           </section>
         </div>
+
+        {/* ═══════════ The opportunity — industry, salary, what you'll learn ═══════════ */}
+        <section className="relative py-24 px-6 sm:px-10 overflow-hidden" style={{ background: "#FFFFFF" }}>
+          <div className="relative max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-14 max-w-2xl">
+              <div className="mb-4"><MonoTag tone="light">The opportunity</MonoTag></div>
+              <h2 className="font-display text-4xl sm:text-5xl text-gray-950 leading-tight">
+                A career that&apos;s hiring —
+                <br />
+                no degree required
+              </h2>
+              <p className="mt-4 text-lg text-gray-500 leading-relaxed">
+                Construction management is short on people who can run a job — and
+                it pays for the ones who can. A wave of retirements has opened
+                thousands of roles, and the door is wide open to anyone who can
+                prove they know the work, degree or not.
+              </p>
+            </div>
+
+            {/* Salary ladder */}
+            <div className="mb-4">
+              <div className="mb-5"><MonoTag tone="light">What it pays</MonoTag></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {salaryLadder.map((rung, i) => {
+                  const dark = i === salaryLadder.length - 1;
+                  return (
+                    <div
+                      key={rung.tier}
+                      className="sc-card relative rounded-xl p-7"
+                      style={{
+                        background: dark ? INK : "#FFFFFF",
+                        border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(14,14,12,0.09)",
+                      }}
+                    >
+                      <CornerTicks color={dark ? "rgba(255,255,255,0.28)" : "rgba(14,14,12,0.22)"} />
+                      <MonoTag tone={dark ? "dark" : "light"} className="mb-4">{rung.tier}</MonoTag>
+                      <p className={`font-display text-4xl tabular-nums ${dark ? "text-white" : "text-gray-950"}`}>
+                        {rung.pay}
+                        <span className="text-base font-mono" style={{ color: dark ? "rgba(255,255,255,0.4)" : "#9CA3AF" }}> / yr</span>
+                      </p>
+                      <p className={`mt-2 text-sm font-semibold ${dark ? "text-white" : "text-gray-900"}`}>{rung.role}</p>
+                      <p className="mt-1 text-xs" style={{ color: dark ? "rgba(255,255,255,0.5)" : "#9CA3AF" }}>{rung.note}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-3 font-mono text-[10px] tracking-wide uppercase text-gray-400">
+                Ranges reflect typical U.S. construction management roles, entry through executive
+              </p>
+            </div>
+
+            {/* Demand + what you'll learn */}
+            <div className="mt-14 grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 lg:gap-16 items-start">
+              {/* Demand stats */}
+              <div>
+                <div className="mb-5"><MonoTag tone="light">The demand</MonoTag></div>
+                <div className="grid grid-cols-2 gap-px rounded-xl overflow-hidden" style={{ background: "rgba(14,14,12,0.08)", border: "1px solid rgba(14,14,12,0.08)" }}>
+                  {demandStats.map((s) => (
+                    <div key={s.label} className="bg-white p-6 flex flex-col gap-1">
+                      <span className="font-display text-3xl text-gray-950 tabular-nums">{s.value}</span>
+                      <span className="font-mono text-[11px] tracking-wide uppercase text-gray-400 leading-tight">{s.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* What you'll learn */}
+              <div>
+                <div className="mb-5"><MonoTag tone="light">What you&apos;ll learn</MonoTag></div>
+                <ul className="space-y-3">
+                  {learnOutcomes.map((o) => (
+                    <li key={o} className="flex items-start gap-3">
+                      <span className="mt-1 w-4 h-4 rounded-[5px] shrink-0 flex items-center justify-center" style={{ background: ORANGE }}>
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </span>
+                      <span className="text-[15px] text-gray-600 leading-relaxed">{o}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* ═══════════ How it works ═══════════ */}
         <section id="how-it-works" className="relative py-24 px-6 sm:px-10 scroll-mt-16 overflow-hidden" style={{ background: LIGHT_BG }}>

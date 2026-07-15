@@ -13,14 +13,7 @@ const plans = [
     plan: "starter" as const,
     ctaHref: null,
     highlight: false,
-    features: [
-      "Up to 10 team members",
-      "Daily logs & manpower tracking",
-      "Document & drawing management",
-      "RFIs, submittals & punch lists",
-      "Photo albums",
-      "Email support",
-    ],
+    features: [],
   },
   {
     name: "Professional",
@@ -193,6 +186,7 @@ export default function PricingPage() {
                   )}
 
                   {/* Feature list */}
+                  {plan.features.length > 0 && (
                   <ul
                     className="space-y-3 pt-8 mt-auto"
                     style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
@@ -217,6 +211,7 @@ export default function PricingPage() {
                       </li>
                     ))}
                   </ul>
+                  )}
                 </div>
               </div>
             );
