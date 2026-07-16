@@ -18,22 +18,19 @@ import {
 
 type QuizResult = { score: number; total: number; bestScore: number; attempts: number };
 
+// A module counts as complete once its quiz is passed at 75% or higher.
+const PASS_RATIO = 0.75;
+const isPassed = (r: QuizResult | undefined) =>
+  !!r && r.total > 0 && r.bestScore / r.total >= PASS_RATIO;
+
 export default function LessonsClient() {
   const [track, setTrack] = useState<LessonTrack>("workflow");
-  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [quizResults, setQuizResults] = useState<Record<string, QuizResult>>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const [progressRes, quizRes] = await Promise.all([
-        fetch("/api/training/lessons/progress"),
-        fetch("/api/training/lessons/quiz"),
-      ]);
-      if (progressRes.ok) {
-        const d = await progressRes.json();
-        setCompletedIds(new Set<string>(d.completedIds ?? []));
-      }
+      const quizRes = await fetch("/api/training/lessons/quiz");
       if (quizRes.ok) {
         const d = await quizRes.json();
         setQuizResults(d.results ?? {});
@@ -65,7 +62,7 @@ export default function LessonsClient() {
   const trackLessons = useMemo(() => lessonsByTrack(track), [track]);
   const categories = useMemo(() => lessonCategories(track), [track]);
 
-  const overallCompleted = LESSONS.filter((l) => completedIds.has(l.id)).length;
+  const overallCompleted = LESSONS.filter((l) => isPassed(quizResults[l.id])).length;
   const takenResults = LESSONS.map((l) => quizResults[l.id]).filter(Boolean) as QuizResult[];
   const quizzedCount = takenResults.length;
   const gradePoints = takenResults.reduce((s, r) => s + r.bestScore, 0);
@@ -136,9 +133,11 @@ export default function LessonsClient() {
               {trackLessons
                 .filter((l) => l.category === cat)
                 .map((l) => {
-                  const done = completedIds.has(l.id);
                   const result = quizResults[l.id];
-                  const perfect = result && result.bestScore === result.total;
+                  const passed = isPassed(result);
+                  const percent = result
+                    ? Math.round((result.bestScore / result.total) * 100)
+                    : null;
                   return (
                     <a
                       key={l.id}
@@ -149,11 +148,11 @@ export default function LessonsClient() {
                     >
                       <span
                         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${
-                          done
+                          passed
                             ? "border-green-600 bg-green-600 text-white"
                             : "border-gray-300 text-transparent"
                         }`}
-                        title={done ? "Completed" : "Not completed"}
+                        title={passed ? "Passed" : "Not passed"}
                       >
                         ✓
                       </span>
@@ -185,12 +184,12 @@ export default function LessonsClient() {
                         {loading ? null : result ? (
                           <span
                             className={`rounded-md px-2 py-1 text-[11px] font-medium ${
-                              perfect
+                              passed
                                 ? "bg-green-50 text-green-700 border border-green-200"
                                 : "bg-gray-100 text-gray-600"
                             }`}
                           >
-                            Quiz {result.bestScore}/{result.total}
+                            {percent}%
                           </span>
                         ) : (
                           <span className="rounded-md border border-dashed border-gray-200 px-2 py-1 text-[11px] text-gray-400">

@@ -29,9 +29,6 @@ export default function LessonDetailClient({
   lesson: Lesson;
   quiz: PublicQuiz | null;
 }) {
-  const [completed, setCompleted] = useState(false);
-  const [savingComplete, setSavingComplete] = useState(false);
-
   // Quiz state: one selected option index per question (-1 = unanswered).
   const [answers, setAnswers] = useState<number[]>(() =>
     quiz ? quiz.questions.map(() => -1) : [],
@@ -41,17 +38,10 @@ export default function LessonDetailClient({
   const [grading, setGrading] = useState(false);
   const [quizError, setQuizError] = useState<string | null>(null);
 
-  // Load this lesson's completion + any prior quiz result on mount.
+  // Load this lesson's prior quiz result on mount.
   const load = useCallback(async () => {
     try {
-      const [progressRes, quizRes] = await Promise.all([
-        fetch("/api/training/lessons/progress"),
-        fetch("/api/training/lessons/quiz"),
-      ]);
-      if (progressRes.ok) {
-        const d = await progressRes.json();
-        setCompleted((d.completedIds ?? []).includes(lesson.id));
-      }
+      const quizRes = await fetch("/api/training/lessons/quiz");
       if (quizRes.ok) {
         const d = await quizRes.json();
         const r = d.results?.[lesson.id];
@@ -65,25 +55,6 @@ export default function LessonDetailClient({
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function toggleComplete() {
-    if (savingComplete) return;
-    setSavingComplete(true);
-    const willComplete = !completed;
-    setCompleted(willComplete); // optimistic
-    try {
-      const res = await fetch("/api/training/lessons/progress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lessonId: lesson.id, completed: willComplete }),
-      });
-      if (!res.ok) setCompleted(!willComplete); // revert on failure
-    } catch {
-      setCompleted(!willComplete);
-    } finally {
-      setSavingComplete(false);
-    }
-  }
 
   async function submitQuiz() {
     if (!quiz || grading) return;
@@ -126,7 +97,8 @@ export default function LessonDetailClient({
   const prev = idx > 0 ? trackLessons[idx - 1] : null;
   const next = idx >= 0 && idx < trackLessons.length - 1 ? trackLessons[idx + 1] : null;
 
-  const passed = grade ? grade.score === grade.total : false;
+  // A quiz is passed at 75% or higher.
+  const passed = grade ? grade.score / grade.total >= 0.75 : false;
 
   return (
     <div className="max-w-3xl">
@@ -146,17 +118,6 @@ export default function LessonDetailClient({
             <h1 className="mt-1 text-2xl font-semibold text-gray-900">{lesson.title}</h1>
             <p className="mt-1 text-sm text-gray-500">{lesson.summary}</p>
           </div>
-          <button
-            onClick={toggleComplete}
-            disabled={savingComplete}
-            className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
-              completed
-                ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
-                : "bg-gray-900 text-white hover:bg-gray-700"
-            }`}
-          >
-            {completed ? "✓ Completed" : "Mark complete"}
-          </button>
         </div>
 
         {lesson.keyTerms && lesson.keyTerms.length > 0 && (
@@ -329,24 +290,13 @@ export default function LessonDetailClient({
                     : "bg-amber-50 text-amber-700 border border-amber-200"
                 }`}
               >
-                {passed ? "Perfect score!" : "Graded"} — {grade.score}/{grade.total} (
+                {passed ? "Passed!" : "Not passed"} — {grade.score}/{grade.total} (
                 {Math.round((grade.score / grade.total) * 100)}%)
               </span>
               <span className="text-xs text-gray-400">
                 Attempt {grade.attempts} · Your grade has been recorded.
               </span>
               <div className="ml-auto flex items-center gap-2">
-                {/* The Mark complete toggle lives at the top of a long page —
-                    offer it again here, where the user actually finishes. */}
-                {!completed && (
-                  <button
-                    onClick={toggleComplete}
-                    disabled={savingComplete}
-                    className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
-                  >
-                    Mark module complete
-                  </button>
-                )}
                 <button
                   onClick={retake}
                   className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-colors"
