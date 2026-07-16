@@ -4,10 +4,11 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 
 /**
- * Left-hand navigation tree for the Training section: Practice (the project
- * simulation sandbox), Lessons (the curated workflow + concept curriculum),
- * and Guides (company-uploaded documents). Videos is stubbed as "coming soon"
- * so the tree reads as a complete learning curriculum.
+ * Left-hand navigation tree for the Training section: Training Modules (the
+ * curated read-and-quiz curriculum — the default landing), Practice (the
+ * project simulation sandbox), and Guides (company-uploaded documents). Videos
+ * is stubbed as "coming soon" so the tree reads as a complete learning
+ * curriculum.
  */
 
 type Leaf = { label: string; href?: string };
@@ -15,14 +16,14 @@ type Section = { label: string; items: Leaf[]; defaultOpen?: boolean };
 
 const TREE: Section[] = [
   {
+    label: "Training Modules",
+    defaultOpen: true,
+    items: [{ label: "All modules", href: "/training/lessons" }],
+  },
+  {
     label: "Practice",
     defaultOpen: true,
     items: [{ label: "Project Simulation", href: "/training/practice" }],
-  },
-  {
-    label: "Lessons",
-    defaultOpen: true,
-    items: [{ label: "Workflows & Concepts", href: "/training/lessons" }],
   },
   {
     label: "Guides",

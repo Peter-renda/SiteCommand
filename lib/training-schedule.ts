@@ -34,8 +34,9 @@ export type TrainingDay = {
   timeframe: string;
   tasks: TrainingTask[];
   /**
-   * Lessons (Training → Lessons ids) recommended alongside this day's tasks.
-   * The Day panel renders them as deep links (/training/lessons?lesson=<id>).
+   * Training Module (lesson) ids recommended alongside this day's tasks.
+   * The Day panel renders them as links to the standalone module page
+   * (/training/lessons/<id>), opened in a new tab.
    */
   lessonIds?: string[];
 };
