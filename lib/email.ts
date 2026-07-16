@@ -149,7 +149,7 @@ export async function sendProjectMemberInviteEmail(
   companyName: string,
   projectName: string,
   acceptInviteUrl: string,
-  supportUrl: string,
+  resourcesUrl: string,
 ) {
   await sendEmail(
     "project-member-invite",
@@ -170,7 +170,7 @@ export async function sendProjectMemberInviteEmail(
           ],
           footerNote: `SiteCommand is ${companyName}'s online project management system.`,
         }) +
-        `<p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;max-width:720px;margin:8px auto 0;">Need help? <a href="${escapeHtml(supportUrl)}">Visit SiteCommand Support</a></p>`,
+        `<p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;max-width:720px;margin:8px auto 0;">New to the industry? <a href="${escapeHtml(resourcesUrl)}">Browse SiteCommand Resources</a></p>`,
     },
   );
 }

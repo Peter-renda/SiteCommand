@@ -942,7 +942,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
               Training modules
             </a>
             <a
-              href="/support"
+              href="/resources"
               className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
             >
               <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -1110,7 +1110,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
               aria-haspopup="menu"
               aria-expanded={userMenuOpen}
               className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors max-w-[140px]"
-              title="Support, Training, Settings, Logout"
+              title="Resources, Training, Settings, Logout"
             >
               <span className="truncate">{username}</span>
               <svg
@@ -1127,10 +1127,10 @@ export default function DashboardClient({ username, email, role, companyRole, us
               <div className="absolute right-0 top-full mt-1 z-40">
                 <div className="w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
                   <a
-                    href="/support"
+                    href="/resources"
                     className="block px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                   >
-                    Support
+                    Resources
                   </a>
                   <a
                     href="/training"

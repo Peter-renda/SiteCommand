@@ -40,7 +40,7 @@ export default function AppHeader({ username, showLogout = true }: AppHeaderProp
               aria-haspopup="menu"
               aria-expanded={open}
               className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors max-w-[160px]"
-              title="Support, Training, Settings, Logout"
+              title="Resources, Training, Settings, Logout"
             >
               <span className="truncate">{username}</span>
               <svg
@@ -57,10 +57,10 @@ export default function AppHeader({ username, showLogout = true }: AppHeaderProp
               <div className="absolute right-0 top-full mt-1 z-40">
                 <div className="w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
                   <a
-                    href="/support"
+                    href="/resources"
                     className="block px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                   >
-                    Support
+                    Resources
                   </a>
                   <a
                     href="/training"
