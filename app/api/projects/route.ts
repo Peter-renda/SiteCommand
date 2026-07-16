@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const acceptInviteUrl = `${appUrl}/login`;
-    const supportUrl = `${appUrl}/support`;
+    const resourcesUrl = `${appUrl}/resources`;
     const companyName = companyData?.name || "Your company";
 
     await Promise.allSettled(
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
             companyName,
             project.name,
             acceptInviteUrl,
-            supportUrl,
+            resourcesUrl,
           );
         })
     );
