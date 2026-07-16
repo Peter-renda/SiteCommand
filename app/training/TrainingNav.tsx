@@ -42,6 +42,11 @@ export default function TrainingNav() {
     Object.fromEntries(TREE.map((s) => [s.label, Boolean(s.defaultOpen)])),
   );
 
+  // The Training Modules pages render without the navigation tree.
+  if (pathname === "/training/lessons" || pathname.startsWith("/training/lessons/")) {
+    return null;
+  }
+
   return (
     <nav className="w-full sm:w-52 shrink-0">
       <p className="px-2 mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
