@@ -932,7 +932,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
               Start a new project
             </button>
             <a
-              href="/training"
+              href="/training/lessons"
               className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
             >
               <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
