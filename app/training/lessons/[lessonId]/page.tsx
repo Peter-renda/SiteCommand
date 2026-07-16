@@ -12,6 +12,18 @@ import LessonDetailClient from "./LessonDetailClient";
  * and grading happens server-side via /api/training/lessons/quiz.
  */
 
+// Modules open in their own browser tabs, so per-lesson tab titles are how
+// users tell several open modules apart.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lessonId: string }>;
+}) {
+  const { lessonId } = await params;
+  const lesson = getLesson(lessonId);
+  return { title: lesson ? `${lesson.title} – Training Modules` : "Training Modules" };
+}
+
 export default async function LessonPage({
   params,
 }: {

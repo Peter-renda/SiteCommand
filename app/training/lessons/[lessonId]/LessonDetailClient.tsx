@@ -332,13 +332,28 @@ export default function LessonDetailClient({
                 {passed ? "Perfect score!" : "Graded"} — {grade.score}/{grade.total} (
                 {Math.round((grade.score / grade.total) * 100)}%)
               </span>
-              <span className="text-xs text-gray-400">Your grade has been recorded.</span>
-              <button
-                onClick={retake}
-                className="ml-auto rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-colors"
-              >
-                Retake quiz
-              </button>
+              <span className="text-xs text-gray-400">
+                Attempt {grade.attempts} · Your grade has been recorded.
+              </span>
+              <div className="ml-auto flex items-center gap-2">
+                {/* The Mark complete toggle lives at the top of a long page —
+                    offer it again here, where the user actually finishes. */}
+                {!completed && (
+                  <button
+                    onClick={toggleComplete}
+                    disabled={savingComplete}
+                    className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  >
+                    Mark module complete
+                  </button>
+                )}
+                <button
+                  onClick={retake}
+                  className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-colors"
+                >
+                  Retake quiz
+                </button>
+              </div>
             </div>
           ) : (
             <div className="mt-5 border-t border-gray-100 pt-4">
