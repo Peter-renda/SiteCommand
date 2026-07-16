@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import EmptyState from "@/app/components/EmptyState";
 import { SkeletonCard } from "@/app/components/Skeleton";
 import DashboardWalkthrough from "./DashboardWalkthrough";
+import TrainingLauncher from "@/app/training/practice/TrainingLauncher";
 import {
   DEFAULT_DASHBOARD_PREFS,
   DashboardPreferences,
@@ -174,6 +175,8 @@ type Project = {
   project_number?: string | null;
   sector?: string | null;
   members?: Member[];
+  is_training?: boolean;
+  training_day?: number | null;
 };
 
 type AddressSuggestion = {
@@ -425,6 +428,8 @@ export default function DashboardClient({ username, email, role, companyRole, us
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   // Left-hand hamburger navigation drawer (collapsible).
   const [navOpen, setNavOpen] = useState(false);
+  // "Start a new project" launches a training sandbox via this modal.
+  const [showTrainingLauncher, setShowTrainingLauncher] = useState(false);
   useEffect(() => {
     if (!navOpen) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -918,7 +923,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
           <nav className="flex-1 overflow-y-auto py-2">
             <button
               type="button"
-              onClick={() => { setNavOpen(false); loadUsers(); setShowModal(true); }}
+              onClick={() => { setNavOpen(false); setShowTrainingLauncher(true); }}
               className="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
             >
               <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -957,6 +962,44 @@ export default function DashboardClient({ username, email, role, companyRole, us
           </nav>
         </div>
       </div>
+
+      {/* "Start a new project" → training sandbox launcher */}
+      {showTrainingLauncher && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowTrainingLauncher(false)} />
+          <div className="relative min-h-full flex items-start justify-center p-4 sm:p-6">
+            <div className="relative w-full max-w-2xl my-8">
+              <button
+                type="button"
+                onClick={() => setShowTrainingLauncher(false)}
+                aria-label="Close"
+                className="absolute -top-3 -right-3 z-10 rounded-full bg-white border border-gray-200 p-1.5 text-gray-400 shadow-sm hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <div className="mb-4">
+                <h2 className="text-2xl font-semibold text-gray-900">Project Simulation</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Run a simulated construction project end to end, {(username || "there").split(/[\s.@]/)[0]}. Pick
+                  your role and a project type, then launch a hands-on{" "}
+                  <span className="font-medium text-gray-700">SiteCommand Training</span> sandbox — a real,
+                  private copy of SiteCommand that opens in a new tab. Fake emails, plans, and specs come
+                  through as you go, so you can practice running the whole job. It&rsquo;s saved under your
+                  Projects.
+                </p>
+              </div>
+              <TrainingLauncher
+                onLaunched={() => {
+                  setShowTrainingLauncher(false);
+                  loadProjects();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
@@ -1296,6 +1339,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {projects.map((project) => {
+              const isTraining = project.is_training === true;
               const pillClass = STATUS_PILL[project.status] ?? "pill-post";
               const statusLabel = STATUS_LABEL[project.status] ?? project.status;
               const scheduleProgress = project.has_schedule
@@ -1324,7 +1368,13 @@ export default function DashboardClient({ username, email, role, companyRole, us
                         </span>
                       )}
                     </div>
-                    <span className={`pill ${pillClass} shrink-0`}>{statusLabel}</span>
+                    {isTraining ? (
+                      <span className="shrink-0 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                        Training
+                      </span>
+                    ) : (
+                      <span className={`pill ${pillClass} shrink-0`}>{statusLabel}</span>
+                    )}
                   </div>
 
                   {/* Project name */}
@@ -1379,8 +1429,8 @@ export default function DashboardClient({ username, email, role, companyRole, us
                   {/* Site-pulse footer */}
                   <div className="-mx-5 px-5 py-2.5 border-t hairline bg-[color:var(--surface-sunken)] flex items-center justify-between">
                     <span className="mono-label flex items-center gap-1.5">
-                      {isActive && <span className="live-dot" />}
-                      {isActive ? "ON SITE" : project.status === "warranty" ? "WARRANTY" : project.status === "bidding" ? "BIDDING" : project.status === "pre-construction" ? "PRE-CON" : "WRAPPED"}
+                      {!isTraining && isActive && <span className="live-dot" />}
+                      {isTraining ? "SANDBOX" : isActive ? "ON SITE" : project.status === "warranty" ? "WARRANTY" : project.status === "bidding" ? "BIDDING" : project.status === "pre-construction" ? "PRE-CON" : "WRAPPED"}
                     </span>
                     <span className="text-[11px] text-gray-400">
                       {new Date(project.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
