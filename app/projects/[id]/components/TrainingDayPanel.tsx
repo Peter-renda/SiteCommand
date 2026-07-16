@@ -619,13 +619,13 @@ export default function TrainingDayPanel({
           <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
             <p className="text-xs font-semibold text-emerald-900">📖 Recommended lessons</p>
             <p className="mt-0.5 text-[11px] text-emerald-700">
-              Background reading for today&apos;s tasks — opens in Training → Lessons.
+              Background reading for today&apos;s tasks — opens in Training Modules.
             </p>
             <ul className="mt-1.5 space-y-1">
               {recommendedLessons.map((l) => (
                 <li key={l.id}>
                   <a
-                    href={`/training/lessons?lesson=${l.id}`}
+                    href={`/training/lessons/${l.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[13px] font-medium leading-snug text-emerald-800 hover:text-emerald-950 hover:underline"
