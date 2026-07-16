@@ -1729,8 +1729,8 @@ The **Training → Guides** section (left-nav tree, alongside Practice and Video
 
 ### Each Module Opens in Its Own Tab (Standalone Lesson Page)
 - The Training Modules page is a **list**, not a two-pane reader: each module is a hyperlink (`target="_blank"`) to `/training/lessons/[lessonId]`, its own page holding the lesson text + the end-of-lesson quiz.
-- `app/training/lessons/[lessonId]/page.tsx` (server) resolves the lesson via `getLesson`, redirects to `/training/lessons` on an unknown id, and passes the lesson plus the **answer-stripped** `getPublicQuiz(id)` to `LessonDetailClient`.
-- The old `?lesson=` deep-link query param and the two-pane in-page reader are gone; links now go straight to the standalone page.
+- `app/training/lessons/[lessonId]/page.tsx` (server) resolves the lesson via `getLesson`, redirects to `/training/lessons` on an unknown id, passes the lesson plus the **answer-stripped** `getPublicQuiz(id)` to `LessonDetailClient`, and sets a per-lesson browser-tab title via `generateMetadata` (so several open module tabs are distinguishable).
+- The two-pane in-page reader is gone; links go straight to the standalone page. The legacy `?lesson=<id>` deep link is kept working: the list page server-redirects it to `/training/lessons/<id>` (old bookmarks/history don't break).
 
 ### Progress Tracking
 - Any logged-in user (company membership not required) can browse modules and mark them complete — per-user, not company-scoped.
@@ -1746,8 +1746,8 @@ The **Training → Guides** section (left-nav tree, alongside Practice and Video
 
 ### UI (SiteCommand)
 - `app/training/TrainingNav.tsx` — **Training Modules** is the first node and links to `/training/lessons`; `app/training/page.tsx` redirects `/training` here.
-- `app/training/lessons/page.tsx` (session gate only) + `LessonsClient.tsx` — the module **library**: a 7-way track-tab row (Workflows / Concepts / Building the Work / Site & Civil / MEP Systems / Contracts & Commercial / Professional Skills), a category-grouped list where each module is a new-tab hyperlink with a completion checkmark + quiz-grade badge, and header progress counters (modules complete, quizzes taken).
-- `app/training/lessons/[lessonId]/LessonDetailClient.tsx` — the standalone module: key-terms callout, body blocks, related-module links (to sibling standalone pages), external links, a **Mark complete** toggle (reuses the progress API), and the graded **Quiz** (radio options per question, Submit → server grade, per-question correct/incorrect highlighting, recorded-grade confirmation, Retake, and prev/next within the track).
+- `app/training/lessons/page.tsx` (session gate + legacy `?lesson=` redirect) + `LessonsClient.tsx` — the module **library**: a 7-way track-tab row (Workflows / Concepts / Building the Work / Site & Civil / MEP Systems / Contracts & Commercial / Professional Skills), a category-grouped list where each module is a new-tab hyperlink with a completion checkmark + quiz-grade badge, and header progress counters (modules complete, quizzes taken, average quiz grade). Because modules are completed in **other tabs**, the list silently refetches progress + grades on window `focus`/`visibilitychange` so badges are never stale.
+- `app/training/lessons/[lessonId]/LessonDetailClient.tsx` — the standalone module: key-terms callout, body blocks, related-module links (to sibling standalone pages), external links, a **Mark complete** toggle (reuses the progress API), and the graded **Quiz** (radio options per question, Submit → server grade, per-question correct/incorrect highlighting, recorded-grade confirmation with attempt number, Retake, an inline **Mark module complete** action in the graded bar when the module isn't complete yet, and prev/next within the track).
 
 ## Training – Best Practice Templates (Company Standards that feed the AI)
 

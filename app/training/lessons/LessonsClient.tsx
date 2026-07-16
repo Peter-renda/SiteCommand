@@ -47,11 +47,30 @@ export default function LessonsClient() {
     void load();
   }, [load]);
 
+  // Modules open in a new tab, so completions/grades are earned while this
+  // list tab sits in the background. Silently refetch when the user comes
+  // back so the checkmarks and grade badges are never stale.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [load]);
+
   const trackLessons = useMemo(() => lessonsByTrack(track), [track]);
   const categories = useMemo(() => lessonCategories(track), [track]);
 
   const overallCompleted = LESSONS.filter((l) => completedIds.has(l.id)).length;
-  const quizzedCount = LESSONS.filter((l) => quizResults[l.id]).length;
+  const takenResults = LESSONS.map((l) => quizResults[l.id]).filter(Boolean) as QuizResult[];
+  const quizzedCount = takenResults.length;
+  const gradePoints = takenResults.reduce((s, r) => s + r.bestScore, 0);
+  const gradeTotal = takenResults.reduce((s, r) => s + r.total, 0);
+  const avgGrade = gradeTotal > 0 ? Math.round((gradePoints / gradeTotal) * 100) : null;
 
   return (
     <div>
@@ -79,6 +98,16 @@ export default function LessonsClient() {
         <span className="text-xs text-gray-400">
           {quizzedCount}/{LESSONS.length} quizzes taken
         </span>
+        {avgGrade !== null && (
+          <>
+            <span className="text-xs text-gray-400">·</span>
+            <span
+              className={`text-xs font-medium ${avgGrade === 100 ? "text-green-600" : "text-gray-500"}`}
+            >
+              avg quiz grade {avgGrade}%
+            </span>
+          </>
+        )}
       </div>
 
       {/* Track tabs */}
