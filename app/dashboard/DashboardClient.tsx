@@ -1098,11 +1098,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
               </div>
             )}
           </div>
-          {(companyRole === "super_admin" || companyRole === "admin") && (
-            <a href="/company" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors shrink-0">
-              Admin
-            </a>
-          )}
           <div className="relative shrink-0" ref={userMenuRef}>
             <button
               type="button"
@@ -1301,17 +1296,6 @@ export default function DashboardClient({ username, email, role, companyRole, us
               <span className="num">{formatCurrencyDisplay(totalValue)}</span> in flight
             </p>
           </div>
-          {canManageProjects && (
-            <button
-              onClick={() => { loadUsers(); setShowModal(true); }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[color:var(--ink)] text-white text-[12px] font-semibold rounded-md hover:bg-gray-800 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              New Project
-            </button>
-          )}
         </div>
 
         {loading ? (
