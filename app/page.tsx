@@ -140,7 +140,7 @@ export default function Home() {
                   {/* CTAs */}
                   <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
                     <a
-                      href="/signup?plan=starter"
+                      href="/signup"
                       className="group relative inline-flex items-center gap-2 px-7 py-3.5 text-sm font-semibold text-white rounded-lg overflow-hidden transition-all duration-200 active:scale-[0.98]"
                       style={{ background: ORANGE, boxShadow: "0 8px 28px rgba(234,88,12,0.35)" }}
                     >
@@ -550,7 +550,7 @@ export default function Home() {
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <a
-                href="/signup?plan=starter"
+                href="/signup"
                 className="group relative inline-flex items-center gap-2 px-8 py-4 text-sm font-semibold text-white rounded-lg overflow-hidden transition-all duration-200 active:scale-[0.98]"
                 style={{ background: ORANGE, boxShadow: "0 8px 28px rgba(234,88,12,0.4)" }}
               >
@@ -577,7 +577,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <span className="font-display text-sm text-white">SiteCommand</span>
           <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.45)" }}>
-            <a href="/signup?plan=starter" className="hover:text-white transition-colors">Start training</a>
+            <a href="/signup" className="hover:text-white transition-colors">Start training</a>
             <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
             <a href="#" className="hover:text-white transition-colors">Privacy</a>
             <a href="#" className="hover:text-white transition-colors">Terms</a>
