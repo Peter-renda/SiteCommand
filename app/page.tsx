@@ -583,7 +583,7 @@ export default function Home() {
             <a href="#" className="hover:text-white transition-colors">Terms</a>
           </div>
           <p className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-            &copy; {new Date().getFullYear()} SiteCommand
+            &copy; 2025 SiteCommand
           </p>
         </div>
       </footer>
