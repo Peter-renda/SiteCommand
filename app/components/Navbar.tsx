@@ -32,7 +32,7 @@ export default function Navbar() {
           className="text-sm sm:text-base font-semibold tracking-tight text-gray-900 hover:opacity-80 transition-opacity shrink-0 whitespace-nowrap"
           style={{ letterSpacing: "-0.01em" }}
         >
-          Break Into Construction Management
+          SiteCommand — Break into construction management
         </a>
 
         {/* Desktop nav items */}
