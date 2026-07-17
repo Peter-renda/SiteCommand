@@ -26,6 +26,11 @@ const TREE: Section[] = [
     items: [{ label: "Project Simulation", href: "/training/practice" }],
   },
   {
+    label: "Skills & Credential",
+    defaultOpen: true,
+    items: [{ label: "My Skills Profile", href: "/training/skills" }],
+  },
+  {
     label: "Guides",
     defaultOpen: true,
     items: [{ label: "Company Guides", href: "/training/guides" }],
