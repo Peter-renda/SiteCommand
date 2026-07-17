@@ -18,13 +18,18 @@ import {
 import { INBOX_SENDERS, inboxEmailsForDay } from "@/lib/training-inbox";
 import { getLesson } from "@/lib/training-lessons";
 import { meetingForTask } from "@/lib/training-meetings";
+import TrainingCoachSection from "./TrainingCoach";
 
 /**
- * Day-by-day task panel shown in a training sandbox. It surfaces the tasks
- * scheduled for the trainee's current in-sim day (from projects.training_day),
- * lets them check tasks off (per project + day, in localStorage), and advances
- * one day at a time with a "Complete Day" button (which persists the new
- * training_day server-side).
+ * Day-by-day task panel shown in a training sandbox — a collapsible panel on
+ * the LEFT edge of the screen. It surfaces the tasks scheduled for the
+ * trainee's current in-sim day (from projects.training_day), lets them check
+ * tasks off (per project + day, in localStorage), and advances one day at a
+ * time with a "Complete Day" button (which persists the new training_day
+ * server-side). The day's coach message (TrainingCoachSection) lives at the
+ * top of the panel body, so all training guidance sits in this one surface
+ * instead of separate floating cards; the collapsed tab shows a pulse dot
+ * while the day's coach message is unheard.
  *
  * The trainee always moves to the very next calendar day — even on days with no
  * scheduled task batch, which render as a quiet "no new tasks today" day. Task
@@ -292,12 +297,18 @@ export default function TrainingDayPanel({
   const [advancing, setAdvancing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Broadcast the active day so the Coach narrator (a sibling in the project
-  // layout) can surface the right message — on mount and on each advance.
-  useEffect(() => {
-    if (schedule.length === 0) return;
-    writeString(`sc-training-active-day-${projectId}`, String(currentDay));
-  }, [currentDay, schedule.length, projectId]);
+  // Days whose coach message was acknowledged — written by the embedded
+  // TrainingCoachSection; read here so the collapsed tab can show a pulse dot
+  // while today's message is unheard.
+  const [coachHeardRaw] = useLocalStorageString(`sc-training-coach-heard-${projectId}`);
+  const coachHeardDays = useMemo<Set<number>>(() => {
+    try {
+      const arr = coachHeardRaw ? (JSON.parse(coachHeardRaw) as number[]) : [];
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch {
+      return new Set();
+    }
+  }, [coachHeardRaw]);
 
   // Reconcile against the authoritative training_day on mount, with a no-store
   // fetch, so the saved day always wins on reopen — even if the server-rendered
@@ -346,6 +357,8 @@ export default function TrainingDayPanel({
   const onboarding = ONBOARDING_BY_ROLE[role];
   const isFirstDay = currentDay === firstDay;
   const currentPhase = contextEntry.phase;
+  // Coach messages only exist on scheduled task-batch days.
+  const coachUnheard = !!taskEntry && !coachHeardDays.has(currentDay);
 
   const doneCount = tasks.reduce(
     (n, _t, i) => n + (checks[`${currentDay}-${i}`] ? 1 : 0),
@@ -417,12 +430,18 @@ export default function TrainingDayPanel({
       <button
         type="button"
         onClick={() => setCollapsed("0")}
-        title={`Open Day ${currentDay} tasks`}
-        aria-label={`Open Day ${currentDay} tasks`}
-        className="fixed right-0 top-1/2 z-40 -translate-y-1/2 flex flex-col items-center gap-1.5 rounded-l-lg bg-amber-500 py-3 pl-2 pr-1.5 text-white shadow-lg transition-colors hover:bg-amber-600"
+        title={`Open Day ${currentDay} tasks${coachUnheard ? " — new coach message" : ""}`}
+        aria-label={`Open Day ${currentDay} tasks${coachUnheard ? " — new coach message" : ""}`}
+        className="fixed left-0 top-1/2 z-40 -translate-y-1/2 flex flex-col items-center gap-1.5 rounded-r-lg bg-amber-500 py-3 pl-1.5 pr-2 text-white shadow-lg transition-colors hover:bg-amber-600"
       >
+        {coachUnheard && (
+          <span
+            className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-white shadow"
+            aria-hidden
+          />
+        )}
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
         <span className="text-xs font-semibold tracking-wide [writing-mode:vertical-rl]">
           Day {currentDay}
@@ -466,8 +485,8 @@ export default function TrainingDayPanel({
           </div>
         </div>
       )}
-      <aside className="fixed right-0 top-1/2 z-40 flex max-h-[78vh] w-80 max-w-[calc(100vw-1.5rem)] -translate-y-1/2 flex-col overflow-hidden rounded-l-xl border border-amber-200 bg-white shadow-2xl">
-      <header className="flex items-center justify-between rounded-tl-xl bg-amber-500 px-4 py-2.5 text-white">
+      <aside className="fixed left-0 top-1/2 z-40 flex max-h-[78vh] w-80 max-w-[calc(100vw-1.5rem)] -translate-y-1/2 flex-col overflow-hidden rounded-r-xl border border-amber-200 bg-white shadow-2xl">
+      <header className="flex items-center justify-between rounded-tr-xl bg-amber-500 px-4 py-2.5 text-white">
         <div className="flex items-center gap-2">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -482,7 +501,7 @@ export default function TrainingDayPanel({
           className="rounded p-0.5 text-amber-50 transition-colors hover:bg-amber-600 hover:text-white"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
       </header>
@@ -498,6 +517,10 @@ export default function TrainingDayPanel({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {/* The day's coach briefing — unheard days open expanded with a "New"
+            chip; heard days fold to a single quiet row. */}
+        <TrainingCoachSection projectId={projectId} role={role} activeDay={currentDay} />
+
         {pendingReview && (
           <button
             type="button"
