@@ -1,33 +1,19 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
-type NavSubItem = { label: string; href: string };
+type NavItem = { label: string; href: string };
 
-const navItems: { label: string; items: NavSubItem[]; href?: string }[] = [
-  {
-    label: "About Us",
-    items: [
-      { label: "Blog", href: "/blog" },
-      { label: "Success Stories", href: "/success-stories" },
-    ],
-  },
+const navItems: NavItem[] = [
+  { label: "Blog", href: "/blog" },
+  { label: "Success Stories", href: "/success-stories" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "About", href: "/about" },
 ];
 
 export default function Navbar() {
-  const [open, setOpen] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleEnter = (label: string) => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    setOpen(label);
-  };
-
-  const handleLeave = () => {
-    closeTimer.current = setTimeout(() => setOpen(null), 250);
-  };
 
   return (
     <nav
@@ -52,53 +38,13 @@ export default function Navbar() {
         {/* Desktop nav items */}
         <div className="hidden lg:flex items-center gap-1">
           {navItems.map((item) => (
-            <div
+            <Link
               key={item.label}
-              className="relative"
-              onMouseEnter={() => handleEnter(item.label)}
-              onMouseLeave={handleLeave}
+              href={item.href}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-all duration-150"
             >
-              <button
-                className="flex items-center gap-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-all duration-150"
-                onClick={() =>
-                  item.items.length === 0
-                    ? (window.location.href = item.href ?? "#")
-                    : setOpen(open === item.label ? null : item.label)
-                }
-              >
-                {item.label}
-                {item.items.length > 0 && (
-                  <svg
-                    className={`w-3.5 h-3.5 transition-transform ${open === item.label ? "rotate-180" : ""}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                )}
-              </button>
-
-              {/* Standard dropdown */}
-              {item.items.length > 0 && open === item.label && (
-                <div
-                  className="absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg py-1 w-44"
-                  onMouseEnter={() => handleEnter(item.label)}
-                  onMouseLeave={handleLeave}
-                >
-                  {item.items.map((sub) => (
-                    <a
-                      key={sub.label}
-                      href={sub.href}
-                      className="block px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-                    >
-                      {sub.label}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
+              {item.label}
+            </Link>
           ))}
         </div>
 
@@ -134,39 +80,14 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="lg:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
           {navItems.map((item) => (
-            <div key={item.label}>
-              {item.items.length === 0 ? (
-                <a
-                  href={item.href ?? "#"}
-                  className="block px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {item.label}
-                </a>
-              ) : (
-                <div>
-                  <button
-                    className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                    onClick={() => setOpen(open === item.label ? null : item.label)}
-                  >
-                    {item.label}
-                  </button>
-                  {open === item.label && (
-                    <div className="pl-4 space-y-1 mb-1">
-                      {item.items.map((sub) => (
-                        <a
-                          key={sub.label}
-                          href={sub.href}
-                          className="block px-3 py-1.5 text-sm text-gray-500 rounded-md hover:bg-gray-50 transition-colors"
-                        >
-                          {sub.label}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <Link
+              key={item.label}
+              href={item.href}
+              className="block px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+              onClick={() => setMobileOpen(false)}
+            >
+              {item.label}
+            </Link>
           ))}
 
           <div className="pt-2 mt-2 border-t border-gray-100 space-y-2">

@@ -2,56 +2,52 @@
 
 import Navbar from "../components/Navbar";
 
+// Every membership includes the same full access — the only difference is the
+// billing term (longer commitments save vs. paying monthly).
+const features = [
+  "Unlimited project simulations",
+  "70+ lessons",
+  "Career center",
+  "Resume help",
+  "Resources",
+];
+
 const plans = [
   {
-    name: "Starter",
-    size: "1–10 employees",
+    name: "Monthly",
+    cadence: "Billed monthly",
     price: "$99",
     period: "/ month",
-    description: "For small crews managing a single active project.",
-    cta: "Get started",
-    plan: "starter" as const,
+    save: null,
+    description: "Full access, billed month to month. Cancel anytime.",
+    cta: "Start training",
+    plan: "monthly",
     ctaHref: null,
     highlight: false,
-    features: [],
   },
   {
-    name: "Professional",
-    size: "11–99 employees",
-    price: "$199",
-    period: "/ month",
-    description: "For growing contractors running multiple projects at once.",
-    cta: "Get started",
-    plan: "pro" as const,
+    name: "3 Months",
+    cadence: "$83/mo · billed quarterly",
+    price: "$250",
+    period: "/ 3 months",
+    save: "Save $47 vs monthly",
+    description: "Commit for a quarter and pay less each month.",
+    cta: "Get 3 months",
+    plan: "quarterly",
+    ctaHref: null,
+    highlight: false,
+  },
+  {
+    name: "6 Months",
+    cadence: "$67/mo · billed every 6 months",
+    price: "$400",
+    period: "/ 6 months",
+    save: "Save $194 vs monthly",
+    description: "The best value for serious career changers.",
+    cta: "Get 6 months",
+    plan: "biannual",
     ctaHref: null,
     highlight: true,
-    features: [
-      "Up to 99 team members",
-      "Everything in Starter",
-      "Multiple active projects",
-      "Advanced reporting",
-      "Directory & subcontractor management",
-      "Priority support",
-    ],
-  },
-  {
-    name: "Enterprise",
-    size: "100+ employees",
-    price: "Contact sales",
-    period: "",
-    description: "Custom pricing and configuration for large organizations.",
-    cta: "Contact us",
-    plan: null,
-    ctaHref: "mailto:sales@sitecommand.com",
-    highlight: false,
-    features: [
-      "Unlimited team members",
-      "Everything in Professional",
-      "Dedicated account manager",
-      "Custom integrations",
-      "SSO & advanced permissions",
-      "SLA & enterprise support",
-    ],
   },
 ];
 
@@ -80,7 +76,7 @@ export default function PricingPage() {
             Simple, transparent pricing
           </h1>
           <p className="mt-4 text-lg text-gray-500 animate-fade-up delay-200">
-            Choose the plan that fits your team. No hidden fees, no surprises.
+            One membership with everything included. Commit for longer and save.
           </p>
         </div>
 
@@ -117,11 +113,11 @@ export default function PricingPage() {
                   className="h-full rounded-[14px] p-8 flex flex-col"
                   style={innerStyle}
                 >
-                  {/* Most popular badge */}
+                  {/* Best value badge */}
                   {plan.highlight && (
                     <div className="mb-4">
                       <span className="px-2.5 py-1 text-xs font-semibold bg-[#2563EB] text-white rounded-full">
-                        Most popular
+                        Best value
                       </span>
                     </div>
                   )}
@@ -129,11 +125,11 @@ export default function PricingPage() {
                   {/* Plan header */}
                   <div className="mb-8 min-h-[160px]">
                     <p className="text-xs font-medium tracking-wide mb-1 text-gray-400">
-                      {plan.size}
+                      {plan.cadence}
                     </p>
                     <h2
                       className="text-2xl text-gray-950"
-                     
+
                     >
                       {plan.name}
                     </h2>
@@ -149,6 +145,13 @@ export default function PricingPage() {
                         </span>
                       )}
                     </div>
+                    {plan.save && (
+                      <div className="mt-3">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700">
+                          {plan.save}
+                        </span>
+                      </div>
+                    )}
                     <p className="mt-3 text-sm leading-relaxed text-gray-500">
                       {plan.description}
                     </p>
@@ -185,13 +188,12 @@ export default function PricingPage() {
                     </button>
                   )}
 
-                  {/* Feature list */}
-                  {plan.features.length > 0 && (
+                  {/* Feature list — identical across every term */}
                   <ul
                     className="space-y-3 pt-8 mt-auto"
                     style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
                   >
-                    {plan.features.map((f) => (
+                    {features.map((f) => (
                       <li key={f} className="flex items-start gap-2.5 text-sm">
                         <svg
                           className="w-4 h-4 shrink-0 mt-0.5"
@@ -211,7 +213,6 @@ export default function PricingPage() {
                       </li>
                     ))}
                   </ul>
-                  )}
                 </div>
               </div>
             );
