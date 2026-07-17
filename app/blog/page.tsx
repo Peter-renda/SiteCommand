@@ -140,7 +140,7 @@ export default function BlogPage() {
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <a
-                href="/signup?plan=starter"
+                href="/signup"
                 className="group relative inline-flex items-center gap-2 px-8 py-4 text-sm font-semibold text-white rounded-lg overflow-hidden transition-all duration-200 active:scale-[0.98]"
                 style={{ background: ORANGE, boxShadow: "0 8px 28px rgba(234,88,12,0.4)" }}
               >
