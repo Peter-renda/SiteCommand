@@ -432,20 +432,17 @@ export default function TrainingDayPanel({
         onClick={() => setCollapsed("0")}
         title={`Open Day ${currentDay} tasks${coachUnheard ? " — new coach message" : ""}`}
         aria-label={`Open Day ${currentDay} tasks${coachUnheard ? " — new coach message" : ""}`}
-        className="fixed left-0 top-1/2 z-40 -translate-y-1/2 flex flex-col items-center gap-1.5 rounded-r-lg bg-amber-500 py-3 pl-1.5 pr-2 text-white shadow-lg transition-colors hover:bg-amber-600"
+        className="fixed left-3 top-1/2 z-40 -translate-y-1/2 rounded-md border border-gray-200 bg-white p-2 text-gray-500 shadow-md transition-colors hover:bg-gray-100 hover:text-gray-900"
       >
         {coachUnheard && (
           <span
-            className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-white shadow"
+            className="absolute -right-1 -top-1 h-2.5 w-2.5 animate-pulse rounded-full bg-indigo-500 ring-2 ring-white"
             aria-hidden
           />
         )}
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
         </svg>
-        <span className="text-xs font-semibold tracking-wide [writing-mode:vertical-rl]">
-          Day {currentDay}
-        </span>
       </button>
     );
   }

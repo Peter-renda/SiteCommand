@@ -28,29 +28,28 @@ export default async function ProjectLayout({
   // accounts and trust the client-side interceptor to handle data correctly.
   let isTraining = false;
   let trainingRole: string | null = null;
-  let trainingSavedAt: string | null = null;
   let trainingDay = 0;
   if (session.user_type !== "demo") {
     const hasAccess = await canAccessProject(id, session);
     if (!hasAccess) redirect("/dashboard");
 
-    // Sandbox projects get a persistent "SiteCommand Training" banner (with the
-    // auto-save / Save progress controls) so it's always clear this is a practice
-    // environment, not a real project.
+    // Sandbox projects mount the headless TrainingBanner (silent auto-save)
+    // and the left-edge Day panel; the visible "SiteCommand Training" banner
+    // was removed.
     const { data: project } = await getSupabase()
       .from("projects")
-      .select("is_training, training_role, training_last_saved_at, training_day")
+      .select("is_training, training_role, training_day")
       .eq("id", id)
       .maybeSingle();
     isTraining = !!project?.is_training;
     trainingRole = project?.training_role ?? null;
-    trainingSavedAt = project?.training_last_saved_at ?? null;
     trainingDay = project?.training_day ?? 0;
   }
 
   return (
     <>
-      {isTraining && <TrainingBanner projectId={id} initialSavedAt={trainingSavedAt} />}
+      {/* Headless: drives the sandbox auto-save; the visible banner was removed. */}
+      {isTraining && <TrainingBanner projectId={id} />}
       {children}
       <AssistWidget projectId={id} />
       {isTraining && isTrainingRole(trainingRole) && (
