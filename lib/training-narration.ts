@@ -1,11 +1,11 @@
 /**
  * Coach narration scripts for "SiteCommand Training" sandboxes.
  *
- * The training Coach (app/projects/[id]/components/TrainingCoach.tsx) surfaces a
- * "message from your coach" the moment a sandbox opens and again at the start of
- * each in-sim day. This module is the single source of truth for what the coach
- * says: a full welcome monologue on day one, then a short phase-aware briefing
- * for every subsequent scheduled day.
+ * The training Coach (app/projects/[id]/components/TrainingCoach.tsx — a
+ * collapsible section embedded in the Day panel) surfaces a "message from your
+ * coach" on each scheduled in-sim day. This module is the single source of
+ * truth for what the coach says: a full welcome monologue on day one, then a
+ * short phase-aware briefing for every subsequent scheduled day.
  *
  * It is client-safe (no server-only imports) so both the Coach component (to show
  * the transcript) and the narration API route (to synthesize the audio with

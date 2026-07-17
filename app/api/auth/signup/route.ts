@@ -5,8 +5,16 @@ import { createToken } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 
 const PRICE_IDS: Record<string, string> = {
+  // Legacy team-tier keys (still linked from other marketing CTAs).
   starter: process.env.STRIPE_STARTER_PRICE_ID!,
   pro: process.env.STRIPE_PRO_PRICE_ID!,
+  // Break Into Construction Management membership terms. Monthly reuses the
+  // existing $99/mo price when no dedicated id is set; the longer terms are
+  // configured via their own env vars (an unset id falls through to no
+  // checkout, which is handled gracefully below).
+  monthly: process.env.STRIPE_MONTHLY_PRICE_ID ?? process.env.STRIPE_STARTER_PRICE_ID!,
+  quarterly: process.env.STRIPE_QUARTERLY_PRICE_ID!,
+  biannual: process.env.STRIPE_BIANNUAL_PRICE_ID!,
 };
 
 export async function POST(req: NextRequest) {
