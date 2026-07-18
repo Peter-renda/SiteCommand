@@ -27,6 +27,7 @@ async function main() {
   const jsearchKey = process.env.JSEARCH_API_KEY || process.env.RAPIDAPI_KEY || "";
   const adzunaId = process.env.ADZUNA_APP_ID || "";
   const adzunaKey = process.env.ADZUNA_APP_KEY || "";
+  const joobleKey = process.env.JOOBLE_API_KEY || "";
 
   console.log("Career Center job-search diagnostic");
   console.log("===================================");
@@ -40,6 +41,7 @@ async function main() {
     console.log("  ↳ Adzuna needs BOTH app_id and app_key — it is disabled until ADZUNA_APP_ID is set.");
   }
   console.log(`  ADZUNA_COUNTRY                 : ${process.env.ADZUNA_COUNTRY || "us (default)"}`);
+  console.log(`  JOOBLE_API_KEY                 : ${joobleKey ? "set ✓" : "MISSING ✗"}`);
   console.log("");
 
   const start = Date.now();
@@ -69,16 +71,15 @@ async function main() {
     console.log("");
   }
 
-  const healthy =
-    (result.providers.jsearch || result.providers.adzuna) &&
-    result.jobs.length > 0 &&
-    result.errors.length === 0;
+  const anyConfigured =
+    result.providers.jsearch || result.providers.adzuna || result.providers.jooble;
+  const healthy = anyConfigured && result.jobs.length > 0 && result.errors.length === 0;
 
   if (healthy) {
     console.log("RESULT: healthy ✓  — at least one provider returned jobs with no errors.");
     process.exit(0);
   }
-  if (!result.providers.jsearch && !result.providers.adzuna) {
+  if (!anyConfigured) {
     console.log("RESULT: not configured ✗  — no provider keys are set. The page falls back to direct search links.");
   } else if (result.errors.length > 0) {
     console.log("RESULT: provider failure ✗  — a configured provider errored (see above). This is the likely cause of an empty Career Center.");
