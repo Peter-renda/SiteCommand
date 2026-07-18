@@ -119,6 +119,13 @@ export default function CareerCenterPage() {
       setJobs(data.jobs);
       setConfigured(data.configured);
       setSearched({ query: q, location: loc });
+      // A configured provider that returns nothing *and* reported errors means
+      // an upstream failure (bad key, exhausted quota, provider outage) — not a
+      // genuinely empty result set. Surface that instead of the misleading
+      // "No openings matched that search" empty state.
+      if (data.configured && data.jobs.length === 0 && data.errors.length > 0) {
+        setError("The job boards couldn't be reached right now. Try again in a moment, or use the direct search links below.");
+      }
     } catch {
       if (seq !== requestSeq.current) return;
       setError("Couldn't load job listings right now. Try again in a moment, or use the direct search links below.");
