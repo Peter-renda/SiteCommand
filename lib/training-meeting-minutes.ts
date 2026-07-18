@@ -15,9 +15,9 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import {
-  bidTabText,
   type TrainingMeeting,
   type MeetingTurn,
+  type WalkQuestion,
 } from "@/lib/training-meetings";
 
 export type CheckpointResult = {
@@ -40,6 +40,37 @@ export type GeneratedMinutes = {
   checkpoints: CheckpointResult[];
   scoreCaught: number;
   scoreTotal: number;
+};
+
+/** The trainee's raw answer to one site-walk question (client-recorded). */
+export type WalkResponseInput = {
+  id: string;
+  answer: string;
+  elapsedMs: number;
+  expired: boolean;
+};
+
+export type WalkCredit = "full" | "half" | "none";
+
+export type WalkResult = {
+  id: string;
+  title: string;
+  question: string;
+  credit: WalkCredit;
+  /** One sentence on why the answer earned that credit. */
+  note: string;
+  answer: string;
+  elapsedMs: number;
+  expired: boolean;
+  /** Skill the question evidences (copied from the definition for competency rollup). */
+  skill: string;
+};
+
+export type GradedWalk = {
+  results: WalkResult[];
+  /** full = 1.0, half = 0.5. */
+  points: number;
+  total: number;
 };
 
 const MAX_TURN_CHARS = 2000;
@@ -150,12 +181,9 @@ export async function generateMeetingMinutes(opts: {
 2. CHECKPOINT SCORING — the meeting contained planted tests the PM was expected to catch. For each checkpoint decide, strictly from the transcript, whether the PM caught it (raised it, acted on it, or made the safe call it points at). Give a one-sentence note quoting or paraphrasing the PM's handling — or stating what they missed.
 
 CHECKPOINTS:
-${checkpointBlock}
+${checkpointBlock || "(none — score no checkpoints, return an empty checkpoints array)"}
 
-BID TAB (reference facts):
-${bidTabText()}
-
-Rules:
+${meeting.facts ? `REFERENCE FACTS:\n${meeting.facts}\n\n` : ""}Rules:
 - Score only on what the PM actually said. Attendees mentioning a risk does not count as the PM catching it.
 - Be fair but strict: a vague "sounds good" after the team's recommendation is weaker than the PM naming the risk — but accepting a recommendation that resolves the risk still counts as caught.
 - Return every checkpoint id exactly once.`;
@@ -194,7 +222,11 @@ Produce the minutes and checkpoint scoring now.`;
                 properties: {
                   id: {
                     type: Type.STRING,
-                    enum: meeting.checkpoints.map((c) => c.id),
+                    // An empty enum is invalid — only constrain when there are
+                    // checkpoints to score (normalizeResult ignores strays).
+                    ...(meeting.checkpoints.length > 0
+                      ? { enum: meeting.checkpoints.map((c) => c.id) }
+                      : {}),
                   },
                   caught: { type: Type.BOOLEAN },
                   note: { type: Type.STRING },
@@ -228,6 +260,144 @@ Produce the minutes and checkpoint scoring now.`;
       scoreCaught: checkpoints.filter((c) => c.caught).length,
       scoreTotal: checkpoints.length,
     };
+  } catch {
+    return fallback();
+  }
+}
+
+/* ── Site-walk Q&A grading ─────────────────────────────────────────────── */
+
+function walkKeywordGrade(q: WalkQuestion, answer: string, expired: boolean): { credit: WalkCredit; note: string } {
+  if (expired || !answer.trim()) {
+    return { credit: "none", note: "The clock ran out before an answer came." };
+  }
+  const lower = answer.toLowerCase();
+  if (q.fullKeywords.some((k) => lower.includes(k.toLowerCase()))) {
+    return { credit: "full", note: "Answered on the spot with the substance the question called for." };
+  }
+  if (q.sourceKeywords.some((k) => lower.includes(k.toLowerCase()))) {
+    return { credit: "half", note: "Didn't have the fact cold, but correctly pointed to where it lives." };
+  }
+  // A substantive engagement without keyword hits still shows command of the
+  // moment — split the difference rather than zeroing a real attempt.
+  if (answer.trim().split(/\s+/).length >= 25) {
+    return { credit: "half", note: "Engaged the question substantively; couldn't verify full accuracy offline." };
+  }
+  return { credit: "none", note: "The answer was too vague to satisfy the asker." };
+}
+
+/**
+ * Grades the trainee's site-walk answers: FULL credit for a confident,
+ * substantively correct answer within the time limit; HALF credit for
+ * correctly telling the asker where the information lives; none for
+ * expired/vague/wrong. Never throws — degrades to the keyword heuristic.
+ */
+export async function gradeWalkResponses(opts: {
+  meeting: TrainingMeeting;
+  responses: WalkResponseInput[];
+  projectName: string;
+  traineeName: string;
+}): Promise<GradedWalk> {
+  const walk = opts.meeting.walk;
+  if (!walk) return { results: [], points: 0, total: 0 };
+
+  const byId = new Map(opts.responses.map((r) => [r.id, r]));
+  const rows = walk.questions.map((q) => {
+    const r = byId.get(q.id);
+    return {
+      question: q,
+      answer: clip((r?.answer ?? "").trim(), 1500),
+      elapsedMs: Math.max(0, Math.round(r?.elapsedMs ?? walk.timeLimitSeconds * 1000)),
+      expired: r ? !!r.expired : true,
+    };
+  });
+
+  const finish = (graded: { credit: WalkCredit; note: string }[]): GradedWalk => {
+    const results: WalkResult[] = rows.map((row, i) => ({
+      id: row.question.id,
+      title: row.question.title,
+      question: row.question.ask,
+      credit: graded[i].credit,
+      note: clip(graded[i].note, 400),
+      answer: row.answer,
+      elapsedMs: row.elapsedMs,
+      expired: row.expired,
+      skill: row.question.skill,
+    }));
+    const points = results.reduce(
+      (sum, r) => sum + (r.credit === "full" ? 1 : r.credit === "half" ? 0.5 : 0),
+      0,
+    );
+    return { results, points, total: results.length };
+  };
+
+  const fallback = () => finish(rows.map((r) => walkKeywordGrade(r.question, r.answer, r.expired)));
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return fallback();
+
+  // Expired/empty answers need no model judgment.
+  const judgeable = rows.filter((r) => !r.expired && r.answer.length > 0);
+  if (judgeable.length === 0) return fallback();
+
+  const questionBlock = judgeable
+    .map(
+      (r) => `QUESTION id "${r.question.id}" — asked by ${
+        opts.meeting.speakers.find((s) => s.key === r.question.speakerKey)?.name ?? "the owner"
+      }: ${r.question.ask}
+FULL credit means: ${r.question.fullAnswer}
+HALF credit means: correctly directing the asker to the source — ${r.question.sourceHint}
+The PM answered (in ${Math.round(r.elapsedMs / 1000)}s): "${r.answer}"`,
+    )
+    .join("\n\n---\n\n");
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: `=== SITE-WALK ANSWERS TO GRADE ===\n\n${questionBlock}\n\nGrade each answer now.` }] }],
+      config: {
+        systemInstruction: `You are grading ${opts.traineeName || "a trainee"}, a construction PM trainee, on questions the owner and architect asked during an OAC site walk on "${opts.projectName}". Each answer had a ${walk.timeLimitSeconds}-second clock and all answers you see came in on time. Grade each:
+- "full" — a confident, substantively correct, professional answer that addresses the question directly (specifics, status, and a plan where the question calls for one). Judge plausibility and command, not trivia: a specific, professionally coherent answer counts.
+- "half" — the PM doesn't have the fact but correctly tells the asker where the information lives (the right document, log, schedule, or party) and commits to following up. Also use "half" for an answer with real substance that only partly addresses the question.
+- "none" — vague, wrong, or a deflection without a source ("I'll get back to you" alone).
+Give a one-sentence note per answer, written as feedback to the PM. Return every question id exactly once.`,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            grades: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING, enum: judgeable.map((r) => r.question.id) },
+                  credit: { type: Type.STRING, enum: ["full", "half", "none"] },
+                  note: { type: Type.STRING },
+                },
+                required: ["id", "credit", "note"],
+              },
+            },
+          },
+          required: ["grades"],
+        },
+      },
+    });
+
+    const parsed = JSON.parse((result.text ?? "").trim() || "{}") as {
+      grades?: { id?: string; credit?: string; note?: string }[];
+    };
+    const graded = rows.map((row) => {
+      if (row.expired || !row.answer) {
+        return { credit: "none" as WalkCredit, note: "The clock ran out before an answer came." };
+      }
+      const hit = (parsed.grades ?? []).find((g) => g.id === row.question.id);
+      if (hit && (hit.credit === "full" || hit.credit === "half" || hit.credit === "none")) {
+        return { credit: hit.credit as WalkCredit, note: (hit.note ?? "").trim() || "Graded." };
+      }
+      return walkKeywordGrade(row.question, row.answer, row.expired);
+    });
+    return finish(graded);
   } catch {
     return fallback();
   }

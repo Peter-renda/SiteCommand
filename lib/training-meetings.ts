@@ -18,6 +18,7 @@
  */
 
 import type { SimRole } from "@/lib/simulation-constants";
+import type { SkillKey } from "@/lib/training-skills";
 import { TRAINING_SUBS } from "@/lib/training-emails";
 
 export type MeetingSpeaker = {
@@ -74,6 +75,47 @@ export type MeetingCheckpoint = {
   keywords: string[];
 };
 
+/**
+ * A timed question posed during a meeting's site walk. The trainee has
+ * `timeLimitSeconds` (meeting-level) to answer on the spot:
+ *   - FULL credit — a confident, substantively correct answer.
+ *   - HALF credit — they don't have the fact but correctly tell the asker
+ *     where the information lives (spec section, submittal log, fixture
+ *     schedule, testing reports, …).
+ *   - NO credit — the timer expires, or the answer is vague/wrong.
+ * Asked deterministically by the client (no LLM between questions) so the
+ * countdown is reliable; graded server-side when the minutes are generated.
+ */
+export type WalkQuestion = {
+  id: string;
+  /** Speaker key of the persona asking (must be one of the meeting speakers). */
+  speakerKey: string;
+  /** Short label shown in the score card. */
+  title: string;
+  /** The full turn text — scene-setting + the question itself. */
+  ask: string;
+  /** What a full-credit answer contains (drives the judge and the score card). */
+  fullAnswer: string;
+  /** Where the info lives — correctly naming this earns half credit. */
+  sourceHint: string;
+  /** Skill this question evidences in the competency profile. */
+  skill: SkillKey;
+  /** Degraded grading: any of these in the answer → full credit. */
+  fullKeywords: string[];
+  /** Degraded grading: any of these in the answer → half credit. */
+  sourceKeywords: string[];
+};
+
+export type MeetingWalk = {
+  /** Deterministic transition turn that starts the walk after the sit-down agenda. */
+  intro: MeetingTurn;
+  /** Seconds the trainee has to answer each question (the "on the spot" window). */
+  timeLimitSeconds: number;
+  questions: WalkQuestion[];
+  /** Deterministic closing turn after the last question — then the meeting adjourns. */
+  outro: MeetingTurn;
+};
+
 export type TrainingMeeting = {
   id: string;
   role: SimRole;
@@ -94,6 +136,13 @@ export type TrainingMeeting = {
    * meeting up to the first point where the PM is expected to respond.
    */
   opening: MeetingTurn[];
+  /**
+   * Reference facts the attendees (and the minute-taker/scorer) work from —
+   * e.g. the bid tab, or the project status snapshot for an OAC. Plain text.
+   */
+  facts?: string;
+  /** Optional timed site-walk Q&A that runs after the sit-down agenda. */
+  walk?: MeetingWalk;
 };
 
 // ---------------------------------------------------------------------------
@@ -213,6 +262,7 @@ export function bidTabText(): string {
 }
 
 const BID_REVIEW_MEETING: TrainingMeeting = {
+  facts: bidTabText(),
   id: "pm-day1-bid-review",
   role: "project_manager",
   day: 1,
@@ -364,8 +414,304 @@ const BID_REVIEW_MEETING: TrainingMeeting = {
   ],
 };
 
+// ---------------------------------------------------------------------------
+// Recurring OAC meetings + site walks (Project Manager) — every 30 in-sim days
+// ---------------------------------------------------------------------------
+
+/** Shared attendees for the OAC meetings: the owner's rep and the architect
+ *  (both match their inbox-feed personas in lib/training-inbox.ts). */
+const OAC_SPEAKERS: MeetingSpeaker[] = [
+  {
+    key: "whitfield",
+    name: "Elaine Whitfield",
+    title: "Director of Development (Owner)",
+    style:
+      "Runs the OAC as the owner's representative. Commercially sharp and direct; cares about schedule certainty, cost exposure, and not being surprised in front of her investment committee. Asks pointed questions and expects crisp, confident answers — polite but visibly unimpressed by vagueness.",
+  },
+  {
+    key: "chen",
+    name: "Laura Chen",
+    title: "Project Architect, Halford Studio Architects",
+    style:
+      "Detail-oriented on design intent, specifications, finishes, and the submittal record. Collegial but precise — asks about specific materials, fixtures, and coordination items, and quietly notes when the answer should be coming out of a document the PM ought to know.",
+  },
+];
+
+const OAC_WALK_TIME_LIMIT = 30;
+
+const OAC_MEETING_DAY30: TrainingMeeting = {
+  facts: `PROJECT STATUS SNAPSHOT (Month 1 OAC):
+- Foundations and slab-on-grade complete; vertical structure/framing underway.
+- Long-lead items in play: main switchgear (~42-week factory lead from approved submittals), HVAC RTUs (delivery risk flagged by vendor), elevator package (fab slot tied to submittal approval).
+- The owner asked for ROM pricing on adding EV charging stations and expects it tracked as a potential change.
+- Recent field items: sanitary trench compaction failures in Area B (retest status matters), low 7-day concrete breaks flagged by the testing lab (28-day results pending).
+- The architect is watching the elevator submittal package and interior finish submittals.
+- Substantial completion date unchanged so far; the owner reports to her investment committee monthly and hates surprises.`,
+  id: "pm-day30-oac",
+  role: "project_manager",
+  day: 30,
+  taskMatch:
+    "Run the monthly OAC meeting and walk the site with the owner and architect",
+  title: "Monthly OAC Meeting & Site Walk — Month 1",
+  objective:
+    "Give the owner and architect a straight status picture — schedule, cost, and open items — then walk the site and answer their questions on the spot.",
+  deliverable: "OAC minutes + action items",
+  speakers: OAC_SPEAKERS,
+  agenda: [
+    {
+      title: "Schedule & milestone status",
+      points: [
+        "Foundations and slab-on-grade are complete; vertical structure is underway — the owner wants to hear whether the sequence and the substantial-completion date still hold.",
+        "Elaine reports to her investment committee monthly and needs the PM's schedule statement on record, including the top schedule risk in the PM's own words.",
+        "Long-lead procurement status matters here: switchgear, RTUs, and the elevator package are the items ownership has heard about before.",
+      ],
+    },
+    {
+      title: "Budget, change orders & potential changes",
+      points: [
+        "Elaine wants the change order log walked: what's approved, what's pending, and what's potential — including the EV-charging scope she asked to be tracked as a potential change.",
+        "Laura notes any design clarifications in flight that could carry cost (RFI-driven changes).",
+        "The owner's standing rule: no surprises — anything that might become a number should be on the potential-change log today.",
+      ],
+    },
+    {
+      title: "Open items & 30-day look-ahead",
+      points: [
+        "Submittal cycle status: elevator package and interior finish submittals are the ones the architect is watching.",
+        "Testing/inspection status on the structure and site utilities.",
+        "Once open items are covered, the group heads out for the site walk — hard hats on; the walk is part of this meeting.",
+      ],
+    },
+  ],
+  checkpoints: [
+    {
+      id: "oac30-ev-change-log",
+      title: "EV scope on the potential-change log",
+      expectation:
+        "When cost and changes come up, proactively accounts for the owner's EV-charging request — confirms it's tracked as a potential change with ROM/pricing status, without Elaine having to drag it out.",
+      plant:
+        "During the cost/change-order agenda item, have Elaine ask generally about the potential-change log without naming EV charging herself at first. Whether the PM surfaces the EV scope unprompted is the test — if they don't, she eventually asks pointedly and is visibly unimpressed.",
+      plantAgendaIndex: 1,
+      keywords: ["ev", "charging", "potential change", "rom", "change event"],
+    },
+  ],
+  opening: [
+    {
+      speaker: "whitfield",
+      text: "Good morning — thanks for hosting. Standing agenda, same as every month: schedule and milestones, then cost and change orders, then open items and the thirty-day look-ahead. After that I'd like to walk the site; Laura and I both have things we want to see. Let's start with schedule — give me the status picture, and I want to hear your top risk in your own words.",
+    },
+    {
+      speaker: "chen",
+      text: "Morning. From my side I'll want to touch the submittal log when we get to open items — a couple of packages are on my desk and a couple should be on yours. But schedule first.",
+    },
+  ],
+  walk: {
+    intro: {
+      speaker: "whitfield",
+      text: "(Standing) Alright — hard hats. Let's walk. Fair warning: as we go, Laura and I are going to ask you questions about what we're looking at. You're the PM — we expect you to have the answers on the spot. If you don't have one memorized, tell us exactly where you'd find it and when we'll have it; that's an acceptable second-best. Vague doesn't work for me.",
+    },
+    timeLimitSeconds: OAC_WALK_TIME_LIMIT,
+    questions: [
+      {
+        id: "d30-switchgear-delivery",
+        speakerKey: "whitfield",
+        title: "Switchgear delivery date",
+        ask: "(Stopping at the main electrical room — bare CMU walls, conduit stubs in the slab) Here's the room everyone keeps talking about. When does the switchgear actually land on site, and what's the plan if it slips?",
+        fullAnswer:
+          "States the expected delivery window tied to the release/approved submittals (the ~42-week factory lead), and gives a contingency — temporary power sequencing, energization gate coordination with the utility — if it slips.",
+        sourceHint:
+          "The procurement log / the switchgear vendor's quote and order confirmation (Gulf States Switchgear thread) — offer to confirm the current factory date after the walk.",
+        skill: "schedule",
+        fullKeywords: ["42", "week", "lead", "delivery", "temp power", "temporary power", "energization"],
+        sourceKeywords: ["procurement log", "vendor", "quote", "confirm", "order confirmation", "follow up", "after the walk"],
+      },
+      {
+        id: "d30-lobby-fixtures",
+        speakerKey: "chen",
+        title: "Lobby light fixtures",
+        ask: "(In the future lobby, looking up at the double-height ceiling) Quick one while we're standing here — what light fixtures go in this lobby? The decorative package, not the cans.",
+        fullAnswer:
+          "Names the decorative fixture package confidently — the specified pendant/fixture type from the lighting fixture schedule — and its submittal status (approved / in review / pending resubmittal).",
+        sourceHint:
+          "The lighting fixture schedule on the electrical sheets (E-series) and the lighting submittal in the submittal log — offer to pull the exact fixture type from there.",
+        skill: "submittals",
+        fullKeywords: ["pendant", "fixture schedule", "approved", "submittal", "specified"],
+        sourceKeywords: ["fixture schedule", "e-series", "electrical sheets", "submittal log", "spec", "pull", "look"],
+      },
+      {
+        id: "d30-schedule-threat",
+        speakerKey: "whitfield",
+        title: "Biggest schedule threat",
+        ask: "(Walking the structure line) My board asks me the same question every month, so now I'm asking you: are we still making substantial completion, and what is the single biggest threat to that date right now?",
+        fullAnswer:
+          "Gives a direct yes/no-with-context on the date and names one specific, current threat (e.g. long-lead equipment, envelope dry-in pace, elevator submittal cycle) with what's being done about it.",
+        sourceHint:
+          "The master schedule / monthly report — commit to sending the updated schedule narrative and critical-path view after the meeting.",
+        skill: "comms",
+        fullKeywords: ["on schedule", "on track", "substantial completion", "critical path", "risk", "threat", "mitigation"],
+        sourceKeywords: ["schedule update", "monthly report", "send you", "critical path", "after the meeting"],
+      },
+      {
+        id: "d30-concrete-breaks",
+        speakerKey: "chen",
+        title: "Concrete strength results",
+        ask: "(At a column line on level 2, hand on the concrete) These columns — did the 28-day cylinder breaks come back, and were there any low breaks anywhere in the structure I should know about?",
+        fullAnswer:
+          "Knows the testing status — including the flagged low 7-day breaks and the plan (hold for 28-day results, cores/investigation if they don't recover) — and where results stand today.",
+        sourceHint:
+          "The testing agency's reports in the transmittals (Meridian Testing Labs) — offer to forward the latest break reports today.",
+        skill: "field",
+        fullKeywords: ["28-day", "28 day", "breaks", "low break", "cylinder", "cores", "psi"],
+        sourceKeywords: ["testing", "lab", "reports", "transmittal", "forward", "meridian"],
+      },
+    ],
+    outro: {
+      speaker: "whitfield",
+      text: "(Back at the trailer, hard hat off) Good walk. Laura and I will get you our punch of observations by end of week — get us the minutes with action items and owners by tomorrow. Same time next month. Meeting adjourned.",
+    },
+  },
+};
+
+const OAC_MEETING_DAY60: TrainingMeeting = {
+  facts: `PROJECT STATUS SNAPSHOT (Month 2 OAC):
+- Interior finishes underway floor by floor; envelope dried in; MEP trim and controls point-to-point in progress.
+- Occupancy-critical chain: fire alarm acceptance test (fire marshal requires ERRC verification), elevator state inspection (inspector backlog running long), then certificate of occupancy.
+- Billing posture: accounting flagged the mechanical sub's ductwork billed ~80% vs ~55% installed — the pay app needed a pencil-draw cut to earned value.
+- The owner has requested early access for her FF&E vendor (lobby) and previously asked about running HVAC early for temporary conditioning.
+- The architect returned the elevator submittal split (part approved, part revise-and-resubmit) and is watching finish resubmittals and mock-up sign-offs.
+- Retainage/closeout billing prep is starting; the potential-change log needs to be converted or closed.`,
+  id: "pm-day60-oac",
+  role: "project_manager",
+  day: 60,
+  taskMatch:
+    "Run the monthly OAC meeting and walk the site with the owner and architect",
+  title: "Monthly OAC Meeting & Site Walk — Month 2",
+  objective:
+    "Status the owner and architect through the finishes push — schedule to substantial completion, billing posture, closeout look-ahead — then answer their questions on the walk.",
+  deliverable: "OAC minutes + action items",
+  speakers: OAC_SPEAKERS,
+  agenda: [
+    {
+      title: "Schedule to substantial completion",
+      points: [
+        "Interior finishes are running; the conversation is now about the runway to substantial completion — inspections, commissioning, and the elevator are the gating items.",
+        "Elaine is fielding board questions about the delivery date weekly and wants the PM's plain-language commitment plus the float that's left.",
+        "Laura wants the finishes sequence and any resubmittals that could stall a floor.",
+      ],
+    },
+    {
+      title: "Billing, cost & change order posture",
+      points: [
+        "Pay application accuracy matters to the owner now — billed-vs-installed on the big trades, retainage posture, and what the final change order log looks like.",
+        "Elaine wants to close out the potential-change log: anything not converted to a real number soon dies or becomes a claim fight later.",
+      ],
+    },
+    {
+      title: "Closeout & occupancy look-ahead",
+      points: [
+        "The occupancy-critical chain: fire alarm acceptance testing, the elevator state inspection, life-safety systems, then certificate of occupancy.",
+        "Elaine's early-access/FF&E request needs a real answer with conditions, not a shrug.",
+        "Once the look-ahead is covered, the group heads out for the site walk — hard hats on; the walk is part of this meeting.",
+      ],
+    },
+  ],
+  checkpoints: [
+    {
+      id: "oac60-billing-integrity",
+      title: "Billed-vs-installed honesty",
+      expectation:
+        "When billing comes up, speaks to pay-application accuracy on the big trades — including that front-loaded billing (the mechanical ductwork pencil draw) gets cut to installed reality rather than certified as billed.",
+      plant:
+        "During the billing agenda item, have Elaine say she's heard from her lender's inspector that some trades 'look generously billed' — without naming the trade. Whether the PM owns the billed-vs-installed discipline (and the mechanical cut specifically) is the test; don't resolve it for them.",
+      plantAgendaIndex: 1,
+      fallbackLine:
+        "Elaine also mentioned her lender's site inspector felt some trades looked generously billed relative to installed work, and asked how pay applications are being verified.",
+      keywords: ["pencil", "installed", "overbill", "cut", "billed", "earned"],
+    },
+  ],
+  opening: [
+    {
+      speaker: "whitfield",
+      text: "Morning. We're inside the last stretch, so today I care about three things: the runway to substantial completion, whether your billing matches reality on the ground, and the closeout chain — inspections, elevator, occupancy. Then we walk; the building finally looks like a building and I want to see the finishes with my own eyes. Start with schedule: where are we, honestly?",
+    },
+    {
+      speaker: "chen",
+      text: "Good morning. I'll add — I'm watching the finish floors closely now. When we get to open items I want to talk resubmittals and mock-up sign-offs, because a stalled package at this stage costs a floor a week. But go ahead — schedule.",
+    },
+  ],
+  walk: {
+    intro: {
+      speaker: "whitfield",
+      text: "(Standing) Hard hats — let's go see it. Same rules as last time: we'll ask questions as we walk, and you're on the clock. Know it cold, or tell us exactly where it lives and when we'll have it. Ready?",
+    },
+    timeLimitSeconds: OAC_WALK_TIME_LIMIT,
+    questions: [
+      {
+        id: "d60-ffe-access",
+        speakerKey: "whitfield",
+        title: "FF&E early-access conditions",
+        ask: "(In the lobby, finishes going in around you) My FF&E vendor keeps calling me for a date to load in this lobby. What has to be true before I can give them one — and when do you think that is?",
+        fullAnswer:
+          "Lays out the real conditions for early access/beneficial use — finishes and life-safety status in the area, insurance/liability terms, a written early-access agreement, protection plan — and ties them to a realistic window.",
+        sourceHint:
+          "The early-access request thread with the owner and the prime contract's beneficial-use/occupancy provisions — offer to send the conditions letter this week.",
+        skill: "comms",
+        fullKeywords: ["early access", "beneficial", "insurance", "agreement", "life safety", "protection", "conditions"],
+        sourceKeywords: ["contract", "send you", "letter", "put it in writing", "this week", "provisions"],
+      },
+      {
+        id: "d60-corridor-paint",
+        speakerKey: "chen",
+        title: "Corridor paint spec",
+        ask: "(Running a hand along a freshly painted corridor wall) While we're here — what's the specified corridor paint? Finish and color, per the documents.",
+        fullAnswer:
+          "Names the specified finish level and color confidently per the finish schedule / painting spec, plus submittal status (approved color draw-downs).",
+        sourceHint:
+          "The finish schedule on the A-series sheets and painting spec section 09 91 23 / the approved paint submittal — offer to pull the exact finish and color from there.",
+        skill: "submittals",
+        fullKeywords: ["eggshell", "satin", "finish schedule", "approved", "color", "sw ", "sherwin", "benjamin"],
+        sourceKeywords: ["finish schedule", "09 91", "spec section", "submittal", "a-series", "pull", "check the"],
+      },
+      {
+        id: "d60-elevator-inspection",
+        speakerKey: "whitfield",
+        title: "Elevator inspection & CO buffer",
+        ask: "(At the elevator bank, cabs still protected) Walk me through this elevator: when is the state inspection, and how much buffer is between passing it and your certificate-of-occupancy date?",
+        fullAnswer:
+          "Knows the sequence (install complete → pre-test with the vendor → state inspection) and the current inspector backlog risk, states the scheduled/target window, and quantifies the buffer to CO.",
+        sourceHint:
+          "The elevator vendor's thread (Apex) and the inspection scheduling with the state — offer to confirm the inspection slot and buffer after the walk.",
+        skill: "schedule",
+        fullKeywords: ["inspection", "backlog", "buffer", "pre-test", "state", "certificate of occupancy", "co "],
+        sourceKeywords: ["confirm", "vendor", "apex", "schedule", "after the walk", "follow up"],
+      },
+      {
+        id: "d60-ceiling-conflict",
+        speakerKey: "chen",
+        title: "Ceiling grid vs. RCP conflict",
+        ask: "(Looking up at the ceiling grid on level 3) Hold on — this grid run at the corridor transition doesn't match my reflected ceiling plan. How are you handling that?",
+        fullAnswer:
+          "Owns it as a coordination item with a process answer: stop the affected run, verify against the RCP, and get it resolved through an RFI/field clarification with the architect before more grid goes in — not paint over it.",
+        sourceHint:
+          "The RCP (A-series reflected ceiling plans) and the RFI log — commit to issuing the RFI/field verification today.",
+        skill: "field",
+        fullKeywords: ["rfi", "hold", "stop", "verify", "coordinate", "field clarification", "rcp"],
+        sourceKeywords: ["rfi log", "reflected ceiling", "issue an rfi", "today", "check the drawings"],
+      },
+    ],
+    outro: {
+      speaker: "whitfield",
+      text: "(Back at the trailer) That's what I needed. Minutes and action items by tomorrow, and Laura will send her observation list. One more of these before we're talking punch walks instead. Adjourned.",
+    },
+  },
+};
+
 /** All defined meetings. Add future meetings here. */
-export const TRAINING_MEETINGS: TrainingMeeting[] = [BID_REVIEW_MEETING];
+export const TRAINING_MEETINGS: TrainingMeeting[] = [
+  BID_REVIEW_MEETING,
+  OAC_MEETING_DAY30,
+  OAC_MEETING_DAY60,
+];
 
 export function getTrainingMeeting(id: string): TrainingMeeting | null {
   return TRAINING_MEETINGS.find((m) => m.id === id) ?? null;

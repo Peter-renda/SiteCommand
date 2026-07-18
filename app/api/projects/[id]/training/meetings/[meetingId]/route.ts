@@ -24,7 +24,6 @@ import { canAccessProject } from "@/lib/project-access";
 import { projectTypeLabel } from "@/lib/simulation-constants";
 import {
   getTrainingMeeting,
-  bidTabText,
   type TrainingMeeting,
   type MeetingTurn,
 } from "@/lib/training-meetings";
@@ -69,13 +68,13 @@ function fallbackTurns(
   const facilitator = meeting.speakers[0];
   const next = agendaIndex + 1;
   if (next >= meeting.agenda.length) {
+    // Meetings with a site walk don't adjourn here — the walk (handled by the
+    // client) begins when the sit-down portion is done.
+    const close = meeting.walk
+      ? `Good — that covers the sit-down portion. We'll get the ${meeting.deliverable.toLowerCase()} written up from today's notes. Now grab your hard hats — let's go walk the site.`
+      : `Good — I think that covers the agenda. To recap: ${meeting.agenda[meeting.agenda.length - 1].points[0]} We'll get the ${meeting.deliverable.toLowerCase()} written up and distributed today. Thanks everyone — meeting adjourned.`;
     return {
-      turns: [
-        {
-          speaker: facilitator.key,
-          text: `Good — I think that covers the agenda. To recap: ${meeting.agenda[meeting.agenda.length - 1].points[0]} We'll get the ${meeting.deliverable.toLowerCase()} written up and distributed today. Thanks everyone — meeting adjourned.`,
-        },
-      ],
+      turns: [{ speaker: facilitator.key, text: close }],
       agendaIndex: meeting.agenda.length - 1,
       done: true,
     };
@@ -144,7 +143,12 @@ async function generateTurns(opts: {
     })
     .join("\n\n");
 
-  const systemInstruction = `You are role-playing a general contractor's preconstruction team inside a project-management training simulation, in a live meeting titled "${meeting.title}" on the project "${opts.projectName}"${opts.projectType ? ` (${projectTypeLabel(opts.projectType)})` : ""}. The trainee is the project manager, ${pmFirst} — they just spoke, and you produce the attendees' next turns.
+  const finalItemTitle = meeting.agenda[meeting.agenda.length - 1].title;
+  const closeInstruction = meeting.walk
+    ? `in which case the facilitator closes the sit-down portion with a brief recap and stands the group up to head out for the site walk (hard hats on). The walk itself is handled separately — do NOT conduct it, and never say goodbye or "meeting adjourned".`
+    : `in which case the facilitator closes with a brief recap of the decisions and action items.`;
+
+  const systemInstruction = `You are role-playing the attendees of a construction meeting inside a project-management training simulation — a live meeting titled "${meeting.title}" on the project "${opts.projectName}"${opts.projectType ? ` (${projectTypeLabel(opts.projectType)})` : ""}. The trainee is the project manager, ${pmFirst} — they just spoke, and you produce the attendees' next turns.
 
 ATTENDEES YOU SPEAK FOR (never speak for the PM):
 ${personaBlock}
@@ -155,21 +159,18 @@ DELIVERABLE: ${meeting.deliverable}
 AGENDA (follow in order; you are currently on item ${opts.agendaIndex + 1}):
 ${agendaBlock}
 
-BID TAB — the facts everyone works from (stay consistent with these numbers; invent plausible detail only where none exists):
-${bidTabText()}
-
-HIDDEN TESTS — the PM is being evaluated on whether they catch these. Surface each clue naturally at its agenda item, exactly as instructed; NEVER resolve one for the PM, never hint that it's a test, and never volunteer the fix unless the PM raises it first:
-${checkpointBlock}
+${meeting.facts ? `REFERENCE FACTS — what everyone in the room knows (stay consistent with these; invent plausible detail only where none exists):\n${meeting.facts}\n\n` : ""}HIDDEN TESTS — the PM is being evaluated on whether they catch these. Surface each clue naturally at its agenda item, exactly as instructed; NEVER resolve one for the PM, never hint that it's a test, and never volunteer the fix unless the PM raises it first:
+${checkpointBlock || "(none)"}
 
 RULES:
-- Return 1 to 3 short turns, each attributed to one attendee key. Vary who speaks based on who would naturally answer (Rachel for numbers, Marcus for strategy/risk, David to run the meeting).
+- Return 1 to 3 short turns, each attributed to one attendee key. Vary who speaks based on each persona's role and style (the first listed attendee runs the meeting).
 - Each turn is 1-3 sentences of natural spoken meeting dialogue — no markdown, no stage directions, no email formatting.
-- ALWAYS end your last turn by handing the floor to ${pmFirst} with a question or a request for a decision — unless the meeting is finished (done=true), in which case the facilitator closes with a brief recap of the short-list and action items.
+- ALWAYS end your last turn by handing the floor to ${pmFirst} with a question or a request for a decision — unless the meeting is finished (done=true), ${closeInstruction}
 - Stick to the agenda. Work through the current item; advance agendaIndex only when the item has been covered AND the PM has had a chance to weigh in. Do not skip items.
 - If the PM says something off-agenda, have the right attendee answer the aside briefly, in character, then steer back to the current agenda item in the same response.
-- If the PM makes a short-list call the team disagrees with (e.g. picking a flagged low bidder), push back once with the specific risk — but the PM owns the final decision; record it and move on.
+- If the PM makes a call the attendees disagree with, push back once with the specific risk — but the PM owns the final decision; record it and move on.
 - Stay fully in character; never mention being an AI, a simulation, or training.
-- Set done=true only after the final agenda item (action items & award targets) is wrapped and the PM has confirmed next steps.`;
+- Set done=true only after the final agenda item ("${finalItemTitle}") is wrapped and the PM has confirmed next steps.`;
 
   const userPrompt = `=== MEETING TRANSCRIPT SO FAR (oldest first) ===
 ${transcriptBlock || "(meeting just started)"}

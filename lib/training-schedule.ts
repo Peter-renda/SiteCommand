@@ -427,6 +427,20 @@ const PROJECT_MANAGER_SCHEDULE: TrainingDay[] = [
     ],
   },
   {
+    day: 30,
+    phase: "Vertical Structure / Framing",
+    timeframe: "Months 4-9",
+    lessonIds: ["pf-communication", "cn-drawings", "wf-submittals"],
+    tasks: [
+      {
+        task: "Run the monthly OAC meeting and walk the site with the owner and architect",
+        category: "Meetings",
+        collaborators: "PM, Owner, Architect",
+        deliverable: "OAC minutes + action items",
+      },
+    ],
+  },
+  {
     day: 42,
     phase: "Envelope / MEP Rough-In / Dry-In",
     timeframe: "Months 7-13",
@@ -559,6 +573,20 @@ const PROJECT_MANAGER_SCHEDULE: TrainingDay[] = [
         category: "Cost",
         collaborators: "PM, Owner, Accounting",
         deliverable: "Pay app / forecast",
+      },
+    ],
+  },
+  {
+    day: 60,
+    phase: "Interior Finishes",
+    timeframe: "Months 10-16",
+    lessonIds: ["pf-communication", "wf-rfis", "wf-submittals"],
+    tasks: [
+      {
+        task: "Run the monthly OAC meeting and walk the site with the owner and architect",
+        category: "Meetings",
+        collaborators: "PM, Owner, Architect",
+        deliverable: "OAC minutes + action items",
       },
     ],
   },
