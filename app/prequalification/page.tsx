@@ -323,7 +323,7 @@ export default function PrequalificationPage() {
           <span className="text-sm font-medium" style={{ color: "#111110" }}>SiteCommand</span>
           <p className="text-xs text-gray-400">© {new Date().getFullYear()} SiteCommand. All rights reserved.</p>
           <div className="flex gap-6">
-            <Link href="/pricing" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Pricing</Link>
+            <Link href="/pricing" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Sign up</Link>
             <Link href="/about" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">About</Link>
             <Link href="/login" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Sign in</Link>
           </div>

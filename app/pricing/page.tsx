@@ -67,7 +67,7 @@ export default function PricingPage() {
           {/* Eyebrow tag */}
           <div className="inline-flex items-center gap-2 mb-4 delay-100">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#2563EB" }} />
-            <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Pricing</span>
+            <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Sign up</span>
           </div>
 
           <h1
