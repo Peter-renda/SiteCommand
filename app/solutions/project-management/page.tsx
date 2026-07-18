@@ -338,7 +338,7 @@ export default function ProjectManagementPage() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
-            <a href="/pricing" className="hover:text-gray-700 transition-colors">Pricing</a>
+            <a href="/pricing" className="hover:text-gray-700 transition-colors">Sign up</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>
