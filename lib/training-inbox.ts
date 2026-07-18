@@ -1041,6 +1041,648 @@ ${invoiceHtml({
 `.trim(),
   },
 
+  // ── Cross-category competency checks ─────────────────────────────────────
+  {
+    day: 6,
+    slug: "competency-contract-admin-a",
+    senderKey: "owner_rep",
+    subject: "Contract notice and subcontract risk check — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Please review the attached contract notes: no-damages-for-delay language, 48-hour written notice for impacts, subcontract insurance limits, bond requirements, and payment terms. Reply with the risks you see and the actions you will take. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 11 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 7,
+    slug: "competency-contract-admin-b",
+    senderKey: "owner_rep",
+    subject: "Contract notice and subcontract risk check — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Please review the attached contract notes: no-damages-for-delay language, 48-hour written notice for impacts, subcontract insurance limits, bond requirements, and payment terms. Reply with the risks you see and the actions you will take. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 12 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 9,
+    slug: "competency-cost-management-a",
+    senderKey: "accounting",
+    subject: "Budget forecast and contingency check — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>I need your monthly cost read. Use the current budget, committed cost, pending exposure, allowances, contingency usage, and cash flow. Reply with EAC, variance drivers, and recommended contingency moves. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 14 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 10,
+    slug: "competency-cost-management-b",
+    senderKey: "accounting",
+    subject: "Budget forecast and contingency check — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>I need your monthly cost read. Use the current budget, committed cost, pending exposure, allowances, contingency usage, and cash flow. Reply with EAC, variance drivers, and recommended contingency moves. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 15 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 12,
+    slug: "competency-estimating-buyout-a",
+    senderKey: "owner_rep",
+    subject: "Bid leveling and scope gap decision — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Three subcontractor bids came in with different exclusions, alternates, quantities, and schedule assumptions. Tell me which scope gaps you found, how you leveled the bids, and who you recommend awarding. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 17 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 13,
+    slug: "competency-estimating-buyout-b",
+    senderKey: "owner_rep",
+    subject: "Bid leveling and scope gap decision — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Three subcontractor bids came in with different exclusions, alternates, quantities, and schedule assumptions. Tell me which scope gaps you found, how you leveled the bids, and who you recommend awarding. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 18 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 15,
+    slug: "competency-scheduling-a",
+    senderKey: "owner_rep",
+    subject: "Critical path and recovery plan request — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The latest update shows delayed framing, late submittals, and a milestone at risk. Identify the critical path, update the look-ahead, and send a recovery plan with resequencing or acceleration options. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 20 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 16,
+    slug: "competency-scheduling-b",
+    senderKey: "owner_rep",
+    subject: "Critical path and recovery plan request — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The latest update shows delayed framing, late submittals, and a milestone at risk. Identify the critical path, update the look-ahead, and send a recovery plan with resequencing or acceleration options. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 21 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 18,
+    slug: "competency-procurement-a",
+    senderKey: "switchgear_vendor",
+    subject: "Long-lead procurement log review — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Several long-lead items need release decisions: switchgear, elevator equipment, HVAC units, and owner-furnished appliances. Send the procurement log priorities, release dates, fabrication tracking, and delivery risks. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 23 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 19,
+    slug: "competency-procurement-b",
+    senderKey: "switchgear_vendor",
+    subject: "Long-lead procurement log review — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Several long-lead items need release decisions: switchgear, elevator equipment, HVAC units, and owner-furnished appliances. Send the procurement log priorities, release dates, fabrication tracking, and delivery risks. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 24 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 21,
+    slug: "competency-submittals-a",
+    senderKey: "architect",
+    subject: "Submittal log and overdue review — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The submittal log is missing required items and several reviews are overdue. Identify missing submittals, expedite the overdue ones, and explain how you will manage resubmittals before field release. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 26 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 22,
+    slug: "competency-submittals-b",
+    senderKey: "architect",
+    subject: "Submittal log and overdue review — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The submittal log is missing required items and several reviews are overdue. Identify missing submittals, expedite the overdue ones, and explain how you will manage resubmittals before field release. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 27 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 24,
+    slug: "competency-rfis-a",
+    senderKey: "architect",
+    subject: "Design conflict RFI response needed — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The field found a conflict between structural framing and MEP routing. Draft the RFI approach, identify consultant coordination needed, and explain how you will distribute the answer to prevent delay. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 29 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 25,
+    slug: "competency-rfis-b",
+    senderKey: "architect",
+    subject: "Design conflict RFI response needed — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The field found a conflict between structural framing and MEP routing. Draft the RFI approach, identify consultant coordination needed, and explain how you will distribute the answer to prevent delay. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 30 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 27,
+    slug: "competency-change-management-a",
+    senderKey: "owner_rep",
+    subject: "Potential change order pricing path — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The owner is considering a scope change. Create the PCO path, gather subcontractor pricing, negotiate the cost, prepare the COR, and flag any schedule impact before execution. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 32 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 28,
+    slug: "competency-change-management-b",
+    senderKey: "owner_rep",
+    subject: "Potential change order pricing path — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The owner is considering a scope change. Create the PCO path, gather subcontractor pricing, negotiate the cost, prepare the COR, and flag any schedule impact before execution. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 33 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 30,
+    slug: "competency-billing-a",
+    senderKey: "accounting",
+    subject: "Pay application and lien waiver review — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Review this billing cycle: owner pay app, subcontractor pay apps, stored materials, lien waivers, retainage, reconciliation, and collections follow-up. Tell me what you approve or reject. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 35 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 31,
+    slug: "competency-billing-b",
+    senderKey: "accounting",
+    subject: "Pay application and lien waiver review — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Review this billing cycle: owner pay app, subcontractor pay apps, stored materials, lien waivers, retainage, reconciliation, and collections follow-up. Tell me what you approve or reject. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 36 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 33,
+    slug: "competency-quality-control-a",
+    senderKey: "testing_agency",
+    subject: "QC deficiency and inspection plan — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>We have upcoming inspections plus open deficiencies. Send your QC plan, inspection coordination steps, punch tracking approach, required tests, and how corrective actions will be verified. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 38 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 34,
+    slug: "competency-quality-control-b",
+    senderKey: "testing_agency",
+    subject: "QC deficiency and inspection plan — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>We have upcoming inspections plus open deficiencies. Send your QC plan, inspection coordination steps, punch tracking approach, required tests, and how corrective actions will be verified. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 39 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 36,
+    slug: "competency-safety-support-a",
+    senderKey: "fire_marshal",
+    subject: "Safety plan and incident documentation — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Before high-risk work starts, review subcontractor safety compliance and meeting needs. Also outline what documentation you need if an incident or OSHA-recordable issue occurs. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 41 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 37,
+    slug: "competency-safety-support-b",
+    senderKey: "fire_marshal",
+    subject: "Safety plan and incident documentation — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Before high-risk work starts, review subcontractor safety compliance and meeting needs. Also outline what documentation you need if an incident or OSHA-recordable issue occurs. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 42 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 39,
+    slug: "competency-meetings-a",
+    senderKey: "owner_rep",
+    subject: "Meeting agenda and minutes test — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Please run the next owner/OAC/subcontractor coordination meeting: prepare the agenda, keep action items clear, publish minutes, and track responsible parties and due dates. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 44 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 40,
+    slug: "competency-meetings-b",
+    senderKey: "owner_rep",
+    subject: "Meeting agenda and minutes test — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Please run the next owner/OAC/subcontractor coordination meeting: prepare the agenda, keep action items clear, publish minutes, and track responsible parties and due dates. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 45 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 42,
+    slug: "competency-document-control-a",
+    senderKey: "architect",
+    subject: "Revised drawings and spec log update — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>A revised drawing set and specification addendum were issued. Update the drawing/spec logs, track revisions, issue the changes to affected trades, and archive the superseded documents. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 47 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 43,
+    slug: "competency-document-control-b",
+    senderKey: "architect",
+    subject: "Revised drawings and spec log update — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>A revised drawing set and specification addendum were issued. Update the drawing/spec logs, track revisions, issue the changes to affected trades, and archive the superseded documents. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 48 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 45,
+    slug: "competency-coordination-a",
+    senderKey: "utility_rep",
+    subject: "Multi-party coordination decision — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The architect, engineer, owner, utility company, AHJ, inspector, and vendor all need decisions this week. Send your coordination plan with decision owners, due dates, and escalation path. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 50 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 46,
+    slug: "competency-coordination-b",
+    senderKey: "utility_rep",
+    subject: "Multi-party coordination decision — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The architect, engineer, owner, utility company, AHJ, inspector, and vendor all need decisions this week. Send your coordination plan with decision owners, due dates, and escalation path. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 51 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 48,
+    slug: "competency-financial-reporting-a",
+    senderKey: "accounting",
+    subject: "WIP and project health report — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Executives need a WIP and project health update. Include profitability forecast, earned revenue, billings, cost risk, schedule health, and top issues needing leadership attention. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 53 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 49,
+    slug: "competency-financial-reporting-b",
+    senderKey: "accounting",
+    subject: "WIP and project health report — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Executives need a WIP and project health update. Include profitability forecast, earned revenue, billings, cost risk, schedule health, and top issues needing leadership attention. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 54 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 51,
+    slug: "competency-risk-management-a",
+    senderKey: "owner_rep",
+    subject: "Risk register and claim documentation review — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Update the risk register with cost, schedule, procurement, and unresolved issue risks. If an issue may become a claim, identify the notices and documentation you will preserve. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 56 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 52,
+    slug: "competency-risk-management-b",
+    senderKey: "owner_rep",
+    subject: "Risk register and claim documentation review — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Update the risk register with cost, schedule, procurement, and unresolved issue risks. If an issue may become a claim, identify the notices and documentation you will preserve. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 57 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 54,
+    slug: "competency-field-support-a",
+    senderKey: "testing_agency",
+    subject: "Superintendent roadblock response — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The superintendent needs direction on constructability, sequencing, manpower, and a field roadblock. Reply with the decision, who owns each action, and how you will prevent delay. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 59 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 55,
+    slug: "competency-field-support-b",
+    senderKey: "testing_agency",
+    subject: "Superintendent roadblock response — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>The superintendent needs direction on constructability, sequencing, manpower, and a field roadblock. Reply with the decision, who owns each action, and how you will prevent delay. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 60 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 57,
+    slug: "competency-closeout-a",
+    senderKey: "building_dept",
+    subject: "Closeout and CO readiness check — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>We need a closeout push plan: punch list, O&M manuals, warranties, as-builts, final inspections, Certificate of Occupancy, subcontract closeout, retainage release, and archive. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 62 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 58,
+    slug: "competency-closeout-b",
+    senderKey: "building_dept",
+    subject: "Closeout and CO readiness check — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>We need a closeout push plan: punch list, O&M manuals, warranties, as-builts, final inspections, Certificate of Occupancy, subcontract closeout, retainage release, and archive. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 63 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 60,
+    slug: "competency-technology-a",
+    senderKey: "architect",
+    subject: "Tool workflow proficiency check — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Use the project tools to create or update an RFI/submittal workflow, markup a PDF, update cost data, and explain where Procore/Bluebeam/schedule/accounting records should be maintained. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 65 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 61,
+    slug: "competency-technology-b",
+    senderKey: "architect",
+    subject: "Tool workflow proficiency check — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>Use the project tools to create or update an RFI/submittal workflow, markup a PDF, update cost data, and explain where Procore/Bluebeam/schedule/accounting records should be maintained. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 66 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 63,
+    slug: "competency-leadership-a",
+    senderKey: "owner_rep",
+    subject: "Leadership under competing deadlines — identify and plan",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>You have subcontractor conflict, PE/APM delegation needs, owner communication, negotiation pressure, and an uncertain release decision all today. Reply with priorities, delegation, and your decision rationale. Focus first on identifying the risks/gaps and the immediate plan.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 68 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+  {
+    day: 64,
+    slug: "competency-leadership-b",
+    senderKey: "owner_rep",
+    subject: "Leadership under competing deadlines — execute and document",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>You have subcontractor conflict, PE/APM delegation needs, owner communication, negotiation pressure, and an uncertain release decision all today. Reply with priorities, delegation, and your decision rationale. Focus first on the action you will take, how you will document it, and who must be notified.</p>
+
+<p>Please reply in the project inbox or create a task with your plan before day 69 so we can keep the simulation moving.</p>
+
+<p>Training Simulation</p>
+`.trim(),
+  },
+
   // Lessons: sc-stormwater, sc-esc, sc-landscape — sediment basin conversion,
   // NPDES notice of termination, landscape establishment at closeout.
   {
