@@ -108,7 +108,7 @@ export default function LessonsClient() {
       </div>
 
       {/* Track tabs */}
-      <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 text-[13px]">
+      <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 text-[13px]">
         {(Object.keys(TRACK_LABELS) as LessonTrack[]).map((t) => (
           <button
             key={t}

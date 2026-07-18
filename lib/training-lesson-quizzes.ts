@@ -2411,6 +2411,312 @@ export const LESSON_QUIZZES: Record<string, LessonQuiz> = {
       },
     ],
   },
+
+  // ═══════════════════ Preconstruction & Field Ops ═══════════════════
+  "fo-geotech": {
+    questions: [
+      {
+        prompt:
+          "A geotech report shows the water table at 4 ft, but your foundation excavation goes to 8 ft. What does that add to the estimate?",
+        options: [
+          "Nothing — the water table only matters for landscaping",
+          "Dewatering (wellpoints), trench shoring, watertight foundation detailing, and likely imported structural backfill",
+          "A taller crane and extra scaffolding",
+          "Only a Level 5 drywall finish",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The OSHA soil classification (Type A / B / C) in a geotech report primarily governs:",
+        options: [
+          "The color of the concrete",
+          "How an excavation must be sloped, benched, or shored so it doesn't cave in",
+          "The paint schedule",
+          "The submittal routing order",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Low soil bearing capacity most directly drives the decision to:",
+        options: [
+          "Use shallow spread footings to save money",
+          "Move to deep foundations such as driven piles or drilled caissons",
+          "Skip the geotech report",
+          "Add more parking",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fo-takeoffs": {
+    questions: [
+      {
+        prompt: "Why does the GC perform its own material takeoff instead of trusting the subs' bids?",
+        options: [
+          "To replace the architect's drawings",
+          "To create an independent baseline that exposes scope gaps and underbidding, and to price change orders and check the SOV",
+          "It's only required on residential jobs",
+          "To avoid having to level bids",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Concrete quantities in a takeoff are typically measured in:",
+        options: ["Square feet", "Linear feet", "Cubic yards", "Tons"],
+        answer: 2,
+      },
+      {
+        prompt: "A subcontractor bid comes in far below your quantity-based estimate. The most likely explanation is:",
+        options: [
+          "You got a genuine bargain — award it immediately",
+          "Missing scope or a deliberate underbid, which is a red flag to investigate before award",
+          "The drawings are wrong",
+          "Retainage was doubled",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fo-constructability-ve": {
+    questions: [
+      {
+        prompt: "A constructability review is looking for:",
+        options: [
+          "Cheaper paint colors",
+          "Design elements that are physically impossible to build or impossible to sequence",
+          "Overbilling on pay apps",
+          "Missing lien waivers",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "True value engineering (VE) must preserve which of the following?",
+        options: [
+          "The lowest possible first cost above all else",
+          "Function, structural safety, and design intent / life-cycle performance",
+          "The original subcontractor list",
+          "The exact original materials",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "When is a constructability or VE review most valuable?",
+        options: [
+          "After the trade has installed the work",
+          "During preconstruction, while a change is still an eraser mark on paper",
+          "At the warranty walk",
+          "Only after substantial completion",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fo-div00-01": {
+    questions: [
+      {
+        prompt:
+          "Where would you look for the exact rules on how a weather-delay must be documented and submitted?",
+        options: [
+          "The architectural floor plans",
+          "MasterFormat Division 01 (General Requirements)",
+          "The landscape drawings",
+          "The geotech report",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Division 00 of the Project Manual primarily covers:",
+        options: [
+          "Concrete testing procedures",
+          "Procurement and contracting requirements — bidding, the agreement, and the conditions of the contract",
+          "HVAC diffuser layouts",
+          "Punch list tracking",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The best summary of drawings vs. specs vs. Division 00/01 is:",
+        options: [
+          "They all say exactly the same thing",
+          "Drawings show spatial intent, the technical specs define quality, and Div 00/01 set the legal/administrative rules",
+          "Only the drawings matter",
+          "Division 01 governs paint colors",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fo-meetings": {
+    questions: [
+      {
+        prompt: "Who typically captures and distributes OAC meeting minutes, and why does the wording matter?",
+        options: [
+          "The owner; because they pay the bills",
+          "The GC; undisputed minutes become an official project record that can establish timelines, approvals, and directives in a dispute",
+          "The architect; for aesthetic reasons",
+          "Nobody; minutes are optional",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The primary purpose of the weekly foreman / coordination meeting is to:",
+        options: [
+          "Review the owner's financing",
+          "De-conflict workspace and shared equipment and firm up the 3-week look-ahead",
+          "Approve change orders",
+          "Sign the prime contract",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A precon (pre-construction) meeting with a trade is held:",
+        options: [
+          "After they finish their scope",
+          "Before that subcontractor mobilizes on site",
+          "Only if there's a dispute",
+          "At the warranty walk",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fo-bim": {
+    questions: [
+      {
+        prompt: "What is the difference between a hard clash and a soft clash?",
+        options: [
+          "A hard clash is expensive; a soft clash is cheap",
+          "A hard clash is two objects in the same physical space; a soft clash violates a required clearance or access buffer without touching",
+          "A hard clash is structural; a soft clash is only architectural",
+          "There is no difference",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The main payoff of BIM clash coordination is:",
+        options: [
+          "Prettier renderings for marketing",
+          "Resolving spatial conflicts digitally to eliminate costly field demolition and rework",
+          "Replacing the need for shop drawings",
+          "Avoiding the submittal process",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Which of these is a soft clash?",
+        options: [
+          "A waste pipe routed straight through a steel beam",
+          "A pipe run that blocks the required access door of an electrical panel without touching it",
+          "Two ducts welded together",
+          "A column poured in the wrong place",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fo-site-logistics": {
+    questions: [
+      {
+        prompt: "A lifting sling arrives with its capacity rating tag completely worn off and unreadable. You should:",
+        options: [
+          "Allow the lift if the sub says it's new",
+          "Remove it from service immediately — a rating is never guessed",
+          "Estimate the capacity and proceed carefully",
+          "Use it only for light loads",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A site logistics plan defines all of the following EXCEPT:",
+        options: [
+          "Perimeter fencing, gates, and crane swing radius",
+          "Material laydown, concrete washout, and dumpster locations",
+          "The architect's interior finish selections",
+          "Trailer positioning and site access routing",
+        ],
+        answer: 2,
+      },
+      {
+        prompt: "Temporary utilities on a jobsite include:",
+        options: [
+          "Only the permanent switchgear",
+          "Temp power, water, and heat/dehumidification that sustain the site before permanent tie-ins",
+          "The owner's furniture",
+          "Landscape irrigation only",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fo-field-layout": {
+    questions: [
+      {
+        prompt:
+          "Checking excavation depth with a laser, your target grade rod reading is 5.40 ft but the actual reading is 5.85 ft. What happened?",
+        options: [
+          "They dug too shallow by 0.45 ft",
+          "They dug too deep by about 0.45 ft — a higher rod reading means a lower elevation",
+          "The grade is exactly right",
+          "The laser is broken",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The excavator hits unmarked orange spray paint directly in the dig path. Orange means, and you must:",
+        options: [
+          "Water — keep digging carefully",
+          "Communications (fiber/phone/cable) — stop mechanical digging and hand-dig to expose the line",
+          "Gas — evacuate the county",
+          "Survey control — ignore it",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A compaction test returns 91% Proctor density but the spec requires 95%. The corrective action is:",
+        options: [
+          "Pour the concrete anyway; it's close enough",
+          "Scarify the soil, adjust its moisture, re-compact, and re-test",
+          "Lower the specification to 90%",
+          "Add more rebar to compensate",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fo-glossary": {
+    questions: [
+      {
+        prompt: "\"As-builts\" are:",
+        options: [
+          "The original bid drawings",
+          "The final drawings redlined to show how systems were actually installed, deviations included",
+          "The architect's first sketches",
+          "A type of lien waiver",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A \"cold joint\" in concrete is:",
+        options: [
+          "A joint installed in winter",
+          "A weak seam where fresh concrete is poured against an older batch that has already begun to harden",
+          "A control joint saw-cut into a slab",
+          "An expansion joint at a wall",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "\"VIF\" (Verify in Field) on a drawing tells the contractor to:",
+        options: [
+          "Void the invoice format",
+          "Physically measure the real-world dimension before ordering or fabricating parts",
+          "Verify insurance forms",
+          "Value-engineer the field work",
+        ],
+        answer: 1,
+      },
+    ],
+  },
 };
 
 export function getLessonQuiz(lessonId: string): LessonQuiz | undefined {

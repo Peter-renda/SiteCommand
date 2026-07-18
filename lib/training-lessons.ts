@@ -7,9 +7,11 @@
  * (means & methods in build sequence), Site & Civil (site planning, grading,
  * SWPPP, stormwater, ADA routes, landscape), MEP Systems (every system as
  * schedule logic — activity chains, hold points, the CO dependency web),
- * Contracts & Commercial (AIA documents, clauses, liens, claims), and
+ * Contracts & Commercial (AIA documents, clauses, liens, claims),
  * Professional Skills (financial literacy, estimating, leadership, codes,
- * ethics).
+ * ethics), and Preconstruction & Field Ops (geotech, takeoffs,
+ * constructability/VE, the Div 00/01 rulebook, meetings, BIM clash
+ * coordination, site logistics/mobilization, field layout, and a glossary).
  *
  * This module is client-safe (no server-only imports) — it's the single
  * source of truth for both the Lessons page (app/training/lessons) and the
@@ -29,6 +31,7 @@ import { SITEWORK_LESSONS } from "./training-lessons-sitework";
 import { MEP_LESSONS } from "./training-lessons-mep";
 import { COMMERCIAL_LESSONS } from "./training-lessons-commercial";
 import { FOUNDATIONS_LESSONS } from "./training-lessons-foundations";
+import { FIELDOPS_LESSONS } from "./training-lessons-fieldops";
 
 export type LessonTrack =
   | "workflow"
@@ -37,7 +40,8 @@ export type LessonTrack =
   | "sitework"
   | "mep"
   | "commercial"
-  | "foundations";
+  | "foundations"
+  | "fieldops";
 
 export type LessonBlock = {
   heading?: string;
@@ -874,6 +878,7 @@ export const LESSONS: Lesson[] = [
   ...MEP_LESSONS,
   ...COMMERCIAL_LESSONS,
   ...FOUNDATIONS_LESSONS,
+  ...FIELDOPS_LESSONS,
 ];
 
 export function getLesson(id: string): Lesson | undefined {
@@ -900,4 +905,5 @@ export const TRACK_LABELS: Record<LessonTrack, string> = {
   mep: "MEP Systems",
   commercial: "Contracts & Commercial",
   foundations: "Professional Skills",
+  fieldops: "Preconstruction & Field Ops",
 };

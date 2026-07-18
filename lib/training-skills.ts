@@ -86,6 +86,7 @@ const LESSON_TRACK_DEFAULT: Record<Lesson["track"], SkillKey> = {
   mep: "field",
   commercial: "cost",
   foundations: "comms",
+  fieldops: "field",
 };
 
 export function lessonSkill(lesson: Pick<Lesson, "track" | "category" | "title">): SkillKey {
