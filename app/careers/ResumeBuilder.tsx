@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   bezelOuter,
   bezelInner,
@@ -18,6 +18,96 @@ type ResumeResult = {
   suggestions: string[];
 };
 
+// The brain-dump is the biggest input on the page — survive a refresh.
+const DRAFT_KEY = "sc-careers-resume-draft";
+
+type Draft = {
+  name: string;
+  targetRole: string;
+  yearsExperience: string;
+  currentTitle: string;
+  location: string;
+  highlights: string;
+  skills: string;
+};
+
+function loadDraft(): Draft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as Draft) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Inline `**bold**` spans → JSX (no HTML injection — pure text nodes). */
+function renderInline(text: string): React.ReactNode {
+  const parts = text.split(/\*\*(.+?)\*\*/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i} className="font-semibold text-gray-900">{part}</strong> : part
+  );
+}
+
+/**
+ * Tiny, safe Markdown preview for the generated resume: headings, bullets,
+ * horizontal rules, bold, paragraphs. Everything is rendered as JSX text
+ * nodes (never dangerouslySetInnerHTML), so model output can't inject markup.
+ */
+function ResumeMarkdown({ markdown }: { markdown: string }) {
+  const blocks: React.ReactNode[] = [];
+  let bullets: string[] = [];
+  let key = 0;
+
+  const flushBullets = () => {
+    if (bullets.length === 0) return;
+    blocks.push(
+      <ul key={key++} className="space-y-1 my-2">
+        {bullets.map((b, i) => (
+          <li key={i} className="text-sm text-gray-700 leading-relaxed flex gap-2">
+            <span className="shrink-0" style={{ color: "#EA580C" }}>•</span>
+            <span>{renderInline(b)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+    bullets = [];
+  };
+
+  for (const rawLine of markdown.split("\n")) {
+    const line = rawLine.trim();
+    const bullet = line.match(/^[-*+]\s+(.*)$/);
+    if (bullet) {
+      bullets.push(bullet[1]);
+      continue;
+    }
+    flushBullets();
+    if (!line) continue;
+    if (/^(-{3,}|_{3,}|\*{3,})$/.test(line)) {
+      blocks.push(<hr key={key++} className="my-3" style={{ borderColor: "rgba(0,0,0,0.08)" }} />);
+    } else if (line.startsWith("### ")) {
+      blocks.push(<h5 key={key++} className="text-sm font-semibold text-gray-900 mt-4 mb-1">{renderInline(line.slice(4))}</h5>);
+    } else if (line.startsWith("## ")) {
+      blocks.push(
+        <h4 key={key++} className="text-xs font-semibold tracking-widest uppercase mt-5 mb-2" style={{ color: "#EA580C" }}>
+          {renderInline(line.slice(3))}
+        </h4>
+      );
+    } else if (line.startsWith("# ")) {
+      blocks.push(
+        <h3 key={key++} className="font-display text-2xl text-gray-900 mb-1" style={{ letterSpacing: "-0.01em" }}>
+          {renderInline(line.slice(2))}
+        </h3>
+      );
+    } else {
+      blocks.push(<p key={key++} className="text-sm text-gray-700 leading-relaxed my-1">{renderInline(line)}</p>);
+    }
+  }
+  flushBullets();
+
+  return <div>{blocks}</div>;
+}
+
 export default function ResumeBuilder() {
   const [name, setName] = useState("");
   const [targetRole, setTargetRole] = useState("");
@@ -31,6 +121,37 @@ export default function ResumeBuilder() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<ResumeResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const hydrated = useRef(false);
+
+  // Restore a saved draft on mount, then persist edits (debounced).
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft) {
+      setName(draft.name ?? "");
+      setTargetRole(draft.targetRole ?? "");
+      setYearsExperience(draft.yearsExperience ?? "");
+      setCurrentTitle(draft.currentTitle ?? "");
+      setLocation(draft.location ?? "");
+      setHighlights(draft.highlights ?? "");
+      setSkills(draft.skills ?? "");
+    }
+    hydrated.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({ name, targetRole, yearsExperience, currentTitle, location, highlights, skills })
+        );
+      } catch {
+        /* storage full or unavailable — drafts are best-effort */
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [name, targetRole, yearsExperience, currentTitle, location, highlights, skills]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -159,9 +280,7 @@ export default function ResumeBuilder() {
                 </button>
               </div>
             </div>
-            <pre className="whitespace-pre-wrap break-words text-sm text-gray-800 leading-relaxed font-sans" style={{ fontFamily: "inherit" }}>
-              {result.markdown}
-            </pre>
+            <ResumeMarkdown markdown={result.markdown} />
 
             {result.suggestions.length > 0 && (
               <div className="mt-5 pt-4" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>

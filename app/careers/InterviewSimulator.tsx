@@ -31,7 +31,10 @@ export default function InterviewSimulator() {
   const [error, setError] = useState("");
   const [started, setStarted] = useState(false);
   const [done, setDone] = useState(false);
+  const [questionNumber, setQuestionNumber] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const TOTAL_QUESTIONS = 5;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -50,6 +53,9 @@ export default function InterviewSimulator() {
       if (!res.ok) throw new Error(data.error || "Failed");
       setTranscript([...nextTranscript, { role: "interviewer", text: data.message }]);
       setDone(Boolean(data.done));
+      if (typeof data.questionNumber === "number" && data.questionNumber > 0) {
+        setQuestionNumber(Math.min(data.questionNumber, TOTAL_QUESTIONS));
+      }
     } catch (err) {
       setError(err instanceof Error && err.message !== "Failed" ? err.message : "The interviewer couldn't respond. Try again in a moment.");
     } finally {
@@ -60,6 +66,7 @@ export default function InterviewSimulator() {
   async function start() {
     setStarted(true);
     setDone(false);
+    setQuestionNumber(0);
     setTranscript([]);
     await requestTurn([]);
   }
@@ -75,6 +82,7 @@ export default function InterviewSimulator() {
   function reset() {
     setStarted(false);
     setDone(false);
+    setQuestionNumber(0);
     setTranscript([]);
     setAnswer("");
     setError("");
@@ -120,9 +128,19 @@ export default function InterviewSimulator() {
             <div>
               <div className="flex items-center justify-between gap-3 mb-3">
                 <span className="text-xs font-semibold tracking-wide text-gray-500">Mock interview · {targetRole}</span>
-                <button onClick={reset} className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all">
-                  New interview
-                </button>
+                <div className="flex items-center gap-2">
+                  {!done && questionNumber > 0 && (
+                    <span
+                      className="px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide"
+                      style={{ background: "rgba(234,88,12,0.08)", color: "#C2410C" }}
+                    >
+                      Question {questionNumber} of {TOTAL_QUESTIONS}
+                    </span>
+                  )}
+                  <button onClick={reset} className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all">
+                    New interview
+                  </button>
+                </div>
               </div>
 
               <div ref={scrollRef} className="space-y-3 max-h-[420px] overflow-y-auto pr-1">

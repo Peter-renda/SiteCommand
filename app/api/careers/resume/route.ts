@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildConstructionResume, CareerToolsNotConfigured, type ResumeInput } from "@/lib/career-tools";
+import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
 // Public endpoint backing the Career Center "Resume Builder" section.
 export async function POST(req: NextRequest) {
+  // Unauthenticated + calls a paid model — throttle per client.
+  if (!checkRateLimit(`careers-resume:${clientIpFrom(req.headers)}`, 10, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — give it a few minutes and try again." }, { status: 429 });
+  }
+
   let body: Partial<ResumeInput>;
   try {
     body = (await req.json()) as Partial<ResumeInput>;

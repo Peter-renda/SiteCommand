@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runInterviewTurn, CareerToolsNotConfigured, type InterviewTurn } from "@/lib/career-tools";
+import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
@@ -9,6 +10,12 @@ const MAX_TURNS = 40;
 // The client sends the full transcript each turn; an empty transcript starts
 // a new interview.
 export async function POST(req: NextRequest) {
+  // Unauthenticated + calls a paid model — throttle per client. Interviews are
+  // multi-turn (7 calls per complete run), so the window is more generous.
+  if (!checkRateLimit(`careers-interview:${clientIpFrom(req.headers)}`, 30, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — give it a few minutes and try again." }, { status: 429 });
+  }
+
   let body: { targetRole?: string; transcript?: InterviewTurn[] };
   try {
     body = (await req.json()) as typeof body;

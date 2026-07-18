@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { estimateConstructionSalary, CareerToolsNotConfigured, type SalaryInput } from "@/lib/career-tools";
+import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 export const maxDuration = 45;
 
 // Public endpoint backing the Career Center "Salary Benchmarks" section.
 export async function POST(req: NextRequest) {
+  // Unauthenticated + calls a paid model — throttle per client.
+  if (!checkRateLimit(`careers-salary:${clientIpFrom(req.headers)}`, 15, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — give it a few minutes and try again." }, { status: 429 });
+  }
+
   let body: Partial<SalaryInput>;
   try {
     body = (await req.json()) as Partial<SalaryInput>;
