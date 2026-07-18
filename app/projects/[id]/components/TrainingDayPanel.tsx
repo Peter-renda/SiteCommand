@@ -432,7 +432,7 @@ export default function TrainingDayPanel({
         onClick={() => setCollapsed("0")}
         title={`Open Day ${currentDay} tasks${coachUnheard ? " — new coach message" : ""}`}
         aria-label={`Open Day ${currentDay} tasks${coachUnheard ? " — new coach message" : ""}`}
-        className="fixed left-4 top-14 z-40 rounded-md border border-gray-200 bg-white p-2 text-gray-500 shadow-md transition-colors hover:bg-gray-100 hover:text-gray-900"
+        className="fixed left-4 top-[104px] z-40 rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
       >
         {coachUnheard && (
           <span
