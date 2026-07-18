@@ -432,7 +432,7 @@ export default function TrainingDayPanel({
         onClick={() => setCollapsed("0")}
         title={`Open Day ${currentDay} tasks${coachUnheard ? " — new coach message" : ""}`}
         aria-label={`Open Day ${currentDay} tasks${coachUnheard ? " — new coach message" : ""}`}
-        className="fixed left-3 top-1/2 z-40 -translate-y-1/2 rounded-md border border-gray-200 bg-white p-2 text-gray-500 shadow-md transition-colors hover:bg-gray-100 hover:text-gray-900"
+        className="fixed left-4 top-14 z-40 rounded-md border border-gray-200 bg-white p-2 text-gray-500 shadow-md transition-colors hover:bg-gray-100 hover:text-gray-900"
       >
         {coachUnheard && (
           <span
@@ -450,7 +450,7 @@ export default function TrainingDayPanel({
   return (
     <>
       {reviewPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
             <div className="mb-2 text-3xl">📋</div>
             <h2 className="text-lg font-semibold text-gray-900">
@@ -482,23 +482,25 @@ export default function TrainingDayPanel({
           </div>
         </div>
       )}
-      <aside className="fixed left-0 top-1/2 z-40 flex max-h-[78vh] w-80 max-w-[calc(100vw-1.5rem)] -translate-y-1/2 flex-col overflow-hidden rounded-r-xl border border-amber-200 bg-white shadow-2xl">
-      <header className="flex items-center justify-between rounded-tr-xl bg-amber-500 px-4 py-2.5 text-white">
-        <div className="flex items-center gap-2">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
-          <span className="text-sm font-semibold">Day {currentDay}</span>
-        </div>
+      <div className="fixed inset-0 z-[60]">
+        <div className="absolute inset-0 bg-black/30" onClick={() => setCollapsed("1")} />
+        <aside
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Day ${currentDay} tasks`}
+          className="absolute left-0 top-0 flex h-full w-80 max-w-[85vw] flex-col border-r border-gray-200 bg-white shadow-xl"
+        >
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 px-4">
+        <span className="text-sm font-semibold text-gray-900">Day {currentDay}</span>
         <button
           type="button"
           onClick={() => setCollapsed("1")}
-          title="Collapse"
-          aria-label="Collapse the task panel"
-          className="rounded p-0.5 text-amber-50 transition-colors hover:bg-amber-600 hover:text-white"
+          title="Close"
+          aria-label="Close the task panel"
+          className="-mr-1.5 rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </header>
@@ -708,6 +710,7 @@ export default function TrainingDayPanel({
         )}
       </div>
       </aside>
+      </div>
     </>
   );
 }
