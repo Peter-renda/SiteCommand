@@ -46,6 +46,8 @@ type CompetencyResponse = {
     quizAverage: number | null;
     checkpointsCaught: number;
     checkpointsTotal: number;
+    walkPoints: number;
+    walkTotal: number;
     scenariosHandled: number;
     scenariosEvaluated: number;
     scenariosPlanted: number;
@@ -219,6 +221,9 @@ export default function SkillsClient() {
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
             <span><strong>{stats.scenariosHandled}</strong>/{stats.scenariosEvaluated} scenarios handled</span>
             <span><strong>{stats.checkpointsCaught}</strong>/{stats.checkpointsTotal} checkpoints caught</span>
+            {stats.walkTotal > 0 && (
+              <span><strong>{Number.isInteger(stats.walkPoints) ? stats.walkPoints : stats.walkPoints.toFixed(1)}</strong>/{stats.walkTotal} site-walk Q&amp;A pts</span>
+            )}
             <span><strong>{stats.modulesQuizzed}</strong> modules quizzed{stats.quizAverage !== null ? ` (avg ${stats.quizAverage}%)` : ""}</span>
             <span><strong>{stats.phaseReviews}</strong> phase review{stats.phaseReviews === 1 ? "" : "s"}</span>
           </div>

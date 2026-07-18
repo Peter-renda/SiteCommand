@@ -54,6 +54,9 @@ export type CompetencyStats = {
   quizAverage: number | null;
   checkpointsCaught: number;
   checkpointsTotal: number;
+  /** Site-walk Q&A points earned (full = 1, half = 0.5) across all meetings. */
+  walkPoints: number;
+  walkTotal: number;
   scenariosHandled: number;
   scenariosEvaluated: number;
   scenariosPlanted: number;
@@ -125,16 +128,20 @@ export async function computeCompetencyProfile(
   // ── Meeting checkpoints + scenarios + phase reviews (sandbox-level) ──
   let checkpointsCaught = 0;
   let checkpointsTotal = 0;
+  let walkPoints = 0;
+  let walkTotal = 0;
   let scenariosHandled = 0;
   let scenariosEvaluated = 0;
   let phaseReviews = 0;
 
+  const isSkillKey = (v: unknown): v is SkillKey => SKILLS.some((s) => s.key === v);
+
   if (sandboxIds.length > 0) {
     const { data: minuteRows } = await supabase
       .from("training_meeting_minutes")
-      .select("checkpoints")
+      .select("checkpoints, walk_results")
       .in("project_id", sandboxIds);
-    for (const row of (minuteRows ?? []) as { checkpoints: unknown }[]) {
+    for (const row of (minuteRows ?? []) as { checkpoints: unknown; walk_results?: unknown }[]) {
       const checkpoints = Array.isArray(row.checkpoints)
         ? (row.checkpoints as { id?: string; title?: string; caught?: boolean }[])
         : [];
@@ -148,6 +155,26 @@ export async function computeCompetencyProfile(
         checkpointsTotal += 1;
         if (c.caught) checkpointsCaught += 1;
         addEvidence(skill, `${c.caught ? "✓ Caught" : "✗ Missed"} in meeting: ${c.title ?? c.id}`);
+      }
+
+      // Timed site-walk Q&A (OAC meetings): full = 100, half = 50, none = 0,
+      // routed by the skill stored on each result. Rolls into the same
+      // meeting-performance component as checkpoints.
+      const walkResults = Array.isArray(row.walk_results)
+        ? (row.walk_results as { id?: string; title?: string; credit?: string; skill?: unknown }[])
+        : [];
+      for (const w of walkResults) {
+        if (!w?.id || !w.credit) continue;
+        const skill = isSkillKey(w.skill) ? w.skill : "comms";
+        const score = w.credit === "full" ? 100 : w.credit === "half" ? 50 : 0;
+        const acc = checkpointAcc.get(skill) ?? newAcc();
+        acc.sum += score;
+        acc.count += 1;
+        checkpointAcc.set(skill, acc);
+        walkTotal += 1;
+        walkPoints += w.credit === "full" ? 1 : w.credit === "half" ? 0.5 : 0;
+        const mark = w.credit === "full" ? "✓" : w.credit === "half" ? "◐ Half credit" : "✗ Missed";
+        addEvidence(skill, `${mark} on the OAC site walk: ${w.title ?? w.id}`);
       }
     }
 
@@ -231,6 +258,8 @@ export async function computeCompetencyProfile(
     quizAverage: quizCount > 0 ? Math.round(quizPctSum / quizCount) : null,
     checkpointsCaught,
     checkpointsTotal,
+    walkPoints,
+    walkTotal,
     scenariosHandled,
     scenariosEvaluated,
     scenariosPlanted: TRAINING_SCENARIOS.length,

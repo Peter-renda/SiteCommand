@@ -18,7 +18,11 @@ import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { canAccessProject } from "@/lib/project-access";
 import { getTrainingMeeting, type MeetingTurn } from "@/lib/training-meetings";
-import { generateMeetingMinutes } from "@/lib/training-meeting-minutes";
+import {
+  generateMeetingMinutes,
+  gradeWalkResponses,
+  type WalkResponseInput,
+} from "@/lib/training-meeting-minutes";
 
 export const maxDuration = 60;
 
@@ -34,6 +38,9 @@ function rowToPayload(row: Record<string, unknown>) {
     checkpoints: row.checkpoints,
     scoreCaught: row.score_caught,
     scoreTotal: row.score_total,
+    walkResults: row.walk_results ?? [],
+    walkPoints: Number(row.walk_points ?? 0),
+    walkTotal: row.walk_total ?? 0,
     transcript: row.transcript,
     completedAt: row.completed_at,
   };
@@ -94,7 +101,7 @@ export async function POST(
   if ("error" in auth) return auth.error;
   const { session, meeting, project, supabase } = auth;
 
-  let body: { transcript?: unknown };
+  let body: { transcript?: unknown; walkResponses?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -133,12 +140,41 @@ export async function POST(
     user?.username ||
     "";
 
-  const generated = await generateMeetingMinutes({
-    meeting,
-    transcript,
-    projectName: project.name ?? "Training Project",
-    traineeName,
-  });
+  // Site-walk answers (meetings with a walk only): validate against the
+  // defined question ids; the grader fills in any question with no response
+  // as expired/none.
+  const validWalkIds = new Set((meeting.walk?.questions ?? []).map((q) => q.id));
+  const walkResponses: WalkResponseInput[] = (
+    Array.isArray(body.walkResponses) ? body.walkResponses : []
+  )
+    .filter(
+      (r): r is { id: string; answer?: unknown; elapsedMs?: unknown; expired?: unknown } =>
+        !!r &&
+        typeof r === "object" &&
+        typeof (r as { id?: unknown }).id === "string" &&
+        validWalkIds.has((r as { id: string }).id),
+    )
+    .map((r) => ({
+      id: r.id,
+      answer: typeof r.answer === "string" ? r.answer.slice(0, MAX_TURN_CHARS) : "",
+      elapsedMs: typeof r.elapsedMs === "number" && Number.isFinite(r.elapsedMs) ? r.elapsedMs : 0,
+      expired: !!r.expired,
+    }));
+
+  const [generated, walk] = await Promise.all([
+    generateMeetingMinutes({
+      meeting,
+      transcript,
+      projectName: project.name ?? "Training Project",
+      traineeName,
+    }),
+    gradeWalkResponses({
+      meeting,
+      responses: walkResponses,
+      projectName: project.name ?? "Training Project",
+      traineeName,
+    }),
+  ]);
 
   const { data: saved, error } = await supabase
     .from("training_meeting_minutes")
@@ -152,6 +188,9 @@ export async function POST(
         checkpoints: generated.checkpoints,
         score_caught: generated.scoreCaught,
         score_total: generated.scoreTotal,
+        walk_results: walk.results,
+        walk_points: walk.points,
+        walk_total: walk.total,
         transcript,
         created_by: session.id,
         completed_at: new Date().toISOString(),
