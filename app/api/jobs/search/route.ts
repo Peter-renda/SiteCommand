@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       jobs: result.jobs,
       providers: result.providers,
-      configured: result.providers.jsearch || result.providers.adzuna,
+      configured: result.providers.jsearch || result.providers.adzuna || result.providers.jooble,
       errors: result.errors,
     });
   } catch (err) {

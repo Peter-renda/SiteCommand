@@ -18,7 +18,7 @@ type JobListing = {
 
 type SearchResponse = {
   jobs: JobListing[];
-  providers: { jsearch: boolean; adzuna: boolean };
+  providers: { jsearch: boolean; adzuna: boolean; jooble: boolean };
   configured: boolean;
   errors: string[];
 };

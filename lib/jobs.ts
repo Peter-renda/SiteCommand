@@ -12,6 +12,7 @@
 //   JSEARCH_API_KEY (or RAPIDAPI_KEY)  — RapidAPI key subscribed to JSearch
 //   ADZUNA_APP_ID + ADZUNA_APP_KEY     — Adzuna app credentials
 //   ADZUNA_COUNTRY                     — optional, defaults to "us"
+//   JOOBLE_API_KEY                     — Jooble API key (jooble.org/api-plan)
 
 export type JobListing = {
   id: string;
@@ -34,7 +35,7 @@ export type JobSearchParams = {
 
 export type JobSearchResult = {
   jobs: JobListing[];
-  providers: { jsearch: boolean; adzuna: boolean };
+  providers: { jsearch: boolean; adzuna: boolean; jooble: boolean };
   errors: string[];
 };
 
@@ -192,6 +193,58 @@ async function fetchAdzunaJobs(
   return jobs;
 }
 
+/* ── Jooble ──────────────────────────────────────────────────────────── */
+
+function getJoobleKey(): string | null {
+  return process.env.JOOBLE_API_KEY || null;
+}
+
+async function fetchJoobleJobs(params: JobSearchParams, key: string): Promise<JobListing[]> {
+  // Jooble: POST https://jooble.org/api/{key} with a JSON body. The key lives
+  // in the URL path, not a header.
+  const keywords = params.remoteOnly ? `${params.query} remote` : params.query;
+  const body: Record<string, unknown> = { keywords, page: 1, ResultOnPage: 20 };
+  if (params.location) body.location = params.location;
+
+  const res = await fetch(`https://jooble.org/api/${encodeURIComponent(key)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Jooble responded ${res.status}`);
+
+  const payload = (await res.json()) as { jobs?: unknown };
+  const rows = Array.isArray(payload.jobs) ? payload.jobs : [];
+
+  const jobs: JobListing[] = [];
+  for (const raw of rows) {
+    const row = raw as Record<string, unknown>;
+    const title = asString(row.title);
+    const applyUrl = asString(row.link);
+    if (!title || !applyUrl) continue;
+
+    const snippet = cleanSnippet(row.snippet);
+    const remote = /\bremote\b/i.test(`${title} ${asString(row.location)} ${snippet ?? ""}`);
+    if (params.remoteOnly && !remote) continue;
+
+    jobs.push({
+      id: `jooble-${asString(row.id) || `${title}-${jobs.length}`}`,
+      title,
+      company: asString(row.company) || "Unknown company",
+      location: asString(row.location) || (remote ? "Remote" : "Not specified"),
+      remote,
+      // Jooble returns salary as a preformatted display string (may be empty).
+      salary: asString(row.salary) || null,
+      postedAt: asString(row.updated) || null,
+      // `source` is the originating board (e.g. "Indeed"); fall back to Jooble.
+      source: asString(row.source) || "Jooble",
+      applyUrl,
+      snippet,
+    });
+  }
+  return jobs;
+}
+
 /* ── merge + cache ───────────────────────────────────────────────────── */
 
 function dedupeKey(job: JobListing): string {
@@ -227,7 +280,12 @@ const cache = new Map<string, { at: number; result: JobSearchResult }>();
 export async function searchJobs(params: JobSearchParams): Promise<JobSearchResult> {
   const jsearchKey = getJSearchKey();
   const adzunaCreds = getAdzunaCreds();
-  const providers = { jsearch: Boolean(jsearchKey), adzuna: Boolean(adzunaCreds) };
+  const joobleKey = getJoobleKey();
+  const providers = {
+    jsearch: Boolean(jsearchKey),
+    adzuna: Boolean(adzunaCreds),
+    jooble: Boolean(joobleKey),
+  };
 
   const normalized: JobSearchParams = {
     query: params.query.trim().toLowerCase(),
@@ -243,14 +301,17 @@ export async function searchJobs(params: JobSearchParams): Promise<JobSearchResu
   const errors: string[] = [];
   const lists: JobListing[][] = [];
 
-  const [jsearchOutcome, adzunaOutcome] = await Promise.allSettled([
+  const [jsearchOutcome, adzunaOutcome, joobleOutcome] = await Promise.allSettled([
     jsearchKey ? fetchJSearchJobs(normalized, jsearchKey) : Promise.resolve([]),
     adzunaCreds ? fetchAdzunaJobs(normalized, adzunaCreds) : Promise.resolve([]),
+    joobleKey ? fetchJoobleJobs(normalized, joobleKey) : Promise.resolve([]),
   ]);
   if (jsearchOutcome.status === "fulfilled") lists.push(jsearchOutcome.value);
   else errors.push(`JSearch: ${jsearchOutcome.reason instanceof Error ? jsearchOutcome.reason.message : "failed"}`);
   if (adzunaOutcome.status === "fulfilled") lists.push(adzunaOutcome.value);
   else errors.push(`Adzuna: ${adzunaOutcome.reason instanceof Error ? adzunaOutcome.reason.message : "failed"}`);
+  if (joobleOutcome.status === "fulfilled") lists.push(joobleOutcome.value);
+  else errors.push(`Jooble: ${joobleOutcome.reason instanceof Error ? joobleOutcome.reason.message : "failed"}`);
 
   const result: JobSearchResult = { jobs: mergeJobs(lists), providers, errors };
 
