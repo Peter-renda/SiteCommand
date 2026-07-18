@@ -24,6 +24,14 @@ type SalaryResult = {
   factors: string[];
 };
 
+const ROLE_CHIPS = [
+  "Project Manager",
+  "Assistant Project Manager",
+  "Project Engineer",
+  "Superintendent",
+  "Estimator",
+];
+
 function money(n: number, currency: string): string {
   try {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: currency || "USD", maximumFractionDigits: 0 }).format(n);
@@ -41,9 +49,8 @@ export default function SalaryBenchmarks() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<SalaryResult | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!role.trim()) {
+  async function runBenchmark(r: string) {
+    if (!r.trim()) {
       setError("Enter a role to benchmark.");
       return;
     }
@@ -53,7 +60,7 @@ export default function SalaryBenchmarks() {
       const res = await fetch("/api/careers/salary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, location, yearsExperience }),
+        body: JSON.stringify({ role: r, location, yearsExperience }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
@@ -64,6 +71,17 @@ export default function SalaryBenchmarks() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    runBenchmark(role);
+  }
+
+  function handleChip(chip: string) {
+    const r = `Construction ${chip}`;
+    setRole(r);
+    runBenchmark(r);
   }
 
   // Position of the median marker within the low→high bar (clamped 6–94%).
@@ -99,10 +117,22 @@ export default function SalaryBenchmarks() {
               <input className={inputClass} style={inputStyle} value={yearsExperience} onChange={(e) => setYearsExperience(e.target.value)} onFocus={focusOrange} onBlur={blurBorder} placeholder="10" />
             </div>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <button type="submit" disabled={loading} className={primaryButtonClass} style={primaryButtonStyle}>
               {loading ? "Estimating…" : "Get benchmark"}
             </button>
+            {ROLE_CHIPS.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                disabled={loading}
+                onClick={() => handleChip(chip)}
+                className="px-3 py-1.5 rounded-full border text-xs font-medium text-gray-600 hover:text-gray-900 hover:border-gray-300 transition-all disabled:opacity-50"
+                style={{ borderColor: "rgba(0,0,0,0.1)", background: "#FFFFFF" }}
+              >
+                {chip}
+              </button>
+            ))}
           </div>
         </form>
       </div>
@@ -131,7 +161,7 @@ export default function SalaryBenchmarks() {
             <div className="mt-4">
               <div className="relative h-2.5 rounded-full" style={{ background: "linear-gradient(90deg, rgba(234,88,12,0.15), rgba(234,88,12,0.55))" }}>
                 <div
-                  className="absolute -top-1 w-1 h-4.5 rounded-full"
+                  className="absolute -top-1 w-1 rounded-full"
                   style={{ left: `calc(${medianPct}% - 2px)`, height: "18px", background: "#EA580C", boxShadow: "0 0 0 3px rgba(234,88,12,0.18)" }}
                 />
               </div>
