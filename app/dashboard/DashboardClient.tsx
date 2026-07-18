@@ -959,6 +959,15 @@ export default function DashboardClient({ username, email, role, companyRole, us
               </svg>
               Career center
             </a>
+            <a
+              href="/community"
+              className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6-2a3 3 0 10-2.83-4M7 11a3 3 0 10-2.83-4" />
+              </svg>
+              Community
+            </a>
           </nav>
         </div>
       </div>
