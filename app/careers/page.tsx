@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "../components/Navbar";
+import ResumeBuilder from "./ResumeBuilder";
+import InterviewSimulator from "./InterviewSimulator";
+import SalaryBenchmarks from "./SalaryBenchmarks";
 
 type JobListing = {
   id: string;
@@ -186,6 +189,25 @@ export default function CareerCenterPage() {
             job boards — filtered for construction project management roles. Train in
             SiteCommand, then land the job.
           </p>
+
+          {/* Section jump-nav */}
+          <div className="mt-6 flex flex-wrap gap-2 animate-fade-up" style={{ animationDelay: "250ms" }}>
+            {[
+              { label: "Job search", href: "#job-search" },
+              { label: "Resume Builder", href: "#resume-builder" },
+              { label: "Interview Simulator", href: "#interview-simulator" },
+              { label: "Salary Benchmarks", href: "#salary-benchmarks" },
+            ].map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="px-3.5 py-1.5 rounded-full border text-xs font-medium text-gray-600 hover:text-gray-900 hover:border-gray-300 bg-white transition-all"
+                style={{ borderColor: "rgba(0,0,0,0.1)" }}
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
         </div>
 
         {/* Credential banner (logged-in, certified trainees only) */}
@@ -210,7 +232,7 @@ export default function CareerCenterPage() {
         )}
 
         {/* Search */}
-        <div style={bezelOuter} className="animate-fade-up" >
+        <div id="job-search" className="scroll-mt-24 animate-fade-up" style={bezelOuter} >
           <form onSubmit={handleSubmit} style={{ ...bezelInner, padding: "20px 24px" }}>
             <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-3">
               <div>
@@ -396,8 +418,15 @@ export default function CareerCenterPage() {
           </div>
         </div>
 
+        {/* Career tools */}
+        <div className="mt-16 space-y-16">
+          <ResumeBuilder />
+          <InterviewSimulator />
+          <SalaryBenchmarks />
+        </div>
+
         {/* Work at SiteCommand */}
-        <p className="mt-12 text-sm text-gray-400">
+        <p className="mt-16 text-sm text-gray-400">
           Want to work at SiteCommand itself?{" "}
           <a
             href="mailto:careers@sitecommand.com"
