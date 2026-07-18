@@ -14,13 +14,22 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await searchJobs({ query, location: location || undefined, remoteOnly });
+    // Diagnostics: provider failures are captured (not thrown) so the request
+    // still succeeds, but they must be visible somewhere. Log them to the
+    // function logs so JSearch vs. Adzuna outages can be told apart at a glance.
+    if (result.errors.length > 0) {
+      console.warn(
+        `[jobs/search] q="${query}" loc="${location}" providers=${JSON.stringify(result.providers)} jobs=${result.jobs.length} errors: ${result.errors.join(" | ")}`
+      );
+    }
     return NextResponse.json({
       jobs: result.jobs,
       providers: result.providers,
       configured: result.providers.jsearch || result.providers.adzuna,
       errors: result.errors,
     });
-  } catch {
+  } catch (err) {
+    console.error("[jobs/search] request failed:", err);
     return NextResponse.json({ error: "Job search failed" }, { status: 502 });
   }
 }

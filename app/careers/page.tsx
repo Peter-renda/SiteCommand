@@ -89,6 +89,7 @@ export default function CareerCenterPage() {
   const [configured, setConfigured] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [failedProviders, setFailedProviders] = useState<string[]>([]);
   const [searched, setSearched] = useState({ query: DEFAULT_QUERY, location: "" });
   const [credential, setCredential] = useState<{ code: string; overall_level: string } | null>(null);
   const requestSeq = useRef(0);
@@ -108,6 +109,7 @@ export default function CareerCenterPage() {
     const seq = ++requestSeq.current;
     setLoading(true);
     setError("");
+    setFailedProviders([]);
     try {
       const params = new URLSearchParams({ q });
       if (loc) params.set("location", loc);
@@ -119,6 +121,16 @@ export default function CareerCenterPage() {
       setJobs(data.jobs);
       setConfigured(data.configured);
       setSearched({ query: q, location: loc });
+      // Diagnostics: name which upstream provider(s) failed. `errors` come back
+      // as "JSearch: …" / "Adzuna: …", so the prefix before the colon is the
+      // provider. Dump the full detail to the browser console for debugging.
+      const providers = data.errors
+        .map((e) => e.split(":")[0]?.trim())
+        .filter((p): p is string => Boolean(p));
+      setFailedProviders([...new Set(providers)]);
+      if (data.errors.length > 0) {
+        console.warn("[Career Center] job-board provider error(s):", data.errors);
+      }
       // A configured provider that returns nothing *and* reported errors means
       // an upstream failure (bad key, exhausted quota, provider outage) — not a
       // genuinely empty result set. Surface that instead of the misleading
@@ -276,6 +288,12 @@ export default function CareerCenterPage() {
         {!loading && error && (
           <div className="mt-6 rounded-xl px-4 py-3 text-sm" style={{ background: "rgba(220,38,38,0.06)", color: "#B91C1C", border: "1px solid rgba(220,38,38,0.15)" }}>
             {error}
+            {failedProviders.length > 0 && (
+              <span className="block mt-1 text-xs" style={{ color: "rgba(185,28,28,0.75)" }}>
+                Affected {failedProviders.length === 1 ? "provider" : "providers"}: {failedProviders.join(", ")}
+                {" "}— see the browser console or server logs for details.
+              </span>
+            )}
           </div>
         )}
 
