@@ -47,7 +47,7 @@ type SeedOpts = {
 };
 
 /** Fictional general contractor used when the launcher has no company of their own. */
-const DEFAULT_COMPANY = "Summit Builders";
+export const DEFAULT_COMPANY = "Summit Builders";
 
 /**
  * The GC's internal team, in the order the requirement lists the roles. The
@@ -123,7 +123,7 @@ function appBaseUrl(): string {
   ).replace(/\/+$/, "");
 }
 
-function emailDomain(company: string): string {
+export function emailDomain(company: string): string {
   const slug = company.toLowerCase().replace(/[^a-z0-9]/g, "");
   return `${slug || "summitbuilders"}.com`;
 }

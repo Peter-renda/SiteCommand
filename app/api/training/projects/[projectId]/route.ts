@@ -20,9 +20,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { deliverTrainingInboxThroughDay } from "@/lib/training-seed";
+import { runTrainingScenarioEngine } from "@/lib/training-scenario-eval";
 
 // Always read live — progress must never be served from a cache.
 export const dynamic = "force-dynamic";
+// The scenario engine may call Gemini when a scenario deadline passes.
+export const maxDuration = 60;
 
 export async function GET(
   _req: NextRequest,
@@ -133,6 +136,12 @@ export async function PATCH(
   } catch {
     /* best-effort */
   }
+
+  // Close the loop on planted decisions: evaluate scenarios whose deadline has
+  // now passed (handled/missed → training_scenario_outcomes) and deliver any
+  // due ripple emails — the consequence of a missed call, or the confirmation
+  // of a good one. Best-effort by design (never blocks the day advance).
+  await runTrainingScenarioEngine(supabase, { projectId, day: trainingDay });
 
   return NextResponse.json({ training_day: saved.training_day });
 }

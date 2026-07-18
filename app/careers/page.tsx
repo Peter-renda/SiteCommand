@@ -90,7 +90,19 @@ export default function CareerCenterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searched, setSearched] = useState({ query: DEFAULT_QUERY, location: "" });
+  const [credential, setCredential] = useState<{ code: string; overall_level: string } | null>(null);
   const requestSeq = useRef(0);
+
+  // If the visitor is a logged-in trainee with an issued credential, surface
+  // it — "train → prove → apply" is the whole loop. Silent on 401/errors.
+  useEffect(() => {
+    fetch("/api/training/credential")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: { credential?: { code: string; overall_level: string } | null } | null) => {
+        if (body?.credential) setCredential(body.credential);
+      })
+      .catch(() => {});
+  }, []);
 
   const runSearch = useCallback(async (q: string, loc: string, remote: boolean) => {
     const seq = ++requestSeq.current;
@@ -156,6 +168,27 @@ export default function CareerCenterPage() {
             SiteCommand, then land the job.
           </p>
         </div>
+
+        {/* Credential banner (logged-in, certified trainees only) */}
+        {credential && (
+          <div
+            className="mb-6 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+            style={{ background: "rgba(21,128,61,0.07)", border: "1px solid rgba(21,128,61,0.18)", color: "#166534" }}
+          >
+            <span className="font-semibold">✓ SiteCommand Certified — {credential.overall_level}</span>
+            <span style={{ color: "rgba(22,101,52,0.75)" }}>
+              Include your verification link in applications:
+            </span>
+            <a
+              href={`/verify/${credential.code}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-xs underline underline-offset-2"
+            >
+              /verify/{credential.code}
+            </a>
+          </div>
+        )}
 
         {/* Search */}
         <div style={bezelOuter} className="animate-fade-up" >
