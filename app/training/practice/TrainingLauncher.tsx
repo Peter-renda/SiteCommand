@@ -13,10 +13,12 @@ import { ROLES, PROJECT_TYPES, type SimRole } from "@/lib/simulation-constants";
  * opening) so the host can refresh its own project list / close a modal.
  */
 
-// The launcher currently offers a single project type. Kept as a filtered list
-// (rather than hardcoded) so more types can be re-introduced later without
-// reworking the control — PROJECT_TYPES stays the source of truth for labels.
-const OFFERED_TYPES = PROJECT_TYPES.filter((p) => p.value === "higher_ed");
+// The launcher offers the project types that have seeded content packs today.
+// Kept as a filtered list (rather than hardcoded) so more types can be
+// re-introduced later without reworking the control — PROJECT_TYPES stays the
+// source of truth for labels/order.
+const LAUNCHABLE_TYPES = new Set(["higher_ed", "healthcare"]);
+const OFFERED_TYPES = PROJECT_TYPES.filter((p) => LAUNCHABLE_TYPES.has(p.value));
 const DEFAULT_TYPE = OFFERED_TYPES[0]?.value ?? "higher_ed";
 const TRAINING_MODES = [
   { value: "guided", label: "Guided", disabled: false },
