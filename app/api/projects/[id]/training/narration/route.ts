@@ -119,7 +119,7 @@ export async function POST(
   const supabase = getSupabase();
   const { data: project } = await supabase
     .from("projects")
-    .select("is_training, training_role, name")
+    .select("is_training, training_role, training_project_type, name")
     .eq("id", projectId)
     .maybeSingle();
 
@@ -150,6 +150,7 @@ export async function POST(
   const narration = buildTrainingNarration(role, scheduledDay, {
     userName,
     projectName: project.name,
+    projectType: project.training_project_type,
   });
   if (!narration) {
     return NextResponse.json({ error: "No narration for this role" }, { status: 404 });

@@ -27,11 +27,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  TRAINING_SCENARIOS,
+  scenariosForType,
   scenarioConversationId,
   type TrainingScenario,
 } from "@/lib/training-scenarios";
-import { INBOX_SENDERS, inboxSenderEmail, type InboxCtx } from "@/lib/training-inbox";
+import { inboxSendersForType, inboxSenderEmail, type InboxCtx } from "@/lib/training-inbox";
 import { DEFAULT_COMPANY, emailDomain } from "@/lib/training-seed";
 import { projectTypeLabel } from "@/lib/simulation-constants";
 
@@ -214,8 +214,10 @@ async function runEngine(
     return;
   }
 
-  // Anything to do at all? (Cheap gate before loading evidence.)
-  const dueScenarios = TRAINING_SCENARIOS.filter((s) => s.deadlineDay < opts.day);
+  // Anything to do at all? (Cheap gate before loading evidence.) The scenario
+  // set depends on the sandbox's project type (healthcare uses the VA pack).
+  const projectType = project.training_project_type ?? "";
+  const dueScenarios = scenariosForType(projectType).filter((s) => s.deadlineDay < opts.day);
   if (dueScenarios.length === 0) return;
 
   const { data: outcomeRows } = await supabase
@@ -375,7 +377,7 @@ async function runEngine(
     const ripple = row.status === "missed" ? scenario.consequence : scenario.confirmation;
     if (!ripple || ripple.day > opts.day) continue;
 
-    const sender = INBOX_SENDERS[ripple.senderKey];
+    const sender = inboxSendersForType(projectType)[ripple.senderKey];
     if (!sender) continue;
     const senderName = `${sender.first} ${sender.last}`;
     const senderAddr = inboxSenderEmail(sender, domain);

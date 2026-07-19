@@ -92,6 +92,7 @@ export function projectTypeLabel(type: string): string {
  */
 const TRAINING_PROJECT_NAMES: Record<string, string> = {
   higher_ed: "University of Washington - Kane Hall Update",
+  healthcare: "Nashville VA Medical Center - Bldg 626-700 Renovation",
 };
 
 export function trainingProjectName(type: string): string {

@@ -14,6 +14,11 @@
 
 import type { SimRole } from "@/lib/simulation-constants";
 import { getTrainingSchedule, resolveDayIndex } from "@/lib/training-schedule";
+import {
+  HEALTHCARE_TYPE,
+  HC_WELCOME_ADDENDUM,
+  healthcareDayBriefing,
+} from "@/lib/training-healthcare";
 
 export type TrainingNarration = {
   /** Short heading shown on the coach popup / modal (e.g. "Week 2 — Buyout"). */
@@ -114,7 +119,7 @@ function fallbackDayBriefing(day: number, firstName: string): string {
 export function buildTrainingNarration(
   role: SimRole,
   day: number,
-  opts: { userName?: string | null; projectName?: string | null },
+  opts: { userName?: string | null; projectName?: string | null; projectType?: string | null },
 ): TrainingNarration | null {
   if (role !== "project_manager") return null;
 
@@ -127,12 +132,18 @@ export function buildTrainingNarration(
 
   const firstName = firstNameOf(opts.userName);
   const project = cleanProjectName(opts.projectName);
+  const isHealthcare = opts.projectType === HEALTHCARE_TYPE;
 
   // Day one is the full welcome; it doubles as the project's opening orientation.
+  // Healthcare (VA) sandboxes append the federal / hospital orientation and use
+  // the VA-flavored per-day briefings.
   const isFirstDay = scheduledDay === schedule[0].day;
   const text = isFirstDay
-    ? welcomeScript(firstName, project)
-    : authoredDayBriefing(scheduledDay, firstName) ??
+    ? isHealthcare
+      ? `${welcomeScript(firstName, project)}\n\n${HC_WELCOME_ADDENDUM}`
+      : welcomeScript(firstName, project)
+    : (isHealthcare ? healthcareDayBriefing(scheduledDay, firstName) : null) ??
+      authoredDayBriefing(scheduledDay, firstName) ??
       fallbackDayBriefing(scheduledDay, firstName);
 
   const title = isFirstDay
