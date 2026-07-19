@@ -5,7 +5,8 @@
  *
  *   • Quiz points        — correct answers banked across module quizzes
  *   • Scenarios handled   — planted inbox decisions handled in time
- *   • Checkpoints caught  — hidden meeting/site-walk tests caught
+ *   • Checkpoints caught  — hidden meeting tests caught
+ *   • Walk points         — timed site-walk Q&A credit (full = 1, half = 0.5)
  *   • Phase reviews       — milestone Job Reviews completed
  *   • Sandboxes           — training projects launched
  *
@@ -22,6 +23,7 @@ export type LeaderboardEntry = {
   quizPoints: number;
   scenariosHandled: number;
   checkpointsCaught: number;
+  walkPoints: number;
   phaseReviews: number;
   sandboxes: number;
   credentialLevel: string | null;
@@ -30,12 +32,13 @@ export type LeaderboardEntry = {
 
 // Point weights per signal. Quiz points are already raw counts of correct
 // answers; the rest are milestone-style events worth more each.
-const W = { quiz: 1, scenario: 12, checkpoint: 6, phase: 8, sandbox: 3 };
+const W = { quiz: 1, scenario: 12, checkpoint: 6, walk: 6, phase: 8, sandbox: 3 };
 
 type Bucket = {
   quizPoints: number;
   scenariosHandled: number;
   checkpointsCaught: number;
+  walkPoints: number;
   phaseReviews: number;
   sandboxes: number;
 };
@@ -44,6 +47,7 @@ const empty = (): Bucket => ({
   quizPoints: 0,
   scenariosHandled: 0,
   checkpointsCaught: 0,
+  walkPoints: 0,
   phaseReviews: 0,
   sandboxes: 0,
 });
@@ -96,18 +100,29 @@ export async function computeLeaderboard(
       if (owner && r.status === "handled") bucket(owner).scenariosHandled += 1;
     }
 
-    // Meeting checkpoints caught → owner.
+    // Meeting checkpoints caught + site-walk Q&A credit → owner.
     const { data: minuteRows } = await supabase
       .from("training_meeting_minutes")
-      .select("project_id, checkpoints")
+      .select("project_id, checkpoints, walk_results")
       .in("project_id", sandboxIds);
-    for (const r of (minuteRows ?? []) as { project_id: string; checkpoints: unknown }[]) {
+    for (const r of (minuteRows ?? []) as {
+      project_id: string;
+      checkpoints: unknown;
+      walk_results?: unknown;
+    }[]) {
       const owner = projectOwner.get(r.project_id);
       if (!owner) continue;
       const checkpoints = Array.isArray(r.checkpoints)
         ? (r.checkpoints as { caught?: boolean }[])
         : [];
       for (const c of checkpoints) if (c?.caught) bucket(owner).checkpointsCaught += 1;
+      const walkResults = Array.isArray(r.walk_results)
+        ? (r.walk_results as { credit?: string }[])
+        : [];
+      for (const w of walkResults) {
+        if (w?.credit === "full") bucket(owner).walkPoints += 1;
+        else if (w?.credit === "half") bucket(owner).walkPoints += 0.5;
+      }
     }
 
     // Phase reviews → owner.
@@ -158,6 +173,7 @@ export async function computeLeaderboard(
       b.quizPoints * W.quiz +
         b.scenariosHandled * W.scenario +
         b.checkpointsCaught * W.checkpoint +
+        b.walkPoints * W.walk +
         b.phaseReviews * W.phase +
         b.sandboxes * W.sandbox,
     );
@@ -169,6 +185,7 @@ export async function computeLeaderboard(
       quizPoints: b.quizPoints,
       scenariosHandled: b.scenariosHandled,
       checkpointsCaught: b.checkpointsCaught,
+      walkPoints: b.walkPoints,
       phaseReviews: b.phaseReviews,
       sandboxes: b.sandboxes,
       credentialLevel: cred?.level ?? null,

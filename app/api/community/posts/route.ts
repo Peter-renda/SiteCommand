@@ -26,7 +26,11 @@ type Row = {
   updated_at: string;
 };
 
-function serialize(row: Row, currentUserId: string) {
+function serialize(
+  row: Row,
+  currentUserId: string,
+  likes?: { count: number; likedByMe: boolean },
+) {
   return {
     id: row.id,
     authorName: row.author_name,
@@ -34,6 +38,8 @@ function serialize(row: Row, currentUserId: string) {
     title: row.title,
     body: row.body,
     replyCount: row.reply_count,
+    likeCount: likes?.count ?? 0,
+    likedByMe: likes?.likedByMe ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     mine: row.user_id === currentUserId,
@@ -56,8 +62,25 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const rows = (data ?? []) as Row[];
+
+  // Bulk-load likes for the returned page of posts.
+  const likeInfo = new Map<string, { count: number; likedByMe: boolean }>();
+  if (rows.length > 0) {
+    const { data: likeRows } = await supabase
+      .from("community_post_likes")
+      .select("post_id, user_id")
+      .in("post_id", rows.map((r) => r.id));
+    for (const l of (likeRows ?? []) as { post_id: string; user_id: string }[]) {
+      const info = likeInfo.get(l.post_id) ?? { count: 0, likedByMe: false };
+      info.count += 1;
+      if (l.user_id === session.id) info.likedByMe = true;
+      likeInfo.set(l.post_id, info);
+    }
+  }
+
   return NextResponse.json({
-    posts: ((data ?? []) as Row[]).map((r) => serialize(r, session.id)),
+    posts: rows.map((r) => serialize(r, session.id, likeInfo.get(r.id))),
   });
 }
 

@@ -11,8 +11,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { resolveDisplayName } from "@/lib/community";
+import { sendOfficeHourReservationEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
+
+function communityUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL
+    ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/community`
+    : "/community";
+}
 
 export async function POST(
   _req: NextRequest,
@@ -25,7 +32,7 @@ export async function POST(
   const supabase = getSupabase();
   const { data: slot } = await supabase
     .from("community_office_hours")
-    .select("id, host_user_id, capacity")
+    .select("id, host_user_id, host_name, topic, starts_at, capacity")
     .eq("id", sessionId)
     .maybeSingle();
   if (!slot) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -40,6 +47,7 @@ export async function POST(
     .eq("user_id", session.id)
     .maybeSingle();
 
+  let attendeeName = "";
   if (existing) {
     // Release the seat.
     await supabase.from("community_office_hour_signups").delete().eq("id", existing.id);
@@ -52,11 +60,11 @@ export async function POST(
     if ((count ?? 0) >= slot.capacity) {
       return NextResponse.json({ error: "This session is full" }, { status: 409 });
     }
-    const userName = await resolveDisplayName(supabase, session.id, session.username || session.email);
+    attendeeName = await resolveDisplayName(supabase, session.id, session.username || session.email);
     const { error } = await supabase.from("community_office_hour_signups").insert({
       session_id: sessionId,
       user_id: session.id,
-      user_name: userName,
+      user_name: attendeeName,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -65,6 +73,31 @@ export async function POST(
     .from("community_office_hour_signups")
     .select("id", { count: "exact", head: true })
     .eq("session_id", sessionId);
+
+  // Notify the host on a new reservation (best-effort, non-fatal).
+  if (!existing) {
+    try {
+      const { data: host } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", slot.host_user_id)
+        .maybeSingle();
+      if (host?.email) {
+        await sendOfficeHourReservationEmail({
+          to: host.email,
+          hostName: slot.host_name,
+          attendeeName,
+          topic: slot.topic,
+          startsAt: slot.starts_at,
+          reserved: reserved ?? 0,
+          capacity: slot.capacity,
+          communityUrl: communityUrl(),
+        });
+      }
+    } catch (err) {
+      console.error("[community] office-hour reservation email failed", err);
+    }
+  }
 
   return NextResponse.json({ reserved: reserved ?? 0, isSignedUp: !existing });
 }

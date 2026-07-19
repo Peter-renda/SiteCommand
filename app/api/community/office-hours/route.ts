@@ -13,8 +13,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { isRegion, resolveDisplayName } from "@/lib/community";
+import { sendOfficeHourCancelledEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
+
+function communityUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL
+    ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/community`
+    : "/community";
+}
 
 type Row = {
   id: string;
@@ -51,33 +58,43 @@ export async function GET() {
   const ids = rows.map((r) => r.id);
   const signupCount = new Map<string, number>();
   const mySignups = new Set<string>();
+  const attendeeNames = new Map<string, string[]>();
   if (ids.length > 0) {
     const { data: signups } = await supabase
       .from("community_office_hour_signups")
-      .select("session_id, user_id")
-      .in("session_id", ids);
-    for (const s of (signups ?? []) as { session_id: string; user_id: string }[]) {
+      .select("session_id, user_id, user_name")
+      .in("session_id", ids)
+      .order("created_at", { ascending: true });
+    for (const s of (signups ?? []) as { session_id: string; user_id: string; user_name: string }[]) {
       signupCount.set(s.session_id, (signupCount.get(s.session_id) ?? 0) + 1);
       if (s.user_id === session.id) mySignups.add(s.session_id);
+      const names = attendeeNames.get(s.session_id) ?? [];
+      names.push(s.user_name);
+      attendeeNames.set(s.session_id, names);
     }
   }
 
   return NextResponse.json({
-    sessions: rows.map((r) => ({
-      id: r.id,
-      hostName: r.host_name,
-      hostTitle: r.host_title,
-      topic: r.topic,
-      description: r.description,
-      startsAt: r.starts_at,
-      durationMinutes: r.duration_minutes,
-      capacity: r.capacity,
-      meetingLink: r.meeting_link,
-      region: r.region,
-      reserved: signupCount.get(r.id) ?? 0,
-      isSignedUp: mySignups.has(r.id),
-      isHost: r.host_user_id === session.id,
-    })),
+    sessions: rows.map((r) => {
+      const isHost = r.host_user_id === session.id;
+      return {
+        id: r.id,
+        hostName: r.host_name,
+        hostTitle: r.host_title,
+        topic: r.topic,
+        description: r.description,
+        startsAt: r.starts_at,
+        durationMinutes: r.duration_minutes,
+        capacity: r.capacity,
+        meetingLink: r.meeting_link,
+        region: r.region,
+        reserved: signupCount.get(r.id) ?? 0,
+        isSignedUp: mySignups.has(r.id),
+        isHost,
+        // Only the host sees who reserved.
+        attendees: isHost ? (attendeeNames.get(r.id) ?? []) : [],
+      };
+    }),
   });
 }
 
@@ -144,7 +161,7 @@ export async function DELETE(req: NextRequest) {
   const supabase = getSupabase();
   const { data: existing } = await supabase
     .from("community_office_hours")
-    .select("host_user_id")
+    .select("host_user_id, host_name, topic, starts_at")
     .eq("id", id)
     .maybeSingle();
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -152,7 +169,40 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Only the host can cancel this session" }, { status: 403 });
   }
 
+  // Collect attendee emails before the cascade wipes the signups.
+  const { data: signups } = await supabase
+    .from("community_office_hour_signups")
+    .select("user_id")
+    .eq("session_id", id);
+  const attendeeIds = ((signups ?? []) as { user_id: string }[]).map((s) => s.user_id);
+
   const { error } = await supabase.from("community_office_hours").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Tell everyone who had reserved a seat (best-effort, non-fatal).
+  if (attendeeIds.length > 0) {
+    try {
+      const { data: users } = await supabase
+        .from("users")
+        .select("email")
+        .in("id", attendeeIds);
+      const emails = ((users ?? []) as { email: string | null }[])
+        .map((u) => u.email)
+        .filter((e): e is string => Boolean(e));
+      // One email per attendee — don't leak the attendee list across recipients.
+      for (const email of emails) {
+        await sendOfficeHourCancelledEmail({
+          to: email,
+          topic: existing.topic,
+          hostName: existing.host_name,
+          startsAt: existing.starts_at,
+          communityUrl: communityUrl(),
+        });
+      }
+    } catch (err) {
+      console.error("[community] office-hour cancellation email failed", err);
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }

@@ -17,6 +17,8 @@ type Post = {
   title: string;
   body: string;
   replyCount: number;
+  likeCount: number;
+  likedByMe: boolean;
   createdAt: string;
   updatedAt: string;
   mine: boolean;
@@ -48,6 +50,7 @@ type OfficeHour = {
   reserved: number;
   isSignedUp: boolean;
   isHost: boolean;
+  attendees: string[];
 };
 type RegionMember = {
   id: string;
@@ -66,6 +69,7 @@ type LeaderRow = {
   quizPoints: number;
   scenariosHandled: number;
   checkpointsCaught: number;
+  walkPoints: number;
   phaseReviews: number;
   sandboxes: number;
   credentialLevel: string | null;
@@ -199,6 +203,7 @@ function BoardsSection() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [openPostId, setOpenPostId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -255,27 +260,53 @@ function BoardsSection() {
 
       {showForm && <NewPostForm defaultCategory={category || "general"} onCreated={() => { setShowForm(false); load(); }} />}
 
+      <div className="mb-4">
+        <input
+          className={inputCls}
+          placeholder="Search discussions…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
       <ErrorNote message={error} />
 
-      {loading ? (
-        <p className="text-sm text-gray-400 py-8 text-center">Loading discussions…</p>
-      ) : posts.length === 0 ? (
-        <div className="card card-pad text-center text-sm text-gray-500">
-          No posts here yet. Be the first to start a discussion.
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {posts.map((p) => (
-            <PostCard
-              key={p.id}
-              post={p}
-              open={openPostId === p.id}
-              onToggle={() => setOpenPostId((cur) => (cur === p.id ? null : p.id))}
-              onReplied={load}
-            />
-          ))}
-        </div>
-      )}
+      {(() => {
+        const q = search.trim().toLowerCase();
+        const visible = q
+          ? posts.filter(
+              (p) =>
+                p.title.toLowerCase().includes(q) ||
+                p.body.toLowerCase().includes(q) ||
+                p.authorName.toLowerCase().includes(q),
+            )
+          : posts;
+        if (loading) return <p className="text-sm text-gray-400 py-8 text-center">Loading discussions…</p>;
+        if (visible.length === 0) {
+          return (
+            <div className="card card-pad text-center text-sm text-gray-500">
+              {q ? "No posts matched your search." : "No posts here yet. Be the first to start a discussion."}
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-3">
+            {visible.map((p) => (
+              <PostCard
+                key={p.id}
+                post={p}
+                open={openPostId === p.id}
+                onToggle={() => setOpenPostId((cur) => (cur === p.id ? null : p.id))}
+                onReplied={load}
+                onLikeChanged={(id, likeCount, likedByMe) =>
+                  setPosts((cur) => cur.map((x) => (x.id === id ? { ...x, likeCount, likedByMe } : x)))
+                }
+                onDeleted={load}
+              />
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -329,11 +360,56 @@ function NewPostForm({ defaultCategory, onCreated }: { defaultCategory: string; 
   );
 }
 
-function PostCard({ post, open, onToggle, onReplied }: { post: Post; open: boolean; onToggle: () => void; onReplied: () => void }) {
+function PostCard({
+  post,
+  open,
+  onToggle,
+  onReplied,
+  onLikeChanged,
+  onDeleted,
+}: {
+  post: Post;
+  open: boolean;
+  onToggle: () => void;
+  onReplied: () => void;
+  onLikeChanged: (id: string, likeCount: number, likedByMe: boolean) => void;
+  onDeleted: () => void;
+}) {
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [likeBusy, setLikeBusy] = useState(false);
+
+  async function toggleLike(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (likeBusy) return;
+    setLikeBusy(true);
+    try {
+      const res = await fetch(`/api/community/posts/${post.id}/like`, { method: "POST" });
+      if (res.ok) {
+        const d = await res.json();
+        onLikeChanged(post.id, d.likeCount, d.likedByMe);
+      }
+    } finally {
+      setLikeBusy(false);
+    }
+  }
+
+  async function deletePost() {
+    if (!confirm("Delete this post and its replies?")) return;
+    const res = await fetch(`/api/community/posts/${post.id}`, { method: "DELETE" });
+    if (res.ok) onDeleted();
+  }
+
+  async function deleteReply(replyId: string) {
+    if (!confirm("Delete this reply?")) return;
+    const res = await fetch(`/api/community/posts/${post.id}/replies/${replyId}`, { method: "DELETE" });
+    if (res.ok) {
+      setReplies((cur) => cur.filter((r) => r.id !== replyId));
+      onReplied();
+    }
+  }
 
   const loadReplies = useCallback(async () => {
     setLoading(true);
@@ -374,25 +450,41 @@ function PostCard({ post, open, onToggle, onReplied }: { post: Post; open: boole
 
   return (
     <div className="card">
-      <button type="button" onClick={onToggle} className="w-full text-left card-pad">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "rgba(234,88,12,0.08)", color: "#C2410C" }}>
-                {boardCategoryLabel(post.category)}
-              </span>
-              {post.mine && <span className="text-[10px] text-gray-400 font-medium">you</span>}
-            </div>
-            <h3 className="text-sm font-semibold text-gray-900 truncate">{post.title}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {post.authorName} · {timeAgo(post.createdAt)} · {post.replyCount} {post.replyCount === 1 ? "reply" : "replies"}
-            </p>
+      <div className="flex items-start">
+        <button type="button" onClick={onToggle} className="flex-1 min-w-0 text-left card-pad">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "rgba(234,88,12,0.08)", color: "#C2410C" }}>
+              {boardCategoryLabel(post.category)}
+            </span>
+            {post.mine && <span className="text-[10px] text-gray-400 font-medium">you</span>}
           </div>
-          <svg className={`w-4 h-4 text-gray-300 shrink-0 mt-1 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <h3 className="text-sm font-semibold text-gray-900 truncate">{post.title}</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {post.authorName} · {timeAgo(post.createdAt)} · {post.replyCount} {post.replyCount === 1 ? "reply" : "replies"}
+          </p>
+        </button>
+        <div className="flex items-center gap-2 shrink-0 pr-5 pt-5">
+          <button
+            type="button"
+            onClick={toggleLike}
+            disabled={likeBusy}
+            aria-label={post.likedByMe ? "Unlike" : "Like"}
+            className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors ${
+              post.likedByMe
+                ? "bg-orange-50 text-orange-600 border-orange-200"
+                : "bg-white text-gray-400 border-gray-200 hover:text-gray-600 hover:border-gray-300"
+            }`}
+          >
+            {post.likedByMe ? "▲" : "△"} {post.likeCount}
+          </button>
+          <svg
+            className={`w-4 h-4 text-gray-300 transition-transform ${open ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </div>
-      </button>
+      </div>
 
       {open && (
         <div className="px-5 pb-5 border-t border-gray-100 pt-3">
@@ -403,9 +495,16 @@ function PostCard({ post, open, onToggle, onReplied }: { post: Post; open: boole
             <div className="space-y-3 mb-4">
               {replies.map((r) => (
                 <div key={r.id} className="rounded-lg bg-gray-50 px-3 py-2">
-                  <p className="text-xs text-gray-400 mb-0.5">
-                    {r.authorName}{r.mine ? " (you)" : ""} · {timeAgo(r.createdAt)}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-gray-400 mb-0.5">
+                      {r.authorName}{r.mine ? " (you)" : ""} · {timeAgo(r.createdAt)}
+                    </p>
+                    {(r.mine || post.mine) && (
+                      <button type="button" onClick={() => deleteReply(r.id)} className="text-[10px] text-gray-300 hover:text-red-500 transition-colors">
+                        Delete
+                      </button>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{r.body}</p>
                 </div>
               ))}
@@ -418,6 +517,13 @@ function PostCard({ post, open, onToggle, onReplied }: { post: Post; open: boole
               {busy ? "…" : "Reply"}
             </button>
           </form>
+          {post.mine && (
+            <div className="mt-3 text-right">
+              <button type="button" onClick={deletePost} className="btn-quiet text-red-400 hover:text-red-600">
+                Delete post
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -677,6 +783,37 @@ function MentorshipForm({ profile, onSaved, onCancel }: { profile: MentorProfile
 }
 
 // ── 3. Office hours ─────────────────────────────────────────────────────────
+
+/** Build and download an .ics calendar file for an office-hours session. */
+function downloadIcs(s: OfficeHour) {
+  const start = new Date(s.startsAt);
+  const end = new Date(start.getTime() + s.durationMinutes * 60 * 1000);
+  const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const esc = (t: string) => t.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//SiteCommand//Community Office Hours//EN",
+    "BEGIN:VEVENT",
+    `UID:sitecommand-office-hour-${s.id}`,
+    `DTSTAMP:${stamp(new Date())}`,
+    `DTSTART:${stamp(start)}`,
+    `DTEND:${stamp(end)}`,
+    `SUMMARY:${esc(`Office hours: ${s.topic}`)}`,
+    `DESCRIPTION:${esc([`Hosted by ${s.hostName}${s.hostTitle ? ` (${s.hostTitle})` : ""}`, s.description, s.meetingLink ? `Join: ${s.meetingLink}` : ""].filter(Boolean).join("\n"))}`,
+    ...(s.meetingLink ? [`URL:${esc(s.meetingLink)}`] : []),
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ];
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `office-hours-${s.topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function OfficeHoursSection() {
   const [sessions, setSessions] = useState<OfficeHour[]>([]);
   const [loading, setLoading] = useState(true);
@@ -775,7 +912,20 @@ function OfficeHoursSection() {
                           <a href={s.meetingLink} target="_blank" rel="noopener noreferrer" className="text-orange-600 underline">Join link</a>
                         </>
                       )}
+                      {(s.isSignedUp || s.isHost) && (
+                        <>
+                          {" · "}
+                          <button type="button" onClick={() => downloadIcs(s)} className="text-gray-500 underline hover:text-gray-700">
+                            Add to calendar
+                          </button>
+                        </>
+                      )}
                     </p>
+                    {s.isHost && s.attendees.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-1.5">
+                        <span className="font-medium text-gray-600">Attending:</span> {s.attendees.join(", ")}
+                      </p>
+                    )}
                   </div>
                   <div className="shrink-0">
                     {s.isHost ? (
@@ -1086,7 +1236,7 @@ function LeaderboardSection() {
   return (
     <div>
       <SectionIntro title="Leaderboard">
-        Ranked by training-simulation performance — quizzes, scenarios handled, meeting checkpoints caught, phase reviews, and sandboxes run.
+        Ranked by training-simulation performance — quizzes, scenarios handled, meeting checkpoints caught, site-walk Q&amp;A, phase reviews, and sandboxes run.
       </SectionIntro>
       <ErrorNote message={error} />
 
@@ -1115,6 +1265,7 @@ function LeaderboardSection() {
                   <th className="px-3 py-2.5 font-medium text-right hidden sm:table-cell">Quiz</th>
                   <th className="px-3 py-2.5 font-medium text-right hidden sm:table-cell">Scenarios</th>
                   <th className="px-3 py-2.5 font-medium text-right hidden md:table-cell">Checkpoints</th>
+                  <th className="px-3 py-2.5 font-medium text-right hidden lg:table-cell">Walk Q&amp;A</th>
                   <th className="px-3 py-2.5 font-medium text-right hidden md:table-cell">Reviews</th>
                   <th className="px-3 py-2.5 font-medium text-right hidden lg:table-cell">Sandboxes</th>
                 </tr>
@@ -1144,6 +1295,7 @@ function LeaderboardSection() {
                     <td className="px-3 py-2.5 text-right text-gray-500 hidden sm:table-cell">{r.quizPoints}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500 hidden sm:table-cell">{r.scenariosHandled}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500 hidden md:table-cell">{r.checkpointsCaught}</td>
+                    <td className="px-3 py-2.5 text-right text-gray-500 hidden lg:table-cell">{r.walkPoints}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500 hidden md:table-cell">{r.phaseReviews}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500 hidden lg:table-cell">{r.sandboxes}</td>
                   </tr>
