@@ -868,3 +868,80 @@ export async function sendTransmittalCreatedEmail({
     `,
   });
 }
+
+export async function sendOfficeHourReservationEmail({
+  to,
+  hostName,
+  attendeeName,
+  topic,
+  startsAt,
+  reserved,
+  capacity,
+  communityUrl,
+}: {
+  to: string;
+  hostName?: string;
+  attendeeName: string;
+  topic: string;
+  startsAt: string;
+  reserved: number;
+  capacity: number;
+  communityUrl: string;
+}) {
+  const when = new Date(startsAt).toLocaleString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  await sendEmail("office-hour-reservation", {
+    to,
+    subject: `New reservation for your office hours: ${topic}`,
+    html: `
+      <p style="font-size:14px;">Hi${hostName ? ` ${escapeHtml(hostName)}` : ""},</p>
+      <p style="font-size:14px;"><strong>${escapeHtml(attendeeName)}</strong> reserved a seat in your SiteCommand Community office-hours session.</p>
+      <p style="font-size:16px;font-weight:600;">${escapeHtml(topic)}</p>
+      <p style="font-size:13px;color:#555;">${escapeHtml(when)} &middot; ${reserved}/${capacity} seats reserved</p>
+      <p>
+        <a href="${escapeHtml(communityUrl)}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View in Community</a>
+      </p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are hosting this session. Sent via SiteCommand.</p>
+    `,
+  });
+}
+
+export async function sendOfficeHourCancelledEmail({
+  to,
+  topic,
+  hostName,
+  startsAt,
+  communityUrl,
+}: {
+  to: string | string[];
+  topic: string;
+  hostName: string;
+  startsAt: string;
+  communityUrl: string;
+}) {
+  const when = new Date(startsAt).toLocaleString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  await sendEmail("office-hour-cancelled", {
+    to,
+    subject: `Office hours cancelled: ${topic}`,
+    html: `
+      <p style="font-size:14px;">The office-hours session you reserved has been cancelled by the host.</p>
+      <p style="font-size:16px;font-weight:600;">${escapeHtml(topic)}</p>
+      <p style="font-size:13px;color:#555;">Was scheduled for ${escapeHtml(when)} &middot; hosted by ${escapeHtml(hostName)}</p>
+      <p>
+        <a href="${escapeHtml(communityUrl)}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Find another session</a>
+      </p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you had reserved a seat in this session. Sent via SiteCommand.</p>
+    `,
+  });
+}

@@ -29,6 +29,17 @@ CREATE INDEX IF NOT EXISTS idx_community_posts_category
 CREATE INDEX IF NOT EXISTS idx_community_posts_recent
   ON community_posts(updated_at DESC);
 
+-- Lightweight upvotes; one per user per post.
+CREATE TABLE IF NOT EXISTS community_post_likes (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id    UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (post_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_community_post_likes_post
+  ON community_post_likes(post_id);
+
 CREATE TABLE IF NOT EXISTS community_post_replies (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   post_id     UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,

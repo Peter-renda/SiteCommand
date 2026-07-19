@@ -29,6 +29,7 @@ export async function GET() {
     quizPoints: e.quizPoints,
     scenariosHandled: e.scenariosHandled,
     checkpointsCaught: e.checkpointsCaught,
+    walkPoints: e.walkPoints,
     phaseReviews: e.phaseReviews,
     sandboxes: e.sandboxes,
     credentialLevel: e.credentialLevel,

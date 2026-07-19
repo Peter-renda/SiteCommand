@@ -1909,3 +1909,23 @@ Every 30 in-sim days the PM sandbox schedules a **Monthly OAC meeting + site wal
 
 ### Engine generalization (was bid-review-specific)
 - `TrainingMeeting.facts` replaces the hardcoded bid tab in both the turn route and the minutes scorer (`REFERENCE FACTS` block; bid review sets `facts: bidTabText()`, OACs carry month-appropriate status snapshots). Persona-variance and done-rule prompt text are now derived from the meeting definition; walk meetings instruct the LLM close (and the no-Gemini fallback close) to stand the group up for the walk instead of adjourning. The checkpoint-id schema enum is only applied when a meeting has checkpoints.
+
+## Community (under Career Center)
+
+### Overview
+The **/community** page (hamburger-menu link directly below **Career center**; also cross-linked from a banner on `/careers`) is a logged-in hub with five tabbed surfaces. All API routes live under `app/api/community/*` and require only a session (no company/tool gating — community is cross-company by design). Author display names are resolved server-side at write time (`resolveDisplayName` — "First Last" > username > session email) and denormalized onto rows.
+
+### Surfaces
+1. **Discussion boards** — categorized threads (`BOARD_CATEGORIES` in `lib/community.ts`: general/buyout/cost/schedule/field/software/careers) with replies, **likes** (▲ toggle, one per user per post), client-side **search**, and delete (post: author or `session.role === "site_admin"`; reply: reply author, thread author, or site admin — decrements `reply_count`). Replies bump the parent's `reply_count` + `updated_at` so active threads sort first.
+2. **Mentorship matching** — opt in as **mentor** or **mentee** (`community_mentorship_profiles`, `UNIQUE(user_id)`) with years, focus areas (validated against `FOCUS_AREAS`), region, bio, contact, and an availability toggle. GET returns the caller's profile, the available directory, and **suggested matches**: opposite role ranked by `focusOverlap` (intersection over the smaller set) + 0.25 shared-region bonus, as a 0-100 `matchScore`.
+3. **Office hours with experienced PMs** — anyone can host a slot (`community_office_hours`: topic/description/starts_at/duration/capacity/meeting link/region); members **reserve seats** up to capacity (`community_office_hour_signups`, toggle endpoint at `…/[sessionId]/signup`; hosts can't reserve their own). The meeting link is shown only to reserved attendees; the **host sees the attendee names**; reserved users and hosts get an **Add to calendar** (.ics, client-generated `downloadIcs`). GET hides sessions that ended >1h ago. **Emails** (best-effort, non-fatal, via `lib/email.ts`): host is notified on each new reservation (`sendOfficeHourReservationEmail`); on host cancel, each attendee is emailed individually (`sendOfficeHourCancelledEmail` — one send per recipient so the attendee list doesn't leak).
+4. **Regional networking** — join one of the 10 `REGIONS` (`community_region_members`, `UNIQUE(user_id)`) with city/headline/contact; the page renders an accordion of all regions with member counts and rosters.
+5. **Leaderboard** — `lib/community-leaderboard.ts` → `computeLeaderboard(supabase, limit)` ranks users by simulation performance, derived at read time from existing training tables (no new storage): quiz points (`training_lesson_quiz_results.best_score`, ×1), scenarios handled (`training_scenario_outcomes`, ×12), meeting checkpoints caught (`training_meeting_minutes.checkpoints`, ×6), **site-walk Q&A points** (`walk_results` full=1/half=0.5, ×6), phase reviews (×8), and sandboxes launched (×3). Sandbox-scoped signals attribute to `projects.training_owner_id`. Each row carries the user's issued credential (`training_credentials`) as a `/verify/[code]` badge; the caller's own row + rank are highlighted.
+
+### Schema (migration `179_community.sql`)
+`community_posts`, `community_post_likes` (`UNIQUE(post_id, user_id)`), `community_post_replies`, `community_mentorship_profiles`, `community_office_hours`, `community_office_hour_signups` (`UNIQUE(session_id, user_id)`), `community_region_members`. All child tables `ON DELETE CASCADE`.
+
+### Implementation Notes (SiteCommand)
+- Shared constants/helpers: `lib/community.ts` (categories, focus areas, regions, `resolveDisplayName`, `focusOverlap`); scoring: `lib/community-leaderboard.ts`.
+- Page: `app/community/page.tsx` (session gate → `/login`) + `CommunityClient.tsx` (tab bar, one self-contained section component per surface).
+- Nav entry: `DashboardClient.tsx` hamburger drawer, below Career center.
