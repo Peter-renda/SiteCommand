@@ -29,6 +29,7 @@ export default async function ProjectLayout({
   let isTraining = false;
   let trainingRole: string | null = null;
   let trainingDay = 0;
+  let trainingProjectType: string | null = null;
   if (session.user_type !== "demo") {
     const hasAccess = await canAccessProject(id, session);
     if (!hasAccess) redirect("/dashboard");
@@ -38,12 +39,13 @@ export default async function ProjectLayout({
     // was removed.
     const { data: project } = await getSupabase()
       .from("projects")
-      .select("is_training, training_role, training_day")
+      .select("is_training, training_role, training_day, training_project_type")
       .eq("id", id)
       .maybeSingle();
     isTraining = !!project?.is_training;
     trainingRole = project?.training_role ?? null;
     trainingDay = project?.training_day ?? 0;
+    trainingProjectType = project?.training_project_type ?? null;
   }
 
   return (
@@ -54,7 +56,12 @@ export default async function ProjectLayout({
       <AssistWidget projectId={id} />
       {isTraining && isTrainingRole(trainingRole) && (
         // The coach's daily message is embedded inside the Day panel (left edge).
-        <TrainingDayPanel projectId={id} role={trainingRole} initialDay={trainingDay} />
+        <TrainingDayPanel
+          projectId={id}
+          role={trainingRole}
+          initialDay={trainingDay}
+          projectType={trainingProjectType}
+        />
       )}
     </>
   );

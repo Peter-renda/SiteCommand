@@ -13,6 +13,8 @@
  * from both the seeder (lib/training-seed.ts) and the reply route.
  */
 
+import { HC_SUBS, HC_BUYOUT_THREAD_COUNT, HEALTHCARE_TYPE } from "@/lib/training-healthcare";
+
 export type TrainingSub = {
   /** Trade / scope label. */
   trade: string;
@@ -45,6 +47,20 @@ export const TRAINING_SUBS: TrainingSub[] = [
 
 /** How many of the roster's early-buyout trades get a seeded email thread. */
 export const BUYOUT_THREAD_COUNT = 5;
+
+/**
+ * The subcontractor roster for a given project type. Healthcare sandboxes use a
+ * distinct VA-hospital roster (lib/training-healthcare.ts); every other type
+ * uses the default roster above.
+ */
+export function subsForType(projectType: string | null | undefined): TrainingSub[] {
+  return projectType === HEALTHCARE_TYPE ? HC_SUBS : TRAINING_SUBS;
+}
+
+/** How many buyout threads to seed for a given project type. */
+export function buyoutThreadCountForType(projectType: string | null | undefined): number {
+  return projectType === HEALTHCARE_TYPE ? HC_BUYOUT_THREAD_COUNT : BUYOUT_THREAD_COUNT;
+}
 
 /** Email address for a sub, derived from their firm name (stable + fake). */
 export function subEmailFor(sub: TrainingSub): string {

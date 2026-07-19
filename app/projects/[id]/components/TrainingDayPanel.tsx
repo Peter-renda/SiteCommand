@@ -15,7 +15,7 @@ import {
   type RecurringCadenceGroup,
   type RecurringFrequency,
 } from "@/lib/training-schedule";
-import { INBOX_SENDERS, inboxEmailsForDay } from "@/lib/training-inbox";
+import { inboxSendersForType, inboxEmailsForDay } from "@/lib/training-inbox";
 import { getLesson } from "@/lib/training-lessons";
 import { meetingForTask } from "@/lib/training-meetings";
 import TrainingCoachSection from "./TrainingCoach";
@@ -194,10 +194,12 @@ export default function TrainingDayPanel({
   projectId,
   role,
   initialDay,
+  projectType,
 }: {
   projectId: string;
   role: SimRole;
   initialDay: number;
+  projectType?: string | null;
 }) {
   const schedule = useMemo(() => getTrainingSchedule(role), [role]);
   const cadence = useMemo(() => getRecurringCadence(role), [role]);
@@ -367,12 +369,13 @@ export default function TrainingDayPanel({
 
   // Inbound emails (owner / vendors / accounting) that landed today — delivered
   // server-side by the day-advance PATCH; this hint points the trainee at them.
-  const todaysMail = inboxEmailsForDay(currentDay);
+  const todaysMail = inboxEmailsForDay(currentDay, projectType);
+  const senders = inboxSendersForType(projectType);
   const mailSenders = Array.from(
     new Set(
       todaysMail
         .map((m) => {
-          const s = INBOX_SENDERS[m.senderKey];
+          const s = senders[m.senderKey];
           return s ? (s.internal ? "Accounting" : s.company) : "";
         })
         .filter(Boolean),
@@ -582,7 +585,7 @@ export default function TrainingDayPanel({
               const checked = !!checks[`${currentDay}-${i}`];
               // Tasks with a defined meeting hyperlink to the interactive
               // text meeting, opened in a new tab.
-              const meeting = meetingForTask(role, currentDay, t.task);
+              const meeting = meetingForTask(role, currentDay, t.task, projectType);
               return (
                 <li key={i} className="flex items-start gap-2">
                   <button

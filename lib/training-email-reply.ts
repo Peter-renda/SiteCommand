@@ -18,6 +18,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ThreadMessage } from "@/lib/email-types";
 import { messagePlainText } from "@/lib/email-messages";
 import { TRAINING_SUBS, subEmailFor, firstNameOf } from "@/lib/training-emails";
+import { HC_SUBS } from "@/lib/training-healthcare";
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_MESSAGE_CHARS = 2500;
@@ -112,7 +113,8 @@ export async function generateTrainingCounterpartyReply(opts: {
   const pmFirst = firstNameOf(traineeName, "there");
 
   // Seeded-sub enrichment: trade + bid so the reply can talk real numbers.
-  const sub = TRAINING_SUBS.find(
+  // Search both rosters (default + healthcare) since sub emails are unique.
+  const sub = [...TRAINING_SUBS, ...HC_SUBS].find(
     (s) => subEmailFor(s).toLowerCase() === counterparty.email.toLowerCase(),
   );
 

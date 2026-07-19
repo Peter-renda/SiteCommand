@@ -20,6 +20,7 @@
 import type { SimRole } from "@/lib/simulation-constants";
 import type { SkillKey } from "@/lib/training-skills";
 import { TRAINING_SUBS } from "@/lib/training-emails";
+import { HC_MEETINGS, HEALTHCARE_TYPE } from "@/lib/training-healthcare";
 
 export type MeetingSpeaker = {
   /** Stable key used in transcripts ("okafor"). "user" is reserved for the PM. */
@@ -706,21 +707,46 @@ const OAC_MEETING_DAY60: TrainingMeeting = {
   },
 };
 
-/** All defined meetings. Add future meetings here. */
+/** All defined default-pack meetings. Add future meetings here. */
 export const TRAINING_MEETINGS: TrainingMeeting[] = [
   BID_REVIEW_MEETING,
   OAC_MEETING_DAY30,
   OAC_MEETING_DAY60,
 ];
 
-export function getTrainingMeeting(id: string): TrainingMeeting | null {
-  return TRAINING_MEETINGS.find((m) => m.id === id) ?? null;
+/** The meeting set for a project type (healthcare uses the VA cast). */
+export function meetingsForType(projectType: string | null | undefined): TrainingMeeting[] {
+  return projectType === HEALTHCARE_TYPE ? HC_MEETINGS : TRAINING_MEETINGS;
 }
 
-/** The meeting hyperlinked by a scheduled task, if any. */
-export function meetingForTask(role: SimRole, day: number, task: string): TrainingMeeting | null {
+/**
+ * Look up a meeting by id across BOTH packs. Meeting ids are unique across
+ * packs, so the review / minutes / meeting pages (which only know the id) always
+ * resolve the right meeting regardless of project type.
+ */
+export function getTrainingMeeting(id: string): TrainingMeeting | null {
   return (
-    TRAINING_MEETINGS.find((m) => m.role === role && m.day === day && m.taskMatch === task) ?? null
+    TRAINING_MEETINGS.find((m) => m.id === id) ??
+    HC_MEETINGS.find((m) => m.id === id) ??
+    null
+  );
+}
+
+/**
+ * The meeting hyperlinked by a scheduled task, if any. The default and
+ * healthcare packs share task strings + days, so the project type selects which
+ * pack's meeting a task links to.
+ */
+export function meetingForTask(
+  role: SimRole,
+  day: number,
+  task: string,
+  projectType?: string | null,
+): TrainingMeeting | null {
+  return (
+    meetingsForType(projectType).find(
+      (m) => m.role === role && m.day === day && m.taskMatch === task,
+    ) ?? null
   );
 }
 

@@ -26,6 +26,7 @@
 
 import type { InboxCtx } from "@/lib/training-inbox";
 import type { SkillKey } from "@/lib/training-skills";
+import { HC_SCENARIOS, HEALTHCARE_TYPE } from "@/lib/training-healthcare";
 
 export type ScenarioRipple = {
   /** In-sim day the ripple email lands (must be > deadlineDay). */
@@ -866,11 +867,32 @@ export const TRAINING_SCENARIOS: TrainingScenario[] = [
   },
 ];
 
+/**
+ * The planted-scenario set for a project type. Healthcare sandboxes use the VA /
+ * hospital scenarios (lib/training-healthcare.ts); every other type uses the
+ * default set above.
+ */
+export function scenariosForType(
+  projectType: string | null | undefined,
+): TrainingScenario[] {
+  return projectType === HEALTHCARE_TYPE ? HC_SCENARIOS : TRAINING_SCENARIOS;
+}
+
+/**
+ * Look up a scenario by id across BOTH packs — competency aggregation runs over
+ * a user's sandboxes of any type, so it must resolve default and healthcare
+ * scenario ids alike. Ids are unique across packs.
+ */
 export function getTrainingScenario(id: string): TrainingScenario | undefined {
-  return TRAINING_SCENARIOS.find((s) => s.id === id);
+  return (
+    TRAINING_SCENARIOS.find((s) => s.id === id) ?? HC_SCENARIOS.find((s) => s.id === id)
+  );
 }
 
 /** Scenarios whose action deadline has passed by the given in-sim day. */
-export function scenariosDueBy(day: number): TrainingScenario[] {
-  return TRAINING_SCENARIOS.filter((s) => s.deadlineDay < day);
+export function scenariosDueBy(
+  day: number,
+  projectType?: string | null,
+): TrainingScenario[] {
+  return scenariosForType(projectType).filter((s) => s.deadlineDay < day);
 }

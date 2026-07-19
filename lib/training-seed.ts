@@ -22,19 +22,30 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { htmlToText } from "@/lib/email-messages";
 import { projectTypeLabel } from "@/lib/simulation-constants";
 import {
-  TRAINING_SUBS,
-  BUYOUT_THREAD_COUNT,
+  subsForType,
+  buyoutThreadCountForType,
   subEmailFor,
   buildBuyoutOutreachHtml,
   buildSeededBidResponseHtml,
 } from "@/lib/training-emails";
 import {
-  INBOX_SENDERS,
-  TRAINING_INBOX_EMAILS,
+  inboxSendersForType,
+  inboxEmailsForType,
   inboxSenderEmail,
   inboxConversationId,
   type InboxCtx,
 } from "@/lib/training-inbox";
+import {
+  HEALTHCARE_TYPE,
+  HC_OWNER,
+  HC_ARCHITECT,
+  HC_DELIVERY,
+  HC_BRIEF,
+  HC_DRAWINGS,
+  HC_SPECS,
+  HC_CONTRACT_DOCS,
+  HC_CONTRACTING_OFFICE,
+} from "@/lib/training-healthcare";
 
 type SeedOpts = {
   projectId: string;
@@ -240,6 +251,97 @@ ${addendaList}
 }
 
 /**
+ * Healthcare (VA hospital) handoff — a distinct body from the generic one: the
+ * owner is the Department of Veterans Affairs (Contracting Officer + COR), the
+ * delivery is a firm-fixed-price SDVOSB set-aside, and the "what to watch"
+ * sections are the federal / occupied-hospital gotchas (ICRA, ILSM, VA badging,
+ * the 85% subcontracting limit, planned utility outages, medical gas, certified
+ * payroll, differing site conditions). Uses the 17 uploaded VA bid files.
+ */
+function buildHealthcareHandoffHtml(opts: {
+  pmFirst: string;
+  preconName: string;
+  preconTitle: string;
+  preconPhone: string;
+  preconEmail: string;
+  companyName: string;
+  startDate: string;
+}): string {
+  const { pmFirst, preconName, preconTitle, preconPhone, preconEmail, companyName, startDate } = opts;
+  const ntp = formatLong(startDate);
+  const subComplete = formatLong(addMonths(startDate, HC_BRIEF.months));
+  const base = appBaseUrl();
+  const linkItem = (a: { label: string; file: string }) =>
+    `  <li><a href="${base}/training/${encodeURIComponent(a.file)}">${a.label}</a></li>`;
+  const drawingsList = HC_DRAWINGS.map(linkItem).join("\n");
+  const specsList = HC_SPECS.map(linkItem).join("\n");
+  const contractList = HC_CONTRACT_DOCS.map(linkItem).join("\n");
+
+  return `
+<p>Hi ${pmFirst},</p>
+
+<p>Precon's wrapped and I'm handing you the <strong>VA Nashville — Buildings 626–700 renovation</strong> to run. Quick but important framing before the documents: this is a <strong>federal contract for the Department of Veterans Affairs inside an operating hospital.</strong> That changes almost everything about how we run it versus a private job — the owner is a Contracting Officer, not a developer; the paperwork and compliance are real; and there are patients on the other side of our walls. Everything you need is below.</p>
+
+<h3>Project Snapshot</h3>
+<ul>
+  <li><strong>Scope:</strong> ${HC_BRIEF.size} — ${HC_BRIEF.scope}.</li>
+  <li><strong>Owner:</strong> ${HC_OWNER} — ${HC_CONTRACTING_OFFICE}</li>
+  <li><strong>A/E of Record:</strong> ${HC_ARCHITECT}</li>
+  <li><strong>Delivery / Contract:</strong> ${HC_DELIVERY} (Solicitation 36C77624B0029, VAAR Magnitude $20M–$50M)</li>
+  <li><strong>Contract Value:</strong> ${formatMoney(HC_BRIEF.value)}</li>
+  <li><strong>Notice to Proceed:</strong> ${ntp}</li>
+  <li><strong>Substantial Completion:</strong> ${subComplete}</li>
+</ul>
+
+<h3>IFC Drawings (Issued for Construction) — 626-700</h3>
+<p>The full bid drawing set by discipline is below. Get it into the Drawings tool and confirm we're building to the current revision. Note the medical-gas piping on the plumbing (PL) sheets and the normal/emergency power + UPS on the electrical (EP) sheets — those drive the critical infrastructure work.</p>
+<ul>
+${drawingsList}
+</ul>
+
+<h3>Specifications (Project Manual)</h3>
+<p>Both volumes of the revised project manual. Load them into the Specifications tool so the team can reference them against submittals and RFIs — pay attention to the healthcare sections (medical gas / NFPA 99, infection control, and the VA design standards).</p>
+<ul>
+${specsList}
+</ul>
+
+<h3>Contract & Compliance Documents</h3>
+<p>These are part of the deal and they will bite if you don't know them. Read the SDVOSB limitations clause and the wage determination especially:</p>
+<ul>
+${contractList}
+</ul>
+
+<h3>What Makes This Job Different — Read This Twice</h3>
+<ul>
+  <li><strong>SDVOSB 85% limitation:</strong> we won it as an SDVOSB set-aside, so we can't pay more than 85% of the contract to non-certified firms. Your buyout has to solve compliance, not just cost.</li>
+  <li><strong>ICRA + ILSM:</strong> no work in or near occupied space without an approved Infection Control Risk Assessment permit and Interim Life Safety Measures — Infection Control can shut us down.</li>
+  <li><strong>VA badging:</strong> every worker needs a background check + PIV credential; it runs 3–4 weeks, so get rosters in the day we award, not the day we mobilize.</li>
+  <li><strong>Planned outages:</strong> tie-ins to live hospital power/UPS need a written Method of Procedure with ~6 weeks' notice, a night window, and redundancy.</li>
+  <li><strong>Changes go through the CO — in writing:</strong> the COR cannot authorize extra work. Build nothing off a verbal; a differing site condition goes to the CO as an REA.</li>
+  <li><strong>Long-lead:</strong> healthcare-grade switchgear/UPS is ~38 weeks — release it early. Medical gas needs ASSE-certified brazers and an independent ASSE 6030 verifier before occupancy.</li>
+  <li><strong>Davis-Bacon:</strong> weekly certified payrolls (WH-347) from every sub, every week — no gaps, or the CO withholds.</li>
+</ul>
+
+<h3>What I'd Tackle First</h3>
+<ul>
+  <li>Read the SF 1442, Amendment 0001, and the limitations-on-subcontracting clause end to end.</li>
+  <li>Build the SDVOSB subcontracting-compliance plan alongside buyout.</li>
+  <li>Get first-crew (demo/abatement, electrical) badging rosters in, and your ICRA/ILSM plan to Infection Control.</li>
+  <li>Release the critical-power (switchgear/UPS) package.</li>
+</ul>
+
+<p>It's a great job and a great résumé line — VA work is a discipline all its own. Call me anytime.</p>
+
+<p>
+  ${preconName}<br/>
+  ${preconTitle}, ${companyName}<br/>
+  ${preconPhone}<br/>
+  ${preconEmail}
+</p>
+`.trim();
+}
+
+/**
  * Seeds the Project-Manager training experience: the GC's internal directory and
  * the preconstruction handoff email. Best-effort — callers should not let a seed
  * failure block the launch.
@@ -295,17 +397,30 @@ export async function seedTrainingProjectManager(
   const preconName = `${precon.first} ${precon.last}`;
   const preconEmail = emailFor(precon.first, precon.last, domain);
   const label = projectTypeLabel(projectType);
-  const subject = `Project Handoff — ${label}: IFC Drawings, Specifications & Kickoff Info`;
-  const bodyHtml = buildHandoffHtml({
-    pmFirst,
-    preconName,
-    preconTitle: precon.title,
-    preconPhone: precon.phone,
-    preconEmail,
-    companyName,
-    projectType,
-    startDate,
-  });
+  const isHealthcare = projectType === HEALTHCARE_TYPE;
+  const subject = isHealthcare
+    ? `Project Handoff — VA 626-700 Renovation: IFC Drawings, Specifications & Contract Docs`
+    : `Project Handoff — ${label}: IFC Drawings, Specifications & Kickoff Info`;
+  const bodyHtml = isHealthcare
+    ? buildHealthcareHandoffHtml({
+        pmFirst,
+        preconName,
+        preconTitle: precon.title,
+        preconPhone: precon.phone,
+        preconEmail,
+        companyName,
+        startDate,
+      })
+    : buildHandoffHtml({
+        pmFirst,
+        preconName,
+        preconTitle: precon.title,
+        preconPhone: precon.phone,
+        preconEmail,
+        companyName,
+        projectType,
+        startDate,
+      });
   const bodyText = htmlToText(bodyHtml);
   const nowIso = new Date().toISOString();
 
@@ -352,7 +467,8 @@ export async function seedTrainingProjectManager(
     pmName,
     pmEmail,
     pmFirst,
-    projectLabel: label,
+    projectLabel: isHealthcare ? "VA 626-700 renovation" : label,
+    projectType,
   });
 
   // 4) External inbox senders — the owner's rep, vendors, and the
@@ -361,7 +477,7 @@ export async function seedTrainingProjectManager(
   // email + phone so the trainee can reach out to them. (Internal senders
   // like the accounting manager are part of TEAM above; seedContact:false
   // senders are already in the Directory via the sub roster.)
-  const externalSenders = Object.values(INBOX_SENDERS).filter(
+  const externalSenders = Object.values(inboxSendersForType(projectType)).filter(
     (s) => !s.internal && s.seedContact !== false,
   );
   const externalContacts = externalSenders.map((s) => ({
@@ -389,7 +505,18 @@ export async function deliverTrainingInboxThroughDay(
   supabase: SupabaseClient,
   opts: { projectId: string; day: number },
 ): Promise<void> {
-  const due = TRAINING_INBOX_EMAILS.filter((e) => e.day <= opts.day);
+  // Resolve the PM + GC company context (same shape as the launch seeding).
+  // Loaded first so the inbox pack is selected by the sandbox's project type
+  // (healthcare uses the VA / hospital schedule + cast).
+  const { data: project } = await supabase
+    .from("projects")
+    .select("training_owner_id, training_project_type, company_id")
+    .eq("id", opts.projectId)
+    .maybeSingle();
+  if (!project?.training_owner_id) return;
+  const projectType = project.training_project_type ?? "";
+
+  const due = inboxEmailsForType(projectType).filter((e) => e.day <= opts.day);
   if (due.length === 0) return;
 
   // Which inbox threads already exist for this project?
@@ -405,14 +532,6 @@ export async function deliverTrainingInboxThroughDay(
   );
   const missing = due.filter((e) => !have.has(inboxConversationId(e.slug)));
   if (missing.length === 0) return;
-
-  // Resolve the PM + GC company context (same shape as the launch seeding).
-  const { data: project } = await supabase
-    .from("projects")
-    .select("training_owner_id, training_project_type, company_id")
-    .eq("id", opts.projectId)
-    .maybeSingle();
-  if (!project?.training_owner_id) return;
 
   let companyName = DEFAULT_COMPANY;
   if (project.company_id) {
@@ -447,9 +566,10 @@ export async function deliverTrainingInboxThroughDay(
   // Self-heal the Directory: sandboxes launched before a sender existed won't
   // have their contact, so insert any missing external senders for the mail
   // being delivered (phone lookup + reply-persona grounding both depend on it).
+  const senders = inboxSendersForType(projectType);
   const senderKeys = [...new Set(missing.map((e) => e.senderKey))];
   const needContacts = senderKeys
-    .map((k) => INBOX_SENDERS[k])
+    .map((k) => senders[k])
     .filter((s): s is NonNullable<typeof s> => !!s && !s.internal && s.seedContact !== false);
   if (needContacts.length > 0) {
     const { data: contacts } = await supabase
@@ -487,7 +607,7 @@ export async function deliverTrainingInboxThroughDay(
 
   for (let i = 0; i < sorted.length; i++) {
     const e = sorted[i];
-    const sender = INBOX_SENDERS[e.senderKey];
+    const sender = senders[e.senderKey];
     if (!sender) continue;
     const senderName = `${sender.first} ${sender.last}`;
     const senderAddr = inboxSenderEmail(sender, domain);
@@ -558,13 +678,19 @@ async function seedBuyoutEmails(
     pmEmail: string;
     pmFirst: string;
     projectLabel: string;
+    projectType: string;
   },
 ): Promise<void> {
-  const { projectId, ownerUserId, pmName, pmEmail, pmFirst, projectLabel } = opts;
+  const { projectId, ownerUserId, pmName, pmEmail, pmFirst, projectLabel, projectType } = opts;
+
+  // The roster (and how many buyout threads) depends on the project type —
+  // healthcare uses the VA-hospital trades.
+  const roster = subsForType(projectType);
+  const buyoutThreadCount = buyoutThreadCountForType(projectType);
 
   // Directory — every sub in the roster, with email + phone so the trainee can
   // either email or call them.
-  const subContacts = TRAINING_SUBS.map((s) => ({
+  const subContacts = roster.map((s) => ({
     project_id: projectId,
     type: "user" as const,
     first_name: s.first,
@@ -577,7 +703,7 @@ async function seedBuyoutEmails(
   await supabase.from("directory_contacts").insert(subContacts);
 
   // Buyout threads for the early-buyout trades; one (random) is the slow sub.
-  const buyoutSubs = TRAINING_SUBS.slice(0, BUYOUT_THREAD_COUNT);
+  const buyoutSubs = roster.slice(0, buyoutThreadCount);
   const slowIndex = Math.floor(Math.random() * buyoutSubs.length);
 
   for (let i = 0; i < buyoutSubs.length; i++) {

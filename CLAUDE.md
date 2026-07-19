@@ -1864,6 +1864,30 @@ Scheduled tasks that carry a defined meeting are **hyperlinked in the Day panel*
 - **Task auto-check** — when the meeting adjourns, the client checks the matching task off in the Day panel's store (`sc-training-tasks-{projectId}`, key `{day}-{taskIndex}` resolved by matching `taskMatch` against the schedule); the project tab picks it up via the cross-tab `storage` event.
 - **Day panel** — `TrainingDayPanel.tsx` calls `meetingForTask(role, currentDay, task)` per task and renders matches as a blue hyperlink ("(join meeting ↗)", new tab) instead of plain text.
 
+## Training – Project-Type Content Packs (Healthcare / VA)
+
+### Overview
+PM sandbox content (subcontractors, day-scheduled inbox mail, planted scenarios, interactive meetings, and coach narration) is **project-type-aware**. The original content set (a private CM-at-Risk / GMP developer job) is the **default pack** used by every project type; a **healthcare** sandbox instead launches a self-contained **VA hospital renovation** pack — the **Nashville VA Medical Center, Buildings 626–700** (solicitation `36C77624B0029`, SF 1442 firm-fixed-price **SDVOSB set-aside**, magnitude $20–50M). The people, gotchas, and meetings are deliberately different so the two projects don't feel like reskins.
+
+### The healthcare pack (`lib/training-healthcare.ts`)
+One module holds the entire pack (imports are **type-only** from the base modules, so there is no runtime import cycle — the base modules import the values here):
+- **Handoff / files** — `HC_OWNER` (Dept. of Veterans Affairs — Contracting Officer, not a developer), `HC_ARCHITECT`, `HC_DELIVERY`, `HC_BRIEF`, and the **17 uploaded VA bid files** split into `HC_DRAWINGS` (11 discipline sets), `HC_SPECS` (2 volumes), and `HC_CONTRACT_DOCS` (SF 1442 solicitation, Amendment 0001, the VAAR limitations-on-subcontracting clause, and the Davis-Bacon wage determination). All served from `public/training/`.
+- **Subs** — `HC_SUBS` (VA-hospital trades: selective demo/abatement, normal & emergency power, HEPA mechanical, med-gas plumbing, etc.; several SDVOSB/VOSB to feed the 85% gotcha), `HC_BUYOUT_THREAD_COUNT`.
+- **Inbox** — `HC_INBOX_SENDERS` (the VA cast: by-the-book **Contracting Officer** Karen Whitlock, overworked **COR** Reginald Foster who can't authorize changes, Infection Control RN Diane Alvarado, VA Police badging, hospital Facilities, the A/E, a critical-power vendor, special inspections) and `HC_INBOX_EMAILS` (16 day-keyed emails carrying federal / occupied-hospital gotchas).
+- **Scenarios** — `HC_SCENARIOS` (7 planted decisions with miss/handle ripples): VA **badging** lead time, **ICRA** permit before work, the **85% subcontracting** limitation, planned-**outage MOP**, **Davis-Bacon certified payroll**, an unforeseen-**asbestos differing site condition** (REA, not a verbal COR direction), and **medical-gas ASSE certification**.
+- **Meetings** — `HC_MEETINGS`: a Day-1 bid review with a distinct precon cast (federal/healthcare lens; checkpoints on the 85% cap, critical-power long lead, med-gas cert, badging) plus Day-30/60 progress meetings + site walks run by the CO and COR (different personalities from the default job's owner/architect).
+- **Narration** — `HC_WELCOME_ADDENDUM` + `healthcareDayBriefing(day, firstName)` (VA-flavored coach briefings).
+
+### Type-aware selectors (how a pack is chosen)
+Each base module exposes a selector keyed on the sandbox's `training_project_type`, defaulting to the original content for every non-healthcare type:
+- `subsForType` / `buyoutThreadCountForType` (`lib/training-emails.ts`)
+- `inboxSendersForType` / `inboxEmailsForType` / `inboxEmailsForDay(day, projectType?)` (`lib/training-inbox.ts`)
+- `scenariosForType` / `scenariosDueBy(day, projectType?)`; `getTrainingScenario(id)` searches **both** packs (competency aggregates across a user's sandboxes of any type) (`lib/training-scenarios.ts`)
+- `meetingsForType` / `meetingForTask(role, day, task, projectType?)`; `getTrainingMeeting(id)` searches **both** packs (`lib/training-meetings.ts`)
+- `buildTrainingNarration(role, day, { …, projectType })` (`lib/training-narration.ts`)
+
+Consumers thread the type through: `seedTrainingProjectManager` + `deliverTrainingInboxThroughDay` (`lib/training-seed.ts`, incl. a dedicated `buildHealthcareHandoffHtml`), `runTrainingScenarioEngine` (`lib/training-scenario-eval.ts`), the Day panel (`training_project_type` passed from `app/projects/[id]/layout.tsx`), and the narration route. `checkpointSkill` (`lib/training-skills.ts`) maps the healthcare checkpoint ids, and `trainingProjectName("healthcare")` names the sandbox. The reply/compose flows are already Directory-driven, so seeded VA subs/senders ground the AI replies automatically. **To add another project-type pack**, mirror `lib/training-healthcare.ts` and extend the same selectors.
+
 ## Training – Competency Spine (Scenario Grading → Skills Profile → Credential)
 
 ### Overview

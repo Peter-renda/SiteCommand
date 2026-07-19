@@ -104,6 +104,13 @@ const CHECKPOINT_SKILLS: Record<string, SkillKey> = {
   "roofing-price-hold": "buyout",
   "switchgear-lead": "schedule",
   "glazing-risk": "buyout",
+  // Healthcare (VA) pack checkpoints — lib/training-healthcare.ts.
+  "hc-85-compliance": "cost",
+  "hc-critical-power-lead": "schedule",
+  "hc-medgas-cert": "submittals",
+  "hc-badging-mobilization": "schedule",
+  "hc-oac30-compliance": "cost",
+  "hc-oac60-billing-integrity": "cost",
 };
 
 export function checkpointSkill(checkpointId: string): SkillKey {

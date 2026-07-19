@@ -27,6 +27,8 @@
  * exactly like the seeded handoff + buyout emails.
  */
 
+import { HC_INBOX_SENDERS, HC_INBOX_EMAILS, HEALTHCARE_TYPE } from "@/lib/training-healthcare";
+
 export type InboxSender = {
   key: string;
   first: string;
@@ -1711,7 +1713,28 @@ ${invoiceHtml({
   },
 ];
 
+/**
+ * The inbox sender roster for a project type. Healthcare sandboxes use the VA /
+ * hospital cast (lib/training-healthcare.ts); every other type uses the default
+ * cast above.
+ */
+export function inboxSendersForType(
+  projectType: string | null | undefined,
+): Record<string, InboxSender> {
+  return projectType === HEALTHCARE_TYPE ? HC_INBOX_SENDERS : INBOX_SENDERS;
+}
+
+/** The day-scheduled inbound email set for a project type. */
+export function inboxEmailsForType(
+  projectType: string | null | undefined,
+): TrainingInboxEmail[] {
+  return projectType === HEALTHCARE_TYPE ? HC_INBOX_EMAILS : TRAINING_INBOX_EMAILS;
+}
+
 /** Emails that arrive on exactly this in-sim day (for the Day panel's hint). */
-export function inboxEmailsForDay(day: number): TrainingInboxEmail[] {
-  return TRAINING_INBOX_EMAILS.filter((e) => e.day === day);
+export function inboxEmailsForDay(
+  day: number,
+  projectType?: string | null,
+): TrainingInboxEmail[] {
+  return inboxEmailsForType(projectType).filter((e) => e.day === day);
 }
