@@ -3,9 +3,10 @@
  *
  * The training Day panel (app/projects/[id]/components/TrainingDayPanel.tsx)
  * surfaces the tasks scheduled for the trainee's current in-sim day. Days do not
- * have to be contiguous — the pre-construction phase runs day-by-day (Days 1-7),
- * then the construction phases are spaced out (Days 14, 28, 42, 56, 70), so the
- * "Complete day" button jumps from, say, Day 7 straight to Day 14.
+ * have to be contiguous — the pre-construction phase runs day-by-day (Days 1-7,
+ * plus a Day-10 wrap-up), then the construction phases land on Days 14, 21, 28,
+ * 30, 35, 42, 49, 56, 60, 63, 70, and 77; the trainee advances one day at a
+ * time, so in-between days render a quiet "no new tasks" state.
  *
  * This module is client-safe (no server-only imports) so the panel can import it
  * directly. Keyed by SimRole; only the Project Manager schedule is wired up
@@ -44,8 +45,9 @@ export type TrainingDay = {
 /**
  * Project Manager schedule — end-to-end PM responsibilities across a typical
  * build (~18-20 month construction). Pre-construction & buyout is mapped one day
- * per week (Days 1-7); the remaining construction phases are spaced every two
- * in-sim weeks (Days 14, 28, 42, 56, 70). Timeframes are indicative.
+ * per week (Days 1-7, plus the Day-10 wrap-up); the construction phases then
+ * land on Days 14, 21, 28, 30 (OAC), 35, 42, 49, 56, 60 (OAC), 63, 70, and 77
+ * (final closeout). Timeframes are indicative.
  */
 const PROJECT_MANAGER_SCHEDULE: TrainingDay[] = [
   {
@@ -285,6 +287,50 @@ const PROJECT_MANAGER_SCHEDULE: TrainingDay[] = [
     ],
   },
   {
+    day: 10,
+    phase: "Pre-Construction & Buyout",
+    timeframe: "Weeks 9-10",
+    lessonIds: ["com-sub-admin", "fo-div00-01", "wf-commitments", "com-liens-bonds"],
+    tasks: [
+      {
+        task: "Execute remaining subcontracts and verify COIs, bonds, and W-9s before any sub mobilizes",
+        category: "Buyout",
+        collaborators: "PM, Subs, Accounting",
+        deliverable: "Executed subcontracts + compliance file",
+      },
+      {
+        task: "Complete the submittal register and confirm review turnaround commitments with the design team",
+        category: "Submittals",
+        collaborators: "PM, Architect, Engineers",
+        deliverable: "Complete submittal register",
+      },
+      {
+        task: "Finalize the site logistics plan: fencing, gates, laydown, deliveries, parking, and hoisting",
+        category: "Coordination",
+        collaborators: "PM, Super",
+        deliverable: "Approved logistics plan",
+      },
+      {
+        task: "Stand up the change management process: PCO log, pricing templates, and approval workflow",
+        category: "Change Mgmt",
+        collaborators: "PM, Owner, Accounting",
+        deliverable: "Change management plan",
+      },
+      {
+        task: "Review permit conditions and build the inspection / special-inspections matrix",
+        category: "Permitting",
+        collaborators: "PM, Super, AHJ",
+        deliverable: "Inspection matrix",
+      },
+      {
+        task: "Confirm long-lead purchase orders are issued and factory dates are logged",
+        category: "Procurement",
+        collaborators: "PM, Vendors",
+        deliverable: "Updated procurement log",
+      },
+    ],
+  },
+  {
     day: 14,
     phase: "Foundations & Site Utilities",
     timeframe: "Months 2-4",
@@ -355,6 +401,50 @@ const PROJECT_MANAGER_SCHEDULE: TrainingDay[] = [
         category: "Coordination",
         collaborators: "PM, Super, Elevator / Crane Sub",
         deliverable: "Logistics plan",
+      },
+    ],
+  },
+  {
+    day: 21,
+    phase: "Foundations & Site Utilities",
+    timeframe: "Months 2-4",
+    lessonIds: ["fo-geotech", "sc-utilities", "wf-quality", "tech-concrete"],
+    tasks: [
+      {
+        task: "Verify every underground inspection is signed off before backfill; close open inspection items",
+        category: "Quality",
+        collaborators: "PM, Super, AHJ",
+        deliverable: "Signed inspection reports",
+      },
+      {
+        task: "Track failed tests (compaction, concrete breaks) to resolution with the engineer of record",
+        category: "Quality",
+        collaborators: "PM, Testing Agency, SEOR",
+        deliverable: "Test resolution log",
+      },
+      {
+        task: "Reconcile buyout vs. budget after the early awards; process the first change events",
+        category: "Cost",
+        collaborators: "PM, Accounting",
+        deliverable: "Updated buyout / cost report",
+      },
+      {
+        task: "Chase overdue submittals and RFIs that block the structure start; escalate late reviewers",
+        category: "Submittals",
+        collaborators: "PM, Architect, Subs",
+        deliverable: "Cleared blockers",
+      },
+      {
+        task: "Walk the site weekly with the superintendent against the three-week look-ahead",
+        category: "Schedule",
+        collaborators: "PM, Super",
+        deliverable: "Look-ahead updates",
+      },
+      {
+        task: "Prepare and submit the monthly owner report: schedule, cost, risks, and photos",
+        category: "Reporting",
+        collaborators: "PM, Owner",
+        deliverable: "Monthly report",
       },
     ],
   },
@@ -441,6 +531,50 @@ const PROJECT_MANAGER_SCHEDULE: TrainingDay[] = [
     ],
   },
   {
+    day: 35,
+    phase: "Vertical Structure / Framing",
+    timeframe: "Months 4-9",
+    lessonIds: ["tech-mep-coordination", "fo-bim", "wf-scheduling", "cn-rcp"],
+    tasks: [
+      {
+        task: "Run MEP coordination / clash resolution ahead of each floor's rough-in",
+        category: "Coordination",
+        collaborators: "PM, MEP Subs, BIM",
+        deliverable: "Signed-off coordination",
+      },
+      {
+        task: "Audit inspection sign-offs floor by floor; allow no cover without approvals on file",
+        category: "Quality",
+        collaborators: "PM, Super, Inspector",
+        deliverable: "Cover-approval log",
+      },
+      {
+        task: "Update the CPM with actuals; identify float erosion and recovery options",
+        category: "Schedule",
+        collaborators: "PM, Super",
+        deliverable: "Schedule update + narrative",
+      },
+      {
+        task: "Review sub pay applications against installed work; cut any front-loaded billing",
+        category: "Cost",
+        collaborators: "PM, Accounting, Subs",
+        deliverable: "Approved pay apps",
+      },
+      {
+        task: "Expedite the finish and equipment submittals still open; escalate late reviewers",
+        category: "Submittals",
+        collaborators: "PM, Architect",
+        deliverable: "Current submittal log",
+      },
+      {
+        task: "Hold a mid-project safety and quality stand-down with all foremen",
+        category: "Field Ops",
+        collaborators: "PM, Super, Subs",
+        deliverable: "Stand-down minutes",
+      },
+    ],
+  },
+  {
     day: 42,
     phase: "Envelope / MEP Rough-In / Dry-In",
     timeframe: "Months 7-13",
@@ -499,6 +633,50 @@ const PROJECT_MANAGER_SCHEDULE: TrainingDay[] = [
         category: "Cost",
         collaborators: "PM, Owner, Accounting",
         deliverable: "Updated cost report",
+      },
+    ],
+  },
+  {
+    day: 49,
+    phase: "Envelope / MEP Rough-In / Dry-In",
+    timeframe: "Months 7-13",
+    lessonIds: ["tech-envelope", "mep-startup-cx", "wf-quality", "mep-hvac-air"],
+    tasks: [
+      {
+        task: "Verify the dry-in milestone by area: roofing, windows, flashing, and water testing complete",
+        category: "Quality",
+        collaborators: "PM, Super, Envelope Sub",
+        deliverable: "Dry-in verification",
+      },
+      {
+        task: "Close all above-ceiling inspections (fire / smoke, insulation) before ceilings close",
+        category: "Quality",
+        collaborators: "PM, Super, AHJ",
+        deliverable: "Inspection closures",
+      },
+      {
+        task: "Finalize the commissioning plan and pre-functional checklists with the Cx agent",
+        category: "Commissioning",
+        collaborators: "PM, Cx Agent",
+        deliverable: "Cx plan + pre-functional checklists",
+      },
+      {
+        task: "Reforecast cost at completion; review contingency and allowance burn with the owner",
+        category: "Cost",
+        collaborators: "PM, Accounting, Owner",
+        deliverable: "Updated forecast",
+      },
+      {
+        task: "Confirm utility energization prerequisites and the meter / service schedule",
+        category: "Coordination",
+        collaborators: "PM, Utility, Electrical Sub",
+        deliverable: "Energization checklist",
+      },
+      {
+        task: "Start closeout document collection early: as-builts, O&Ms, and warranties",
+        category: "Closeout",
+        collaborators: "PM, Subs",
+        deliverable: "Closeout tracker",
       },
     ],
   },
@@ -591,6 +769,50 @@ const PROJECT_MANAGER_SCHEDULE: TrainingDay[] = [
     ],
   },
   {
+    day: 63,
+    phase: "Interior Finishes",
+    timeframe: "Months 11-18",
+    lessonIds: ["wf-punch-closeout", "mep-security-fire-alarm", "cn-retainage", "pf-financial"],
+    tasks: [
+      {
+        task: "Run area-by-area pre-punch as finishes complete; assign and track corrections",
+        category: "Quality",
+        collaborators: "PM, Super",
+        deliverable: "Pre-punch tracker",
+      },
+      {
+        task: "Schedule the life-safety acceptance testing sequence with the AHJ (alarm, sprinkler, egress)",
+        category: "Coordination",
+        collaborators: "PM, Fire Subs, AHJ",
+        deliverable: "Acceptance test schedule",
+      },
+      {
+        task: "Verify the elevator inspection is booked and its prerequisites are complete",
+        category: "Coordination",
+        collaborators: "PM, Elevator Sub, State",
+        deliverable: "Inspection booked",
+      },
+      {
+        task: "Reconcile the change order log with the owner; convert or close every open PCO",
+        category: "Change Mgmt",
+        collaborators: "PM, Owner",
+        deliverable: "Clean CO log",
+      },
+      {
+        task: "Review retainage posture and plan reductions per the contract",
+        category: "Cost",
+        collaborators: "PM, Accounting, Owner",
+        deliverable: "Retainage plan",
+      },
+      {
+        task: "Draft the occupancy / turnover plan with the owner: move-in, FF&E, and training",
+        category: "Closeout",
+        collaborators: "PM, Owner",
+        deliverable: "Turnover plan",
+      },
+    ],
+  },
+  {
     day: 70,
     phase: "Site Completion, Commissioning & Closeout",
     timeframe: "Months 16-20",
@@ -679,6 +901,44 @@ const PROJECT_MANAGER_SCHEDULE: TrainingDay[] = [
         category: "Closeout",
         collaborators: "PM, Team",
         deliverable: "Lessons-learned doc",
+      },
+    ],
+  },
+  {
+    day: 77,
+    phase: "Site Completion, Commissioning & Closeout",
+    timeframe: "Months 18-20",
+    lessonIds: ["com-claims", "cn-retainage", "pf-leadership", "com-liens-bonds"],
+    tasks: [
+      {
+        task: "Submit the complete closeout package and secure owner / architect acceptance",
+        category: "Closeout",
+        collaborators: "PM, Owner, Architect",
+        deliverable: "Accepted closeout package",
+      },
+      {
+        task: "Resolve final punch back-checks and obtain the final completion sign-off",
+        category: "Quality",
+        collaborators: "PM, Owner, Architect",
+        deliverable: "Final completion",
+      },
+      {
+        task: "Process final billing: retainage release, final lien waivers, and consent of surety",
+        category: "Cost",
+        collaborators: "PM, Accounting, Owner",
+        deliverable: "Final payment package",
+      },
+      {
+        task: "Hand over the warranty program, contacts, and the 11-month walk date to the owner",
+        category: "Closeout",
+        collaborators: "PM, Owner",
+        deliverable: "Warranty handoff",
+      },
+      {
+        task: "Close every subcontract: final waivers, warranty letters, and vendor evaluations",
+        category: "Buyout",
+        collaborators: "PM, Subs, Accounting",
+        deliverable: "Closed subcontracts",
       },
     ],
   },

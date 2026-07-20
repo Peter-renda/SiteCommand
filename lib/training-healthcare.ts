@@ -397,6 +397,30 @@ export const HC_INBOX_EMAILS: TrainingInboxEmail[] = [
 `.trim(),
   },
 
+  // ── Day 18 — Facilities: patient-ward noise complaints (coordinate windows) ─
+  {
+    day: 18,
+    slug: "hospital-noise-complaints",
+    senderKey: "facilities",
+    subject: "Noise & vibration complaints from the patient wards — we need agreed work windows",
+    html: (ctx) =>
+      `
+<p>${ctx.pmFirst},</p>
+
+<p>I've taken four calls in two days from nurse managers about your demolition — hammer drilling and cart traffic are transmitting straight through the structure into the <strong>occupied wards above and beside your work area</strong>. One complaint came from the sleep clinic, and another involved a patient-care conversation the care team couldn't conduct over the noise. In a hospital this isn't a nuisance issue; it's a patient-care issue, and it escalates fast.</p>
+
+<ul>
+  <li>I need a <strong>noisy-work plan</strong> from you: which activities are high-noise/vibration (chipping, coring, hammer drilling, structural demo) and when you propose to do them.</li>
+  <li>The clinical departments will agree to <strong>defined noisy-work windows</strong> — typically early morning before clinics open, and identified low-census periods — if you come to them with a schedule. If you don't, they'll come to you with restrictions, and you won't like theirs.</li>
+  <li>Give the affected units <strong>48 hours' notice</strong> before each high-noise operation so charge nurses can plan around it.</li>
+</ul>
+
+<p>Get me the plan this week and I'll walk it through the department heads with you. Keep free-running the jackhammers and this lands on the hospital director's desk instead.</p>
+
+<p>Bill Trainor<br/>Chief, Facilities Management<br/>Nashville VA Medical Center<br/>(615) 555-0668</p>
+`.trim(),
+  },
+
   // ── Day 20 — Accounting: Davis-Bacon certified payroll missing ─────────────
   {
     day: 20,
@@ -929,6 +953,284 @@ export const HC_SCENARIOS: TrainingScenario[] = [
 `.trim(),
     },
   },
+  {
+    id: "hc-critical-power-release",
+    skill: "schedule",
+    title: "Release the critical power package inside the price hold",
+    plantedDay: 16,
+    deadlineDay: 26,
+    threadSlugs: ["vendor-ups-quote"],
+    topics: /switchgear|ups|tripower|critical power|paralleling|38.?week|price hold|loi|purchase order|release/i,
+    expectation:
+      "Act on the 38-week lead and 30-day price hold on the switchgear/UPS package: issue a PO or LOI to TriPower (or escalate internally to get it released) before the hold lapses, so the factory slot and pricing are locked.",
+    handledKeywords: ["po", "purchase order", "loi", "letter of intent", "release", "award", "proceed", "lock the slot"],
+    consequence: {
+      day: 44,
+      senderKey: "ups_vendor",
+      subject: "Price hold lapsed — critical power package repriced, slot lost",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>I hate writing this one. The 30-day hold on the Building 626 critical power package expired with no PO or LOI, so the factory released the production slot I was holding, and the package has repriced:</p>
+
+<ul>
+  <li><strong>New package price: $658,000</strong> — roughly $46,000 over the quote you had in hand.</li>
+  <li><strong>New factory lead: 48+ weeks</strong> from approved submittals. Healthcare/EPSS-grade gear queues are brutal right now, and the next open slot puts delivery well past your tie-in window.</li>
+</ul>
+
+<p>Downstream effect you should flag to your team now: your planned-outage MOP and the whole energization sequence just lost their anchor date. I told you in week three this was a release-now item — options from here are an expedite premium on a cancelled-order slot, or re-sequencing around temporary power for a lot longer than anyone wants inside a hospital.</p>
+
+<p>Call me and let's salvage what we can.</p>
+
+<p>Curtis Bao<br/>Critical Power Sales Engineer, TriPower Critical Systems<br/>(678) 555-0322</p>
+`.trim(),
+    },
+    confirmation: {
+      day: 44,
+      senderKey: "ups_vendor",
+      subject: "Critical power order locked — factory slot confirmed, delivery holds",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>Confirming the good news for your file: because you released the Building 626 critical power package inside the price-hold window, the order is <strong>locked at the quoted price with a confirmed factory slot</strong>, and the approval drawings are already in your submittal cycle. Delivery supports your tie-in and energization sequence with real margin.</p>
+
+<p>Lead times on this class of gear have stretched past 48 weeks for orders placed today — that early release is quietly one of the best schedule decisions on this job. The COR should hear about it in your next progress meeting.</p>
+
+<p>Curtis Bao<br/>Critical Power Sales Engineer, TriPower Critical Systems<br/>(678) 555-0322</p>
+`.trim(),
+    },
+  },
+
+  {
+    id: "hc-noise-windows",
+    skill: "comms",
+    title: "Agree noisy-work windows with the hospital",
+    plantedDay: 18,
+    deadlineDay: 26,
+    threadSlugs: ["hospital-noise-complaints"],
+    topics: /noise|noisy.?work|vibration|quiet hours|work window|hammer drill|coring|chipping|ward|census|48 hour/i,
+    expectation:
+      "Get ahead of the patient-care noise issue: produce a noisy-work plan identifying the high-noise/vibration activities, agree defined work windows with Facilities and the clinical departments, and commit to 48-hour advance notice to affected units.",
+    handledKeywords: ["noisy-work plan", "noise plan", "work window", "quiet hours", "48 hour", "notice", "schedule noisy"],
+    consequence: {
+      day: 36,
+      senderKey: "facilities",
+      subject: "Hospital director has imposed work-hour restrictions on your noisy work",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>It went the way I said it would. The noise complaints kept coming, no plan ever landed on my desk, and yesterday a hammer-drilling operation ran during the sleep clinic's session block. The complaint went past me, past the COR, to the <strong>hospital director</strong> — and she has imposed restrictions unilaterally: <strong>no high-noise or vibration work between 7 a.m. and 6 p.m., effective immediately</strong>, any exception requiring department-head sign-off 72 hours in advance.</p>
+
+<p>That's most of your working day gone for chipping, coring, and structural demo — and it's a harsher deal than the windows the departments would have agreed to if you'd come to them first. I'll help you negotiate carve-outs, but the director's trust has to be rebuilt complaint-free before she'll loosen anything.</p>
+
+<p>Send me the noisy-work plan I asked for and we'll start digging out.</p>
+
+<p>Bill Trainor<br/>Chief, Facilities Management<br/>Nashville VA Medical Center<br/>(615) 555-0668</p>
+`.trim(),
+    },
+    confirmation: {
+      day: 36,
+      senderKey: "facilities",
+      subject: "Noisy-work windows working — the wards have gone quiet (about you)",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>Wanted you to hear it from me: since your noisy-work plan went in and the crews started honoring the agreed windows and 48-hour notices, <strong>I haven't taken a single complaint call</strong>. The charge nurses are actually planning around your schedule now — the sleep clinic moved a session block to accommodate Thursday's coring, which is the kind of cooperation you only get when the hospital trusts you.</p>
+
+<p>This is exactly how a contractor keeps an occupied hospital on their side. I've mentioned it to the COR; it'll serve you well when you need a favor on the outage windows.</p>
+
+<p>Bill Trainor<br/>Chief, Facilities Management<br/>Nashville VA Medical Center<br/>(615) 555-0668</p>
+`.trim(),
+    },
+  },
+
+  {
+    id: "hc-firestop-barrier",
+    skill: "field",
+    title: "Correct the smoke-barrier firestop failures before cover",
+    plantedDay: 24,
+    deadlineDay: 32,
+    threadSlugs: ["firestop-inspection-fail"],
+    topics: /firestop|fire.?stop|smoke barrier|penetration|listed|ul assembly|re-?inspect|ilsm.*barrier|barrier.*ilsm/i,
+    expectation:
+      "Treat the failed smoke-barrier penetrations as a live life-safety item: correct them with the listed firestop systems, get re-inspection passed before the ceiling closes, and keep ILSM measures in place while the barrier is compromised.",
+    handledKeywords: ["firestop", "re-inspect", "reinspect", "listed", "correct", "ilsm", "smoke barrier", "hold the ceiling"],
+    consequence: {
+      day: 44,
+      senderKey: "testing_agency",
+      subject: "Ceilings closed over failed firestop — tear-out ordered, finding filed",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>This got worse. On this week's walk I found the 2nd-floor corridor <strong>ceilings closed over the smoke-barrier penetrations I failed</strong> — no correction, no re-inspection, grid and tile right over the top. I had no choice but to document it as covering rejected work.</p>
+
+<ul>
+  <li>The COR has directed <strong>selective ceiling removal</strong> along the barrier line so every penetration can be corrected with the listed system and re-inspected — demo, re-work, and re-close at your cost.</li>
+  <li>Because that corridor is an egress path in an occupied wing, the hospital's safety officer has logged it as an <strong>ILSM breach</strong> and briefed leadership — expect it in the next survey-readiness review.</li>
+  <li>Going forward, I'm required to verify every barrier penetration <em>before</em> any ceiling closes — build my inspections into your sequence.</li>
+</ul>
+
+<p>Correction plan and tear-out schedule, please. This one was avoidable at the cost of a week; now it's three.</p>
+
+<p>Marla Jennings<br/>Special Inspections Manager, Volunteer Testing &amp; Inspection<br/>(615) 555-0429</p>
+`.trim(),
+    },
+    confirmation: {
+      day: 44,
+      senderKey: "testing_agency",
+      subject: "Smoke-barrier re-inspection passed — barrier restored, ILSM cleared",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>Re-inspection results for the 2nd-floor corridor: <strong>every penetration passed</strong> — correct listed systems, proper annular space, labels in place. The smoke barrier is restored to its rating, I've closed the hold, and the hospital's safety officer has retired the associated ILSM measures. Your ceilings are clear to close with my sign-off on file.</p>
+
+<p>For the record, your team held the ceiling until I passed the work — which is exactly the discipline an occupied hospital needs from its GC. Noted in my report to the COR.</p>
+
+<p>Marla Jennings<br/>Special Inspections Manager, Volunteer Testing &amp; Inspection<br/>(615) 555-0429</p>
+`.trim(),
+    },
+  },
+
+  {
+    id: "hc-rental-dispute",
+    skill: "cost",
+    title: "Dispute the inflated containment-rental invoice",
+    plantedDay: 34,
+    deadlineDay: 42,
+    threadSlugs: ["negative-air-rental-invoice"],
+    topics: /rentpro|rental|negative.?air|hepa.*rental|damage waiver|after.?hours|overbill|short.?pay|dispute|invoice.*44872/i,
+    expectation:
+      "Audit the rental invoice against the quote before approving: dispute the inflated monthly rate, the damage waiver percentage, and the undocumented after-hours service call — short-pay to the agreed terms rather than approving as-is on a months-long rental.",
+    handledKeywords: ["dispute", "short-pay", "short pay", "credit", "rate", "damage waiver", "undocumented", "quote", "don't approve", "do not approve"],
+    consequence: {
+      day: 52,
+      senderKey: "accounting",
+      subject: "We've been overpaying the containment rental for three months",
+      html: (ctx) =>
+        `
+<p>Hi ${ctx.pmFirst},</p>
+
+<p>Remember the RentPro invoice I asked you to eyeball? It was approved as-is, and their billing system happily repeated it — we've now paid <strong>three months at the inflated rate</strong>, plus the 14% damage waiver we never agreed to and two more "after-hours service calls" nobody on site can vouch for. Against the original quote we're roughly <strong>$9,400 over</strong> on a rental that runs to the end of the ICRA work.</p>
+
+<p>I've stopped payment on the current invoice and requested a full account reconciliation, but recovering money already paid is a different animal than declining a bad line item — RentPro's credit process wants documentation for every disputed charge, months after the fact. This is exactly why I flag these before the first approval.</p>
+
+<p>Can you dig out the original quote and rate confirmation so I have something to fight with?</p>
+
+<p>Janet Kim<br/>Accounting Manager</p>
+`.trim(),
+    },
+    confirmation: {
+      day: 52,
+      senderKey: "accounting",
+      subject: "RentPro credit memo received — invoice corrected going forward",
+      html: (ctx) =>
+        `
+<p>Hi ${ctx.pmFirst},</p>
+
+<p>Nice work on the RentPro invoice. Because you caught it on the first billing, they've issued a <strong>credit memo for the rate difference and the damage waiver</strong>, dropped the undocumented service call entirely, and corrected the recurring rate for the life of the rental. Net effect over the remaining containment months: about <strong>$9,000 kept in the job</strong>, on one careful review.</p>
+
+<p>I've set their account to bill against the confirmed rate schedule, so this stays fixed. This is the model for how I want every equipment invoice handled — thank you.</p>
+
+<p>Janet Kim<br/>Accounting Manager</p>
+`.trim(),
+    },
+  },
+
+  {
+    id: "hc-verbal-direction",
+    skill: "comms",
+    title: "Get the wall move in writing from the CO",
+    plantedDay: 40,
+    deadlineDay: 47,
+    threadSlugs: ["verbal-direction-warning"],
+    topics: /verbal|wall (move|relocat)|constructive change|modification|in writing|written direction|700 wing.*wall|exam room/i,
+    expectation:
+      "Shut the constructive-change trap: confirm to the CO exactly what has (and hasn't) been built, stop any work proceeding off the COR's verbal remark, and submit the wall relocation for a written modification before building it.",
+    handledKeywords: ["in writing", "modification", "mod", "stopped", "confirm", "written direction", "submitted", "hold the framing"],
+    consequence: {
+      day: 55,
+      senderKey: "contracting_officer",
+      subject: "Final determination — the wall relocation is denied as a constructive change",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>I never received your confirmation of what had been built, and the framing continued off my COR's field remark. I've now completed my review of your constructive-change assertion for the 700-wing wall relocation, and my determination is that it <strong>fails</strong>: you cannot show written direction from me, the COR had no authority to direct changed work and told your team so in writing on day five, and my office warned you in real time to stop and confirm.</p>
+
+<p>The result: the relocated wall — framing, in-wall MEP re-work, and the schedule days it consumed — is at <strong>your cost</strong>. You may pursue it under the Disputes clause, but I'd encourage you to read the record you'd be litigating against first.</p>
+
+<p>Every contractor learns the writing rule once. The expensive way or the cheap way is the only choice you get.</p>
+
+<p>Karen Whitlock<br/>Contracting Officer, Department of Veterans Affairs<br/>(615) 555-0600</p>
+`.trim(),
+    },
+    confirmation: {
+      day: 55,
+      senderKey: "contracting_officer",
+      subject: "Modification executed — wall relocation directed and priced",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>Confirming the clean landing on the 700-wing wall question. Because you stopped the crew, confirmed in writing exactly what had been built, and submitted the relocation for my direction rather than proceeding on a field remark, there was no constructive-change mess to untangle: I've <strong>executed a bilateral modification</strong> directing the relocation, with your price and time fully incorporated.</p>
+
+<p>You handled the authority question precisely the way the contract intends — my COR can suggest all day, but the work waits for my signature. Keep operating that way and this project will stay easy to administer for both of us.</p>
+
+<p>Karen Whitlock<br/>Contracting Officer, Department of Veterans Affairs<br/>(615) 555-0600</p>
+`.trim(),
+    },
+  },
+
+  {
+    id: "hc-fire-watch",
+    skill: "field",
+    title: "Run the sprinkler impairment with a documented fire watch",
+    plantedDay: 46,
+    deadlineDay: 52,
+    threadSlugs: ["ilsm-fire-watch"],
+    topics: /fire watch|impairment|sprinkler.*out|out of service|ilsm|monitoring compan|restore|hot work.*impair/i,
+    expectation:
+      "Plan the sprinkler impairment like the life-safety event it is: submit the impairment plan to Facilities in advance, staff a continuous documented fire watch for the full impairment window, notify the alarm monitoring, and restore the system as fast as possible.",
+    handledKeywords: ["fire watch", "impairment plan", "monitoring", "notify", "restore", "rounds", "dedicated"],
+    consequence: {
+      day: 60,
+      senderKey: "facilities",
+      subject: "Impairment run without a fire watch — incident report filed, privileges suspended",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>Your crew took the wing's sprinkler system down for the tie-in with <strong>no impairment plan on file and no fire watch posted</strong> — and while it was down, a smoke detector in the adjacent corridor went into alarm on your cutting dust. The building went into partial alarm response, the fire department rolled, and the wing charge nurse initiated patient-evacuation protocols before it was confirmed a false alarm.</p>
+
+<p>Understand what that cost: an emergency response to an occupied hospital wing, terrified patients, and an <strong>incident report through the hospital director and your COR</strong>. Consequences, effective now: all impairments and hot work under your contract are <strong>suspended</strong> until you deliver a corrective-action plan, and every future impairment requires my written approval with a named, dedicated fire-watch person and documented rounds.</p>
+
+<p>The fire watch you skipped costs one laborer for a shift. Price the alternative.</p>
+
+<p>Bill Trainor<br/>Chief, Facilities Management<br/>Nashville VA Medical Center<br/>(615) 555-0668</p>
+`.trim(),
+    },
+    confirmation: {
+      day: 60,
+      senderKey: "facilities",
+      subject: "Impairment executed clean — fire watch documentation on file",
+      html: (ctx) =>
+        `
+<p>${ctx.pmFirst},</p>
+
+<p>Closing out the sprinkler impairment: textbook. Your impairment plan was on my desk ahead of time, the monitoring company was notified on schedule, your fire-watch log shows continuous coverage with documented rounds for the full window, and the system was restored and verified <strong>two hours ahead of plan</strong>. The wing never knew it happened — which in a hospital is the definition of success.</p>
+
+<p>I've filed your documentation with the hospital's ILSM records and copied the COR. Any future impairment requests from your team will get fast-tracked on the strength of this one.</p>
+
+<p>Bill Trainor<br/>Chief, Facilities Management<br/>Nashville VA Medical Center<br/>(615) 555-0668</p>
+`.trim(),
+    },
+  },
 ];
 
 /* ── Interactive meetings (VA cast — different personalities) ─────────────── */
@@ -1412,16 +1714,28 @@ export function healthcareDayBriefing(day: number, firstName: string): string | 
       return `Baseline the schedule with your superintendent and make sure the phasing keeps the clinics open — you can't just take patient corridors offline. Get your first pay application in, but only bill what's installed, and make sure every sub's certified payroll is current or accounting can't certify it to the VA. Keep pushing the long-lead med-gas and critical-power submittals.`;
     case 7:
       return `Last week of preconstruction, ${firstName}. Goal: be bought out and compliant — your SDVOSB subcontracting plan in the CO's hands, certified payroll flowing, badging pipeline full, ICRA permits approved for the first areas. Set your standing cadence: weekly sub coordination and a rolling three-week look-ahead. Get those rhythms in place and the build runs cleaner.`;
+    case 10:
+      return `Buyout wrap-up, ${firstName}, and on a federal job the paperwork day is the day that saves you. Before any sub mobilizes: current insurance certificates with the right endorsements, bonds, W-9s — and their certified-payroll process confirmed, because a sub who can't produce a WH-347 will freeze your billing. Update your SF-1413 as awards land. Finish the submittal register, lock the site logistics plan around hospital operations — clean routes, no fire-lane staging — and build the inspection matrix off your permit conditions. And keep feeding badging rosters to VA Police ahead of every trade's mobilization date.`;
     case 14:
       return `Into the work now — demolition and infrastructure inside the occupied building. The thing that bites people here: honor the ICRA containment and interim life safety every single day, because Infection Control can red-tag your area in a heartbeat. If your demo crew hits something the survey didn't show — say suspect asbestos above a ceiling — stop, notify the Contracting Officer in writing, and pursue an REA. Do not let anyone talk you into self-helping off a verbal.`;
+    case 21:
+      return `Closing loops inside the containment, ${firstName}. Every inspection signed off before anything gets covered — in a hospital that goes double for anything touching a fire or smoke barrier. Track failed tests to resolution with the engineer, not to a folder. Reconcile buyout against budget and keep running the SDVOSB math as awards land — the 85% cap is a living number, not a one-time check. And remember you have neighbors in pajamas: if the wards are complaining about noise, get ahead of it with agreed work windows before the hospital director gets ahead of you. Monthly report goes to the CO and COR — in writing, always in writing.`;
     case 28:
       return `Rough-in and systems, ${firstName}. Med gas, normal and emergency power, nurse call, controls — this is a systems-heavy hospital job. Keep your firestopping and smoke-barrier penetrations correct and inspected before ceilings close; an open smoke barrier in an occupied corridor is a life-safety problem, not a punch item. Stay ahead of the med-gas verification and keep the critical-power delivery on your radar.`;
+    case 35:
+      return `Mid-systems check, ${firstName}. The rule that keeps a hospital renovation out of trouble: nothing closes over unpassed work. Audit the inspection sign-offs area by area — especially the smoke-barrier penetrations the special inspector is watching, because closing a ceiling over failed firestop turns a one-week fix into a three-week tear-out with an incident report attached. Update your schedule with actuals and protect the tie-in window. Read the sub pay apps against installed work, keep the certified payrolls current, and keep honoring the noisy-work windows — the hospital's goodwill is a schedule asset you'll need for the outage.`;
     case 42:
       return `Envelope and the power tie-in window. If your outage isn't submitted with a real Method of Procedure and six weeks' notice, Facilities will say no and your electrical sequence stalls — so run that to ground. When you impair fire protection to do the tie-in, a continuous ILSM fire watch is mandatory. Complete and inspect your rough-in, and keep the certified payroll and SDVOSB reports current — the CO's office spot-checks.`;
+    case 49:
+      return `Impairment discipline week, ${firstName}. When the sprinkler or fire alarm comes down for your tie-in work, treat it as the life-safety event it is: impairment plan to Facilities in advance, the monitoring company notified, a named fire-watch person on documented rounds for the entire window, and the system restored before your crew goes home. Skip any of that in an occupied hospital and you're one dusty smoke head away from a fire-department response and an incident report with your name on it. Close the above-ceiling inspections before ceilings close, keep the Cx plan moving, and start the closeout collection early — the VA's package is longer than any private job's.`;
     case 56:
       return `Interior finishes and the run to turnover. This is where the occupancy chain matters: get the medical gas through ASSE verification, finish fire-alarm and life-safety acceptance, and schedule the Infection Control clearance — that wing goes back to patients, so it has to be clean to a clinical standard, not just "done." Manage retainage and keep your pay apps honest; front-loaded billing gets caught on a federal job.`;
+    case 63:
+      return `The pre-turnover push, ${firstName}. Pre-punch the wing area by area before the COR ever walks it. Sequence the acceptance chain now — fire alarm and life-safety testing, the med-gas verification, then Infection Control's environmental clearance — because each gate has its own calendar and none of them care about yours. Clean up the commercial side with the CO: every open item converted to a modification or closed, the REA status current, the change log defensible. And put the retainage plan on paper — federal retainage releases against a complete closeout package, so what you collect now is what pays you later.`;
     case 70:
       return `Home stretch, ${firstName} — commissioning and federal closeout. Finish functional testing and TAB, self-punch before the COR walks it, and get your Certificate of Occupancy. Then close it out the VA way: O&M manuals, as-builts, warranties, commissioning reports, medical-gas certification, final certified payrolls with no open Davis-Bacon deficiencies, your SDVOSB compliance certificate, consent of surety, and release of claims. A clean closeout package is how you get retainage released fast. Finish strong.`;
+    case 77:
+      return `Last day on the VA job, ${firstName}. Federal closeout is a checklist, and the checklist is the payment: complete package accepted by the CO — O&Ms, as-builts, warranties, commissioning and TAB reports, the med-gas certification, final certified payrolls with zero Davis-Bacon deficiencies, your SDVOSB compliance certificate, consent of surety, release of claims. Final punch back-checked with the COR's acceptance in writing. Close every subcontract with its final waiver. Then hand the buildings back to the hospital knowing patients are being cared for in space you built without ever putting one of them at risk — that's the line on your résumé that matters. Congratulations. You've run a federal job the right way.`;
     default:
       return null;
   }

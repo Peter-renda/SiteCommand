@@ -1711,6 +1711,26 @@ ${invoiceHtml({
 <p>Priya Sharma, PE<br/>Project Engineer, Harlan Civil Group<br/>(404) 555-0510</p>
 `.trim(),
   },
+
+  // ── Insurance compliance plant (judged by the coi-lapse scenario) ────────
+  {
+    day: 23,
+    slug: "acct-coi-lapse",
+    senderKey: "accounting",
+    subject: "Ironclad Steel's insurance certificate expired — they have crews on site",
+    html: (ctx) =>
+      `
+<p>Hi ${ctx.pmFirst},</p>
+
+<p>Compliance flag from my subcontract file audit: <strong>Ironclad Steel Erectors' certificate of insurance expired last week</strong>, and they have crews erecting steel on site right now. Their GL and umbrella both lapsed on the cert we hold; I have no evidence of renewal, and our subcontract requires current COIs naming us and the owner as additional insureds <em>at all times</em> while they're on site.</p>
+
+<p>Why this matters: if one of their guys drops a beam on somebody tomorrow, we may be standing there uninsured on the riskiest trade on the project. Our own carrier and the owner's risk manager would both treat an expired cert as a compliance failure on <em>us</em>, not just on Ironclad.</p>
+
+<p>Can you lean on them for a current certificate (with the additional-insured endorsements, not just the ACORD form) right away? Strictly speaking we should be holding their payment — and possibly their site access — until it's in hand. Tell me how hard you want me to play it.</p>
+
+<p>Janet Kim<br/>Accounting Manager</p>
+`.trim(),
+  },
 ];
 
 /**
