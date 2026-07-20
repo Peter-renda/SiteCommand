@@ -36,11 +36,16 @@ export async function POST(
       .eq("id", commitmentId)
       .eq("project_id", projectId)
       .single(),
-    supabase.from("projects").select("name").eq("id", projectId).single(),
+    supabase.from("projects").select("name, is_training").eq("id", projectId).single(),
   ]);
 
   if (commitmentError || !commitment) {
     return NextResponse.json({ error: "Commitment not found" }, { status: 404 });
+  }
+
+  // Training sandboxes must never send real email — every contact is fake.
+  if (project?.is_training) {
+    return NextResponse.json({ success: true, skipped: "training" });
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.sitecommand.xyz";

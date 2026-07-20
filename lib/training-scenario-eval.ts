@@ -32,7 +32,7 @@ import {
   type TrainingScenario,
 } from "@/lib/training-scenarios";
 import { inboxSendersForType, inboxSenderEmail, type InboxCtx } from "@/lib/training-inbox";
-import { DEFAULT_COMPANY, emailDomain } from "@/lib/training-seed";
+import { resolveTrainingPmIdentity, pmAddressSet } from "@/lib/training-identity";
 import { projectTypeLabel } from "@/lib/simulation-constants";
 
 export type ScenarioOutcomeRow = {
@@ -244,33 +244,22 @@ async function runEngine(
   if (needsEval.length === 0 && !ripplesPossible) return;
 
   // ── Resolve trainee + context (shared by evaluation and delivery) ──
-  const { data: owner } = await supabase
-    .from("users")
-    .select("first_name, last_name, email, username")
-    .eq("id", project.training_owner_id)
-    .maybeSingle();
-  const pmName =
-    [owner?.first_name, owner?.last_name].filter(Boolean).join(" ").trim() ||
-    owner?.username ||
-    "Project Manager";
-  const pmEmail = (owner?.email || "").toLowerCase();
-  const pmFirst = (owner?.first_name || pmName).split(/\s+/)[0] || "there";
-
-  let companyName = DEFAULT_COMPANY;
-  if (project.company_id) {
-    const { data: company } = await supabase
-      .from("companies")
-      .select("name")
-      .eq("id", project.company_id)
-      .maybeSingle();
-    if (company?.name) companyName = company.name;
-  }
-  const domain = emailDomain(companyName);
+  // The trainee participates under a FAKE simulated PM address; match their
+  // sent mail against it (and their legacy real address, for older rows).
+  const pm = await resolveTrainingPmIdentity(supabase, {
+    userId: project.training_owner_id,
+    companyId: project.company_id,
+  });
+  const pmName = pm.name;
+  const pmEmail = pm.email;
+  const pmFirst = pm.first;
+  const meSet = pmAddressSet(pm);
+  const domain = pm.domain;
   const ctx: InboxCtx = {
     pmFirst,
     pmName,
     projectLabel: projectTypeLabel(project.training_project_type ?? ""),
-    companyName,
+    companyName: pm.companyName,
   };
 
   // ── Evaluation pass ──
@@ -305,7 +294,7 @@ async function runEngine(
     }[])
       .filter(
         (m) =>
-          (pmEmail && (m.from_address ?? "").toLowerCase() === pmEmail) ||
+          meSet.has((m.from_address ?? "").toLowerCase()) ||
           (m.from_name ?? "") === pmName,
       )
       .map((m) => ({

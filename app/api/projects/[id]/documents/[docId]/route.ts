@@ -3,6 +3,7 @@ import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { sendDocumentTrackingEmail } from "@/lib/email";
+import { isTrainingProject } from "@/lib/training-outbound";
 import { buildFolderPath, getProjectEmailContext } from "@/lib/document-notify";
 
 async function collectFilePaths(supabase: SupabaseClient, docId: string): Promise<string[]> {
@@ -61,6 +62,9 @@ async function notifyTrackers(
 
   const uniqueEmails = [...new Set((trackers || []).map((t) => t.user_email).filter(Boolean))];
   if (uniqueEmails.length === 0) return;
+
+  // Training sandboxes must never send real email — every contact is fake.
+  if (await isTrainingProject(supabase, projectId)) return;
 
   const [{ companyName, projectName, projectUrl }, filePath] = await Promise.all([
     getProjectEmailContext(supabase, projectId),

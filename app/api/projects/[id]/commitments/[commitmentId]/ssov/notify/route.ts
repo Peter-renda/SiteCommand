@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { sendSsovNotificationEmail } from "@/lib/email";
+import { isTrainingProject } from "@/lib/training-outbound";
 import { requireToolLevel } from "@/lib/tool-permissions";
 
 function contactName(c: {
@@ -97,22 +98,26 @@ export async function POST(
   const ssovUrl = `${origin}/projects/${projectId}/commitments/${commitmentId}/ssov`;
   const recipientName = contactName(contactMatch);
 
-  try {
-    await sendSsovNotificationEmail(
-      contactMatch.email,
-      recipientName,
-      sender?.username || "A SiteCommand user",
-      commitment.number,
-      commitment.title || "Commitment",
-      Number(commitment.original_contract_amount || 0),
-      project?.name || "your project",
-      ssovUrl
-    );
-  } catch (err) {
-    return NextResponse.json(
-      { error: `Failed to send SSOV notification email: ${(err as Error).message}` },
-      { status: 502 }
-    );
+  // Training sandboxes must never send real email — every contact is fake. The
+  // SSOV workflow still advances (notified_at is stamped below).
+  if (!(await isTrainingProject(supabase, projectId))) {
+    try {
+      await sendSsovNotificationEmail(
+        contactMatch.email,
+        recipientName,
+        sender?.username || "A SiteCommand user",
+        commitment.number,
+        commitment.title || "Commitment",
+        Number(commitment.original_contract_amount || 0),
+        project?.name || "your project",
+        ssovUrl
+      );
+    } catch (err) {
+      return NextResponse.json(
+        { error: `Failed to send SSOV notification email: ${(err as Error).message}` },
+        { status: 502 }
+      );
+    }
   }
 
   const { data, error } = await supabase

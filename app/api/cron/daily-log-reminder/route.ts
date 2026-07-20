@@ -13,11 +13,13 @@ export async function GET(req: NextRequest) {
   const supabase = getSupabase();
   const today = new Date().toISOString().split("T")[0];
 
-  // Fetch all active projects
+  // Fetch all active projects. Training sandboxes are excluded — they are fake
+  // and their only "member" is the trainee, who should never get real reminders.
   const { data: projects, error: projectsError } = await supabase
     .from("projects")
     .select("id, name, company_id")
-    .eq("status", "active");
+    .eq("status", "active")
+    .eq("is_training", false);
 
   if (projectsError) {
     return NextResponse.json({ error: projectsError.message }, { status: 500 });

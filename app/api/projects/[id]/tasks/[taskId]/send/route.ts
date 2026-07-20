@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { sendTaskEmail } from "@/lib/email";
+import { isTrainingProject } from "@/lib/training-outbound";
 
 export async function POST(
   _req: NextRequest,
@@ -44,6 +45,11 @@ export async function POST(
 
   if (recipients.length === 0) {
     return NextResponse.json({ sent: 0 });
+  }
+
+  // Training sandboxes must never send real email — every contact is fake.
+  if (await isTrainingProject(supabase, projectId)) {
+    return NextResponse.json({ sent: 0, skipped: "training" });
   }
 
   const assigneeNames = assignees.map((a) => a.name).filter(Boolean);

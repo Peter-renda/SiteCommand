@@ -46,6 +46,16 @@ import {
   HC_CONTRACT_DOCS,
   HC_CONTRACTING_OFFICE,
 } from "@/lib/training-healthcare";
+import {
+  DEFAULT_COMPANY,
+  emailDomain,
+  emailFor,
+  resolveTrainingPmIdentity,
+} from "@/lib/training-identity";
+
+// Re-exported for modules that resolve the sandbox's GC identity (e.g. the
+// scenario/ripple engine). The single source of truth is lib/training-identity.
+export { DEFAULT_COMPANY, emailDomain };
 
 type SeedOpts = {
   projectId: string;
@@ -56,9 +66,6 @@ type SeedOpts = {
   /** Owning company id (the PM's own company); null for users without one. */
   companyId: string | null;
 };
-
-/** Fictional general contractor used when the launcher has no company of their own. */
-export const DEFAULT_COMPANY = "Summit Builders";
 
 /**
  * The GC's internal team, in the order the requirement lists the roles. The
@@ -132,16 +139,6 @@ function appBaseUrl(): string {
     process.env.NEXT_PUBLIC_BASE_URL ??
     "http://localhost:3000"
   ).replace(/\/+$/, "");
-}
-
-export function emailDomain(company: string): string {
-  const slug = company.toLowerCase().replace(/[^a-z0-9]/g, "");
-  return `${slug || "summitbuilders"}.com`;
-}
-
-function emailFor(first: string, last: string, domain: string): string {
-  const local = `${first}.${last}`.toLowerCase().replace(/[^a-z0-9.]/g, "");
-  return `${local}@${domain}`;
 }
 
 /** Add whole months to a YYYY-MM-DD date, returning YYYY-MM-DD (UTC-safe). */
@@ -352,31 +349,18 @@ export async function seedTrainingProjectManager(
 ): Promise<void> {
   const { projectId, ownerUserId, projectType, startDate, companyId } = opts;
 
-  // Resolve the GC company name (the PM's own company), falling back to a
-  // fictional firm so the experience is self-contained.
-  let companyName = DEFAULT_COMPANY;
-  if (companyId) {
-    const { data: company } = await supabase
-      .from("companies")
-      .select("name")
-      .eq("id", companyId)
-      .maybeSingle();
-    if (company?.name) companyName = company.name;
-  }
-  const domain = emailDomain(companyName);
-
-  // The PM (the launcher) is the recipient of the handoff email.
-  const { data: owner } = await supabase
-    .from("users")
-    .select("first_name, last_name, email, username")
-    .eq("id", ownerUserId)
-    .maybeSingle();
-  const pmName =
-    [owner?.first_name, owner?.last_name].filter(Boolean).join(" ").trim() ||
-    owner?.username ||
-    "Project Manager";
-  const pmEmail = owner?.email || emailFor("project", "manager", domain);
-  const pmFirst = (owner?.first_name || pmName).split(/\s+/)[0] || "there";
+  // Resolve the GC company + the PM's SIMULATED identity. The PM participates
+  // in sandbox threads under a fake `@<company>.example.com` address — their
+  // real login email is never stored in the simulation.
+  const pm = await resolveTrainingPmIdentity(supabase, {
+    userId: ownerUserId,
+    companyId,
+  });
+  const companyName = pm.companyName;
+  const domain = pm.domain;
+  const pmName = pm.name;
+  const pmEmail = pm.email;
+  const pmFirst = pm.first;
 
   // 1) Directory — seed the GC's internal team. Contacts are seeded WITHOUT
   // email addresses (names/phones/title/company only).
@@ -533,28 +517,17 @@ export async function deliverTrainingInboxThroughDay(
   const missing = due.filter((e) => !have.has(inboxConversationId(e.slug)));
   if (missing.length === 0) return;
 
-  let companyName = DEFAULT_COMPANY;
-  if (project.company_id) {
-    const { data: company } = await supabase
-      .from("companies")
-      .select("name")
-      .eq("id", project.company_id)
-      .maybeSingle();
-    if (company?.name) companyName = company.name;
-  }
-  const domain = emailDomain(companyName);
-
-  const { data: owner } = await supabase
-    .from("users")
-    .select("first_name, last_name, email, username")
-    .eq("id", project.training_owner_id)
-    .maybeSingle();
-  const pmName =
-    [owner?.first_name, owner?.last_name].filter(Boolean).join(" ").trim() ||
-    owner?.username ||
-    "Project Manager";
-  const pmEmail = owner?.email || emailFor("project", "manager", domain);
-  const pmFirst = (owner?.first_name || pmName).split(/\s+/)[0] || "there";
+  // The PM's simulated identity — same fake `@<company>.example.com` address
+  // used everywhere in the sandbox (never the trainee's real login email).
+  const pm = await resolveTrainingPmIdentity(supabase, {
+    userId: project.training_owner_id,
+    companyId: project.company_id,
+  });
+  const companyName = pm.companyName;
+  const domain = pm.domain;
+  const pmName = pm.name;
+  const pmEmail = pm.email;
+  const pmFirst = pm.first;
 
   const ctx: InboxCtx = {
     pmFirst,

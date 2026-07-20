@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { getToolLevel } from "@/lib/tool-permissions";
 import { isProjectSuperAdmin } from "@/lib/project-access";
 import { sendInvoiceAssignmentEmail } from "@/lib/email";
+import { isTrainingProject } from "@/lib/training-outbound";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
@@ -189,8 +190,12 @@ export async function POST(
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  // Fire-and-forget email notification.
+  // Fire-and-forget email notification. Training sandboxes never send real
+  // email — every recipient is fake.
   try {
+    if (await isTrainingProject(supabase, projectId)) {
+      return NextResponse.json({ id: inserted.id });
+    }
     const { data: project } = await supabase
       .from("projects")
       .select("name")

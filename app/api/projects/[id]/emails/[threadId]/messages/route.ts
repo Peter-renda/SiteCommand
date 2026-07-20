@@ -10,6 +10,7 @@ import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { fetchActiveThread } from "@/lib/email-connection";
 import { persistThreadMessages, getStoredThreadMessages } from "@/lib/email-messages";
+import { resolveTrainingPmIdentity, maskRealPmAddress } from "@/lib/training-identity";
 
 export async function GET(
   _req: NextRequest,
@@ -35,18 +36,24 @@ export async function GET(
   // them, so always serve the stored copy (skip the provider fetch entirely).
   const { data: project } = await supabase
     .from("projects")
-    .select("is_training")
+    .select("is_training, training_owner_id, company_id")
     .eq("id", projectId)
     .maybeSingle();
   if (project?.is_training) {
     const stored = await getStoredThreadMessages(supabase, threadId);
-    // Report the trainee's own address as the account so the reply composer
-    // treats their seeded outreach as "sent by me" and targets the sub.
+    // The trainee participates under a FAKE simulated PM address. Report that as
+    // the account (so the composer treats their outreach as "sent by me" and
+    // targets the counterparty) and rewrite any real login address left in
+    // older stored rows to the fake one so it never surfaces in the sandbox.
+    const pm = await resolveTrainingPmIdentity(supabase, {
+      userId: project.training_owner_id ?? session.id,
+      companyId: project.company_id,
+    });
     return NextResponse.json({
       provider: null,
-      accountEmail: session.email ?? null,
+      accountEmail: pm.email,
       subject: row.subject,
-      messages: stored,
+      messages: maskRealPmAddress(stored, pm),
       stored: true,
     });
   }

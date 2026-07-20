@@ -14,6 +14,7 @@
  */
 
 import { HC_SUBS, HC_BUYOUT_THREAD_COUNT, HEALTHCARE_TYPE } from "@/lib/training-healthcare";
+import { TRAINING_EMAIL_SUFFIX } from "@/lib/training-identity";
 
 export type TrainingSub = {
   /** Trade / scope label. */
@@ -62,11 +63,15 @@ export function buyoutThreadCountForType(projectType: string | null | undefined)
   return projectType === HEALTHCARE_TYPE ? HC_BUYOUT_THREAD_COUNT : BUYOUT_THREAD_COUNT;
 }
 
-/** Email address for a sub, derived from their firm name (stable + fake). */
+/**
+ * Email address for a sub, derived from their firm name. Always a fake,
+ * undeliverable `.example.com` address (RFC 2606) so nothing in a sandbox can
+ * ever reach a real inbox.
+ */
 export function subEmailFor(sub: TrainingSub): string {
   const slug = sub.company.toLowerCase().replace(/[^a-z0-9]/g, "");
   const local = `${sub.first}.${sub.last}`.toLowerCase().replace(/[^a-z0-9.]/g, "");
-  return `${local}@${slug || "subcontractor"}.com`;
+  return `${local}@${slug || "subcontractor"}${TRAINING_EMAIL_SUFFIX}`;
 }
 
 function money(value: number): string {

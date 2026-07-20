@@ -311,11 +311,16 @@ export async function POST(
 
     const { data: project } = await supabase
       .from("projects")
-      .select("name")
+      .select("name, is_training")
       .eq("id", projectId)
       .single();
     const projectName = project?.name ?? "Unknown Project";
     const submittalUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/projects/${projectId}/submittals/${submittalId}`;
+
+    // Training sandboxes must never send real email — every contact is fake.
+    if (project?.is_training) {
+      return NextResponse.json({ ...data, recipient_count: 0 });
+    }
 
     const recipients: { name: string; email: string }[] = [];
     const seenEmails = new Set<string>();
