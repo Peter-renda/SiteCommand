@@ -99,18 +99,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (recipients.length > 0) {
     const { data: project } = await supabase
       .from("projects")
-      .select("name")
+      .select("name, is_training")
       .eq("id", projectId)
       .single();
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
     const taskUrl = `${appUrl}/projects/${projectId}/tasks/${data!.id}`;
 
-    await Promise.allSettled(
-      recipients.map((r) =>
-        sendTaskCreatedEmail(r.email, project?.name ?? "", data!.task_number, title, taskUrl, description || null, due_date || null)
-      )
-    );
+    // Training sandboxes must never send real email — every contact is fake.
+    if (!project?.is_training) {
+      await Promise.allSettled(
+        recipients.map((r) =>
+          sendTaskCreatedEmail(r.email, project?.name ?? "", data!.task_number, title, taskUrl, description || null, due_date || null)
+        )
+      );
+    }
   }
 
   return NextResponse.json(data);

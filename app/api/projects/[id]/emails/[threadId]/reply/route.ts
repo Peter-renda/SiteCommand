@@ -22,14 +22,17 @@ import {
   generateTrainingCounterpartyReply,
   lookupTrainingCounterparty,
 } from "@/lib/training-email-reply";
+import {
+  resolveTrainingPmIdentity,
+  pmAddressSet,
+  type TrainingPmIdentity,
+} from "@/lib/training-identity";
 import { projectTypeLabel } from "@/lib/simulation-constants";
 import type { ThreadMessage } from "@/lib/email-types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Gemini reply synthesis can take a while on long threads.
 export const maxDuration = 60;
-
-type Trainee = { id: string; email: string; username: string };
 
 export async function POST(
   req: NextRequest,
@@ -69,10 +72,14 @@ export async function POST(
   // the counterparty answer.
   const { data: project } = await supabase
     .from("projects")
-    .select("is_training, name, training_project_type")
+    .select("is_training, name, training_project_type, training_owner_id, company_id")
     .eq("id", projectId)
     .maybeSingle();
   if (project?.is_training) {
+    const pm = await resolveTrainingPmIdentity(supabase, {
+      userId: project.training_owner_id ?? session.id,
+      companyId: project.company_id,
+    });
     return handleTrainingReply(supabase, {
       projectId,
       projectName: project.name ?? "Training project",
@@ -81,7 +88,7 @@ export async function POST(
         : null,
       threadId,
       threadSubject: row.subject ?? "",
-      session,
+      pm,
       replyBody,
       to: to ?? "",
     });
@@ -123,36 +130,28 @@ async function handleTrainingReply(
     projectType: string | null;
     threadId: string;
     threadSubject: string;
-    session: Trainee;
+    pm: TrainingPmIdentity;
     replyBody: string;
     to: string;
   },
 ): Promise<NextResponse> {
-  const { projectId, projectName, projectType, threadId, threadSubject, session, replyBody, to } =
+  const { projectId, projectName, projectType, threadId, threadSubject, pm, replyBody, to } =
     opts;
 
   const stored = await getStoredThreadMessages(supabase, threadId);
-  const meEmail = (session.email || "").toLowerCase();
-
-  // The trainee's own display name (for a clean "from" on their reply + greeting
-  // on the response).
-  const { data: user } = await supabase
-    .from("users")
-    .select("first_name, last_name, username")
-    .eq("id", session.id)
-    .maybeSingle();
-  const meName =
-    [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() ||
-    user?.username ||
-    session.username ||
-    "You";
-  const pmFirst = firstNameOf(user?.first_name || meName, "there");
+  // The trainee is identified in the sandbox by their FAKE simulated PM address.
+  // Match against both it and their (legacy) real address so older threads still
+  // resolve "me" correctly, but always WRITE the fake address.
+  const meSet = pmAddressSet(pm);
+  const meName = pm.name;
+  const meAddress = pm.email;
+  const pmFirst = firstNameOf(pm.first || meName, "there");
 
   // Counterparty = the most recent message from anyone other than the trainee.
   // None yet → this is their first response (the slow sub), and the recipient
   // comes from the trainee's outreach (or the request `to`).
   const subMsg = [...stored].reverse().find(
-    (m) => m.from.address && m.from.address.toLowerCase() !== meEmail,
+    (m) => m.from.address && !meSet.has(m.from.address.toLowerCase()),
   );
   const firstResponse = !subMsg;
   let counterpartyName = subMsg?.from.name ?? "";
@@ -179,7 +178,7 @@ async function handleTrainingReply(
       project_id: projectId,
       provider_message_id: `training-reply-${nowMs}`,
       from_name: meName,
-      from_address: session.email || "",
+      from_address: meAddress,
       to_recipients: counterpartyAddr
         ? [{ name: counterpartyName, address: counterpartyAddr }]
         : [],
@@ -209,7 +208,7 @@ async function handleTrainingReply(
     if (!counterpartyName) counterpartyName = counterparty.name;
     const traineeMessage: ThreadMessage = {
       id: `training-reply-${nowMs}`,
-      from: { name: meName, address: session.email || "" },
+      from: { name: meName, address: meAddress },
       to: [{ name: counterpartyName, address: counterpartyAddr }],
       cc: [],
       date: nowIso,
@@ -223,7 +222,7 @@ async function handleTrainingReply(
       projectType,
       counterparty,
       traineeName: meName,
-      traineeEmail: session.email || "",
+      traineeEmail: meAddress,
       threadSubject: reSubject || threadSubject,
       history: [...stored, traineeMessage],
       lateFirstResponse: firstResponse,
@@ -236,7 +235,7 @@ async function handleTrainingReply(
       provider_message_id: `training-resp-${respMs}`,
       from_name: counterpartyName || counterpartyAddr,
       from_address: counterpartyAddr,
-      to_recipients: [{ name: meName, address: session.email || "" }],
+      to_recipients: [{ name: meName, address: meAddress }],
       cc_recipients: [],
       subject: reSubject || threadSubject,
       sent_at: respIso,

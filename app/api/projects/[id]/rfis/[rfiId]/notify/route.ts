@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { sendRFICreatedEmail } from "@/lib/email";
+import { isTrainingProject } from "@/lib/training-outbound";
 
 type Recipient = { name: string; email: string; role: "manager" | "assignee" | "distribution" };
 
@@ -74,6 +75,11 @@ export async function POST(
 
   if (recipients.length === 0) {
     return NextResponse.json({ ok: true, recipient_count: 0 });
+  }
+
+  // Training sandboxes must never send real email — every contact is fake.
+  if (await isTrainingProject(supabase, projectId)) {
+    return NextResponse.json({ ok: true, recipient_count: 0, skipped: "training" });
   }
 
   const senderName = session.username;

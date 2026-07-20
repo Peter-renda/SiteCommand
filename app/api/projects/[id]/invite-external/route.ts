@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   // Fetch project + owning company
   const { data: project } = await supabase
     .from("projects")
-    .select("id, name, company_id, companies(name)")
+    .select("id, name, company_id, is_training, companies(name)")
     .eq("id", projectId)
     .single();
 
@@ -121,6 +121,11 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const inviteUrl = `${appUrl}/invite/${invite.token}`;
+
+  // Training sandboxes must never send real email — every contact is fake.
+  if (project.is_training) {
+    return NextResponse.json({ success: true, skipped: "training" });
+  }
 
   await sendContractorInviteEmail(email, inviteUrl, project.name, contact_name ?? "", company?.name);
 

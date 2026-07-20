@@ -104,10 +104,16 @@ export async function POST(
         .single(),
       supabase
         .from("projects")
-        .select("name, company_id")
+        .select("name, company_id, is_training")
         .eq("id", projectId)
         .single(),
     ]);
+
+    // Training sandboxes must never send real email — every contact is fake.
+    if (projectRes.data?.is_training) {
+      const created_by_name = [session.username].filter(Boolean).join("") || null;
+      return NextResponse.json({ ...data, created_by_name, attachments: [] });
+    }
 
     const rfiData = rfiRes.data;
     const projectName = projectRes.data?.name ?? "";

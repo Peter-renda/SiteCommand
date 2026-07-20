@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { checkProjectAccess } from "@/lib/permissions";
 import { sendChangeEventRFQEmail } from "@/lib/email";
+import { isTrainingProject } from "@/lib/training-outbound";
 
 type RfqRecipientRow = {
   change_event_id: string;
@@ -146,6 +147,11 @@ export async function POST(
       .filter((r) => r.recipient_email)
       .map((r) => [String(r.recipient_email).toLowerCase(), r])
   ).values());
+
+  // Training sandboxes must never send real email — every contact is fake.
+  if (await isTrainingProject(supabase, projectId)) {
+    return NextResponse.json({ ok: true, rfq_id: rfq.id, recipient_count: 0, skipped: "training" });
+  }
 
   await Promise.allSettled(
     uniqueRecipients.map((r) => sendChangeEventRFQEmail(

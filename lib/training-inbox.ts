@@ -28,6 +28,7 @@
  */
 
 import { HC_INBOX_SENDERS, HC_INBOX_EMAILS, HEALTHCARE_TYPE } from "@/lib/training-healthcare";
+import { TRAINING_EMAIL_SUFFIX } from "@/lib/training-identity";
 
 export type InboxSender = {
   key: string;
@@ -185,11 +186,15 @@ export const INBOX_SENDERS: Record<string, InboxSender> = {
   },
 };
 
-/** Fixed external email address for a sender, derived from their company. */
+/**
+ * Fixed external email address for a sender, derived from their company.
+ * Internal senders use the GC's (already fake `.example.com`) domain; external
+ * senders get their own fake `.example.com` domain so no address is deliverable.
+ */
 export function inboxSenderEmail(sender: InboxSender, gcDomain: string): string {
   const domain = sender.internal
     ? gcDomain
-    : `${sender.company.toLowerCase().replace(/[^a-z0-9]/g, "") || "vendor"}.com`;
+    : `${sender.company.toLowerCase().replace(/[^a-z0-9]/g, "") || "vendor"}${TRAINING_EMAIL_SUFFIX}`;
   const local = `${sender.first}.${sender.last}`.toLowerCase().replace(/[^a-z0-9.]/g, "");
   return `${local}@${domain}`;
 }

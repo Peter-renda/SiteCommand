@@ -83,7 +83,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const shouldSendEmail = Boolean(send_email);
   if (shouldSendEmail) {
     const [{ data: project }, { data: toContact }, { data: ccContactRows }] = await Promise.all([
-      supabase.from("projects").select("name").eq("id", projectId).single(),
+      supabase.from("projects").select("name, is_training").eq("id", projectId).single(),
       to_id
         ? supabase.from("directory_contacts").select("id, first_name, last_name, company, group_name, email").eq("id", to_id).single()
         : Promise.resolve({ data: null }),
@@ -115,6 +115,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
     const transmittalUrl = `${appUrl}/projects/${projectId}/transmittals/${data.id}`;
+
+    // Training sandboxes must never send real email — every contact is fake.
+    if (project?.is_training) {
+      return NextResponse.json(data);
+    }
 
     const emailResults = await Promise.allSettled(
       Array.from(recipients.values()).map((recipient) =>

@@ -21,6 +21,7 @@ import {
   generateTrainingCounterpartyReply,
   lookupTrainingCounterparty,
 } from "@/lib/training-email-reply";
+import { resolveTrainingPmIdentity } from "@/lib/training-identity";
 import type { ThreadMessage } from "@/lib/email-types";
 
 // Gemini reply synthesis can take a while.
@@ -41,7 +42,7 @@ export async function POST(
   const supabase = getSupabase();
   const { data: project } = await supabase
     .from("projects")
-    .select("is_training, name, training_project_type")
+    .select("is_training, name, training_project_type, training_owner_id, company_id")
     .eq("id", projectId)
     .maybeSingle();
   if (!project?.is_training) {
@@ -75,18 +76,16 @@ export async function POST(
     );
   }
 
-  // Trainee display name for a clean "from".
-  const { data: user } = await supabase
-    .from("users")
-    .select("first_name, last_name, username")
-    .eq("id", session.id)
-    .maybeSingle();
-  const meName =
-    [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() ||
-    user?.username ||
-    session.username ||
-    "You";
-  const pmFirst = firstNameOf(user?.first_name || meName, "there");
+  // Trainee's simulated PM identity — a clean display name plus the FAKE
+  // `@<company>.example.com` address they participate under (never their real
+  // login email).
+  const pm = await resolveTrainingPmIdentity(supabase, {
+    userId: project.training_owner_id ?? session.id,
+    companyId: project.company_id,
+  });
+  const meName = pm.name;
+  const meAddress = pm.email;
+  const pmFirst = firstNameOf(pm.first || meName, "there");
 
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
@@ -120,7 +119,7 @@ export async function POST(
 
   const traineeMessage: ThreadMessage = {
     id: `training-compose-out-${nowMs}`,
-    from: { name: meName, address: session.email || "" },
+    from: { name: meName, address: meAddress },
     to: [{ name: counterparty.name, address: counterparty.email }],
     cc: [],
     date: nowIso,
@@ -138,7 +137,7 @@ export async function POST(
       : null,
     counterparty,
     traineeName: meName,
-    traineeEmail: session.email || "",
+    traineeEmail: meAddress,
     threadSubject: cleanSubject,
     history: [traineeMessage],
     lateFirstResponse: false,
@@ -163,7 +162,7 @@ export async function POST(
       project_id: projectId,
       provider_message_id: traineeMessage.id,
       from_name: meName,
-      from_address: session.email || "",
+      from_address: meAddress,
       to_recipients: [{ name: counterparty.name, address: counterparty.email }],
       cc_recipients: [],
       subject: cleanSubject,
@@ -179,7 +178,7 @@ export async function POST(
       provider_message_id: `training-compose-resp-${respMs}`,
       from_name: counterparty.name,
       from_address: counterparty.email,
-      to_recipients: [{ name: meName, address: session.email || "" }],
+      to_recipients: [{ name: meName, address: meAddress }],
       cc_recipients: [],
       subject: reSubject,
       sent_at: respIso,

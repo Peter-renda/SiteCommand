@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/project-access";
 import { getToolLevel } from "@/lib/tool-permissions";
 import { sendRFIBallInCourtEmail, sendRFIClosedEmail, sendRFIReopenedEmail } from "@/lib/email";
+import { isTrainingProject } from "@/lib/training-outbound";
 import { logRFIChange } from "@/lib/rfi-history";
 
 type NamedContact = { id: string; first_name: string | null; last_name: string | null };
@@ -217,7 +218,7 @@ export async function PATCH(
     const toLabel = (update.status as string).charAt(0).toUpperCase() + (update.status as string).slice(1);
     historyPromises.push(logRFIChange(supabase, session, rfiId, projectId, "Status", fromLabel, toLabel));
 
-    if (update.status === "open" && prevRfi.status === "closed") {
+    if (update.status === "open" && prevRfi.status === "closed" && !(await isTrainingProject(supabase, projectId))) {
       try {
         const projectRes = await supabase
           .from("projects")
@@ -261,7 +262,7 @@ export async function PATCH(
       }
     }
 
-    if (update.status === "closed" && prevRfi.status !== "closed") {
+    if (update.status === "closed" && prevRfi.status !== "closed" && !(await isTrainingProject(supabase, projectId))) {
       try {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
         const rfiUrl = `${appUrl}/projects/${projectId}/rfis/${rfiId}`;
@@ -346,7 +347,8 @@ export async function PATCH(
     "ball_in_court_id" in update &&
     data.ball_in_court_id &&
     prevRfi &&
-    prevRfi.ball_in_court_id !== data.ball_in_court_id
+    prevRfi.ball_in_court_id !== data.ball_in_court_id &&
+    !(await isTrainingProject(supabase, projectId))
   ) {
     try {
       const [contactRes, projectRes] = await Promise.all([
