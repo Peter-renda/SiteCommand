@@ -18,6 +18,7 @@ import {
 import { inboxSendersForType, inboxEmailsForDay } from "@/lib/training-inbox";
 import { getLesson } from "@/lib/training-lessons";
 import { meetingForTask } from "@/lib/training-meetings";
+import { deliverableForTask, gradeBadgeClass } from "@/lib/training-deliverables";
 import TrainingCoachSection from "./TrainingCoach";
 
 /**
@@ -311,6 +312,41 @@ export default function TrainingDayPanel({
       return new Set();
     }
   }, [coachHeardRaw]);
+
+  // Deliverable grades keyed by deliverable id — fetched on mount and whenever
+  // the tab regains focus (grading happens in the workspace tab, so returning
+  // here should show the fresh badge).
+  const [deliverableGrades, setDeliverableGrades] = useState<
+    Record<string, { score: number; letter: string }>
+  >({});
+  const fetchDeliverableGrades = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/training/projects/${projectId}/deliverables`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const map: Record<string, { score: number; letter: string }> = {};
+      for (const s of data.submissions ?? []) {
+        if (s.gradedAt && typeof s.score === "number") {
+          map[s.deliverableId] = { score: s.score, letter: s.letter || "" };
+        }
+      }
+      setDeliverableGrades(map);
+    } catch {
+      /* keep the current badges */
+    }
+  }, [projectId]);
+  useEffect(() => {
+    void fetchDeliverableGrades();
+    const onFocus = () => void fetchDeliverableGrades();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [fetchDeliverableGrades]);
 
   // Reconcile against the authoritative training_day on mount, with a no-store
   // fetch, so the saved day always wins on reopen — even if the server-rendered
@@ -612,6 +648,13 @@ export default function TrainingDayPanel({
               // Tasks with a defined meeting hyperlink to the interactive
               // text meeting, opened in a new tab.
               const meeting = meetingForTask(role, currentDay, t.task, projectType);
+              // Tasks with a template-backed deliverable link to the
+              // deliverable workspace; graded submissions badge the task.
+              const deliv = deliverableForTask(role, currentDay, t.task);
+              const grade = deliv ? deliverableGrades[deliv.id] : undefined;
+              const workspaceHref = deliv
+                ? `/training/deliverable?project=${projectId}&d=${deliv.id}`
+                : "";
               return (
                 <li key={i} className="flex items-start gap-2">
                   <button
@@ -625,23 +668,35 @@ export default function TrainingDayPanel({
                     {checked ? "✓" : ""}
                   </button>
                   <div className="min-w-0 flex-1">
-                    {meeting ? (
-                      <a
-                        href={`/training/meeting?project=${projectId}&meeting=${meeting.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`block text-sm leading-snug font-medium hover:underline ${checked ? "text-gray-400 line-through" : "text-blue-600 hover:text-blue-800"}`}
-                      >
-                        {t.task}
-                        <span className="ml-1 text-[11px] font-normal text-gray-400">
-                          (join meeting ↗)
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        {meeting ? (
+                          <a
+                            href={`/training/meeting?project=${projectId}&meeting=${meeting.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`block text-sm leading-snug font-medium hover:underline ${checked ? "text-gray-400 line-through" : "text-blue-600 hover:text-blue-800"}`}
+                          >
+                            {t.task}
+                            <span className="ml-1 text-[11px] font-normal text-gray-400">
+                              (join meeting ↗)
+                            </span>
+                          </a>
+                        ) : (
+                          <p className={`text-sm leading-snug ${checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
+                            {t.task}
+                          </p>
+                        )}
+                      </div>
+                      {grade && (
+                        <span
+                          title={`Deliverable grade: ${grade.score}/100`}
+                          className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${gradeBadgeClass(grade.score)}`}
+                        >
+                          {grade.letter}
                         </span>
-                      </a>
-                    ) : (
-                      <p className={`text-sm leading-snug ${checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
-                        {t.task}
-                      </p>
-                    )}
+                      )}
+                    </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryClass(t.category)}`}>
                         {t.category}
@@ -651,6 +706,36 @@ export default function TrainingDayPanel({
                     <p className="mt-0.5 text-[11px] text-gray-400">
                       <span className="font-medium text-gray-500">Deliverable:</span> {t.deliverable}
                     </p>
+                    {deliv && (
+                      <a
+                        href={workspaceHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
+                      >
+                        📄 {grade ? "View grade & feedback" : `${deliv.templateLabel} — open workspace`} ↗
+                      </a>
+                    )}
+                    {deliv && checked && !grade && (
+                      <div className="mt-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5">
+                        <p className="text-[11px] font-semibold text-amber-900">
+                          Follow-up before this counts
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-snug text-amber-800">
+                          {deliv.followUp
+                            ? deliv.followUp.summary
+                            : "Submit your completed workbook so it can be graded."}
+                        </p>
+                        <a
+                          href={workspaceHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-block text-[11px] font-semibold text-amber-900 underline hover:text-amber-950"
+                        >
+                          Open the deliverable workspace →
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </li>
               );
