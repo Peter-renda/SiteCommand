@@ -523,6 +523,32 @@ export default function TrainingDayPanel({
             chip; heard days fold to a single quiet row. */}
         <TrainingCoachSection projectId={projectId} role={role} activeDay={currentDay} />
 
+        {recommendedLessons.length > 0 && (
+          <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+            <p className="text-xs font-semibold text-emerald-900">📖 Recommended lessons</p>
+            <p className="mt-0.5 text-[11px] text-emerald-700">
+              Background reading for today&apos;s tasks — opens in Training Modules.
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {recommendedLessons.map((l) => (
+                <li key={l.id}>
+                  <a
+                    href={`/training/lessons/${l.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[13px] font-medium leading-snug text-emerald-800 hover:text-emerald-950 hover:underline"
+                  >
+                    {l.title}
+                    <span className="ml-1 text-[11px] font-normal text-emerald-600">
+                      · {l.minutes} min ↗
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {pendingReview && (
           <button
             type="button"
@@ -637,32 +663,6 @@ export default function TrainingDayPanel({
               Stay on top of your open items and the recurring cadence below, then move to the next
               day.
             </p>
-          </div>
-        )}
-
-        {recommendedLessons.length > 0 && (
-          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-            <p className="text-xs font-semibold text-emerald-900">📖 Recommended lessons</p>
-            <p className="mt-0.5 text-[11px] text-emerald-700">
-              Background reading for today&apos;s tasks — opens in Training Modules.
-            </p>
-            <ul className="mt-1.5 space-y-1">
-              {recommendedLessons.map((l) => (
-                <li key={l.id}>
-                  <a
-                    href={`/training/lessons/${l.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[13px] font-medium leading-snug text-emerald-800 hover:text-emerald-950 hover:underline"
-                  >
-                    {l.title}
-                    <span className="ml-1 text-[11px] font-normal text-emerald-600">
-                      · {l.minutes} min ↗
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
           </div>
         )}
 

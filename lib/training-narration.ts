@@ -3,13 +3,14 @@
  *
  * The training Coach (app/projects/[id]/components/TrainingCoach.tsx — a
  * collapsible section embedded in the Day panel) surfaces a "message from your
- * coach" on each scheduled in-sim day. This module is the single source of
- * truth for what the coach says: a full welcome monologue on day one, then a
- * short phase-aware briefing for every subsequent scheduled day.
+ * coach" as text on each scheduled in-sim day. This module is the single
+ * source of truth for what the coach says: a full welcome monologue on day
+ * one, then a short phase-aware briefing for every subsequent scheduled day.
  *
- * It is client-safe (no server-only imports) so both the Coach component (to show
- * the transcript) and the narration API route (to synthesize the audio with
- * ElevenLabs) build the exact same text from here.
+ * It is client-safe (no server-only imports); the narration API route
+ * (app/api/projects/[id]/training/narration/route.ts) calls it server-side to
+ * personalize the text with the trainee's name and project, and the Coach
+ * component renders the result verbatim.
  */
 
 import type { SimRole } from "@/lib/simulation-constants";
@@ -23,7 +24,7 @@ import {
 export type TrainingNarration = {
   /** Short heading shown on the coach popup / modal (e.g. "Week 2 — Buyout"). */
   title: string;
-  /** The spoken script. Shown as the transcript and fed verbatim to TTS. */
+  /** The message body, shown verbatim as the coach's text. */
   text: string;
 };
 
