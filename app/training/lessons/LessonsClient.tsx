@@ -1,19 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LESSONS,
-  TRACK_LABELS,
-  lessonsByTrack,
-  lessonCategories,
+  buildCurriculum,
+  subsectionSequence,
+  type Lesson,
   type LessonTrack,
 } from "@/lib/training-lessons";
 
 /**
- * Training → Modules: the module library. A browsable list grouped by track →
- * category; each module is a hyperlink that opens the lesson (text + graded
- * quiz) in a new tab. Per-module completion checkmarks and quiz grades are
- * loaded per-user, so a grade recorded on a lesson page shows up here.
+ * Training → Modules: the curriculum as a Section → Subsection tree.
+ *
+ * The left-hand nav tree lists every main section (track) and, nested under
+ * it, its subsections (categories). Each subsection carries a completion
+ * bubble that fills in once every module in it has a passing quiz grade — so
+ * the tree reads like a normal training program's progress checklist. The
+ * right pane shows the selected subsection's modules; once the subsection is
+ * complete a "next section" button appears to move the learner forward.
+ *
+ * Per-module completion and grades are loaded per-user from the quiz API, so a
+ * grade recorded on a module page (opened in a new tab) shows up here.
  */
 
 type QuizResult = { score: number; total: number; bestScore: number; attempts: number };
@@ -23,10 +30,23 @@ const PASS_RATIO = 0.75;
 const isPassed = (r: QuizResult | undefined) =>
   !!r && r.total > 0 && r.bestScore / r.total >= PASS_RATIO;
 
+type Active = { track: LessonTrack; category: string };
+
 export default function LessonsClient() {
-  const [track, setTrack] = useState<LessonTrack>("workflow");
+  const curriculum = useMemo(() => buildCurriculum(), []);
+  const sequence = useMemo(() => subsectionSequence(), []);
+  const first = sequence[0];
+
+  const [active, setActive] = useState<Active>({
+    track: first.track,
+    category: first.category,
+  });
   const [quizResults, setQuizResults] = useState<Record<string, QuizResult>>({});
   const [loading, setLoading] = useState(true);
+  // Which sections are expanded in the tree. The active section starts open.
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    [first.track]: true,
+  });
 
   const load = useCallback(async () => {
     try {
@@ -59,26 +79,63 @@ export default function LessonsClient() {
     };
   }, [load]);
 
-  const trackLessons = useMemo(() => lessonsByTrack(track), [track]);
-  const categories = useMemo(() => lessonCategories(track), [track]);
+  // ── Completion helpers ──────────────────────────────────────────
+  const lessonPassed = useCallback(
+    (l: Lesson) => isPassed(quizResults[l.id]),
+    [quizResults],
+  );
+  const subPassedCount = useCallback(
+    (lessons: Lesson[]) => lessons.filter(lessonPassed).length,
+    [lessonPassed],
+  );
+  const subComplete = useCallback(
+    (lessons: Lesson[]) => lessons.length > 0 && subPassedCount(lessons) === lessons.length,
+    [subPassedCount],
+  );
 
-  const overallCompleted = LESSONS.filter((l) => isPassed(quizResults[l.id])).length;
+  // ── Overall stats (top summary) ─────────────────────────────────
+  const overallCompleted = LESSONS.filter(lessonPassed).length;
   const takenResults = LESSONS.map((l) => quizResults[l.id]).filter(Boolean) as QuizResult[];
   const quizzedCount = takenResults.length;
   const gradePoints = takenResults.reduce((s, r) => s + r.bestScore, 0);
   const gradeTotal = takenResults.reduce((s, r) => s + r.total, 0);
   const avgGrade = gradeTotal > 0 ? Math.round((gradePoints / gradeTotal) * 100) : null;
 
+  // ── Active subsection ───────────────────────────────────────────
+  const activeSection = curriculum.find((s) => s.track === active.track)!;
+  const activeSub =
+    activeSection.subsections.find((ss) => ss.category === active.category) ??
+    activeSection.subsections[0];
+  const activeLessons = activeSub.lessons;
+  const activePassed = subPassedCount(activeLessons);
+  const activeComplete = subComplete(activeLessons);
+
+  const activeSeqIndex = sequence.findIndex(
+    (s) => s.track === active.track && s.category === active.category,
+  );
+  const nextRef = sequence[activeSeqIndex + 1] ?? null;
+  const nextSection = nextRef ? curriculum.find((s) => s.track === nextRef.track)! : null;
+  const nextIsNewSection = !!nextRef && nextRef.track !== active.track;
+
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  function goTo(next: Active) {
+    setActive(next);
+    setOpenSections((o) => ({ ...o, [next.track]: true }));
+    // Bring the content pane back into view on smaller screens.
+    contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-gray-900">Training Modules</h1>
       <p className="mt-1 text-sm text-gray-500 max-w-2xl">
-        Read each module, then take the short quiz at the end — your grade is recorded here. The
-        curriculum covers the SiteCommand workflows, the construction concepts behind them, and the
-        deeper tracks: means &amp; methods, site &amp; civil, MEP systems, contracts, and
-        professional skills.
+        Work through each section and its subsections in order. Read the modules, pass the short
+        quiz at the end of each, and watch the progress bubbles fill in — then move on to the next
+        section.
       </p>
 
+      {/* overall progress */}
       <div className="mt-3 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <div className="h-1.5 w-40 rounded-full bg-gray-100 overflow-hidden">
@@ -107,103 +164,256 @@ export default function LessonsClient() {
         )}
       </div>
 
-      {/* Track tabs */}
-      <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 text-[13px]">
-        {(Object.keys(TRACK_LABELS) as LessonTrack[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTrack(t)}
-            className={`rounded-md px-2 py-1.5 font-medium transition-colors ${
-              track === t ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-900"
-            }`}
-          >
-            {TRACK_LABELS[t]}
-          </button>
-        ))}
-      </div>
-
-      {/* Module list grouped by category */}
-      <div className="mt-4 space-y-6">
-        {categories.map((cat) => (
-          <div key={cat}>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-              {cat}
-            </p>
-            <div className="space-y-2">
-              {trackLessons
-                .filter((l) => l.category === cat)
-                .map((l) => {
-                  const result = quizResults[l.id];
-                  const passed = isPassed(result);
-                  const percent = result
-                    ? Math.round((result.bestScore / result.total) * 100)
-                    : null;
-                  return (
-                    <a
-                      key={l.id}
-                      href={`/training/lessons/${l.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 hover:border-gray-400 hover:shadow-sm transition-all"
+      <div className="mt-6 flex flex-col lg:flex-row gap-6 lg:gap-8">
+        {/* ── Left: curriculum nav tree ── */}
+        <nav className="w-full lg:w-64 shrink-0">
+          <p className="px-2 mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Curriculum
+          </p>
+          <div className="space-y-0.5">
+            {curriculum.map((section) => {
+              const isOpen = !!openSections[section.track];
+              const subsDone = section.subsections.filter((ss) => subComplete(ss.lessons)).length;
+              const sectionComplete = subsDone === section.subsections.length;
+              const isActiveSection = section.track === active.track;
+              return (
+                <div key={section.track}>
+                  <button
+                    onClick={() =>
+                      setOpenSections((o) => ({ ...o, [section.track]: !o[section.track] }))
+                    }
+                    className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <svg
+                      className={`w-3 h-3 shrink-0 text-gray-400 transition-transform ${isOpen ? "rotate-90" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
                     >
-                      <span
-                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${
-                          passed
-                            ? "border-green-600 bg-green-600 text-white"
-                            : "border-gray-300 text-transparent"
-                        }`}
-                        title={passed ? "Passed" : "Not passed"}
-                      >
-                        ✓
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900 group-hover:underline">
-                            {l.title}
-                          </span>
-                          <svg
-                            className="h-3.5 w-3.5 shrink-0 text-gray-300 group-hover:text-gray-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M14 5h5v5M19 5l-9 9M9 5H6a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1v-3"
-                            />
-                          </svg>
-                        </div>
-                        <p className="mt-0.5 text-[13px] leading-5 text-gray-500 line-clamp-2">
-                          {l.summary}
-                        </p>
-                        <p className="mt-1 text-[11px] text-gray-400">{l.minutes} min read</p>
-                      </div>
-                      <span className="shrink-0 self-center">
-                        {loading ? null : result ? (
-                          <span
-                            className={`rounded-md px-2 py-1 text-[11px] font-medium ${
-                              passed
-                                ? "bg-green-50 text-green-700 border border-green-200"
-                                : "bg-gray-100 text-gray-600"
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span className={`truncate ${isActiveSection ? "text-gray-900" : ""}`}>
+                      {section.label}
+                    </span>
+                    <span
+                      className={`ml-auto text-[10px] tabular-nums ${sectionComplete ? "text-green-600" : "text-gray-400"}`}
+                    >
+                      {subsDone}/{section.subsections.length}
+                    </span>
+                  </button>
+
+                  {isOpen && (
+                    <div className="ml-3.5 pl-2.5 border-l border-gray-200 space-y-0.5 py-0.5">
+                      {section.subsections.map((sub) => {
+                        const complete = subComplete(sub.lessons);
+                        const passed = subPassedCount(sub.lessons);
+                        const activeNode =
+                          sub.track === active.track && sub.category === active.category;
+                        return (
+                          <button
+                            key={sub.category}
+                            onClick={() => goTo({ track: sub.track, category: sub.category })}
+                            className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors ${
+                              activeNode
+                                ? "bg-gray-900 text-white font-medium"
+                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                             }`}
                           >
-                            {percent}%
-                          </span>
-                        ) : (
-                          <span className="rounded-md border border-dashed border-gray-200 px-2 py-1 text-[11px] text-gray-400">
-                            Quiz not taken
-                          </span>
-                        )}
-                      </span>
-                    </a>
-                  );
-                })}
-            </div>
+                            <Bubble
+                              complete={complete}
+                              partial={passed > 0}
+                              onDark={activeNode}
+                            />
+                            <span className="truncate">{sub.category}</span>
+                            {!complete && passed > 0 && (
+                              <span
+                                className={`ml-auto text-[10px] tabular-nums ${activeNode ? "text-gray-300" : "text-gray-400"}`}
+                              >
+                                {passed}/{sub.lessons.length}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        ))}
+        </nav>
+
+        {/* ── Right: active subsection ── */}
+        <div ref={contentRef} className="flex-1 min-w-0 scroll-mt-20">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            <span>{activeSection.label}</span>
+            <span className="text-gray-300">›</span>
+            <span className="text-gray-500">{activeSub.category}</span>
+          </div>
+          <div className="mt-1 flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-gray-900">{activeSub.category}</h2>
+            {activeComplete && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-medium text-green-700 border border-green-200">
+                <span aria-hidden>✓</span> Complete
+              </span>
+            )}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="h-1.5 w-32 rounded-full bg-gray-100 overflow-hidden">
+              <div
+                className="h-full bg-green-600 transition-all"
+                style={{
+                  width: `${activeLessons.length ? (activePassed / activeLessons.length) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <span className="text-xs text-gray-400">
+              {activePassed}/{activeLessons.length} modules passed
+            </span>
+          </div>
+
+          {/* module list for this subsection */}
+          <div className="mt-4 space-y-2">
+            {activeLessons.map((l) => {
+              const result = quizResults[l.id];
+              const passed = isPassed(result);
+              const percent = result ? Math.round((result.bestScore / result.total) * 100) : null;
+              return (
+                <a
+                  key={l.id}
+                  href={`/training/lessons/${l.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 hover:border-gray-400 hover:shadow-sm transition-all"
+                >
+                  <span
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${
+                      passed
+                        ? "border-green-600 bg-green-600 text-white"
+                        : "border-gray-300 text-transparent"
+                    }`}
+                    title={passed ? "Passed" : "Not passed"}
+                  >
+                    ✓
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-900 group-hover:underline">
+                        {l.title}
+                      </span>
+                      <svg
+                        className="h-3.5 w-3.5 shrink-0 text-gray-300 group-hover:text-gray-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M14 5h5v5M19 5l-9 9M9 5H6a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1v-3"
+                        />
+                      </svg>
+                    </div>
+                    <p className="mt-0.5 text-[13px] leading-5 text-gray-500 line-clamp-2">
+                      {l.summary}
+                    </p>
+                    <p className="mt-1 text-[11px] text-gray-400">{l.minutes} min read</p>
+                  </div>
+                  <span className="shrink-0 self-center">
+                    {loading ? null : result ? (
+                      <span
+                        className={`rounded-md px-2 py-1 text-[11px] font-medium ${
+                          passed
+                            ? "bg-green-50 text-green-700 border border-green-200"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {percent}%
+                      </span>
+                    ) : (
+                      <span className="rounded-md border border-dashed border-gray-200 px-2 py-1 text-[11px] text-gray-400">
+                        Quiz not taken
+                      </span>
+                    )}
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+
+          {/* advance to the next subsection / section */}
+          <div className="mt-6 border-t border-gray-100 pt-5">
+            {activeComplete ? (
+              nextRef && nextSection ? (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-green-700">
+                      {nextIsNewSection ? "Next section" : "Up next"}
+                    </p>
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {nextIsNewSection ? `${nextSection.label} — ${nextRef.category}` : nextRef.category}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => goTo({ track: nextRef.track, category: nextRef.category })}
+                    className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+                  >
+                    {nextIsNewSection ? "Start next section" : "Next subsection"}
+                    <span aria-hidden>→</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center">
+                  <p className="text-sm font-semibold text-green-800">🎉 Curriculum complete</p>
+                  <p className="text-xs text-green-700">
+                    You&rsquo;ve passed every module across every section. Nicely done.
+                  </p>
+                </div>
+              )
+            ) : (
+              <p className="text-xs text-gray-400">
+                Pass the quiz on every module in this subsection to unlock the next section.
+                {activePassed > 0 && ` (${activeLessons.length - activePassed} to go.)`}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** Progress bubble: filled green check when complete, a partial ring while in
+ *  progress, and a hollow ring before any module in the subsection is passed. */
+function Bubble({
+  complete,
+  partial,
+  onDark,
+}: {
+  complete: boolean;
+  partial: boolean;
+  onDark: boolean;
+}) {
+  if (complete) {
+    return (
+      <span
+        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green-600 text-white text-[9px] leading-none"
+        aria-label="Complete"
+      >
+        ✓
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+        partial ? "border-green-500" : onDark ? "border-gray-400" : "border-gray-300"
+      }`}
+      aria-label={partial ? "In progress" : "Not started"}
+    >
+      {partial && <span className="h-1.5 w-1.5 rounded-full bg-green-500" />}
+    </span>
   );
 }
