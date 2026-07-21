@@ -283,15 +283,23 @@ export const FIELDOPS_LESSONS: Lesson[] = [
         ],
       },
       {
+        heading: "Clash detection is just the start — BIM is a database, not a drawing",
+        paragraphs: [
+          "The clash coordination above is BIM's most visible payoff, but it's worth understanding what BIM actually is. Fewings & Henjewele define it precisely: an object-oriented database with multiple dimensions that carries the 3D geometry along with time, cost, quantities, geographic information, and component properties. The geometry is one view; the value is that every object knows what it is, so a query — how many fire dampers, what's this wall's U-value, when does this element install — has an answer.",
+          "That's why the extra 'dimensions' matter: 4D links the model to the schedule so you can simulate and test the build sequence (not just spatial clashes); 5D links it to cost and quantities so a design change updates the take-off automatically. And BIM only delivers integration if everyone draws from one place — the Common Data Environment (CDE), a shared repository with a controlled status workflow (work-in-progress → shared → published → archived) so people can tell current, coordinated information from someone's draft. Without a disciplined CDE, BIM fragments back into competing private models.",
+        ],
+      },
+      {
         heading: "Common pitfalls",
         bullets: [
           "Modeling that lags the field, so crews install ahead of coordination and the model becomes a record of rework instead of a plan.",
           "Treating 'coordination signed off' as done while the field builds from old 2D sheets anyway.",
           "Omitting a trade (or the structure) from the aggregated model, so the clashes it would have caused surface in the field.",
+          "No disciplined CDE — teams work from private copies, and the 'single source of truth' quietly becomes several conflicting ones.",
         ],
       },
     ],
-    relatedLessonIds: ["cn-rcp", "cn-mep", "tech-mep-coordination", "mep-coordination-scheduling"],
+    relatedLessonIds: ["cn-rcp", "cn-mep", "tech-mep-coordination", "mep-coordination-scheduling", "pm-digital"],
     links: [PRACTICE_LINK],
   },
 

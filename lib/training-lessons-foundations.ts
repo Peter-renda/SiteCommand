@@ -125,8 +125,15 @@ export const FOUNDATIONS_LESSONS: Lesson[] = [
           "The rule upward is no surprises: your PX should hear every material risk from you first, framed with a plan — 'here's the issue, here's the exposure, here are options, here's my recommendation.' PMs who bury bad news get micromanaged; PMs who surface it early get autonomy. And negotiation is your daily medium — buyout, change orders, back-charges, schedule trades. The fundamentals travel: prepare (know your BATNA and theirs), anchor on facts and documents rather than volume, trade things you value less for things you value more, and leave counterparties whole enough to perform — you still need them tomorrow.",
         ],
       },
+      {
+        heading: "Match your style to the moment (situational leadership)",
+        paragraphs: [
+          "There is no single 'right' way to lead a job. Hersey & Blanchard's situational-leadership model says the effective style depends on the person and the task in front of you: a new sub on an unfamiliar detail needs directing; a seasoned foreman on routine work needs delegating; someone capable but unsure needs coaching or supporting. The skill is reading which one you're facing and adjusting — not applying one favorite mode to everyone.",
+          "Style also shifts across the project. In design and planning — loosely structured, creativity- and buy-in-dependent — a participative style works best; during construction, where a missed pour or crane pick can't be undone, a more directive style is appropriate. The Integrated PM track's 'Leadership Styles Across the Project Life Cycle' lesson develops the trait, style, situational, and contingency theories in full.",
+        ],
+      },
     ],
-    relatedLessonIds: ["pf-communication", "com-sub-admin", "wf-buyout"],
+    relatedLessonIds: ["pf-communication", "com-sub-admin", "wf-buyout", "pm-leadership"],
   },
   {
     id: "pf-communication",

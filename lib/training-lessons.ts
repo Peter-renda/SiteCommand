@@ -32,10 +32,12 @@ import { MEP_LESSONS } from "./training-lessons-mep";
 import { COMMERCIAL_LESSONS } from "./training-lessons-commercial";
 import { FOUNDATIONS_LESSONS } from "./training-lessons-foundations";
 import { FIELDOPS_LESSONS } from "./training-lessons-fieldops";
+import { MANAGEMENT_LESSONS } from "./training-lessons-management";
 
 export type LessonTrack =
   | "workflow"
   | "concept"
+  | "management"
   | "technical"
   | "sitework"
   | "mep"
@@ -490,13 +492,20 @@ const CORE_LESSONS: Lesson[] = [
         ],
       },
       {
+        heading: "Close-out is a managed stage — and the industry keeps skipping its second half",
+        paragraphs: [
+          "PRINCE2 defines closing a project as handing over to the user in an *ordered* way — the emphasis is on ordered. Left unmanaged, close-out is where projects sour: the crew is gone, attention has moved to the next job, and the punch list, documentation, and final accounts drag on right when the client relationship matters most. Substantial completion is the milestone that lets the owner occupy, starts the warranty clock, and releases retainage even with minor items open — so protect it deliberately.",
+          "The half almost everyone skips is systems improvement — the lessons-learned loop. Close-out is the one moment the whole team knows exactly what went right and wrong, and fragmentation is why that knowledge is normally lost: the team disperses and the next project re-learns the same expensive mistakes. A short, honest review — what estimating missed, which details caused RFIs, which subs performed, where the schedule logic broke — is the cheapest performance improvement available, and it feeds directly into better estimating and constructability reviews next time.",
+        ],
+      },
+      {
         heading: "In SiteCommand",
         paragraphs: [
           "Punch list items are tracked to closure with photo documentation and status, and the same Commitments/Change Orders records used throughout the job carry forward into final reconciliation — retainage release, final change orders, and closed-out cost reporting.",
         ],
       },
     ],
-    relatedLessonIds: ["wf-sov-payapp"],
+    relatedLessonIds: ["wf-sov-payapp", "pm-closeout", "pm-quality"],
     links: [PRACTICE_LINK],
   },
 
@@ -872,6 +881,7 @@ const CORE_LESSONS: Lesson[] = [
  */
 export const LESSONS: Lesson[] = [
   ...CORE_LESSONS,
+  ...MANAGEMENT_LESSONS,
   ...PROCESS_LESSONS,
   ...TECHNICAL_LESSONS,
   ...SITEWORK_LESSONS,
@@ -900,6 +910,7 @@ export function lessonCategories(track: LessonTrack): string[] {
 export const TRACK_LABELS: Record<LessonTrack, string> = {
   workflow: "Workflows",
   concept: "Concepts",
+  management: "Integrated PM",
   technical: "Building the Work",
   sitework: "Site & Civil",
   mep: "MEP Systems",

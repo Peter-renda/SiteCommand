@@ -192,13 +192,26 @@ export const PROCESS_LESSONS: Lesson[] = [
         ],
       },
       {
+        heading: "Quality is a system, not just inspection (QA vs QC)",
+        paragraphs: [
+          "The 'catch it before it's covered' discipline above is quality control (QC) — the detection half. Real quality management pairs it with quality assurance (QA), the prevention half: approved methods and materials, submittals reviewed before purchase, mock-ups approved before production, competent crews, clear procedures. QA stops defects being created; QC verifies they weren't. QA without QC is trust without verification; QC without QA is catching failures you could have prevented.",
+          "Total Quality Management (TQM) goes further — quality as a whole-organization habit of continuous improvement where it's everyone's job, not one inspector's. On a job that looks like the crew that flags its own error and the sub that proposes a better detail: a defect is a process to fix, not a person to blame.",
+        ],
+      },
+      {
+        heading: "Customer care: the perception half of quality",
+        paragraphs: [
+          "A client's satisfaction is driven not only by the technical quality of the building but by their experience of getting it — whether they were kept informed and whether problems were handled honestly and fast. A technically excellent building delivered by a defensive, unresponsive team can still leave a dissatisfied client. The way you handle the punch list and warranty callbacks is the final, most memorable expression of your quality — treat it as customer care, not an afterthought.",
+        ],
+      },
+      {
         heading: "In SiteCommand",
         paragraphs: [
           "Pre-cover photos and inspection notes belong in Daily Logs and Photos, tied to the date and location. Failed inspections that need design input become RFIs; corrective scope with cost becomes a change event or backcharge. The punch list tool is for the end of the job — QC discipline is what keeps it short.",
         ],
       },
     ],
-    relatedLessonIds: ["wf-daily-logs", "wf-permits", "wf-punch-closeout", "tech-testing-cx"],
+    relatedLessonIds: ["wf-daily-logs", "wf-permits", "wf-punch-closeout", "tech-testing-cx", "pm-quality"],
     links: [PRACTICE_LINK],
   },
   {
@@ -248,7 +261,7 @@ export const PROCESS_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["wf-daily-logs", "wf-risk", "pf-leadership"],
+    relatedLessonIds: ["wf-daily-logs", "wf-risk", "pf-leadership", "pm-ethics"],
     links: [PRACTICE_LINK],
   },
   {
@@ -295,8 +308,26 @@ export const PROCESS_LESSONS: Lesson[] = [
           "No sub mobilizes until the boring paperwork is done: executed subcontract, compliant COI, safety prequalification, and any wrap-up enrollment. The day a sub starts work without them, the leverage to get them is gone. In SiteCommand, commitments shouldn't move from Draft toward work-in-place until the compliance items on that contract are collected.",
         ],
       },
+      {
+        heading: "Insurance is one response in a bigger risk process",
+        paragraphs: [
+          "The insurance and bonds above are the transfer tools — but transfer is only one of four moves in the risk management process. Fewings & Henjewele frame risk as a continuous cycle: identify (surface every threat on a risk register), analyze (rate each by likelihood × impact), respond, and review (re-run it at every stage). For each significant risk you choose one of four responses:",
+        ],
+        ordered: [
+          "Avoid — change the plan so the risk can't occur (re-sequence the work, delete the risky scope).",
+          "Transfer — move it to a party better placed to carry it: insurance, bonds, or a contract clause. This is where the COI stack lives.",
+          "Mitigate / reduce — lower the likelihood or impact (dewatering plan, mock-ups, phasing).",
+          "Accept — knowingly carry it and set aside contingency to cover it if it lands.",
+        ],
+      },
+      {
+        heading: "Allocate risk to the party who can control it",
+        paragraphs: [
+          "The single most important risk principle: a risk should sit with whoever is best able to manage it. Dumping a risk on a sub who can't influence it doesn't remove it — it comes back as a padded price, defensive behavior, or a dispute when it materializes. Well-allocated risk is what separates a partnering/IPD job from an adversarial one. The Integrated PM track's 'Integrated Risk & Value Management' lesson develops the full framework, including value management and earned-value control.",
+        ],
+      },
     ],
-    relatedLessonIds: ["wf-commitments", "com-clauses", "com-liens-bonds", "wf-safety"],
+    relatedLessonIds: ["wf-commitments", "com-clauses", "com-liens-bonds", "wf-safety", "pm-risk-value"],
     links: [PRACTICE_LINK],
   },
 

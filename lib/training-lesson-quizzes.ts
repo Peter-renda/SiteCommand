@@ -2717,6 +2717,475 @@ export const LESSON_QUIZZES: Record<string, LessonQuiz> = {
       },
     ],
   },
+
+  // ═══════════════════ Integrated Project Management ═══════════════════
+  "pm-integration": {
+    questions: [
+      {
+        prompt: "Per the integrated approach, the root cause of most construction waste is:",
+        options: [
+          "The physical difficulty of building",
+          "Fragmentation — the team, supply chain, and client working in siloed contracts with unshared goals",
+          "A shortage of skilled labor",
+          "Poor weather and site conditions",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The project manager's central function in the integrated approach is to:",
+        options: [
+          "Personally inspect every piece of work",
+          "Minimize the number of subcontractors",
+          "Integrate diverse interests and unify objectives toward a common goal",
+          "Transfer as much risk as possible down the supply chain",
+        ],
+        answer: 2,
+      },
+      {
+        prompt: "Which is a tool the integrated approach relies on?",
+        options: [
+          "Adversarial single-stage tendering",
+          "Master–servant instruction flow",
+          "Integrated Project Delivery (IPD) with shared risk/reward",
+          "Maximum design/construction separation",
+        ],
+        answer: 2,
+      },
+    ],
+  },
+  "pm-success": {
+    questions: [
+      {
+        prompt: "In the time–cost–quality triangle, trying to give all three priorities equal weight:",
+        options: [
+          "Is the easiest project to manage",
+          "Makes the project much harder to manage because there's no basis for trade-off decisions",
+          "Is required by PRINCE2",
+          "Automatically reduces risk",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "PRINCE2 expands the triangle to six variables. They are time, cost, quality, scope, and:",
+        options: [
+          "Weather and labor",
+          "Risk and benefits",
+          "Design and procurement",
+          "Safety and ethics",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A 'critical success factor' (per Slevin & Pinto) is best described as:",
+        options: [
+          "A measure of whether the finished project was on time and budget",
+          "A condition that must be in place during the project for it to succeed, such as a clear mission or top-management support",
+          "The contractor's profit margin",
+          "A type of insurance requirement",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-ethics": {
+    questions: [
+      {
+        prompt: "In terms of ethics, the project manager is uniquely positioned:",
+        options: [
+          "As the client's advocate only",
+          "In the middle — accountable to employer, client, the wider community, and the profession at once",
+          "Outside the contract, with no accountability",
+          "As the contractor's representative only",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The PMI grounds ethical conduct in four drivers. They are:",
+        options: [
+          "Speed, cost, quality, and scope",
+          "Responsibility, respect, fairness, and honesty",
+          "Power, interest, influence, and control",
+          "Design, build, operate, and transfer",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Which is an everyday ethical trap the lesson warns about?",
+        options: [
+          "Paying subcontractors on time",
+          "Documenting decisions in an audit trail",
+          "Quality short cuts that become invisible once the work is covered",
+          "Giving the client an honest schedule",
+        ],
+        answer: 2,
+      },
+    ],
+  },
+  "pm-business-case": {
+    questions: [
+      {
+        prompt: "The cheapest place to change a project is:",
+        options: [
+          "On site during construction",
+          "At the front end, in the brief and business case",
+          "During closeout",
+          "After handover",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The purpose of a Gateway / stage-gate review is to:",
+        options: [
+          "Speed the project up by skipping reviews",
+          "Decide at each stage boundary whether the project should proceed, be reworked, or be stopped",
+          "Lock the design so it can never change",
+          "Transfer risk to the contractor",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A proper business case appraises the recommended option against:",
+        options: [
+          "Only the most expensive alternative",
+          "Real alternatives including the 'do nothing' and 'do minimum' baselines",
+          "The contractor's preferred option only",
+          "Nothing — the recommended option stands alone",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-stakeholders": {
+    questions: [
+      {
+        prompt: "A stakeholder is:",
+        options: [
+          "Only the party paying for the project",
+          "Any individual or group who can affect, or is affected by, the project",
+          "Only parties named in the contract",
+          "Only the design and construction team",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "On the power–interest matrix, a stakeholder with HIGH power and HIGH interest should be:",
+        options: [
+          "Monitored with minimal effort",
+          "Kept informed only",
+          "Managed closely",
+          "Ignored until they complain",
+        ],
+        answer: 2,
+      },
+      {
+        prompt: "Why should the stakeholder map be revisited at each project stage?",
+        options: [
+          "It never changes once drawn",
+          "A stakeholder's power and interest shift over the life cycle (e.g. a neighbor becomes high-interest when piling starts)",
+          "Regulations require a new map monthly",
+          "To increase the number of stakeholders",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-procurement-strategy": {
+    questions: [
+      {
+        prompt: "The procurement route decides all of the following EXCEPT:",
+        options: [
+          "Who designs and who builds, and in what sequence",
+          "How much cost certainty and design control the client gets",
+          "The exact color of the building's finishes",
+          "How integrated or fragmented the team will be",
+        ],
+        answer: 2,
+      },
+      {
+        prompt: "Design and build (D&B) procurement is characterized by:",
+        options: [
+          "Maximum client design control and a separate designer",
+          "Single-point responsibility and better cost certainty, at the cost of some client design control",
+          "The client managing every trade package directly",
+          "No contractor involvement until the design is 100% complete",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A two-stage tender is used to:",
+        options: [
+          "Avoid ever giving the contractor a price",
+          "Bring the contractor in early for buildability input while still preserving some competition",
+          "Eliminate the design team",
+          "Guarantee the lowest possible lump-sum price",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-leadership": {
+    questions: [
+      {
+        prompt: "Situational leadership (Hersey & Blanchard) holds that the right style depends on:",
+        options: [
+          "The leader's fixed personality only",
+          "The follower's readiness/competence and the nature of the task",
+          "The size of the contract",
+          "The weather",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The lesson notes leadership style often shifts across the life cycle — typically:",
+        options: [
+          "Autocratic in design, participative on site",
+          "Participative in design, more directive during construction when tasks are tightly structured",
+          "Delegative throughout, regardless of stage",
+          "It should never change",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Fiedler's contingency theory adds that leader effectiveness depends on:",
+        options: [
+          "Only the leader's charisma",
+          "The interaction between the leader's style and how much control the situation gives them",
+          "The number of subcontractors",
+          "The project's total budget",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-risk-value": {
+    questions: [
+      {
+        prompt: "The four risk response strategies for a threat are avoid, transfer, accept, and:",
+        options: [
+          "Ignore",
+          "Mitigate / reduce",
+          "Escalate to the client",
+          "Insure everything",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The core principle of risk allocation is that a risk should sit with:",
+        options: [
+          "Whoever is lowest in the supply chain",
+          "The party best able to control it",
+          "The client, always",
+          "Whoever has the most insurance",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Value management differs from simple cost-cutting because it:",
+        options: [
+          "Always removes function to save money",
+          "Removes cost without removing the function the client needs (or adds function for the same cost)",
+          "Only happens after the project is over",
+          "Is the same thing as cost-cutting",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-quality": {
+    questions: [
+      {
+        prompt: "Quality assurance (QA) vs. quality control (QC): QA is primarily:",
+        options: [
+          "Reactive inspection that catches defects after the fact",
+          "Preventive — the system and processes that stop defects being created",
+          "Only the client's responsibility",
+          "The same thing as QC",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Total Quality Management (TQM) treats quality as:",
+        options: [
+          "The job of a single QC inspector",
+          "A whole-organization philosophy of continuous improvement where quality is everyone's responsibility",
+          "An activity only done at closeout",
+          "An optional extra",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Why does the book pair quality with 'customer care'?",
+        options: [
+          "They are unrelated topics",
+          "The client's satisfaction depends on their experience — communication and how defects are handled — as much as the technical quality",
+          "Customer care replaces the need for QC",
+          "Customer care is only about marketing",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-digital": {
+    questions: [
+      {
+        prompt: "BIM is most accurately described as:",
+        options: [
+          "A 3D drawing style",
+          "An object-oriented, multi-dimensional database carrying geometry plus time, cost, quantities, and component properties",
+          "A type of project scheduling software only",
+          "A contract form",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The Common Data Environment (CDE) exists to:",
+        options: [
+          "Give each discipline its own private model",
+          "Provide a single shared source of information with a controlled status workflow so everyone works from the same current truth",
+          "Replace the need for a project manager",
+          "Store only the final as-builts",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Clash detection delivers value by finding conflicts:",
+        options: [
+          "In the field, after installation",
+          "In the model, where the fix is moving a line — before an RFI, delay, and change order in the field",
+          "Only during closeout",
+          "Only in 2D drawings",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-sustainability": {
+    questions: [
+      {
+        prompt: "The central discipline of sustainable delivery is:",
+        options: [
+          "Choosing the cheapest first cost",
+          "Whole-life cost — capital cost plus decades of energy, water, and maintenance",
+          "Ignoring operating costs",
+          "Maximizing embodied carbon",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "BREEAM and LEED are:",
+        options: [
+          "Contract forms",
+          "Building sustainability rating systems that score performance across categories like energy, water, and materials",
+          "Types of concrete mix",
+          "Insurance products",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "On site, the contractor's biggest sustainability failure mode is:",
+        options: [
+          "Recycling construction waste",
+          "Value-engineering the specified sustainable materials and systems out under cost pressure",
+          "Protecting the specified materials",
+          "Using low-impact site practices",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-closeout": {
+    questions: [
+      {
+        prompt: "PRINCE2 emphasizes that closing a project means handing over to the user in a(n):",
+        options: [
+          "Rushed way to free up the crew",
+          "Ordered way — completing work, resolving the punch list, transferring documentation, settling accounts",
+          "Way that skips documentation",
+          "Way that avoids the client",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Practical / substantial completion is the milestone that:",
+        options: [
+          "Means every last item is finished",
+          "Lets the client occupy the building, starts warranty periods, and releases retainage even if minor items remain",
+          "Happens before construction starts",
+          "Voids the contract",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The 'systems improvement' half of closeout — lessons learned — matters because:",
+        options: [
+          "It is legally required on every project",
+          "Fragmentation otherwise loses the knowledge, so the next project re-learns the same expensive mistakes",
+          "It replaces the punch list",
+          "It has no real value",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-cases": {
+    questions: [
+      {
+        prompt:
+          "Your job's declared priorities are time and quality, budget secondary — and you've staffed the team accordingly. Three weeks in, the environmental regulator signals it won't approve the design on your timeline. Reading the King Shaka case, the right conclusion is:",
+        options: [
+          "A clear triangle priority means the schedule is now protected from outside interference",
+          "Declaring a priority organizes your team but doesn't exempt you from a powerful external stakeholder — engage the regulator as a high-power stakeholder immediately",
+          "Budget being secondary means you can buy your way past the regulator",
+          "Environmental approval isn't the PM's problem once the team is staffed",
+        ],
+        answer: 1,
+      },
+      {
+        prompt:
+          "A competitor keeps winning bids you suspect involve cover pricing, and a colleague suggests you 'play the same game to stay competitive.' Applying the ethics case (CCS vs. the OFT investigation):",
+        options: [
+          "Match them — competitiveness justifies it",
+          "Decline: ethical conduct is reputation management with a long payback, and cover pricing is exactly what regulators investigate and clients punish",
+          "Report the colleague to the client immediately without any internal step",
+          "Ethics only matters on public work, so it depends on the owner",
+        ],
+        answer: 1,
+      },
+      {
+        prompt:
+          "Post-approval, a signature venue you're building will clearly under-earn in operation, and the owner asks how to protect the project's public value. The London 2012 case suggests:",
+        options: [
+          "The business case is fixed at approval, so nothing can change",
+          "Actively manage the business case: find a use (e.g. a secondary tenant) that preserves the intended legacy/benefit even if it caps revenue",
+          "Cancel the project since it won't maximize revenue",
+          "Revenue always outranks legacy, so lease to the highest bidder regardless of use",
+        ],
+        answer: 1,
+      },
+      {
+        prompt:
+          "You're advising a public client on a fast-track infrastructure job where cooperation will be essential and clashes are likely. Drawing on the Hong Kong NEC3 case, the highest-leverage early move is:",
+        options: [
+          "Pick the lowest lump-sum bid and hold the contractor to it",
+          "Choose a collaborative route (open-book, early warnings) and invest up front in training the team to actually use its mechanisms",
+          "Push all utility-clash risk onto the contractor in the contract",
+          "Avoid any risk-reduction meetings to save time",
+        ],
+        answer: 1,
+      },
+      {
+        prompt:
+          "On a large program, subs are padding their prices heavily for risks they can't really control, and the estimates are ballooning. The Heathrow T5 approach would be to:",
+        options: [
+          "Push even more risk down the supply chain to force lower prices",
+          "Work open-book and have the client carry proven residual/excess risk across all tiers, managing risk at its cause so it can't be padded or passed down",
+          "Accept the padded prices as the cost of doing business",
+          "Remove all contingency so no one can price for risk",
+        ],
+        answer: 1,
+      },
+    ],
+  },
 };
 
 export function getLessonQuiz(lessonId: string): LessonQuiz | undefined {
