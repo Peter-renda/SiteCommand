@@ -3127,6 +3127,65 @@ export const LESSON_QUIZZES: Record<string, LessonQuiz> = {
       },
     ],
   },
+  "pm-cases": {
+    questions: [
+      {
+        prompt:
+          "Your job's declared priorities are time and quality, budget secondary — and you've staffed the team accordingly. Three weeks in, the environmental regulator signals it won't approve the design on your timeline. Reading the King Shaka case, the right conclusion is:",
+        options: [
+          "A clear triangle priority means the schedule is now protected from outside interference",
+          "Declaring a priority organizes your team but doesn't exempt you from a powerful external stakeholder — engage the regulator as a high-power stakeholder immediately",
+          "Budget being secondary means you can buy your way past the regulator",
+          "Environmental approval isn't the PM's problem once the team is staffed",
+        ],
+        answer: 1,
+      },
+      {
+        prompt:
+          "A competitor keeps winning bids you suspect involve cover pricing, and a colleague suggests you 'play the same game to stay competitive.' Applying the ethics case (CCS vs. the OFT investigation):",
+        options: [
+          "Match them — competitiveness justifies it",
+          "Decline: ethical conduct is reputation management with a long payback, and cover pricing is exactly what regulators investigate and clients punish",
+          "Report the colleague to the client immediately without any internal step",
+          "Ethics only matters on public work, so it depends on the owner",
+        ],
+        answer: 1,
+      },
+      {
+        prompt:
+          "Post-approval, a signature venue you're building will clearly under-earn in operation, and the owner asks how to protect the project's public value. The London 2012 case suggests:",
+        options: [
+          "The business case is fixed at approval, so nothing can change",
+          "Actively manage the business case: find a use (e.g. a secondary tenant) that preserves the intended legacy/benefit even if it caps revenue",
+          "Cancel the project since it won't maximize revenue",
+          "Revenue always outranks legacy, so lease to the highest bidder regardless of use",
+        ],
+        answer: 1,
+      },
+      {
+        prompt:
+          "You're advising a public client on a fast-track infrastructure job where cooperation will be essential and clashes are likely. Drawing on the Hong Kong NEC3 case, the highest-leverage early move is:",
+        options: [
+          "Pick the lowest lump-sum bid and hold the contractor to it",
+          "Choose a collaborative route (open-book, early warnings) and invest up front in training the team to actually use its mechanisms",
+          "Push all utility-clash risk onto the contractor in the contract",
+          "Avoid any risk-reduction meetings to save time",
+        ],
+        answer: 1,
+      },
+      {
+        prompt:
+          "On a large program, subs are padding their prices heavily for risks they can't really control, and the estimates are ballooning. The Heathrow T5 approach would be to:",
+        options: [
+          "Push even more risk down the supply chain to force lower prices",
+          "Work open-book and have the client carry proven residual/excess risk across all tiers, managing risk at its cause so it can't be padded or passed down",
+          "Accept the padded prices as the cost of doing business",
+          "Remove all contingency so no one can price for risk",
+        ],
+        answer: 1,
+      },
+    ],
+  },
 };
 
 export function getLessonQuiz(lessonId: string): LessonQuiz | undefined {

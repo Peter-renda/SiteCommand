@@ -147,6 +147,13 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
           "Notice how many CSFs are communication and monitoring — the exact things SiteCommand's daily logs, look-aheads, meeting minutes, and dashboards are built to support. Success is less about heroics and more about keeping a clear plan, measuring against it, and closing the feedback loop with the client and the field before small variances become claims.",
         ],
       },
+      {
+        heading: "Case in point: King Shaka International Airport",
+        paragraphs: [
+          "A $1 billion greenfield airport in South Africa, built to open for the 2010 FIFA World Cup. The priorities were explicitly time and quality; budget was a secondary consideration — a textbook single-corner push on the triangle. The PM built the whole team around that priority: people who could hit urgent deadlines and produce accurate documentation right the first time, coordinated across a multinational team through an online intranet and 'informal clusters' of design, construction, and cost managers that deliberately built relationships across disciplines and cultures.",
+          "The lesson's warning also shows up: an external stakeholder — the Department of Environmental Affairs — delayed the project substantially, and the team failed to agree an acceptable design within the 77 days the contract stipulated. Even a time-driven job with a clear priority is only as fast as its most powerful external stakeholder allows.",
+        ],
+      },
     ],
     relatedLessonIds: ["pm-integration", "pm-business-case", "pm-risk-value"],
     links: [PRACTICE_LINK],
@@ -195,6 +202,13 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
         heading: "Doing it in practice",
         paragraphs: [
           "Ethical leadership on a live job is mostly small, repeated choices: paying subs on time, documenting decisions so nobody can be scapegoated later, flagging a problem you could have buried, giving the client the honest schedule rather than the comfortable one. SiteCommand's audit trails — change history, RFI records, lien-waiver tracking, held-payment flags — exist partly to make the honest path the easy path and to leave a record that protects the people who did the right thing.",
+        ],
+      },
+      {
+        heading: "Case in point: the Considerate Constructor Scheme",
+        paragraphs: [
+          "The book's ethical-contracting example is the UK's Considerate Constructor Scheme (CCS) — a voluntary scheme that awards recognition for engaging community stakeholders, protecting worker and public health and safety, and delivering site work more sustainably. It caught on with most urban contractors because ethical behavior paid off commercially: it reduced conflict with neighbors over construction nuisance, enhanced the reputation of both public and private clients, and helped in value-driven tenders.",
+          "The counter-example in the same chapter is the UK Office of Fair Trading's investigation into cover pricing, and a Malaysian study linking unethical procurement and lax supervision to poor construction quality. The pairing is the point: ethics is not charity — good conduct builds the trust and reputation that win work, and unethical short cuts show up later as conflict, investigation, and defects.",
         ],
       },
     ],
@@ -248,6 +262,13 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
         paragraphs: [
           "The business case is not frozen at approval. Markets move, budgets tighten, the client's strategy shifts. Managing change in the business case means keeping the justification current — when a scope change is proposed on site, the real question is whether it still serves the business need and stays inside the client's constraints, not just whether it's technically feasible.",
           "For the SiteCommand PM, this is the mindset behind change events and the owner's approval workflow: every change is implicitly a small edit to the business case, and the client is entitled to weigh it against their original objectives before you build it.",
+        ],
+      },
+      {
+        heading: "Case in point: the London 2012 Olympic legacy",
+        paragraphs: [
+          "The business case for London 2012 had a hard problem: how do you justify enormous spend for facilities used intensely for only a few weeks? The answer was legacy — the case was built on reusing and reconfiguring the assets afterward, with a 90,000-seat stadium designed from the outset to be partially dismantled into a smaller national athletics stadium for East London's residents.",
+          "It also shows the business case being actively managed after approval: the reduced stadium generated insufficient revenue, so it was leased to a football club that still allowed athletics out of season — preserving the public legacy. Notably, maintaining legacy was held as the priority over revenue, and negotiations capped the price below the site's economic value to fund other public projects. The justification, not just the design, was steered all the way through.",
         ],
       },
     ],
@@ -364,6 +385,13 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
           "You will usually inherit the route rather than choose it — but understanding it explains everything about how your project behaves. On a D&B job the design questions come to you, not the owner's architect; on a traditional job you're administering someone else's design and RFIs flow to the design team; on a CM job you're buying out packages while design is still moving. Knowing the route tells you where the risk sits, who answers questions, and why the change-order pressure lands where it does.",
         ],
       },
+      {
+        heading: "Case in point: NEC3 contract flexibility in Hong Kong",
+        paragraphs: [
+          "A public client delivered a £45 million new-town infrastructure package (community hall, sports centre, transport interchange, roads, drainage, utilities) on an NEC3 (ECC) Option C contract over three and a half years. Because the client wanted mutual co-operation to fast-track site formation, they invested up front: a consultant ran training workshops so the team understood NEC's early-warning, risk-reduction, compensation-event, and open-book mechanisms.",
+          "The route paid off when utility diversions ran slow and the contractor spotted a potential clash between a proposed storm drain and existing utilities. The NEC 'spirit of co-operation' let the contractor raise an early warning; a joint risk-reduction meeting then put trial trenches and a design review in place before the conflict became a claim. The procurement route — not heroics — created the behavior that caught the problem early.",
+        ],
+      },
     ],
     relatedLessonIds: ["com-delivery", "pm-risk-value", "wf-buyout"],
     links: [PRACTICE_LINK],
@@ -474,6 +502,13 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
         heading: "Control: closing the loop",
         paragraphs: [
           "Risk and value plans are worthless without control — measuring what actually happens against the plan and acting on the variance. The classic toolkit is earned value management (comparing budgeted, actual, and earned cost/progress), elemental cost control, and a clear work-breakdown structure tying tasks to responsibility. The point is early warning: the sooner a variance is visible, the cheaper it is to correct, which is exactly what SiteCommand's budget health, committed-cost, and look-ahead views are built to give you.",
+        ],
+      },
+      {
+        heading: "Case in point: Heathrow Terminal 5's risk-sharing contract",
+        paragraphs: [
+          "The £4.2 billion Terminal 5 project attacked the exact failure this lesson warns about — pricing for risk that gets passed down the supply chain. BAA's innovative agreement had contractors work transparently on packages up to £200 million: reveal all costs open-book, ensure the risks they took were adequately covered, and demonstrate commitment, trust, and teamwork. In return, BAA agreed to carry any residual or excess risk itself, where the cause could be proven by evidence.",
+          "This took the confrontation out of contracting by managing risk at its cause rather than transferring it, and — critically — it applied to all tiers of the supply chain so risk could not simply be pushed down. It is the clearest illustration of the lesson's core principle: allocate risk to the party best able to control it, and stop the price-padding and defensiveness that mis-allocation breeds.",
         ],
       },
     ],
@@ -626,6 +661,13 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
           "The book extends the theme to resilience — designing buildings to cope with a changing climate (flooding, rising temperatures) as an increment to smart and sustainable systems. For the PM, the practical takeaway is to protect the sustainability intent through the parts of the project you control: hold the specified materials and systems through buyout and change management, and treat 'value-engineering out the green features' as the failure of integration that it usually is.",
         ],
       },
+      {
+        heading: "Case in point: high-performing sustainable buildings",
+        paragraphs: [
+          "The book's sample of high-performing buildings shows a consistent pattern: their clients treat reducing CO₂ emissions and embracing sustainable solutions as a responsibility, not a marketing line — and that culture of commitment is what produces the ratings, not any single technology. Concrete measures cited include rainwater harvesting, micro-generation for green energy, near-total construction-waste recycling, and 'cradle-to-cradle' material choices.",
+          "It also surfaces the incentive problem this lesson flags: owner-occupied offices achieve better sustainability ratings than buildings leased out, because the party paying the higher up-front cost isn't always the one who reaps the lower operating cost. Where the owner both pays and operates, whole-life logic wins easily; where those are split, someone has to align the incentive or the sustainability gets value-engineered away.",
+        ],
+      },
     ],
     relatedLessonIds: ["pm-business-case", "pm-risk-value", "pf-codes"],
     links: [PRACTICE_LINK],
@@ -677,6 +719,72 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
       },
     ],
     relatedLessonIds: ["wf-punch-closeout", "pm-quality", "pf-estimating"],
+    links: [PRACTICE_LINK],
+  },
+
+  // ───────────────────────────── Capstone ─────────────────────────────
+  {
+    id: "pm-cases",
+    track: "management",
+    category: "Capstone",
+    title: "Case Studies: The Integrated Approach in Practice",
+    summary:
+      "Six real projects from the literature, read through the frameworks in this track — success priorities, ethics, the business case, procurement routes, risk-sharing, and sustainability. The capstone quiz is scenario-based.",
+    minutes: 10,
+    keyTerms: [
+      { term: "Scenario reasoning", definition: "Applying a framework to a concrete situation rather than reciting the definition — the skill this capstone tests. Real projects rarely announce which principle applies." },
+    ],
+    body: [
+      {
+        heading: "Why case studies",
+        paragraphs: [
+          "Frameworks are only useful if you can recognize which one a live situation calls for. This capstone revisits six real projects — each already introduced as a 'Case in point' in an earlier lesson — and reads them through the frameworks of this track. Then the quiz drops you into scenarios and asks you to make the call, the way a project actually will.",
+        ],
+      },
+      {
+        heading: "1. King Shaka International Airport — priorities and stakeholders",
+        paragraphs: [
+          "A $1bn airport built to open for the 2010 World Cup: time and quality were the declared priorities, budget secondary. The PM built the team around that single-corner priority. But the most powerful external stakeholder — the environmental authority — still delayed the job past a contractual design deadline. Lesson: declaring your triangle priority organizes the team; it does not exempt you from stakeholder power.",
+        ],
+      },
+      {
+        heading: "2. Considerate Constructor Scheme — ethics as commercial advantage",
+        paragraphs: [
+          "A voluntary UK scheme rewarding community engagement, safety, and sustainable site practice. It spread because ethical behavior reduced neighbor conflict, lifted client reputation, and helped in value-driven tenders — while the counter-cases (cover-pricing investigations, quality failures from unethical procurement) show the downside of the short cut. Ethics is reputation management with a long payback.",
+        ],
+      },
+      {
+        heading: "3. London 2012 — a business case managed after approval",
+        paragraphs: [
+          "Legacy justified the spend on briefly-used venues; the stadium was designed from day one to shrink afterward. When the reduced stadium under-earned, it was leased to a football club to preserve the public legacy — legacy held as the priority over revenue. The business case was steered the whole way through, not frozen at approval.",
+        ],
+      },
+      {
+        heading: "4. Hong Kong NEC3 — the route creates the behavior",
+        paragraphs: [
+          "A £45m public infrastructure package on NEC3 Option C, with up-front training in early warnings and open-book working. When a storm drain threatened to clash with existing utilities, the contractor raised an early warning and a joint risk-reduction meeting resolved it before it became a claim. The collaborative procurement route produced the early-warning behavior that caught the problem.",
+        ],
+      },
+      {
+        heading: "5. Heathrow Terminal 5 — risk-sharing, not risk-dumping",
+        paragraphs: [
+          "On a £4.2bn program, BAA had contractors work open-book and agreed to carry proven residual and excess risk itself, across all supply-chain tiers so risk couldn't be passed down. Managing risk at its cause — rather than transferring it — removed the confrontation and the price-padding that mis-allocated risk creates.",
+        ],
+      },
+      {
+        heading: "6. High-performing sustainable buildings — whole-life and incentives",
+        paragraphs: [
+          "A culture of client commitment (not any single gadget) produces the top sustainability ratings, via rainwater harvesting, micro-generation, near-total waste recycling, and cradle-to-cradle materials. Owner-occupiers out-perform lease-out developers because the party paying the up-front cost is the one reaping the operating saving — the whole-life incentive is aligned.",
+        ],
+      },
+      {
+        heading: "Now apply them",
+        paragraphs: [
+          "The quiz below is scenario-based: each question puts you in a situation drawn from these cases and asks which framework applies and what you'd do. There isn't always a single perfect answer in real life — but there is usually a best one given the principles in this track.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["pm-success", "pm-procurement-strategy", "pm-risk-value", "pm-sustainability"],
     links: [PRACTICE_LINK],
   },
 ];

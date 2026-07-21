@@ -192,13 +192,26 @@ export const PROCESS_LESSONS: Lesson[] = [
         ],
       },
       {
+        heading: "Quality is a system, not just inspection (QA vs QC)",
+        paragraphs: [
+          "The 'catch it before it's covered' discipline above is quality control (QC) — the detection half. Real quality management pairs it with quality assurance (QA), the prevention half: approved methods and materials, submittals reviewed before purchase, mock-ups approved before production, competent crews, clear procedures. QA stops defects being created; QC verifies they weren't. QA without QC is trust without verification; QC without QA is catching failures you could have prevented.",
+          "Total Quality Management (TQM) goes further — quality as a whole-organization habit of continuous improvement where it's everyone's job, not one inspector's. On a job that looks like the crew that flags its own error and the sub that proposes a better detail: a defect is a process to fix, not a person to blame.",
+        ],
+      },
+      {
+        heading: "Customer care: the perception half of quality",
+        paragraphs: [
+          "A client's satisfaction is driven not only by the technical quality of the building but by their experience of getting it — whether they were kept informed and whether problems were handled honestly and fast. A technically excellent building delivered by a defensive, unresponsive team can still leave a dissatisfied client. The way you handle the punch list and warranty callbacks is the final, most memorable expression of your quality — treat it as customer care, not an afterthought.",
+        ],
+      },
+      {
         heading: "In SiteCommand",
         paragraphs: [
           "Pre-cover photos and inspection notes belong in Daily Logs and Photos, tied to the date and location. Failed inspections that need design input become RFIs; corrective scope with cost becomes a change event or backcharge. The punch list tool is for the end of the job — QC discipline is what keeps it short.",
         ],
       },
     ],
-    relatedLessonIds: ["wf-daily-logs", "wf-permits", "wf-punch-closeout", "tech-testing-cx"],
+    relatedLessonIds: ["wf-daily-logs", "wf-permits", "wf-punch-closeout", "tech-testing-cx", "pm-quality"],
     links: [PRACTICE_LINK],
   },
   {
