@@ -32,10 +32,12 @@ import { MEP_LESSONS } from "./training-lessons-mep";
 import { COMMERCIAL_LESSONS } from "./training-lessons-commercial";
 import { FOUNDATIONS_LESSONS } from "./training-lessons-foundations";
 import { FIELDOPS_LESSONS } from "./training-lessons-fieldops";
+import { MANAGEMENT_LESSONS } from "./training-lessons-management";
 
 export type LessonTrack =
   | "workflow"
   | "concept"
+  | "management"
   | "technical"
   | "sitework"
   | "mep"
@@ -872,6 +874,7 @@ const CORE_LESSONS: Lesson[] = [
  */
 export const LESSONS: Lesson[] = [
   ...CORE_LESSONS,
+  ...MANAGEMENT_LESSONS,
   ...PROCESS_LESSONS,
   ...TECHNICAL_LESSONS,
   ...SITEWORK_LESSONS,
@@ -900,6 +903,7 @@ export function lessonCategories(track: LessonTrack): string[] {
 export const TRACK_LABELS: Record<LessonTrack, string> = {
   workflow: "Workflows",
   concept: "Concepts",
+  management: "Integrated PM",
   technical: "Building the Work",
   sitework: "Site & Civil",
   mep: "MEP Systems",

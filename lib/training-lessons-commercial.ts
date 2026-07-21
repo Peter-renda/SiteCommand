@@ -48,7 +48,7 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["cn-contracts", "com-documents", "cn-lifecycle"],
+    relatedLessonIds: ["cn-contracts", "com-documents", "cn-lifecycle", "pm-procurement-strategy"],
   },
   {
     id: "com-documents",

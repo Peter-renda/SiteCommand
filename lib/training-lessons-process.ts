@@ -248,7 +248,7 @@ export const PROCESS_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["wf-daily-logs", "wf-risk", "pf-leadership"],
+    relatedLessonIds: ["wf-daily-logs", "wf-risk", "pf-leadership", "pm-ethics"],
     links: [PRACTICE_LINK],
   },
   {
@@ -295,8 +295,26 @@ export const PROCESS_LESSONS: Lesson[] = [
           "No sub mobilizes until the boring paperwork is done: executed subcontract, compliant COI, safety prequalification, and any wrap-up enrollment. The day a sub starts work without them, the leverage to get them is gone. In SiteCommand, commitments shouldn't move from Draft toward work-in-place until the compliance items on that contract are collected.",
         ],
       },
+      {
+        heading: "Insurance is one response in a bigger risk process",
+        paragraphs: [
+          "The insurance and bonds above are the transfer tools — but transfer is only one of four moves in the risk management process. Fewings & Henjewele frame risk as a continuous cycle: identify (surface every threat on a risk register), analyze (rate each by likelihood × impact), respond, and review (re-run it at every stage). For each significant risk you choose one of four responses:",
+        ],
+        ordered: [
+          "Avoid — change the plan so the risk can't occur (re-sequence the work, delete the risky scope).",
+          "Transfer — move it to a party better placed to carry it: insurance, bonds, or a contract clause. This is where the COI stack lives.",
+          "Mitigate / reduce — lower the likelihood or impact (dewatering plan, mock-ups, phasing).",
+          "Accept — knowingly carry it and set aside contingency to cover it if it lands.",
+        ],
+      },
+      {
+        heading: "Allocate risk to the party who can control it",
+        paragraphs: [
+          "The single most important risk principle: a risk should sit with whoever is best able to manage it. Dumping a risk on a sub who can't influence it doesn't remove it — it comes back as a padded price, defensive behavior, or a dispute when it materializes. Well-allocated risk is what separates a partnering/IPD job from an adversarial one. The Integrated PM track's 'Integrated Risk & Value Management' lesson develops the full framework, including value management and earned-value control.",
+        ],
+      },
     ],
-    relatedLessonIds: ["wf-commitments", "com-clauses", "com-liens-bonds", "wf-safety"],
+    relatedLessonIds: ["wf-commitments", "com-clauses", "com-liens-bonds", "wf-safety", "pm-risk-value"],
     links: [PRACTICE_LINK],
   },
 

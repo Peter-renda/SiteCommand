@@ -81,6 +81,7 @@ const LESSON_KEYWORD_RULES: { pattern: RegExp; skill: SkillKey }[] = [
 const LESSON_TRACK_DEFAULT: Record<Lesson["track"], SkillKey> = {
   workflow: "submittals",
   concept: "field",
+  management: "comms",
   technical: "field",
   sitework: "field",
   mep: "field",
