@@ -277,6 +277,14 @@ export const MEP_LESSONS: Lesson[] = [
       { term: "Single-line diagram", definition: "The one-page map of the power system: service → transformer → switchgear → panels → branch circuits. The PM's navigation chart for all things electrical." },
       { term: "NEC 110.26", definition: "The working-clearance rule in front of electrical equipment — the reason electrical rooms are the size they are, and the field change that's never allowed." },
       { term: "Megger test", definition: "Insulation resistance testing of installed feeders before energization — the proof the cable survived the pull." },
+      { term: "Rough-in / trim / punch", definition: "The three install stages of branch-circuit work: rough-in (boxes, conduit, wire in the walls before cover), trim (devices, plates, fixtures after finishes), and punch (correcting the walk-list deficiencies). Each moves at its own production rate per unit." },
+      { term: "Whip", definition: "A short length of flexible conduit with conductors used for the final connection to a piece of equipment — e.g. the disconnect-and-whip at an A/C condenser." },
+      { term: "Pigtail", definition: "A short factory or field lead used to connect an appliance (a dishwasher pigtail, for instance); often the pigtail is furnished by others and the electrician makes the connection." },
+      { term: "GFCI", definition: "Ground-Fault Circuit Interrupter — a receptacle or breaker that trips on a ground fault; required at wet/exterior locations (baths, kitchens, exterior, near water)." },
+      { term: "Panel schedule / circuit directory", definition: "The card inside the panel door mapping each numbered breaker to the circuit and outlets it feeds — filled in with the actual as-installed circuits, not left blank." },
+      { term: "Approved equal", definition: "When a spec names a manufacturer, it sets a 'standard of merit'; a substitute may be used only if the GC/architect accepts it as an approved equal. Named brands are a quality floor, not just a suggestion." },
+      { term: "Hot punch", definition: "Energizing and functionally testing a unit's electrical (once the utility sets the meter) ahead of final inspections, so units can be 'hot-punched' per the schedule rather than all at the end." },
+      { term: "UL listed", definition: "Tested and labeled by Underwriters Laboratories (or another NRTL); most jurisdictions require electrical materials to be listed and to bear the label." },
     ],
     body: [
       {
@@ -299,8 +307,60 @@ export const MEP_LESSONS: Lesson[] = [
           "The temporary-to-permanent power transition is the schedule's master gate: elevators start, HVAC equipment starts, and controls checkout begins only on permanent power. Work backward from the CO through that chain and the energization date becomes the most consequential date on the project — protected by switchgear delivery, room readiness, utility scheduling, and the pre-energization testing regime (insulation resistance, breaker coordination study, arc-flash labels, third-party acceptance testing where specified). Lighting packages deserve their own line in the procurement log; they slip constantly and finish rooms can't close without them. Grounding and bonding, unglamorous as they are, get inspected — the grounding electrode system goes in with the foundations, months before anyone thinks about electricity.",
         ],
       },
+      {
+        heading: "The three-stage install: rough-in, trim, punch",
+        paragraphs: [
+          "Below the distribution level, branch-circuit work runs on a three-stage cadence you'll see quoted as a production rate per unit — for example 'rough X units in 5 days, trim in 4, punch in 3.' Rough-in is boxes, conduit, and wire set in the walls before they're closed; trim is devices, plates, and fixtures after finishes; punch is correcting the deficiencies on the walk-list. Manpower has to be sized to hold that rate, or the electrician becomes the trade that gates drywall on the way in and finishes on the way out.",
+        ],
+        bullets: [
+          "Mounting heights are dictated, not chosen: a typical spec caps switch rough-in boxes at a set height to the top of the box (often 46\"), and sets outlets at lavatory sidewalls a minimum distance to the center of the device from the back wall of the counter (often 18\").",
+          "Device locations are an accessibility issue: switches, outlets, and USB receptacles must meet ADA, Fair Housing, and ANSI reach ranges — get them wrong and it's a demolition-and-move fix after finishes.",
+          "'Box one of each type and walk it': before mass rough-in, set one of each device/room configuration and walk it with the super for layout acceptance. It's the cheapest way to catch a systemic location error before it's built 200 times.",
+          "Coordinate device and fixture locations with the field before rough-in — the RCP and the field super's input govern where things actually land.",
+        ],
+      },
+      {
+        heading: "Panels, circuits, and the panel schedule",
+        paragraphs: [
+          "A panelboard is fed by a feeder and populated with branch breakers, each sized and numbered to match the panel schedule on the drawings; branch wiring connects to the phase and breaker number the plans indicate. Inside the door, a circuit directory card must be filled in with the real as-installed circuits and outlet locations — not left blank for the next person to guess. Panels are typically factory-finished (gray baked enamel), mounted at approved heights, with a hinged door and trim.",
+        ],
+        bullets: [
+          "Watch the spec's breaker requirements — some prohibit certain arrangements (e.g. multi-pole breakers with a single common operating handle); build to the panel schedule and the spec, not to habit.",
+          "Distinguish house/common panels and metered systems: unit meters, house panels, and separately metered common-area lighting are different scopes on the same job — label unit breakers in permanent ink and tag unit meters with permanent tags.",
+          "Dedicated circuits are called out for a reason: emergency, security, communications, fire alarm/detection, and equipment like sprinkler-room heaters each get their own circuit, not a shared one.",
+        ],
+      },
+      {
+        heading: "Devices, materials, and the 'approved equal' rule",
+        bullets: [
+          "Standard convenience receptacles are typically grounded, 15A/125V, side-wired; wet and exterior locations get GFCI and weatherproof/waterproof covers.",
+          "Materials must be new and UL-listed (labeled); when a spec names a manufacturer for service equipment, panels, and breakers, that name is a 'standard of merit' — a substitute needs to be accepted as an approved equal, and keeping one make throughout is often required.",
+          "The electrician owns care and custody of light fixtures until they're installed and accepted — fixtures lost or damaged before acceptance are the sub's problem, so track the container and the storage.",
+        ],
+      },
+      {
+        heading: "Whips, pigtails, and the trade interfaces",
+        paragraphs: [
+          "A large share of electrical scope is the final connections to other trades' equipment, and this is exactly where scope gaps hide. The classic items: a disconnect-and-whip at each A/C condenser (with a tag identifying the unit), pigtails on dishwashers (pigtail often furnished by others), wiring of bath/utility fans supplied by others, appliance connections (range hoods, microwaves), and the power/control wiring for automatic motor start/stop shown on the electrical drawings. At buyout, pin down every 'furnished by others / connected by electrician' line, because 'I thought they were providing that' is a change order waiting to happen.",
+        ],
+      },
+      {
+        heading: "Temporary power, testing, and hot-punch",
+        bullets: [
+          "Temporary power is usually the electrician's scope: temp power poles positioned so no trade has to pull more than a set distance of cord (commonly 150 ft), plus temp service to the field trailer/office. It's the first electrical work on site and everyone else depends on it.",
+          "Test before you energize: continuity, short-circuit, and improper-ground checks on all wiring; each lighting panel tested with mains disconnected, branches connected, switches closed, fixtures connected; each power circuit tested at the panel with its equipment connected — failures corrected to the GC's satisfaction.",
+          "'Hot-punch' is the payoff of getting meters set: once the utility sets unit meters, units can be energized and functionally tested per the schedule ahead of final inspections, instead of stacking all energization at the very end.",
+        ],
+      },
+      {
+        heading: "Site, low-voltage, codes, and licensing",
+        paragraphs: [
+          "Electrical scope reaches outside the building and below grade: underground conduit and wiring (with trenching) for site and landscape lighting, lighted signs, and site amenities, plus sleeves under paving and sidewalks for future pulls — miss the sleeves during sitework and you're saw-cutting finished pavement later. Tele/comm rough-in (smart boxes, a conduit with a pull string to the service point, phone/CATV/data) frequently rides in this contract too.",
+          "It all answers to the codes: the NEC (NFPA 70) governs the work, permanent-ink breaker labeling and permanent meter tags are typical requirements, and licensed personnel matter — a master and journeyman electrician's license usually has to be on file and available for inspection. Penetrations get cut, cored, patched, and fire-caulked (firestopped) to code. And the whole install typically carries a one-year workmanship warranty from substantial completion — defects corrected at no cost.",
+        ],
+      },
     ],
-    relatedLessonIds: ["cn-longlead", "mep-hvac-water", "mep-bms", "tech-vertical-lv"],
+    relatedLessonIds: ["cn-longlead", "mep-hvac-water", "mep-bms", "tech-vertical-lv", "wf-quality"],
     links: [PRACTICE_LINK],
   },
   {
