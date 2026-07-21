@@ -918,3 +918,47 @@ export const TRACK_LABELS: Record<LessonTrack, string> = {
   foundations: "Professional Skills",
   fieldops: "Preconstruction & Field Ops",
 };
+
+/**
+ * The curriculum as a two-level tree: each track is a main *section*, and its
+ * categories are the *subsections* beneath it. This is the shape the Training
+ * Modules nav tree renders, and the flattened `subsectionSequence()` drives
+ * the "next section" navigation once a subsection is complete.
+ */
+export type CurriculumSubsection = {
+  track: LessonTrack;
+  category: string;
+  lessons: Lesson[];
+};
+
+export type CurriculumSection = {
+  track: LessonTrack;
+  label: string;
+  subsections: CurriculumSubsection[];
+};
+
+export function buildCurriculum(): CurriculumSection[] {
+  return (Object.keys(TRACK_LABELS) as LessonTrack[]).map((track) => {
+    const trackLessons = lessonsByTrack(track);
+    return {
+      track,
+      label: TRACK_LABELS[track],
+      subsections: lessonCategories(track).map((category) => ({
+        track,
+        category,
+        lessons: trackLessons.filter((l) => l.category === category),
+      })),
+    };
+  });
+}
+
+/**
+ * Flat, ordered list of every subsection (track + category) in curriculum
+ * order — used to find the "next" subsection to advance to, crossing from the
+ * last subsection of one section into the first of the next.
+ */
+export function subsectionSequence(): { track: LessonTrack; category: string }[] {
+  return buildCurriculum().flatMap((section) =>
+    section.subsections.map((sub) => ({ track: sub.track, category: sub.category })),
+  );
+}
