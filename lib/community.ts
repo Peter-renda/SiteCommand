@@ -79,7 +79,7 @@ export async function resolveDisplayName(
     .eq("id", userId)
     .maybeSingle();
   const full = [data?.first_name, data?.last_name].filter(Boolean).join(" ").trim();
-  return full || data?.username || fallback || "SiteCommand member";
+  return full || data?.username || fallback || "CPMA member";
 }
 
 /**

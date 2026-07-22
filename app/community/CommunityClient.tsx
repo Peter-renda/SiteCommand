@@ -793,7 +793,7 @@ function downloadIcs(s: OfficeHour) {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//SiteCommand//Community Office Hours//EN",
+    "PRODID:-//CPMA//Community Office Hours//EN",
     "BEGIN:VEVENT",
     `UID:sitecommand-office-hour-${s.id}`,
     `DTSTAMP:${stamp(new Date())}`,

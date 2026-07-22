@@ -1,5 +1,5 @@
 /**
- * The trainee's verifiable credential ("SiteCommand Certified").
+ * The trainee's verifiable credential ("CPMA Certified").
  *
  * GET  /api/training/credential  — the caller's credential, or null.
  * POST /api/training/credential  — issue (or refresh) the credential. Requires
@@ -65,7 +65,7 @@ export async function POST() {
     [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() ||
     user?.username ||
     session.email ||
-    "SiteCommand Trainee";
+    "CPMA Trainee";
 
   // Keep an existing code stable across re-issues.
   const { data: existing } = await supabase

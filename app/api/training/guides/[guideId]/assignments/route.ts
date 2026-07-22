@@ -162,7 +162,7 @@ export async function POST(
       ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/training/guides`
       : "/training/guides";
     const assignedBy =
-      [session.email, session.username].filter(Boolean).join(" / ") || "A SiteCommand admin";
+      [session.email, session.username].filter(Boolean).join(" / ") || "A CPMA admin";
     const guideTitle = (guide.title as string | null) || "Company guide";
     await Promise.all(
       (notifyUsers ?? [])

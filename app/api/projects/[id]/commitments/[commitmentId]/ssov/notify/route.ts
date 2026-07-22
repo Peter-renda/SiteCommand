@@ -105,7 +105,7 @@ export async function POST(
       await sendSsovNotificationEmail(
         contactMatch.email,
         recipientName,
-        sender?.username || "A SiteCommand user",
+        sender?.username || "A CPMA user",
         commitment.number,
         commitment.title || "Commitment",
         Number(commitment.original_contract_amount || 0),

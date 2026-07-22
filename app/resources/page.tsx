@@ -234,11 +234,11 @@ const SECTIONS: ResourceSection[] = [
         tag: "Reference",
       },
       {
-        name: "Inside SiteCommand: Training & Lessons",
+        name: "Inside CPMA: Training & Lessons",
         href: "/training/lessons",
         description:
-          "Role-based lessons and a hands-on project simulation built right into SiteCommand — start here to learn the workflows.",
-        tag: "In SiteCommand",
+          "Role-based lessons and a hands-on project simulation built right into CPMA — start here to learn the workflows.",
+        tag: "In CPMA",
         internal: true,
       },
     ],
@@ -285,7 +285,7 @@ export default function ResourcesPage() {
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-700 transition-colors">
-            SiteCommand
+            CPMA
           </a>
           <span className="text-gray-300">/</span>
           <span className="text-sm text-gray-500">Resources</span>
@@ -353,7 +353,7 @@ export default function ResourcesPage() {
         </div>
 
         <p className="mt-12 text-xs text-gray-400">
-          These references point to third-party organizations and agencies. SiteCommand isn&rsquo;t
+          These references point to third-party organizations and agencies. CPMA isn&rsquo;t
           affiliated with them, and codes, standards, and contract forms are periodically revised —
           always confirm you&rsquo;re working from the edition your project requires.
         </p>

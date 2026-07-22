@@ -215,7 +215,7 @@ export async function POST(
       projectUrl,
       assignedBy:
         [session.email, session.username].filter(Boolean).join(" / ") ||
-        "A SiteCommand admin",
+        "A CPMA admin",
     });
   } catch {
     // Non-fatal — the assignment is still persisted and visible.

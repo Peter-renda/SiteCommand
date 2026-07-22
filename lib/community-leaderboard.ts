@@ -152,7 +152,7 @@ export async function computeLeaderboard(
       username: string | null;
     }[]) {
       const full = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
-      names.set(u.id, full || u.username || "SiteCommand member");
+      names.set(u.id, full || u.username || "CPMA member");
     }
     const { data: credRows } = await supabase
       .from("training_credentials")
@@ -180,7 +180,7 @@ export async function computeLeaderboard(
     const cred = credentials.get(userId) ?? null;
     return {
       userId,
-      name: names.get(userId) ?? "SiteCommand member",
+      name: names.get(userId) ?? "CPMA member",
       score,
       quizPoints: b.quizPoints,
       scenariosHandled: b.scenariosHandled,

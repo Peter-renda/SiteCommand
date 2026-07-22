@@ -234,14 +234,14 @@ export default function PricingPage() {
             className="text-sm font-semibold text-gray-900"
            
           >
-            SiteCommand
+            The Construction Project Management Academy
           </span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/" className="hover:text-gray-700 transition-colors">Home</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>
-          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} SiteCommand</p>
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} CPMA</p>
         </div>
       </footer>
     </div>

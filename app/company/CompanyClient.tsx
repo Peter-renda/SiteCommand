@@ -215,7 +215,7 @@ const seatCount = members.length;
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
+        <span className="text-sm font-semibold text-gray-900">CPMA</span>
         <a href="/dashboard" className="text-sm text-gray-400 hover:text-gray-900 transition-colors">
           ← Dashboard
         </a>
@@ -447,21 +447,21 @@ const seatCount = members.length;
           )}
         </div>
 
-        {/* About Site Command */}
+        {/* About CPMA */}
         <div className="bg-white rounded-xl border border-gray-100 px-6 py-5 mt-6 last:mb-0">
-          <h2 className="text-sm font-semibold text-gray-900 mb-3">About Site Command</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">About CPMA</h2>
           <p className="text-sm font-medium text-gray-700 mb-3">
             Construction is hard enough. Your software shouldn&apos;t be.
           </p>
           <div className="space-y-3 text-sm text-gray-500 leading-relaxed">
             <p>
-              Site Command was built by people who understand the frustration of bloated, overpriced
+              CPMA was built by people who understand the frustration of bloated, overpriced
               platforms that promise the world and deliver a headache. We watched contractors spend
               more time fighting their software than managing their projects — and we decided to
               build something better.
             </p>
             <p>
-              Site Command is a modern construction management platform designed for the way real
+              CPMA is a modern construction management platform designed for the way real
               teams work. From daily logs and RFIs to document control, submittals, and project
               scheduling, everything you need is in one place — intuitive, fast, and actually useful
               in the field.

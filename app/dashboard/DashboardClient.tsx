@@ -1024,7 +1024,7 @@ export default function DashboardClient({ username, email, role, companyRole, us
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">CPMA</span>
           {companies.length > 0 && (
             <div ref={companyMenuRef} className="relative">
               <button

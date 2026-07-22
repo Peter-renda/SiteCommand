@@ -30,7 +30,7 @@ export async function POST(
 
   const rfi = rfiRes.data;
   const projectName = projectRes.data?.name ?? "";
-  let companyName = "SiteCommand";
+  let companyName = "CPMA";
   if (projectRes.data?.company_id) {
     const { data: company } = await supabase
       .from("companies")

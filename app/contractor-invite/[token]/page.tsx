@@ -81,7 +81,7 @@ export default function ContractorInvitePage({ params }: { params: Promise<{ tok
         <div className="mb-8 text-center">
           <h1 className="text-xl font-semibold text-gray-900 mb-1">{inviteData?.projectName}</h1>
           <p className="text-sm text-gray-500">
-            You&apos;ve been invited to access this project on SiteCommand.
+            You&apos;ve been invited to access this project on CPMA.
           </p>
           <p className="text-xs text-gray-400 mt-2">{inviteData?.email}</p>
         </div>
@@ -89,7 +89,7 @@ export default function ContractorInvitePage({ params }: { params: Promise<{ tok
         {inviteData?.hasAccount ? (
           <>
             <p className="text-xs text-center text-gray-500 mb-5">
-              This email already has a SiteCommand account. Enter your password to accept the invitation.
+              This email already has a CPMA account. Enter your password to accept the invitation.
             </p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>

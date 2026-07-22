@@ -1,5 +1,5 @@
 {
-  "name": "SiteCommand Construction Management",
-  "description": "A comprehensive construction management platform for tracking daily logs, RFIs, submittals, drawings, and project schedules.",
+  "name": "The Construction Project Management Academy (CPMA)",
+  "description": "A hands-on training academy for construction project management. Trainees run real, sandboxed projects in SiteCommand — the Academy's built-in construction management software — tracking daily logs, RFIs, submittals, drawings, and project schedules.",
   "requestFramePermissions": []
 }

@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const FROM_ADDRESS = process.env.RESEND_FROM_ADDRESS || 'SiteCommand <invites@sitecommand.xyz>';
+const FROM_ADDRESS = process.env.RESEND_FROM_ADDRESS || 'CPMA <invites@sitecommand.xyz>';
 
 type SendArgs = {
   to: string | string[];
@@ -125,18 +125,18 @@ export async function sendInviteEmail(to: string, inviteUrl: string, companyName
     "invite",
     {
       to,
-      subject: `You've been invited to join ${companyName} on SiteCommand`,
+      subject: `You've been invited to join ${companyName} on CPMA`,
       html: buildInviteEmailHtml({
         companyName,
         inviteUrl,
-        heading: `You have been invited to join ${companyName} on SiteCommand.`,
+        heading: `You have been invited to join ${companyName} on CPMA.`,
         columns: ["Company", "Invitation", "Expires"],
         values: [
           escapeHtml(companyName),
           `<a href="${escapeHtml(inviteUrl)}" style="color:#1d6fa5;text-decoration:underline;">Accept invitation</a>`,
           "In 7 days",
         ],
-        footerNote: "You are receiving this because you were invited to join this company on SiteCommand.",
+        footerNote: "You are receiving this because you were invited to join this company on CPMA.",
       }),
     },
     { throwOnError: true },
@@ -155,7 +155,7 @@ export async function sendProjectMemberInviteEmail(
     "project-member-invite",
     {
       to,
-      subject: `${companyName} invited you to collaborate on ${projectName} in SiteCommand`,
+      subject: `${companyName} invited you to collaborate on ${projectName} in CPMA`,
       html:
         buildInviteEmailHtml({
           companyName,
@@ -168,9 +168,9 @@ export async function sendProjectMemberInviteEmail(
             escapeHtml(recipientName || to),
             "In 7 days",
           ],
-          footerNote: `SiteCommand is ${companyName}'s online project management system.`,
+          footerNote: `CPMA is ${companyName}'s online project management system.`,
         }) +
-        `<p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;max-width:720px;margin:8px auto 0;">New to the industry? <a href="${escapeHtml(resourcesUrl)}">Browse SiteCommand Resources</a></p>`,
+        `<p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;max-width:720px;margin:8px auto 0;">New to the industry? <a href="${escapeHtml(resourcesUrl)}">Browse CPMA Resources</a></p>`,
     },
   );
 }
@@ -251,14 +251,14 @@ export async function sendWebhookEventEmail(
 
   await sendEmail("webhook-event", {
     to,
-    subject: `[SiteCommand] ${event}`,
+    subject: `[CPMA] ${event}`,
     html: `
       <p style="font-size:14px;">A <strong>${event}</strong> event was triggered on your <strong>${webhookName}</strong> webhook.</p>
       <table style="border-collapse:collapse;width:100%;margin-top:12px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
         <thead><tr style="background:#f9fafb;"><th style="text-align:left;padding:6px 8px;font-size:11px;color:#6b7280;font-weight:600;">FIELD</th><th style="text-align:left;padding:6px 8px;font-size:11px;color:#6b7280;font-weight:600;">VALUE</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <p style="color:#aaa;font-size:11px;margin-top:16px;">You are receiving this because you configured email notifications on a SiteCommand webhook.</p>
+      <p style="color:#aaa;font-size:11px;margin-top:16px;">You are receiving this because you configured email notifications on a CPMA webhook.</p>
     `,
   });
 }
@@ -369,7 +369,7 @@ export async function sendRFIBallInCourtEmail(
     event: "Ball in court",
     eventTime: new Date(),
     viewOnlineUrl,
-    recipientRoleNote: "You are receiving this because the ball is in your court for this RFI on SiteCommand.",
+    recipientRoleNote: "You are receiving this because the ball is in your court for this RFI on CPMA.",
     label: "rfi-ball-in-court",
     emailSubject: `The ball is in your court for RFI #${rfiNumber}: ${rfiSubject} — ${projectName}`,
   });
@@ -397,10 +397,10 @@ export async function sendRFICreatedEmail(
   const comment = `${dueLine}${senderName} opened this RFI.${rfiQuestion ? ` Question: ${rfiQuestion}` : ""}`;
   const roleNote =
     role === "manager"
-      ? "You are receiving this because you are the RFI manager on SiteCommand."
+      ? "You are receiving this because you are the RFI manager on CPMA."
       : role === "assignee"
-        ? "You are receiving this because you are assigned to this RFI on SiteCommand."
-        : "You are receiving this because you are on the distribution list for this RFI on SiteCommand.";
+        ? "You are receiving this because you are assigned to this RFI on CPMA."
+        : "You are receiving this because you are on the distribution list for this RFI on CPMA.";
 
   await sendRFITrackingEmail({
     to,
@@ -442,7 +442,7 @@ export async function sendRFIClosedEmail(
     event: "RFI closed",
     eventTime: new Date(),
     viewOnlineUrl,
-    recipientRoleNote: "You are receiving this because you are on the distribution list, assigned to, or otherwise associated with this RFI on SiteCommand.",
+    recipientRoleNote: "You are receiving this because you are on the distribution list, assigned to, or otherwise associated with this RFI on CPMA.",
     label: "rfi-closed",
     emailSubject: `RFI #${rfiNumber} has been closed — ${projectName}`,
   });
@@ -471,7 +471,7 @@ export async function sendRFIReopenedEmail(
     event: "RFI reopened",
     eventTime: new Date(),
     viewOnlineUrl,
-    recipientRoleNote: "You are receiving this because you are on the distribution list for this RFI on SiteCommand.",
+    recipientRoleNote: "You are receiving this because you are on the distribution list for this RFI on CPMA.",
     label: "rfi-reopened",
     emailSubject: `RFI #${rfiNumber} has been reopened — ${projectName}`,
   });
@@ -493,7 +493,7 @@ export async function sendSubmittalCreatedEmail(
       <p style="font-size:14px;">A new submittal has been created on <strong>${projectName}</strong>.</p>
       <p style="font-size:15px;font-weight:600;">Submittal #${submittalNumber}: ${submittalTitle}</p>
       <p><a href="${submittalUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View Submittal</a></p>
-      <p style="color:#aaa;font-size:11px;">You are receiving this because you are the submittal manager, approver, or on the distribution list for this submittal on SiteCommand.</p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are the submittal manager, approver, or on the distribution list for this submittal on CPMA.</p>
     `,
   });
 }
@@ -524,7 +524,7 @@ export async function sendChangeEventRFQEmail(
       ${dueLine}
       ${detailsLine}
       <p><a href="${portalUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open Subcontractor Portal</a></p>
-      <p style="color:#aaa;font-size:11px;">You are receiving this because you were selected as an RFQ recipient in SiteCommand.</p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you were selected as an RFQ recipient in CPMA.</p>
     `,
   });
 }
@@ -553,7 +553,7 @@ export async function sendRFIResponseEmail(
     event: "Response added",
     eventTime: new Date(),
     viewOnlineUrl,
-    recipientRoleNote: "You are receiving this because you are the RFI manager, assignee, or on the distribution list for this RFI on SiteCommand.",
+    recipientRoleNote: "You are receiving this because you are the RFI manager, assignee, or on the distribution list for this RFI on CPMA.",
     label: "rfi-response",
     emailSubject: `New response on RFI #${rfiNumber}: ${rfiSubject} — ${projectName}`,
   });
@@ -570,11 +570,11 @@ export async function sendContractorInviteEmail(
     "contractor-invite",
     {
       to,
-      subject: `You've been invited to access ${projectName} on SiteCommand`,
+      subject: `You've been invited to access ${projectName} on CPMA`,
       html: buildInviteEmailHtml({
         companyName: companyName || projectName,
         inviteUrl,
-        heading: `You have been invited to access ${projectName} on SiteCommand.`,
+        heading: `You have been invited to access ${projectName} on CPMA.`,
         columns: ["Project", "Recipient", "Invited As", "Expires"],
         values: [
           escapeHtml(projectName),
@@ -582,7 +582,7 @@ export async function sendContractorInviteEmail(
           "External Collaborator",
           "In 7 days",
         ],
-        footerNote: "You are receiving this because you were invited to collaborate on this project on SiteCommand.",
+        footerNote: "You are receiving this because you were invited to collaborate on this project on CPMA.",
       }),
     },
     { throwOnError: true },
@@ -691,7 +691,7 @@ export async function sendSsovNotificationEmail(
       ${amountLine}
       <p style="font-size:13px;color:#555;">Add detail lines until <strong>Remaining to Allocate</strong> is $0.00, then click <strong>Submit</strong>.</p>
       <p><a href="${ssovUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open Subcontractor SOV</a></p>
-      <p style="color:#aaa;font-size:11px;">You are receiving this because you are the invoice contact on this commitment in SiteCommand.</p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are the invoice contact on this commitment in CPMA.</p>
     `,
   });
 }
@@ -740,7 +740,7 @@ export async function sendCommitmentEmail({
         <a href="${commitmentUrl}/pdf" style="background:#fff;color:#111;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;border:1px solid #ddd;">Download PDF</a>
       </p>
       ${privacyNote}
-      <p style="color:#aaa;font-size:11px;">Recipients need appropriate project access to view this contract online. Sent via SiteCommand.</p>
+      <p style="color:#aaa;font-size:11px;">Recipients need appropriate project access to view this contract online. Sent via CPMA.</p>
     `,
     },
     { throwOnError: true },
@@ -778,9 +778,9 @@ export async function sendInvoiceAssignmentEmail({
       <p style="font-size:14px;"><strong>${invoiceFilename}</strong></p>
       ${notesBlock}
       <p>
-        <a href="${projectUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open in SiteCommand</a>
+        <a href="${projectUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open in CPMA</a>
       </p>
-      <p style="color:#aaa;font-size:11px;">This will also appear under "My open items" on your SiteCommand dashboard. Sent via SiteCommand.</p>
+      <p style="color:#aaa;font-size:11px;">This will also appear under "My open items" on your CPMA dashboard. Sent via CPMA.</p>
     `,
     },
     { throwOnError: true },
@@ -815,9 +815,9 @@ export async function sendGuideAssignmentEmail({
       <p style="font-size:16px;font-weight:600;">${guideTitle}</p>
       ${dueLine}
       <p>
-        <a href="${guidesUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open in SiteCommand</a>
+        <a href="${guidesUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open in CPMA</a>
       </p>
-      <p style="color:#aaa;font-size:11px;">This will also appear in the items that need your attention on your SiteCommand dashboard. Sent via SiteCommand.</p>
+      <p style="color:#aaa;font-size:11px;">This will also appear in the items that need your attention on your CPMA dashboard. Sent via CPMA.</p>
     `,
   });
 }
@@ -863,7 +863,7 @@ export async function sendTransmittalCreatedEmail({
       ${sentLine}
       ${dueLine}
       <p><a href="${transmittalUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open Transmittal</a></p>
-      <p style="color:#888;font-size:11px;">You'll need a SiteCommand account with access to this project to open the transmittal.</p>
+      <p style="color:#888;font-size:11px;">You'll need a CPMA account with access to this project to open the transmittal.</p>
       <p style="color:#aaa;font-size:11px;">You are receiving this because you are in the To/CC list for this transmittal.</p>
     `,
   });
@@ -900,13 +900,13 @@ export async function sendOfficeHourReservationEmail({
     subject: `New reservation for your office hours: ${topic}`,
     html: `
       <p style="font-size:14px;">Hi${hostName ? ` ${escapeHtml(hostName)}` : ""},</p>
-      <p style="font-size:14px;"><strong>${escapeHtml(attendeeName)}</strong> reserved a seat in your SiteCommand Community office-hours session.</p>
+      <p style="font-size:14px;"><strong>${escapeHtml(attendeeName)}</strong> reserved a seat in your CPMA Community office-hours session.</p>
       <p style="font-size:16px;font-weight:600;">${escapeHtml(topic)}</p>
       <p style="font-size:13px;color:#555;">${escapeHtml(when)} &middot; ${reserved}/${capacity} seats reserved</p>
       <p>
         <a href="${escapeHtml(communityUrl)}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View in Community</a>
       </p>
-      <p style="color:#aaa;font-size:11px;">You are receiving this because you are hosting this session. Sent via SiteCommand.</p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you are hosting this session. Sent via CPMA.</p>
     `,
   });
 }
@@ -941,7 +941,7 @@ export async function sendOfficeHourCancelledEmail({
       <p>
         <a href="${escapeHtml(communityUrl)}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Find another session</a>
       </p>
-      <p style="color:#aaa;font-size:11px;">You are receiving this because you had reserved a seat in this session. Sent via SiteCommand.</p>
+      <p style="color:#aaa;font-size:11px;">You are receiving this because you had reserved a seat in this session. Sent via CPMA.</p>
     `,
   });
 }

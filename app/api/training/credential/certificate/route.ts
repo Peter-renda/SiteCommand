@@ -1,6 +1,6 @@
 /**
  * GET /api/training/credential/certificate — download the caller's
- * "SiteCommand Certified" certificate as a PDF. Requires an issued
+ * "CPMA Certified" certificate as a PDF. Requires an issued
  * credential (POST /api/training/credential first).
  */
 

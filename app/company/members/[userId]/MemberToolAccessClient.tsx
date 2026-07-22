@@ -207,7 +207,7 @@ export default function MemberToolAccessClient({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
+        <span className="text-sm font-semibold text-gray-900">CPMA</span>
         <button
           onClick={() => router.push("/company")}
           className="text-sm text-gray-400 hover:text-gray-900 transition-colors"

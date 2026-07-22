@@ -1,5 +1,11 @@
 # SiteCommand – Project Notes for Claude
 
+## Branding
+
+- The **website / product / company** is **The Construction Project Management Academy** (**CPMA** for short). Use CPMA for site chrome (page titles, headers, footers, login/signup, platform emails, the credential — "CPMA Certified") and the full name where there's room (marketing footers, hero copy, the certificate, the public verify page).
+- **SiteCommand** is the name of the **fictional construction management software housed inside the training program**. Keep "SiteCommand" for: the in-project workspace headers and tool copy (`app/projects/[id]/**`), lesson content ("In SiteCommand", "the SiteCommand way"), training sandbox copy ("a real, private copy of SiteCommand", "SiteCommand Training" sandboxes), AI assistant prompts (Assist, triage, foreman), and technical contracts (`X-SiteCommand-*` webhook headers, `SiteCommand/1.0` user agent, ERP integration copy).
+- Domains/addresses (`sitecommand.xyz`, `sitecommand.com`, `invites@sitecommand.xyz`) are unchanged; only display names were rebranded.
+
 ## User Role Definitions
 
 ### 1. Site Command Admin *(internal team only)*

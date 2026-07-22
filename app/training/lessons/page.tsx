@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth";
 import { getLesson } from "@/lib/training-lessons";
 import LessonsClient from "./LessonsClient";
 
-export const metadata = { title: "Training Modules – SiteCommand" };
+export const metadata = { title: "Training Modules – CPMA" };
 
 export default async function LessonsPage({
   searchParams,

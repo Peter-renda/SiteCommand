@@ -216,7 +216,7 @@ export default function CareerCenterPage() {
             className="mb-6 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
             style={{ background: "rgba(21,128,61,0.07)", border: "1px solid rgba(21,128,61,0.18)", color: "#166534" }}
           >
-            <span className="font-semibold">✓ SiteCommand Certified — {credential.overall_level}</span>
+            <span className="font-semibold">✓ CPMA Certified — {credential.overall_level}</span>
             <span style={{ color: "rgba(22,101,52,0.75)" }}>
               Include your verification link in applications:
             </span>
@@ -236,7 +236,7 @@ export default function CareerCenterPage() {
           className="mb-6 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
           style={{ background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.14)", color: "#1E40AF" }}
         >
-          <span className="font-semibold">🤝 New: the SiteCommand Community</span>
+          <span className="font-semibold">🤝 New: the CPMA Community</span>
           <span style={{ color: "rgba(30,64,175,0.75)" }}>
             Discussion boards, mentorship matching, office hours with experienced PMs, regional
             networking, and a training leaderboard.
@@ -442,7 +442,7 @@ export default function CareerCenterPage() {
 
         {/* Work at SiteCommand */}
         <p className="mt-16 text-sm text-gray-400">
-          Want to work at SiteCommand itself?{" "}
+          Want to work at CPMA itself?{" "}
           <a
             href="mailto:careers@sitecommand.com"
             className="text-gray-600 hover:text-gray-900 underline underline-offset-2 transition-colors"
@@ -455,13 +455,13 @@ export default function CareerCenterPage() {
       {/* Footer */}
       <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">The Construction Project Management Academy</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Sign up</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>
-          <p className="text-xs text-gray-400">&copy; 2025 SiteCommand</p>
+          <p className="text-xs text-gray-400">&copy; 2025 CPMA</p>
         </div>
       </footer>
     </div>

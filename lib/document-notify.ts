@@ -32,7 +32,7 @@ export async function getProjectEmailContext(
     .eq("id", projectId)
     .maybeSingle();
 
-  let companyName = "SiteCommand";
+  let companyName = "CPMA";
   if (project?.company_id) {
     const { data: company } = await supabase
       .from("companies")

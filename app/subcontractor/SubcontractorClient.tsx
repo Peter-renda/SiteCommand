@@ -178,7 +178,7 @@ export default function SubcontractorClient({
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">CPMA</span>
 
           {/* Company switcher — shown when invited by 2+ companies */}
           {companies.length > 1 && (

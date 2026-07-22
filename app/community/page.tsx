@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import CommunityClient from "./CommunityClient";
 
-export const metadata = { title: "Community – SiteCommand" };
+export const metadata = { title: "Community – CPMA" };
 
 export default async function CommunityPage() {
   const session = await getSession();
