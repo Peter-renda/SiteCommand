@@ -4,10 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LESSONS,
   buildCurriculum,
+  getLesson,
   subsectionSequence,
   type Lesson,
   type LessonTrack,
 } from "@/lib/training-lessons";
+import LessonDetailClient from "./[lessonId]/LessonDetailClient";
+// Type-only: the quiz module holds the correct answers and must not be bundled
+// into client JS. The answer-stripped PublicQuiz is fetched from the API.
+import type { PublicQuiz } from "@/lib/training-lesson-quizzes";
 
 /**
  * Training → Modules: the curriculum as a Section → Subsection tree.
@@ -43,6 +48,12 @@ export default function LessonsClient() {
   });
   const [quizResults, setQuizResults] = useState<Record<string, QuizResult>>({});
   const [loading, setLoading] = useState(true);
+
+  // Inline module reader: the selected module renders on this same page (no new
+  // tab). Its answer-stripped quiz is fetched from the API per selection.
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [selectedQuiz, setSelectedQuiz] = useState<PublicQuiz | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
   // Which sections are expanded in the tree. The active section starts open.
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     [first.track]: true,
@@ -78,6 +89,30 @@ export default function LessonsClient() {
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [load]);
+
+  // Open a module inline: fetch its answer-stripped quiz, then swap the list
+  // for the reader and scroll to the top.
+  const openLesson = useCallback((lessonId: string) => {
+    if (!getLesson(lessonId)) return;
+    setSelectedLessonId(lessonId);
+    setSelectedQuiz(null);
+    setQuizLoading(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    fetch(`/api/training/lessons/public-quiz?lessonId=${encodeURIComponent(lessonId)}`)
+      .then((r) => (r.ok ? r.json() : { quiz: null }))
+      .then((d) => setSelectedQuiz(d.quiz ?? null))
+      .catch(() => setSelectedQuiz(null))
+      .finally(() => setQuizLoading(false));
+  }, []);
+
+  const closeLesson = useCallback(() => {
+    setSelectedLessonId(null);
+    setSelectedQuiz(null);
+    // Grades may have changed while reading; refresh the badges.
+    void load();
+  }, [load]);
+
+  const selectedLesson = selectedLessonId ? getLesson(selectedLessonId) : null;
 
   // ── Completion helpers ──────────────────────────────────────────
   const lessonPassed = useCallback(
@@ -124,6 +159,27 @@ export default function LessonsClient() {
     setOpenSections((o) => ({ ...o, [next.track]: true }));
     // Bring the content pane back into view on smaller screens.
     contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Reading a module inline — the reader replaces the list until the user goes
+  // back. Its quiz answers are graded server-side; onGraded refreshes badges.
+  if (selectedLesson) {
+    return (
+      <div>
+        {quizLoading ? (
+          <p className="text-sm text-gray-400">Loading module…</p>
+        ) : (
+          <LessonDetailClient
+            key={selectedLesson.id}
+            lesson={selectedLesson}
+            quiz={selectedQuiz}
+            onBack={closeLesson}
+            onNavigate={openLesson}
+            onGraded={load}
+          />
+        )}
+      </div>
+    );
   }
 
   return (
@@ -280,12 +336,10 @@ export default function LessonsClient() {
               const passed = isPassed(result);
               const percent = result ? Math.round((result.bestScore / result.total) * 100) : null;
               return (
-                <a
+                <button
                   key={l.id}
-                  href={`/training/lessons/${l.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 hover:border-gray-400 hover:shadow-sm transition-all"
+                  onClick={() => openLesson(l.id)}
+                  className="group flex w-full items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left hover:border-gray-400 hover:shadow-sm transition-all"
                 >
                   <span
                     className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${
@@ -312,7 +366,7 @@ export default function LessonsClient() {
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          d="M14 5h5v5M19 5l-9 9M9 5H6a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1v-3"
+                          d="M9 5l7 7-7 7"
                         />
                       </svg>
                     </div>
@@ -338,7 +392,7 @@ export default function LessonsClient() {
                       </span>
                     )}
                   </span>
-                </a>
+                </button>
               );
             })}
           </div>

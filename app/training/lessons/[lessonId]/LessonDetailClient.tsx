@@ -7,10 +7,15 @@ import { lessonsByTrack, getLesson, TRACK_LABELS, type Lesson } from "@/lib/trai
 import type { PublicQuiz } from "@/lib/training-lesson-quizzes";
 
 /**
- * A single Training Module: the lesson text followed by a graded quiz. Opened
- * in its own tab from the Training Modules list. Completion state and quiz
- * grades persist per-user via the training APIs, so a grade recorded here shows
- * up back on the Training Modules page.
+ * A single Training Module: the lesson text followed by a graded quiz.
+ * Completion state and quiz grades persist per-user via the training APIs.
+ *
+ * Two rendering modes:
+ *  - Standalone page (`/training/lessons/[lessonId]`): back/related/prev/next
+ *    are real hyperlinks.
+ *  - Inline on the Training Modules list: pass `onBack` / `onNavigate` and the
+ *    same controls become buttons that swap the lesson in place (no new tab).
+ *    `onGraded` lets the list refresh its grade badges after a quiz submit.
  */
 
 type Grade = {
@@ -25,9 +30,18 @@ type Grade = {
 export default function LessonDetailClient({
   lesson,
   quiz,
+  onBack,
+  onNavigate,
+  onGraded,
 }: {
   lesson: Lesson;
   quiz: PublicQuiz | null;
+  /** Inline mode: render "All Training Modules" as a button calling this. */
+  onBack?: () => void;
+  /** Inline mode: render related/prev/next as buttons that swap the lesson. */
+  onNavigate?: (lessonId: string) => void;
+  /** Inline mode: called after a quiz is graded so the list can refresh. */
+  onGraded?: () => void;
 }) {
   // Quiz state: one selected option index per question (-1 = unanswered).
   const [answers, setAnswers] = useState<number[]>(() =>
@@ -56,6 +70,16 @@ export default function LessonDetailClient({
     void load();
   }, [load]);
 
+  // Inline mode swaps the lesson without remounting, so clear the previous
+  // lesson's quiz answers/grade whenever the lesson changes.
+  useEffect(() => {
+    setAnswers(quiz ? quiz.questions.map(() => -1) : []);
+    setGrade(null);
+    setPriorBest(null);
+    setQuizError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson.id]);
+
   async function submitQuiz() {
     if (!quiz || grading) return;
     setQuizError(null);
@@ -78,6 +102,7 @@ export default function LessonDetailClient({
       const g: Grade = await res.json();
       setGrade(g);
       setPriorBest({ bestScore: g.bestScore, total: g.total });
+      onGraded?.();
     } catch {
       setQuizError("Couldn't reach the server. Try again.");
     } finally {
@@ -102,12 +127,21 @@ export default function LessonDetailClient({
 
   return (
     <div className="max-w-3xl">
-      <a
-        href="/training/lessons"
-        className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-      >
-        ← All Training Modules
-      </a>
+      {onBack ? (
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
+        >
+          ← All Training Modules
+        </button>
+      ) : (
+        <a
+          href="/training/lessons"
+          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
+        >
+          ← All Training Modules
+        </a>
+      )}
 
       <div className="card card-pad mt-3">
         <div className="flex items-start justify-between gap-4">
@@ -174,12 +208,14 @@ export default function LessonDetailClient({
               {lesson.relatedLessonIds.map((rid) => {
                 const rl = getLesson(rid);
                 if (!rl) return null;
-                return (
-                  <a
-                    key={rid}
-                    href={`/training/lessons/${rid}`}
-                    className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-colors"
-                  >
+                const cls =
+                  "rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-colors";
+                return onNavigate ? (
+                  <button key={rid} onClick={() => onNavigate(rid)} className={cls}>
+                    {rl.title}
+                  </button>
+                ) : (
+                  <a key={rid} href={`/training/lessons/${rid}`} className={cls}>
                     {rl.title}
                   </a>
                 );
@@ -322,22 +358,40 @@ export default function LessonDetailClient({
       {/* Prev / next within the track */}
       <div className="mt-5 flex items-center justify-between">
         {prev ? (
-          <a
-            href={`/training/lessons/${prev.id}`}
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            ← {prev.title}
-          </a>
+          onNavigate ? (
+            <button
+              onClick={() => onNavigate(prev.id)}
+              className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              ← {prev.title}
+            </button>
+          ) : (
+            <a
+              href={`/training/lessons/${prev.id}`}
+              className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              ← {prev.title}
+            </a>
+          )
         ) : (
           <span />
         )}
         {next ? (
-          <a
-            href={`/training/lessons/${next.id}`}
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors text-right"
-          >
-            {next.title} →
-          </a>
+          onNavigate ? (
+            <button
+              onClick={() => onNavigate(next.id)}
+              className="text-sm text-gray-500 hover:text-gray-900 transition-colors text-right"
+            >
+              {next.title} →
+            </button>
+          ) : (
+            <a
+              href={`/training/lessons/${next.id}`}
+              className="text-sm text-gray-500 hover:text-gray-900 transition-colors text-right"
+            >
+              {next.title} →
+            </a>
+          )
         ) : (
           <span />
         )}
