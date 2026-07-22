@@ -64,7 +64,7 @@ export default function ContractorClient({ username }: { username: string }) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
+        <span className="text-sm font-semibold text-gray-900">CPMA</span>
         <div className="flex items-center gap-5">
           <span className="text-sm text-gray-400">{username}</span>
           <button

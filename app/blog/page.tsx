@@ -4,7 +4,7 @@ import { INK, ORANGE, LIGHT_BG, MonoTag, CornerTicks } from "../components/bluep
 import { blogPosts, formatPostDate } from "./data";
 
 export const metadata = {
-  title: "Blog — SiteCommand",
+  title: "Blog — CPMA",
   description:
     "Career advice, industry breakdowns, and the workflows behind running a construction project — for anyone breaking into construction management.",
 };
@@ -164,7 +164,7 @@ export default function BlogPage() {
 
       <footer className="py-10 px-6 sm:px-10" style={{ background: INK, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="font-display text-sm text-white">SiteCommand</span>
+          <span className="font-display text-sm text-white">The Construction Project Management Academy</span>
           <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.45)" }}>
             <Link href="/blog" className="hover:text-white transition-colors">Blog</Link>
             <Link href="/success-stories" className="hover:text-white transition-colors">Success stories</Link>
@@ -172,7 +172,7 @@ export default function BlogPage() {
             <Link href="/about" className="hover:text-white transition-colors">About</Link>
           </div>
           <p className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-            &copy; {new Date().getFullYear()} SiteCommand
+            &copy; {new Date().getFullYear()} CPMA
           </p>
         </div>
       </footer>

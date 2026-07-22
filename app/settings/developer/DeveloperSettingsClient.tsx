@@ -600,7 +600,7 @@ export default function DeveloperSettingsClient() {
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <a href="/dashboard" className="text-sm font-semibold text-gray-900 hover:text-gray-700 transition-colors">
-            SiteCommand
+            CPMA
           </a>
           <span className="text-gray-300">/</span>
           <span className="text-sm text-gray-500">Developer Settings</span>

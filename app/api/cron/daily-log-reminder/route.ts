@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
     for (const email of recipients.values()) {
       try {
         const { error: sendError } = await resend.emails.send({
-          from: "SiteCommand <invites@sitecommand.xyz>",
+          from: "CPMA <invites@sitecommand.xyz>",
           to: email,
           subject: `Daily Log Reminder: ${project.name}`,
           html: `
@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
                 Complete Daily Log
               </a>
             </p>
-            <p style="color:#aaa;font-size:11px;">You are receiving this because you are a member of the ${project.name} project on SiteCommand.</p>
+            <p style="color:#aaa;font-size:11px;">You are receiving this because you are a member of the ${project.name} project on CPMA.</p>
           `,
         });
         if (sendError) {

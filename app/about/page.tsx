@@ -49,7 +49,7 @@ export default function AboutPage() {
         <div className="max-w-3xl pt-20 pb-20">
           <span className="inline-flex items-center gap-2 mb-8 animate-fade-up">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#2563EB" }} />
-            <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">About SiteCommand</span>
+            <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">About CPMA</span>
           </span>
           <h1
             className="font-display text-6xl sm:text-7xl leading-[1.05] animate-fade-up"
@@ -59,7 +59,7 @@ export default function AboutPage() {
             <em className="not-italic" style={{ color: "#C0C0BC" }}>people who build.</em>
           </h1>
           <p className="mt-8 text-xl text-gray-500 max-w-xl leading-relaxed animate-fade-up" style={{ animationDelay: "200ms" }}>
-            We started SiteCommand because we got tired of paying too much for
+            We started The Construction Project Management Academy because we got tired of paying too much for
             software that was too complicated. There's a better way — and it
             starts with keeping things simple.
           </p>
@@ -88,7 +88,7 @@ export default function AboutPage() {
             </p>
             <p className="text-lg text-gray-500 leading-relaxed">
               We believe the best software is the software your whole crew
-              actually uses. SiteCommand is built to be simple enough for the
+              actually uses. CPMA is built to be simple enough for the
               field, powerful enough for the office, and priced so it pays for
               itself on the first project.
             </p>
@@ -115,7 +115,7 @@ export default function AboutPage() {
                 >
                   $1B
                 </span>
-                <span className="text-gray-400 text-sm">our goal — saved by contractors switching to SiteCommand</span>
+                <span className="text-gray-400 text-sm">our goal — saved by contractors switching to CPMA</span>
               </div>
               <div className="pt-6" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
                 <p className="text-gray-300 text-base leading-relaxed">
@@ -123,7 +123,7 @@ export default function AboutPage() {
                   more features — we need software that gets out of the way and
                   lets contractors build."
                 </p>
-                <p className="mt-4 text-sm text-gray-500">— SiteCommand founding team</p>
+                <p className="mt-4 text-sm text-gray-500">— CPMA founding team</p>
               </div>
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function AboutPage() {
           </h2>
           <div className="space-y-5 text-lg text-gray-500 leading-relaxed">
             <p>
-              SiteCommand started with a simple frustration: the existing tools
+              CPMA started with a simple frustration: the existing tools
               were either too expensive, too complicated, or built for someone
               else's workflow. General contractors were duct-taping together
               spreadsheets, email threads, and overpriced enterprise platforms
@@ -250,13 +250,13 @@ export default function AboutPage() {
       {/* Footer */}
       <footer className="py-10 px-6 sm:px-10" style={{ borderTop: "1px solid rgba(0,0,0,0.06)", background: "#FAFAF9" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="text-sm font-semibold text-gray-900">SiteCommand</span>
+          <span className="text-sm font-semibold text-gray-900">The Construction Project Management Academy</span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/pricing" className="hover:text-gray-700 transition-colors">Sign up</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>
-          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} SiteCommand</p>
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} CPMA</p>
         </div>
       </footer>
     </div>

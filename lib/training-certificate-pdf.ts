@@ -1,5 +1,5 @@
 /**
- * Renders the "SiteCommand Certified" credential as a landscape certificate
+ * Renders the "CPMA Certified" credential as a landscape certificate
  * PDF (pdf-lib, no headless browser — same approach as the phase-review PDF).
  * Streamed to the holder from GET /api/training/credential/certificate.
  */
@@ -67,7 +67,7 @@ export async function buildCertificatePdf(data: CertificateData): Promise<Uint8A
   });
 
   // Header
-  centerText("SITECOMMAND", height - 88, sansBold, 15, ORANGE);
+  centerText("THE CONSTRUCTION PROJECT MANAGEMENT ACADEMY", height - 88, sansBold, 15, ORANGE);
   centerText("CERTIFICATE OF COMPETENCY", height - 122, serifBold, 27);
   centerText("Construction Project Management", height - 144, sans, 11, GRAY);
 
@@ -86,7 +86,7 @@ export async function buildCertificatePdf(data: CertificateData): Promise<Uint8A
     height - 250, serif, 12,
   );
   centerText(
-    "through graded project simulation, scenario decisions, and knowledge assessment in SiteCommand Training.",
+    "through graded project simulation, scenario decisions, and knowledge assessment in the Construction Project Management Academy.",
     height - 268, serif, 12,
   );
 

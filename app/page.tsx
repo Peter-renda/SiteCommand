@@ -4,7 +4,8 @@ import Navbar from "./components/Navbar";
 /**
  * Home / landing page — "Field Command / Blueprint" design.
  *
- * SiteCommand is positioned as a hands-on training tool: people learning
+ * The Construction Project Management Academy (CPMA) is the training
+ * program; SiteCommand is its sandboxed software. People learning
  * construction project management get "real-world" experience by actually
  * running a real (but sandboxed) project with the production tools. Every
  * claim maps to a shipped feature (see app/training/* and CLAUDE.md).
@@ -131,10 +132,12 @@ export default function Home() {
                   </h1>
 
                   <p className="animate-fade-up delay-200 mt-7 text-lg max-w-md leading-relaxed" style={{ color: "rgba(255,255,255,0.58)" }}>
-                    SiteCommand is a training ground for construction project
-                    management. Take command of a real project in a safe
-                    sandbox — the same tools, inbox, and pressure as the job,
-                    with a coach in your corner and no way to get fired.
+                    The Construction Project Management Academy (CPMA) is a
+                    training ground for construction project management. Take
+                    command of a real project in SiteCommand — our sandboxed
+                    construction software — with the same tools, inbox, and
+                    pressure as the job, a coach in your corner, and no way to
+                    get fired.
                   </p>
 
                   {/* CTAs */}
@@ -575,7 +578,7 @@ export default function Home() {
       {/* ═══════════ Footer (dark) ═══════════ */}
       <footer className="py-10 px-6 sm:px-10" style={{ background: INK, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="font-display text-sm text-white">SiteCommand</span>
+          <span className="font-display text-sm text-white">The Construction Project Management Academy</span>
           <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.45)" }}>
             <a href="/pricing" className="hover:text-white transition-colors">Start training</a>
             <a href="/pricing" className="hover:text-white transition-colors">Sign up</a>
@@ -583,7 +586,7 @@ export default function Home() {
             <a href="#" className="hover:text-white transition-colors">Terms</a>
           </div>
           <p className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-            &copy; 2025 SiteCommand
+            &copy; 2025 CPMA
           </p>
         </div>
       </footer>

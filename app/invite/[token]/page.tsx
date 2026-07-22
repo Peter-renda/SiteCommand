@@ -126,7 +126,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
                 ) : (
                   "a project"
                 )}{" "}
-                on SiteCommand.
+                on CPMA.
               </p>
               <p className="text-xs text-gray-400 mt-2">
                 As an external collaborator you can view project content but cannot create projects
@@ -140,7 +140,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
               </h1>
               <p className="text-sm text-gray-500">
                 You&apos;ve been invited to join <strong>{inviteData?.companyName}</strong> on
-                SiteCommand.
+                CPMA.
               </p>
             </>
           )}
@@ -228,7 +228,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              placeholder={useExisting ? "Your SiteCommand password" : "At least 6 characters"}
+              placeholder={useExisting ? "Your CPMA password" : "At least 6 characters"}
             />
           </div>
 

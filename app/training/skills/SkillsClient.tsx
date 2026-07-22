@@ -239,7 +239,7 @@ export default function SkillsClient() {
           <div>
             <p className="text-sm text-gray-500 mb-4">
               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold mr-2" style={{ background: "rgba(21,128,61,0.1)", color: "#15803D" }}>
-                ✓ SiteCommand Certified
+                ✓ CPMA Certified
               </span>
               <span className="font-mono text-xs">{credential.code}</span> · issued{" "}
               {new Date(credential.issued_at).toLocaleDateString()}
@@ -282,7 +282,7 @@ export default function SkillsClient() {
           <div>
             <p className="text-sm text-gray-500 mb-4">
               Complete the requirements below to issue a verifiable{" "}
-              <strong>SiteCommand Certified</strong> credential — a public verification page and a
+              <strong>CPMA Certified</strong> credential — a public verification page and a
               certificate you can put in front of employers.
             </p>
             <ul className="space-y-1.5 mb-4">

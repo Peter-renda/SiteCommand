@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  return { title: `Credential ${code} – SiteCommand` };
+  return { title: `Credential ${code} – CPMA` };
 }
 
 type SnapshotSkill = {
@@ -85,7 +85,7 @@ export default async function VerifyCredentialPage({
     <div className="min-h-screen" style={{ background: "#FAFAF9" }}>
       <main className="max-w-2xl mx-auto px-4 sm:px-6 pt-16 pb-20">
         <Link href="/" className="inline-block mb-10">
-          <span className="font-display text-lg text-gray-900">SiteCommand</span>
+          <span className="font-display text-lg text-gray-900">The Construction Project Management Academy</span>
         </Link>
 
         {!credential ? (
@@ -96,7 +96,7 @@ export default async function VerifyCredentialPage({
               </p>
               <h1 className="font-display text-2xl text-gray-950 mb-2">Credential not found</h1>
               <p className="text-sm text-gray-500 leading-relaxed">
-                No SiteCommand credential exists with the code <span className="font-mono">{normalized}</span>.
+                No CPMA credential exists with the code <span className="font-mono">{normalized}</span>.
                 Check the code for typos, or ask the holder for their current verification link.
               </p>
             </div>
@@ -169,7 +169,7 @@ export default async function VerifyCredentialPage({
                   How this was earned
                 </h2>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  This credential was earned in SiteCommand&apos;s construction management training
+                  This credential was earned in CPMA&apos;s construction management training
                   program: a graded project simulation where decisions carry consequences. Signals
                   include{" "}
                   {typeof stats.scenariosEvaluated === "number" && stats.scenariosEvaluated > 0
@@ -187,7 +187,7 @@ export default async function VerifyCredentialPage({
             </div>
 
             <p className="text-xs text-gray-400 text-center">
-              Verified by SiteCommand ·{" "}
+              Verified by The Construction Project Management Academy ·{" "}
               <Link href="/" className="underline underline-offset-2 hover:text-gray-600">
                 Learn about the training program
               </Link>

@@ -227,7 +227,7 @@ export async function PATCH(
           .single();
 
         const projectName = projectRes.data?.name ?? "your project";
-        let companyName = "SiteCommand";
+        let companyName = "CPMA";
         if (projectRes.data?.company_id) {
           const { data: company } = await supabase
             .from("companies")
@@ -276,7 +276,7 @@ export async function PATCH(
         ]);
 
         const projectName = projectRes.data?.name ?? "your project";
-        let companyName = "SiteCommand";
+        let companyName = "CPMA";
         if (projectRes.data?.company_id) {
           const { data: company } = await supabase
             .from("companies")
@@ -374,7 +374,7 @@ export async function PATCH(
         const recipientName = directoryContactName || fallbackContact?.name || "";
         const senderName = session.username;
         const projectName = projectRes.data?.name ?? "your project";
-        let companyName = "SiteCommand";
+        let companyName = "CPMA";
         if (projectRes.data?.company_id) {
           const { data: company } = await supabase
             .from("companies")

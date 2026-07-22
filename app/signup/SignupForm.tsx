@@ -58,7 +58,7 @@ function SignupFormInner() {
       <div className="w-full max-w-sm">
         {/* Brand link */}
         <a href="/" className="inline-block mb-10">
-          <span className="font-display text-lg text-gray-900">SiteCommand</span>
+          <span className="font-display text-lg text-gray-900">CPMA</span>
         </a>
 
         {/* Outer bezel */}

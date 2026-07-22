@@ -158,8 +158,8 @@ export default function CaseStudiesPage() {
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-gray-100">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <span className="text-sm font-medium" style={{ color: "#111110" }}>SiteCommand</span>
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} SiteCommand. All rights reserved.</p>
+          <span className="text-sm font-medium" style={{ color: "#111110" }}>The Construction Project Management Academy</span>
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} CPMA. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="/pricing" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Sign up</Link>
             <Link href="/about" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">About</Link>

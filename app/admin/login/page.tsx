@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8">
           <p className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">
-            SiteCommand
+            CPMA
           </p>
           <h1 className="text-2xl font-semibold text-white">Admin Access</h1>
           <p className="text-sm text-gray-400 mt-1">Internal use only</p>

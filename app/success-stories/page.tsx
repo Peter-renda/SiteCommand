@@ -3,9 +3,9 @@ import Navbar from "../components/Navbar";
 import { INK, ORANGE, LIGHT_BG, MonoTag, CornerTicks } from "../components/blueprint";
 
 export const metadata = {
-  title: "Success Stories — SiteCommand",
+  title: "Success Stories — CPMA",
   description:
-    "Real people who used SiteCommand to break into construction management — from the field, the classroom, and career changes into the trailer.",
+    "Real people who used The Construction Project Management Academy to break into construction management — from the field, the classroom, and career changes into the trailer.",
 };
 
 type Story = {
@@ -52,7 +52,7 @@ const stories: Story[] = [
     landed: "Project Engineer",
     company: "National GC · healthcare",
     quote:
-      "The military taught me to run complex operations under pressure. SiteCommand translated that into construction terms — RFIs, change events, the schedule. The phase reviews were brutal in the best way; they showed me exactly what I was missing.",
+      "The military taught me to run complex operations under pressure. CPMA translated that into construction terms — RFIs, change events, the schedule. The phase reviews were brutal in the best way; they showed me exactly what I was missing.",
     stats: [
       { label: "Transitioned", value: "Vet → CM" },
       { label: "Time to hire", value: "< 4 mo" },
@@ -127,7 +127,7 @@ export default function SuccessStoriesPage() {
               <span className="sc-text-orange-grad">running the job.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-gray-500 leading-relaxed animate-fade-up delay-200">
-              People come to SiteCommand from the field, the classroom, and
+              People come to CPMA from the field, the classroom, and
               careers that had nothing to do with construction. What they share:
               they got real reps running a project — and turned that into an offer.
             </p>
@@ -278,7 +278,7 @@ export default function SuccessStoriesPage() {
 
       <footer className="py-10 px-6 sm:px-10" style={{ background: INK, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="font-display text-sm text-white">SiteCommand</span>
+          <span className="font-display text-sm text-white">The Construction Project Management Academy</span>
           <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.45)" }}>
             <Link href="/blog" className="hover:text-white transition-colors">Blog</Link>
             <Link href="/success-stories" className="hover:text-white transition-colors">Success stories</Link>
@@ -286,7 +286,7 @@ export default function SuccessStoriesPage() {
             <Link href="/about" className="hover:text-white transition-colors">About</Link>
           </div>
           <p className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-            &copy; {new Date().getFullYear()} SiteCommand
+            &copy; {new Date().getFullYear()} CPMA
           </p>
         </div>
       </footer>

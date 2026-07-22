@@ -6,11 +6,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://sitecommand.com"),
   title: {
-    default: "SiteCommand – Learn Construction Project Management by Doing It",
-    template: "%s | SiteCommand",
+    default: "The Construction Project Management Academy – Learn Construction Project Management by Doing It",
+    template: "%s | CPMA",
   },
   description:
-    "SiteCommand is a hands-on training ground for construction project management. Run a real, sandboxed project day by day with the actual tools — a living inbox, AI counterparties, an audio coach, scored meetings, milestone reviews, and a 70-lesson curriculum.",
+    "The Construction Project Management Academy (CPMA) is a hands-on training ground for construction project management. Run a real, sandboxed project day by day in SiteCommand — the Academy's built-in construction software — with a living inbox, AI counterparties, an audio coach, scored meetings, milestone reviews, and a 70-lesson curriculum.",
   alternates: {
     canonical: "/",
   },

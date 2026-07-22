@@ -10,8 +10,8 @@ export function generateStaticParams() {
 
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const post = getPost(params.slug);
-  if (!post) return { title: "Blog — SiteCommand" };
-  return { title: `${post.title} — SiteCommand`, description: post.excerpt };
+  if (!post) return { title: "Blog — CPMA" };
+  return { title: `${post.title} — CPMA`, description: post.excerpt };
 }
 
 export default function BlogPostPage({ params }: { params: { slug: string } }) {
@@ -128,7 +128,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
 
       <footer className="py-10 px-6 sm:px-10" style={{ background: INK, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <span className="font-display text-sm text-white">SiteCommand</span>
+          <span className="font-display text-sm text-white">The Construction Project Management Academy</span>
           <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.45)" }}>
             <Link href="/blog" className="hover:text-white transition-colors">Blog</Link>
             <Link href="/success-stories" className="hover:text-white transition-colors">Success stories</Link>
@@ -136,7 +136,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             <Link href="/about" className="hover:text-white transition-colors">About</Link>
           </div>
           <p className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-            &copy; {new Date().getFullYear()} SiteCommand
+            &copy; {new Date().getFullYear()} CPMA
           </p>
         </div>
       </footer>
