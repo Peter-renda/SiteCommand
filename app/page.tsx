@@ -49,22 +49,25 @@ const steps = [
   },
 ];
 
-// The nine Lessons tracks with their real lesson counts (lib/training-lessons*.ts).
+// The nine Lessons tracks — the real construction lifecycle taxonomy with
+// their real lesson counts (lib/training-lessons*.ts, mirrored by
+// tests/curriculum.test.ts). Includes the per-trade "Common Products &
+// Materials" lessons that survey the products a PM buys and submits.
 const tracks = [
-  { code: "WF", name: "Workflows", count: 14, desc: "RFIs, submittals, buyout, change events, billing — the SiteCommand way." },
-  { code: "CN", name: "Concepts", count: 10, desc: "Reading drawings & specs, CSI divisions, retainage, contract types." },
-  { code: "PM", name: "Integrated PM", count: 13, desc: "The integrated approach, defining success, stakeholders, risk & value." },
-  { code: "TCH", name: "Building the Work", count: 11, desc: "Means & methods in build sequence, sitework through commissioning." },
-  { code: "SC", name: "Site & Civil", count: 12, desc: "Grading, E&S/SWPPP, stormwater, utilities, ADA, entitlements." },
-  { code: "MEP", name: "MEP Systems", count: 11, desc: "Every system as schedule logic — first fix, startup & Cx." },
-  { code: "C&C", name: "Contracts & Commercial", count: 6, desc: "Delivery methods, AIA docs, subcontracts, liens, bonds, claims." },
-  { code: "PRO", name: "Professional Skills", count: 6, desc: "Financial literacy, estimating, leadership, codes, and ethics." },
-  { code: "PF", name: "Preconstruction & Field Ops", count: 9, desc: "Geotech, takeoffs, constructability, meetings, BIM, layout, glossary." },
+  { code: "01", name: "Pre-Construction & Entitlements", count: 16, desc: "Feasibility & zoning, design & engineering, budgeting & procurement, permitting." },
+  { code: "02", name: "Site Development & Civil", count: 13, desc: "Survey, erosion control, earthwork, utilities, hardscape, and site products." },
+  { code: "03", name: "Substructure & Foundations", count: 5, desc: "Deep and shallow foundations, slab-on-grade, and concrete products." },
+  { code: "04", name: "Superstructure & Shell", count: 7, desc: "Structural frame, elevated slabs, the envelope, and their products." },
+  { code: "05", name: "Interior Rough-Ins & MEP", count: 15, desc: "Framing, the MEP pattern, wet systems, HVAC, power, coordination & products." },
+  { code: "06", name: "Interior Finishes & Equipment", count: 8, desc: "Drywall, ceilings, flooring, millwork, MEP trim-out, and finish products." },
+  { code: "07", name: "Commissioning & Closeout", count: 5, desc: "Systems commissioning, punch, final inspections, and handover." },
+  { code: "PRO", name: "Professional Skills", count: 15, desc: "Money, people & leadership, managing the project, and the rules of the game." },
+  { code: "WF", name: "Workflows & Concepts", count: 27, desc: "SiteCommand's tools plus drawings, specs, CSI, contracts, and the glossary." },
 ];
 
 // Totals derived from the track list so the marketing copy never drifts from
 // the shipped curriculum (lib/training-lessons*.ts).
-const totalLessons = tracks.reduce((sum, t) => sum + t.count, 0); // 92
+const totalLessons = tracks.reduce((sum, t) => sum + t.count, 0); // 111
 const totalTracks = tracks.length; // 9
 
 const audiences = [
