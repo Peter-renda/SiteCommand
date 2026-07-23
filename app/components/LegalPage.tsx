@@ -38,7 +38,7 @@ export default function LegalPage({
             The Construction Project Management Academy
           </Link>
           <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.45)" }}>
-            <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
+            <Link href="/pricing" className="hover:text-white transition-colors">Get Started</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
           </div>

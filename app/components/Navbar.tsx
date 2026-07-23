@@ -9,7 +9,7 @@ const navItems: NavItem[] = [
   { label: "Blog", href: "/blog" },
   { label: "Success Stories", href: "/success-stories" },
   { label: "Career Center", href: "/careers" },
-  { label: "Pricing", href: "/pricing" },
+  { label: "Get Started", href: "/pricing" },
   { label: "About", href: "/about" },
 ];
 

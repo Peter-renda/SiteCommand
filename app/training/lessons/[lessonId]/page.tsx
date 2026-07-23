@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getLesson } from "@/lib/training-lessons";
 import { getPublicQuiz } from "@/lib/training-lesson-quizzes";
+import { hasFullAccess, lessonRequiresUpgrade } from "@/lib/entitlement";
+import TrainingPaywall from "../../TrainingPaywall";
 import LessonDetailClient from "./LessonDetailClient";
 
 /**
@@ -35,6 +37,20 @@ export default async function LessonPage({
   const { lessonId } = await params;
   const lesson = getLesson(lessonId);
   if (!lesson) redirect("/training/lessons");
+
+  // Free accounts can read the Pre-Construction & Entitlements section; every
+  // other track shows the upgrade wall in place of the module.
+  const fullAccess = await hasFullAccess(session);
+  if (lessonRequiresUpgrade(lesson.track, fullAccess)) {
+    return (
+      <div className="min-h-screen bg-gray-50 px-4 py-16 sm:px-6">
+        <TrainingPaywall
+          backHref="/training/lessons"
+          description={`"${lesson.title}" is part of the full training program. Your free account includes the Pre-Construction & Entitlements lessons, plus the Resources, Career Center, and Community pages. Start a free trial to unlock the rest.`}
+        />
+      </div>
+    );
+  }
 
   const quiz = getPublicQuiz(lessonId) ?? null;
 
