@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getLesson } from "@/lib/training-lessons";
+import { hasFullAccess } from "@/lib/entitlement";
 import LessonsClient from "./LessonsClient";
 
 export const metadata = { title: "Training Modules – CPMA" };
@@ -18,5 +19,7 @@ export default async function LessonsPage({
   const { lesson: legacyId } = await searchParams;
   if (legacyId && getLesson(legacyId)) redirect(`/training/lessons/${legacyId}`);
 
-  return <LessonsClient />;
+  const fullAccess = await hasFullAccess(session);
+
+  return <LessonsClient fullAccess={fullAccess} />;
 }

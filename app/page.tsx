@@ -588,7 +588,7 @@ export default function Home() {
           <span className="font-display text-sm text-white">The Construction Project Management Academy</span>
           <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.45)" }}>
             <a href="/signup" className="hover:text-white transition-colors">Start training</a>
-            <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
+            <a href="/pricing" className="hover:text-white transition-colors">Get Started</a>
             <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
             <a href="/terms" className="hover:text-white transition-colors">Terms</a>
           </div>

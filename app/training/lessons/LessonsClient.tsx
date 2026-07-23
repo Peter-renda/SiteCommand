@@ -10,6 +10,8 @@ import {
   type LessonTrack,
 } from "@/lib/training-lessons";
 import LessonDetailClient from "./[lessonId]/LessonDetailClient";
+import TrainingPaywall from "../TrainingPaywall";
+import { lessonRequiresUpgrade } from "@/lib/entitlement";
 // Type-only: the quiz module holds the correct answers and must not be bundled
 // into client JS. The answer-stripped PublicQuiz is fetched from the API.
 import type { PublicQuiz } from "@/lib/training-lesson-quizzes";
@@ -37,10 +39,17 @@ const isPassed = (r: QuizResult | undefined) =>
 
 type Active = { track: LessonTrack; category: string };
 
-export default function LessonsClient() {
+export default function LessonsClient({ fullAccess = true }: { fullAccess?: boolean }) {
   const curriculum = useMemo(() => buildCurriculum(), []);
   const sequence = useMemo(() => subsectionSequence(), []);
   const first = sequence[0];
+
+  // Free accounts read the Pre-Construction & Entitlements section; every other
+  // track is locked behind the upgrade wall.
+  const isLocked = useCallback(
+    (l: Lesson) => lessonRequiresUpgrade(l.track, fullAccess),
+    [fullAccess],
+  );
 
   const [active, setActive] = useState<Active>({
     track: first.track,
@@ -48,6 +57,9 @@ export default function LessonsClient() {
   });
   const [quizResults, setQuizResults] = useState<Record<string, QuizResult>>({});
   const [loading, setLoading] = useState(true);
+
+  // When a locked module is opened, show the upgrade wall instead of the reader.
+  const [paywalled, setPaywalled] = useState(false);
 
   // Inline module reader: the selected module renders on this same page (no new
   // tab). Its answer-stripped quiz is fetched from the API per selection.
@@ -93,7 +105,15 @@ export default function LessonsClient() {
   // Open a module inline: fetch its answer-stripped quiz, then swap the list
   // for the reader and scroll to the top.
   const openLesson = useCallback((lessonId: string) => {
-    if (!getLesson(lessonId)) return;
+    const lesson = getLesson(lessonId);
+    if (!lesson) return;
+    // Locked module → show the upgrade wall instead of loading the reader.
+    if (lessonRequiresUpgrade(lesson.track, fullAccess)) {
+      setSelectedLessonId(null);
+      setPaywalled(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     setSelectedLessonId(lessonId);
     setSelectedQuiz(null);
     setQuizLoading(true);
@@ -103,11 +123,12 @@ export default function LessonsClient() {
       .then((d) => setSelectedQuiz(d.quiz ?? null))
       .catch(() => setSelectedQuiz(null))
       .finally(() => setQuizLoading(false));
-  }, []);
+  }, [fullAccess]);
 
   const closeLesson = useCallback(() => {
     setSelectedLessonId(null);
     setSelectedQuiz(null);
+    setPaywalled(false);
     // Grades may have changed while reading; refresh the badges.
     void load();
   }, [load]);
@@ -159,6 +180,11 @@ export default function LessonsClient() {
     setOpenSections((o) => ({ ...o, [next.track]: true }));
     // Bring the content pane back into view on smaller screens.
     contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // A locked module was opened — show the upgrade wall in place of the reader.
+  if (paywalled) {
+    return <TrainingPaywall onBack={closeLesson} />;
   }
 
   // Reading a module inline — the reader replaces the list until the user goes
@@ -341,6 +367,7 @@ export default function LessonsClient() {
               const result = quizResults[l.id];
               const passed = isPassed(result);
               const percent = result ? Math.round((result.bestScore / result.total) * 100) : null;
+              const locked = isLocked(l);
               return (
                 <button
                   key={l.id}
@@ -382,7 +409,18 @@ export default function LessonsClient() {
                     <p className="mt-1 text-[11px] text-gray-400">{l.minutes} min read</p>
                   </div>
                   <span className="shrink-0 self-center">
-                    {loading ? null : result ? (
+                    {locked ? (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700">
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                          />
+                        </svg>
+                        Trial
+                      </span>
+                    ) : loading ? null : result ? (
                       <span
                         className={`rounded-md px-2 py-1 text-[11px] font-medium ${
                           passed

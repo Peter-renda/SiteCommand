@@ -12,6 +12,14 @@ const features = [
   "Resources",
 ];
 
+// What a free account includes — a limited slice of the program.
+const freeFeatures = [
+  "Pre-Construction & Entitlements lessons",
+  "Resources library",
+  "Career Center",
+  "Community",
+];
+
 const plans = [
   {
     name: "Monthly",
@@ -67,16 +75,79 @@ export default function PricingPage() {
           {/* Eyebrow tag */}
           <div className="inline-flex items-center gap-2 mb-4 delay-100">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#2563EB" }} />
-            <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Sign up</span>
+            <span className="text-xs font-medium tracking-widest text-gray-400 uppercase">Get started</span>
           </div>
 
           <h1
             className="font-display text-5xl text-gray-950 animate-fade-up delay-100"
           >
-            Simple, transparent pricing
+            Get started
           </h1>
           <p className="mt-4 text-lg text-gray-500 animate-fade-up delay-200">
-            One membership with everything included. Commit for longer and save.
+            Create a free account to start learning, or unlock everything with a membership. Commit for longer and save.
+          </p>
+        </div>
+
+        {/* Free account — limited access, no card required */}
+        <div className="mb-12 animate-fade-up delay-200">
+          <div
+            className="rounded-2xl"
+            style={{
+              background:
+                "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(235,235,233,0.5) 100%)",
+              border: "1px solid rgba(0,0,0,0.055)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.7) inset",
+              padding: "1.5px",
+            }}
+          >
+            <div
+              className="rounded-[14px] p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8"
+              style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}
+            >
+              <div className="sm:flex-1">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl text-gray-950">Free account</h2>
+                  <span className="font-display text-2xl tabular-nums text-gray-950">$0</span>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-gray-500">
+                  Get a feel for the program with the Pre-Construction &amp; Entitlements lessons,
+                  the Resources library, the Career Center, and the Community — free, no card
+                  required. Upgrade anytime to unlock the full curriculum, simulations, and your
+                  credential.
+                </p>
+                <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {freeFeatures.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-gray-600">
+                      <svg
+                        className="w-4 h-4 shrink-0 mt-0.5"
+                        style={{ color: "#2563EB" }}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <a
+                href="/signup"
+                className="shrink-0 text-center py-2.5 px-6 rounded-xl text-sm font-semibold transition-all duration-150 active:scale-[0.98] hover:opacity-90"
+                style={{ background: "#111110", color: "#FFFFFF" }}
+              >
+                Create free account
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-6 animate-fade-up delay-300">
+          <h2 className="text-lg font-semibold text-gray-900">Go further with a membership</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            One membership with everything included. Every plan starts with a 7-day free trial.
           </p>
         </div>
 
