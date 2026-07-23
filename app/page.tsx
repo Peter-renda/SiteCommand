@@ -102,6 +102,48 @@ const learnOutcomes = [
   "How to lead — communication, safety, and calls under pressure",
 ];
 
+// "Day in the life" — an illustrative Project Manager's day, each block mapped
+// to the tools and lessons the sandbox trains on. `weight` sizes the segments
+// on the left day-bar by duration; `accent` keys each block's color across the
+// bar and the accordion. Times are illustrative (*example day).
+const dayInLife = [
+  {
+    accent: "#14B8A6",
+    weight: 2,
+    title: "Morning Kickoff & Look-Ahead",
+    time: "7:00a – 9:00a",
+    body: "Read the overnight emails from the owner, subs, and accounting, refresh the three-week look-ahead, and set the day's priorities before the crews roll. Triage what's urgent from what's just loud.",
+  },
+  {
+    accent: "#3B82F6",
+    weight: 3,
+    title: "Site Walk & Trade Coordination",
+    time: "9:00a – 12:00p",
+    body: "Walk the job with the superintendent, check installed work against the drawings, and coordinate the trades sharing the same wall and ceiling — catching conflicts on the floor before they become rework.",
+  },
+  {
+    accent: "#F59E0B",
+    weight: 1,
+    title: "RFIs, Submittals & Reports",
+    time: "1:00p – 2:00p",
+    body: "Back at the trailer, move the RFI and submittal logs, review a pay application against real progress, and keep the record current. The paperwork that protects the schedule lives or dies on this hour.",
+  },
+  {
+    accent: "#EF4444",
+    weight: 1,
+    title: "OAC & Subcontractor Meetings",
+    time: "2:00p – 3:00p",
+    body: "Run the owner–architect–contractor meeting and the weekly sub coordination — align on schedule, open items, and change events, and set clear expectations with the people building the job.",
+  },
+  {
+    accent: "#8B5CF6",
+    weight: 2,
+    title: "Buyout, Billing & Follow-Up",
+    time: "3:00p – 5:00p",
+    body: "Close the loops: chase a long-lead order, price a change, review commitments and billing, and log the day. Tomorrow's fires are the ones you knock down here first.",
+  },
+];
+
 export default function Home() {
   return (
     <div className="min-h-dvh" style={{ background: LIGHT_BG }}>
@@ -476,6 +518,114 @@ export default function Home() {
                 title={`A ${totalLessons}-lesson curriculum`}
                 desc="The workflows and the construction knowledge behind them — deep-linked from the exact day you're living through."
               />
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════ Day in the life ═══════════ */}
+        <section className="relative py-24 px-6 sm:px-10 overflow-hidden" style={{ background: INK, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          {/* Blueprint grid + ambient glows */}
+          <div className="absolute inset-0 sc-bp-grid-dark pointer-events-none" aria-hidden="true" />
+          <div
+            className="absolute -top-32 right-0 w-[40rem] h-[40rem] rounded-full pointer-events-none sc-glow"
+            aria-hidden="true"
+            style={{ background: "radial-gradient(circle, rgba(234,88,12,0.14) 0%, transparent 62%)" }}
+          />
+          <div
+            className="absolute bottom-0 -left-40 w-[34rem] h-[34rem] rounded-full pointer-events-none sc-glow"
+            aria-hidden="true"
+            style={{ background: "radial-gradient(circle, rgba(37,99,235,0.14) 0%, transparent 62%)", animationDelay: "1.5s" }}
+          />
+
+          <div className="relative max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="text-center max-w-2xl mx-auto">
+              <div className="mb-4 flex justify-center"><MonoTag tone="dark">Day in the life</MonoTag></div>
+              <h2 className="font-display text-4xl sm:text-5xl text-white leading-tight">
+                What could your days look like?
+              </h2>
+              <p className="mt-4 text-lg leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                From the morning inbox to the end-of-day log, here&apos;s an example
+                project manager&apos;s day — the exact rhythm you rehearse in the sandbox.
+              </p>
+            </div>
+
+            {/* Console day-card + accordion */}
+            <div className="mt-14 grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr] gap-8 lg:gap-14 items-start">
+              {/* Left: the day, at a glance */}
+              <div
+                className="lg:sticky lg:top-24 relative rounded-2xl p-7 overflow-hidden"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <CornerTicks color="rgba(255,255,255,0.18)" />
+                <div className="font-mono text-[11px] tracking-[0.2em] uppercase" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  *Example day · Project Manager
+                </div>
+                <div className="mt-3 font-display text-white leading-none" style={{ fontSize: "clamp(2.1rem,4.4vw,3rem)" }}>
+                  7:00a <span style={{ color: ORANGE }}>→</span> 5:00p
+                </div>
+                <p className="mt-4 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  Ten hours, five moves. Every block runs through the same inbox,
+                  logs, and tools you train on in SiteCommand — so the day already
+                  feels familiar on your first real one.
+                </p>
+
+                {/* Day bar — colored segments sized by duration */}
+                <div className="mt-7" aria-hidden="true">
+                  <div className="flex gap-1 h-3">
+                    {dayInLife.map((d) => (
+                      <span key={d.title} className="rounded-sm" style={{ flexGrow: d.weight, background: d.accent, boxShadow: `0 0 12px ${d.accent}55` }} />
+                    ))}
+                  </div>
+                  <div className="mt-2 flex justify-between font-mono text-[10px] tracking-wider uppercase" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    <span>7:00a</span>
+                    <span>12:00p</span>
+                    <span>5:00p</span>
+                  </div>
+                </div>
+
+                <a
+                  href="/signup"
+                  className="group mt-7 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.2em] uppercase transition-colors"
+                  style={{ color: "rgba(255,255,255,0.6)" }}
+                >
+                  <span className="group-hover:text-white transition-colors">Run a day yourself</span>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: ORANGE }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </a>
+              </div>
+
+              {/* Right: expandable timeline */}
+              <div className="flex flex-col gap-3">
+                {dayInLife.map((d, i) => (
+                  <details
+                    key={d.title}
+                    open={i === 0}
+                    className="group relative rounded-xl overflow-hidden transition-colors open:bg-white/[0.04] hover:bg-white/[0.04]"
+                    style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.1)" }}
+                  >
+                    <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: d.accent }} aria-hidden="true" />
+                    <summary className="list-none marker:content-none [&::-webkit-details-marker]:hidden cursor-pointer flex items-center justify-between gap-4 pl-6 pr-5 py-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{d.title}</h3>
+                        <p className="mt-0.5 font-mono text-[12px] tracking-wide tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }}>{d.time}</p>
+                      </div>
+                      <span
+                        className="shrink-0 grid place-items-center w-8 h-8 rounded-full transition-transform duration-200 group-open:rotate-45"
+                        style={{ border: "1px solid rgba(255,255,255,0.25)" }}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: "rgba(255,255,255,0.8)" }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14M5 12h14" />
+                        </svg>
+                      </span>
+                    </summary>
+                    <div className="pl-6 pr-6 pb-5 -mt-1">
+                      <p className="text-[15px] leading-relaxed" style={{ color: "rgba(255,255,255,0.62)" }}>{d.body}</p>
+                    </div>
+                  </details>
+                ))}
+              </div>
             </div>
           </div>
         </section>
