@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { createToken } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
+import { materializePendingSignup, type MaterializedAccount } from "@/lib/signup";
 
 // Establishes the logged-in session after a Stripe checkout has actually
 // completed. Signup deliberately does NOT log a user in when they are routed to
@@ -33,36 +34,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const companyId = checkoutSession.client_reference_id;
-  if (!companyId) {
-    return NextResponse.json({ error: "Checkout is not linked to an account" }, { status: 400 });
-  }
-
   const supabase = getSupabase();
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id, billing_owner_id")
-    .eq("id", companyId)
-    .maybeSingle();
-
-  if (!company?.billing_owner_id) {
-    return NextResponse.json({ error: "Account not found" }, { status: 404 });
-  }
-
-  const { data: user } = await supabase
-    .from("users")
-    .select("id, email, username, role, company_id, company_role, user_type")
-    .eq("id", company.billing_owner_id)
-    .maybeSingle();
-
-  if (!user) {
-    return NextResponse.json({ error: "Account not found" }, { status: 404 });
-  }
-
-  // Defensively record the subscription on the company so access is correct
-  // even if the Stripe webhook is delayed or not configured. The webhook remains
-  // the source of truth for plan/seat details.
   const subscriptionId =
     typeof checkoutSession.subscription === "string"
       ? checkoutSession.subscription
@@ -71,24 +44,98 @@ export async function POST(req: NextRequest) {
     typeof checkoutSession.customer === "string"
       ? checkoutSession.customer
       : checkoutSession.customer?.id ?? null;
+  const billing = { subscriptionId, customerId };
 
-  if (subscriptionId) {
-    const update: Record<string, string> = {
-      stripe_subscription_id: subscriptionId,
-      subscription_status: "trialing",
-    };
-    if (customerId) update.stripe_customer_id = customerId;
-    await supabase.from("companies").update(update).eq("id", companyId);
+  const pendingSignupId = checkoutSession.metadata?.pending_signup_id ?? null;
+  const companyId = checkoutSession.client_reference_id;
+
+  let account: MaterializedAccount | null = null;
+
+  if (pendingSignupId) {
+    // New signup: create the real account now that payment is confirmed. The
+    // Stripe webhook may have already done this — materialize is idempotent.
+    const { data: pending } = await supabase
+      .from("pending_signups")
+      .select("email, first_name, last_name, password_hash")
+      .eq("id", pendingSignupId)
+      .maybeSingle();
+
+    if (pending) {
+      account = await materializePendingSignup(supabase, pending, billing);
+      // Clean up the staged row once the account exists.
+      if (account) {
+        await supabase.from("pending_signups").delete().eq("id", pendingSignupId);
+      }
+    } else {
+      // Pending row is gone (webhook already consumed it) — fall back to the
+      // account it created, matched by the checkout's customer email.
+      const email = checkoutSession.customer_email ?? checkoutSession.customer_details?.email ?? null;
+      if (email) {
+        const { data: user } = await supabase
+          .from("users")
+          .select("id, email, username, role, company_id, company_role, user_type")
+          .eq("email", email)
+          .maybeSingle();
+        if (user?.company_id) {
+          account = {
+            userId: user.id,
+            companyId: user.company_id,
+            email: user.email,
+            username: user.username,
+            role: user.role ?? "user",
+            companyRole: user.company_role ?? "super_admin",
+            userType: user.user_type ?? "internal",
+          };
+        }
+      }
+    }
+  } else if (companyId) {
+    // Existing-account resume: link the subscription and load the billing owner.
+    if (subscriptionId) {
+      const update: Record<string, string> = {
+        stripe_subscription_id: subscriptionId,
+        subscription_status: "trialing",
+      };
+      if (customerId) update.stripe_customer_id = customerId;
+      await supabase.from("companies").update(update).eq("id", companyId);
+    }
+    const { data: company } = await supabase
+      .from("companies")
+      .select("billing_owner_id")
+      .eq("id", companyId)
+      .maybeSingle();
+    if (company?.billing_owner_id) {
+      const { data: user } = await supabase
+        .from("users")
+        .select("id, email, username, role, company_id, company_role, user_type")
+        .eq("id", company.billing_owner_id)
+        .maybeSingle();
+      if (user?.company_id) {
+        account = {
+          userId: user.id,
+          companyId: user.company_id,
+          email: user.email,
+          username: user.username,
+          role: user.role ?? "user",
+          companyRole: user.company_role ?? "super_admin",
+          userType: user.user_type ?? "internal",
+        };
+      }
+    }
+  }
+
+  if (!account) {
+    return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
   const token = await createToken({
-    id: user.id,
-    email: user.email,
-    username: user.username,
-    role: user.role ?? "user",
-    company_id: user.company_id ?? null,
-    company_role: user.company_role ?? null,
-    user_type: user.user_type ?? "internal",
+    id: account.userId,
+    email: account.email,
+    username: account.username,
+    role: account.role,
+    company_id: account.companyId,
+    company_role: account.companyRole,
+    user_type: account.userType,
   });
 
   const res = NextResponse.json({ success: true });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getSupabase } from "@/lib/supabase";
+import { materializePendingSignup } from "@/lib/signup";
 import Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
@@ -26,11 +27,37 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const companyId = session.client_reference_id;
-    if (!companyId) return NextResponse.json({ received: true });
 
     const subscriptionId = session.subscription as string;
     const customerId = session.customer as string;
+
+    // A brand-new paid signup is staged in `pending_signups` and only becomes a
+    // real account here, once payment is confirmed. (The checkout success page
+    // may materialize it first — this is idempotent.)
+    let companyId = session.client_reference_id;
+    const pendingSignupId = session.metadata?.pending_signup_id ?? null;
+    if (pendingSignupId) {
+      const { data: pending } = await supabase
+        .from("pending_signups")
+        .select("email, first_name, last_name, password_hash")
+        .eq("id", pendingSignupId)
+        .maybeSingle();
+      if (pending) {
+        const account = await materializePendingSignup(supabase, pending, {
+          subscriptionId,
+          customerId,
+        });
+        if (account) {
+          companyId = account.companyId;
+          await supabase
+            .from("pending_signups")
+            .delete()
+            .eq("id", pendingSignupId);
+        }
+      }
+    }
+
+    if (!companyId) return NextResponse.json({ received: true });
 
     let plan = "starter";
     let seatLimit = 10;
