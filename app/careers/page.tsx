@@ -461,7 +461,7 @@ export default function CareerCenterPage() {
             <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
             <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>
-          <p className="text-xs text-gray-400">&copy; 2025 CPMA</p>
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} CPMA</p>
         </div>
       </footer>
     </div>

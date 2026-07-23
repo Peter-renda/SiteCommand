@@ -402,8 +402,8 @@ export default function Home() {
                 tag="Coach"
                 color="#EA580C"
                 iconPath="M15.536 8.464a5 5 0 010 7.072M12 6a9 9 0 010 12M8 9v6l-4-3 4-3z"
-                title="An AI coach in your ear"
-                desc="A spoken briefing at the start of every day tells you what matters and why — narrated, not buried in a manual."
+                title="An AI coach in your corner"
+                desc="A briefing at the start of every day tells you what matters and why — surfaced right where you're working, not buried in a manual."
               />
 
               {/* Large DARK: Interactive meetings */}
@@ -593,7 +593,7 @@ export default function Home() {
             <a href="#" className="hover:text-white transition-colors">Terms</a>
           </div>
           <p className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-            &copy; 2025 CPMA
+            &copy; {new Date().getFullYear()} CPMA
           </p>
         </div>
       </footer>
