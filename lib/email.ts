@@ -143,6 +143,42 @@ export async function sendInviteEmail(to: string, inviteUrl: string, companyName
   );
 }
 
+export async function sendPasswordResetEmail(to: string, resetUrl: string) {
+  await sendEmail(
+    "password-reset",
+    {
+      to,
+      subject: "Reset your CPMA password",
+      html: `
+        <div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+            <tr>
+              <td style="background:#111110;color:#fff;padding:18px 24px;font-size:20px;font-weight:600;">
+                The Construction Project Management Academy
+              </td>
+            </tr>
+          </table>
+          <h2 style="color:#111110;font-weight:600;font-size:20px;line-height:1.3;margin:0 0 12px;">
+            Reset your password
+          </h2>
+          <p style="color:#444;font-size:14px;line-height:1.6;margin:0 0 20px;">
+            We received a request to reset the password for your CPMA account. Click the button
+            below to choose a new one. This link expires in 1 hour and can only be used once.
+          </p>
+          <p style="margin:0 0 24px;">
+            <a href="${escapeHtml(resetUrl)}" style="background:#EA580C;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600;font-size:14px;">Reset password</a>
+          </p>
+          <p style="color:#888;font-size:12px;line-height:1.6;margin:0;">
+            If you didn't request this, you can safely ignore this email — your password won't change.
+            If the button doesn't work, paste this link into your browser:<br>
+            <a href="${escapeHtml(resetUrl)}" style="color:#1d6fa5;word-break:break-all;">${escapeHtml(resetUrl)}</a>
+          </p>
+        </div>
+      `,
+    },
+  );
+}
+
 export async function sendProjectMemberInviteEmail(
   to: string,
   recipientName: string,

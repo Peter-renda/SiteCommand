@@ -27,7 +27,7 @@ function CheckoutSuccessInner() {
         });
         if (cancelled) return;
         if (res.ok) {
-          router.push("/dashboard");
+          router.push("/welcome");
         } else {
           setFailed(true);
         }
