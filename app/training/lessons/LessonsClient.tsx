@@ -284,13 +284,17 @@ export default function LessonsClient() {
                               onDark={activeNode}
                             />
                             <span className="truncate">{sub.category}</span>
-                            {!complete && passed > 0 && (
-                              <span
-                                className={`ml-auto text-[10px] tabular-nums ${activeNode ? "text-gray-300" : "text-gray-400"}`}
-                              >
-                                {passed}/{sub.lessons.length}
-                              </span>
-                            )}
+                            <span
+                              className={`ml-auto text-[10px] tabular-nums ${
+                                activeNode
+                                  ? "text-gray-300"
+                                  : complete
+                                    ? "text-green-600"
+                                    : "text-gray-400"
+                              }`}
+                            >
+                              {passed}/{sub.lessons.length}
+                            </span>
                           </button>
                         );
                       })}
