@@ -238,8 +238,8 @@ export default function PricingPage() {
           </span>
           <div className="flex flex-wrap gap-6 text-xs text-gray-400">
             <a href="/" className="hover:text-gray-700 transition-colors">Home</a>
-            <a href="#" className="hover:text-gray-700 transition-colors">Privacy policy</a>
-            <a href="#" className="hover:text-gray-700 transition-colors">Terms of service</a>
+            <a href="/privacy" className="hover:text-gray-700 transition-colors">Privacy policy</a>
+            <a href="/terms" className="hover:text-gray-700 transition-colors">Terms of service</a>
           </div>
           <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} CPMA</p>
         </div>
