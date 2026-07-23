@@ -3528,6 +3528,314 @@ export const LESSON_QUIZZES: Record<string, LessonQuiz> = {
       },
     ],
   },
+
+  // ═════════════════════ Common Products & Materials ═════════════════════
+  "tech-concrete-products": {
+    questions: [
+      {
+        prompt: "A manufacturer's product data sheet is primarily used to:",
+        options: [
+          "Replace the structural drawings",
+          "Match the product against the spec and form the core of the submittal approved before ordering",
+          "Bill the owner for the material",
+          "Schedule the concrete pour",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "In a three-part CSI spec, the 'basis of design' names:",
+        options: [
+          "The general contractor's preferred vendor",
+          "The specific manufacturer/product the specifier designed around, which substitutions must match 'or-equal'",
+          "The cheapest available option",
+          "The inspection agency",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Which of these is a distinct concrete product family, each with its own submittal?",
+        options: [
+          "Only the ready-mix itself",
+          "Reinforcing steel, formwork, and non-shrink grout — alongside the mix design",
+          "Just the rebar",
+          "Nothing is submitted for concrete",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "tech-steel-products": {
+    questions: [
+      {
+        prompt: "Structural steel framing spec sheets are checked primarily for:",
+        options: [
+          "Paint color only",
+          "ASTM grade, camber, and connection type",
+          "The delivery truck size",
+          "The erector's crew names",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Metal stairs and railings are described as the classic misc-metals scope because they are:",
+        options: [
+          "The most expensive item on the job",
+          "Small dollars with many interfaces and embeds that must be cast early",
+          "Never submitted",
+          "Installed before the foundation",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "For high-strength structural bolts, what is spec'd (not optional)?",
+        options: [
+          "Only the bolt length",
+          "The tensioning method and inspection class",
+          "The color of the washer",
+          "Nothing — field judgment governs",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "tech-framing-products": {
+    questions: [
+      {
+        prompt: "Brick and stone veneer is best understood as:",
+        options: [
+          "A structural load-bearing wall",
+          "A drainage system where flashing, weeps, and the cavity matter more than the face",
+          "A waterproof barrier by itself",
+          "A finish that needs no flashing",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Engineered lumber (LVL, I-joists, trusses) ships with supplier engineering, which means:",
+        options: [
+          "It can be cut and drilled anywhere",
+          "Field-cutting outside the allowed zones voids the member",
+          "No submittal is required",
+          "It is always cheaper than dimensional lumber",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "For cold-formed metal framing, the fire rating is determined by:",
+        options: [
+          "The stud color",
+          "Gauge, spacing, and the listed (UL) assembly built exactly as listed",
+          "The brand name alone",
+          "The paint on the track",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "tech-envelope-products": {
+    questions: [
+      {
+        prompt: "Across envelope products, what most commonly fails?",
+        options: [
+          "The products themselves",
+          "The transitions between products (flashing, sealant, laps)",
+          "The manufacturer's warranty paperwork",
+          "The color match",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Windows and curtain wall submittals lead with which performance fields?",
+        options: [
+          "Only the frame color",
+          "Air/water ratings (ASTM) and glazing performance (SHGC, U-factor)",
+          "The installer's phone number",
+          "The truck delivery date",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "An air & water-resistive barrier functions as:",
+        options: [
+          "A decorative finish",
+          "The drainage plane that windows and cladding integrate into shingle-style",
+          "A structural element",
+          "Insulation only",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "tech-fire-products": {
+    questions: [
+      {
+        prompt: "Fire suppression products are governed most by:",
+        options: [
+          "Aesthetic preference",
+          "Their listings (UL/FM) and the NFPA standards they're installed to",
+          "The lowest bid",
+          "The GC's schedule alone",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Sprinkler head coverage and K-factor are determined by:",
+        options: [
+          "The ceiling color",
+          "The hazard classification of the space",
+          "The number of doors",
+          "The elevator count",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Sprinkler layout is typically delegated engineering, so the shop drawings:",
+        options: [
+          "Need no review",
+          "Carry a PE stamp and real review time",
+          "Are drawn by the owner",
+          "Skip the AHJ",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "tech-mep-products": {
+    questions: [
+      {
+        prompt: "Why do the longest-lead MEP products (switchgear, large HVAC) get released at buyout?",
+        options: [
+          "Because they are cheap",
+          "Because their lead time is long — ordering when the field needs them is too late",
+          "Because the owner requires it",
+          "Because they are installed first",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A water heater's selection and rough-in are driven by:",
+        options: [
+          "Its color",
+          "Capacity, recovery rate, and energy factor",
+          "The brand logo",
+          "The paint on the tank",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "For switchgear and panelboards, which fields lead the design?",
+        options: [
+          "Ampacity, AIC rating, and gear layout",
+          "The enclosure color",
+          "The number of light fixtures",
+          "The duct gauge",
+        ],
+        answer: 0,
+      },
+    ],
+  },
+  "tech-finishes-products": {
+    questions: [
+      {
+        prompt: "Finish product spec sheets carry aesthetic requirements alongside:",
+        options: [
+          "Nothing else",
+          "Performance ratings (fire rating, slip resistance, acoustics)",
+          "The delivery route",
+          "The owner's signature",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "For resilient and wood flooring, what most often makes or breaks the install?",
+        options: [
+          "The box color",
+          "Slab moisture (ASTM F2170) and adhesive compatibility",
+          "The installer's truck",
+          "The paint sheen",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "For gypsum board, the fire rating is set by:",
+        options: [
+          "The board alone",
+          "The UL assembly — the full build-up, not just the board",
+          "The paint color",
+          "The screw brand",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "tech-vertical-lv-products": {
+    questions: [
+      {
+        prompt: "Why is the elevator product selected and released at buyout?",
+        options: [
+          "It is the cheapest item",
+          "It has the longest procurement and the last acceptance test before occupancy",
+          "It installs before the foundation",
+          "It requires no submittal",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Structured cabling rooms (MDF/IDF) need what before racks land?",
+        options: [
+          "Nothing special",
+          "Power, cooling, and dust-free finishes",
+          "Only paint",
+          "A fire pump",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Access control products (readers, strikes, mag locks) must be coordinated with:",
+        options: [
+          "The roofing membrane",
+          "The door hardware schedule — decided before doors hang",
+          "The concrete mix",
+          "The elevator cab finish",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "tech-sitework-products": {
+    questions: [
+      {
+        prompt: "Because so much sitework is buried, what serves as proof the work was right?",
+        options: [
+          "The owner's memory",
+          "The spec sheet (pipe class, gradation, geotextile strength) plus the inspection/testing record",
+          "A verbal confirmation",
+          "The weather report",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Segmental retaining wall design is driven by:",
+        options: [
+          "Block color",
+          "Wall height and surcharge, which set the engineered geogrid layout",
+          "The paver pattern",
+          "The hydrant spacing",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Storm and sanitary gravity pipe is inspected for pipe class, bedding, and slope:",
+        options: [
+          "After backfill",
+          "Before backfill covers it",
+          "Only at closeout",
+          "Never",
+        ],
+        answer: 1,
+      },
+    ],
+  },
 };
 
 export function getLessonQuiz(lessonId: string): LessonQuiz | undefined {

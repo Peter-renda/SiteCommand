@@ -39,6 +39,7 @@ import { FOUNDATIONS_LESSONS } from "./training-lessons-foundations";
 import { FIELDOPS_LESSONS } from "./training-lessons-fieldops";
 import { MANAGEMENT_LESSONS } from "./training-lessons-management";
 import { PHASE_LESSONS } from "./training-lessons-phases";
+import { PRODUCTS_LESSONS } from "./training-lessons-products";
 
 /**
  * Tracks follow the real construction project lifecycle — seven phase-based
@@ -69,6 +70,24 @@ export type LessonBlock = {
 
 export type LessonLink = { label: string; href: string };
 
+/**
+ * A common product/material featured in a trade ("Common Products") lesson.
+ * `icon` is a key into the ProductIcon component's inline-SVG library (so the
+ * "picture" is self-contained and always renders — no external image
+ * hotlinking / link rot). `specUrl` points at the product's category on
+ * ARCAT, where the manufacturer spec sheets, CAD/BIM, and data sheets live.
+ */
+export type LessonProduct = {
+  name: string;
+  /** Short chip — the CSI section or product type, e.g. "CSI 03 20 00". */
+  csi: string;
+  description: string;
+  /** Key into ProductIcon's SVG library (see LessonDetailClient.tsx). */
+  icon: string;
+  /** Link to the product category / spec sheets on ARCAT. */
+  specUrl: string;
+};
+
 export type Lesson = {
   id: string;
   track: LessonTrack;
@@ -78,6 +97,11 @@ export type Lesson = {
   minutes: number;
   keyTerms?: { term: string; definition: string }[];
   body: LessonBlock[];
+  /**
+   * Optional gallery of common products for trade/CSI-division lessons —
+   * rendered as picture cards with links to spec sheets on ARCAT.
+   */
+  products?: LessonProduct[];
   relatedLessonIds?: string[];
   links?: LessonLink[];
 };
@@ -905,6 +929,7 @@ export const LESSONS: Lesson[] = [
   ...FOUNDATIONS_LESSONS,
   ...FIELDOPS_LESSONS,
   ...PHASE_LESSONS,
+  ...PRODUCTS_LESSONS,
 ];
 
 export function getLesson(id: string): Lesson | undefined {

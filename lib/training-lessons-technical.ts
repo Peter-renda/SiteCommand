@@ -49,7 +49,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["sc-grading", "sc-esc", "sc-utilities", "tech-foundations"],
+    relatedLessonIds: ["sc-grading", "sc-esc", "sc-utilities", "tech-foundations", "tech-sitework-products"],
   },
 
   // ─────────────────────── Foundations & Concrete ───────────────────────
@@ -90,7 +90,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["tech-sitework", "tech-concrete", "sc-grading"],
+    relatedLessonIds: ["tech-sitework", "tech-concrete", "sc-grading", "tech-concrete-products"],
   },
   {
     id: "tech-concrete",
@@ -130,7 +130,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["tech-foundations", "tech-steel", "tech-testing-cx", "wf-quality"],
+    relatedLessonIds: ["tech-foundations", "tech-steel", "tech-testing-cx", "wf-quality", "tech-concrete-products"],
   },
 
   // ───────────────────────────── Structure ─────────────────────────────
@@ -170,7 +170,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["wf-submittals", "cn-longlead", "tech-concrete", "tech-fire"],
+    relatedLessonIds: ["wf-submittals", "cn-longlead", "tech-concrete", "tech-fire", "tech-steel-products"],
   },
   {
     id: "tech-framing",
@@ -210,7 +210,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["tech-fire", "tech-envelope", "cn-drawings"],
+    relatedLessonIds: ["tech-fire", "tech-envelope", "cn-drawings", "tech-framing-products"],
   },
 
   // ───────────────────────────── Envelope ─────────────────────────────
@@ -254,7 +254,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["tech-framing", "wf-quality", "cn-longlead", "tech-testing-cx"],
+    relatedLessonIds: ["tech-framing", "wf-quality", "cn-longlead", "tech-testing-cx", "tech-envelope-products"],
   },
 
   // ───────────────────────────── MEP Systems ─────────────────────────────
@@ -295,7 +295,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["cn-mep", "cn-longlead", "mep-activity-pattern", "mep-coordination-scheduling"],
+    relatedLessonIds: ["cn-mep", "cn-longlead", "mep-activity-pattern", "mep-coordination-scheduling", "tech-mep-products"],
   },
   {
     id: "tech-fire",
@@ -333,7 +333,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["tech-framing", "mep-fire-suppression", "mep-security-fire-alarm", "wf-permits"],
+    relatedLessonIds: ["tech-framing", "mep-fire-suppression", "mep-security-fire-alarm", "wf-permits", "tech-fire-products"],
   },
 
   // ───────────────────────────── Interiors ─────────────────────────────
@@ -374,7 +374,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["wf-quality", "wf-punch-closeout", "tech-framing"],
+    relatedLessonIds: ["wf-quality", "wf-punch-closeout", "tech-framing", "tech-finishes-products"],
   },
   {
     id: "tech-vertical-lv",
@@ -412,7 +412,7 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["cn-longlead", "mep-low-voltage", "wf-permits"],
+    relatedLessonIds: ["cn-longlead", "mep-low-voltage", "wf-permits", "tech-vertical-lv-products"],
   },
 
   // ─────────────────────── Testing & Commissioning ───────────────────────

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { lessonsByTrack, getLesson, TRACK_LABELS, type Lesson } from "@/lib/training-lessons";
 // Type-only import: the quiz module holds the correct answers, so it must NOT
 // be bundled into client JS. `import type` is erased at compile time.
@@ -198,6 +198,47 @@ export default function LessonDetailClient({
             </div>
           ))}
         </div>
+
+        {lesson.products && lesson.products.length > 0 && (
+          <div className="mt-6 border-t border-gray-100 pt-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Common products & materials
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              Representative product categories for this trade. Each links to
+              manufacturer spec sheets, data sheets, and CAD/BIM on ARCAT.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {lesson.products.map((p) => (
+                <a
+                  key={p.name}
+                  href={p.specUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:border-gray-400 hover:bg-gray-50"
+                >
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-600 group-hover:bg-white">
+                    <ProductIcon name={p.icon} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-[13px] font-semibold text-gray-900">
+                        {p.name}
+                      </p>
+                    </div>
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                      {p.csi}
+                    </p>
+                    <p className="mt-1 text-[12px] leading-4 text-gray-600">{p.description}</p>
+                    <span className="mt-1.5 inline-block text-[11px] font-medium text-gray-900 group-hover:underline">
+                      View spec sheets on ARCAT →
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {lesson.relatedLessonIds && lesson.relatedLessonIds.length > 0 && (
           <div className="mt-6 border-t border-gray-100 pt-4">
@@ -397,5 +438,81 @@ export default function LessonDetailClient({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Self-contained inline-SVG "pictures" for the Common Products gallery. Each
+ * key maps to a schematic line glyph of a common construction product, so the
+ * cards always render (no external image hotlinking / link rot). Unknown keys
+ * fall back to a generic product box.
+ */
+const PRODUCT_ICONS: Record<string, ReactNode> = {
+  "concrete-mix": <path d="M8 5c1.3-.8 6.7-.8 8 0l-1 15H9z M9.5 9h5" />,
+  rebar: <path d="M4 8h16 M4 14h16 M8 4v16 M14 4v16" />,
+  formwork: <path d="M4 5h16v14H4z M9 5v14 M15 5v14 M4 10h16" />,
+  grout: <path d="M6 8h12l-1.5 11h-9z M6 8c0-2 12-2 12 0" />,
+  "steel-beam": <path d="M6 5h12 M6 19h12 M12 5v14" />,
+  "steel-deck": <path d="M3 14l3-4 3 4 3-4 3 4 3-4 3 4 M3 18h18" />,
+  fastener: <path d="M8 6h8l3 6-3 6H8l-3-6z M12 9v6 M9.5 12h5" />,
+  railing: <path d="M3 20h18 M5 20V9 M19 20V9 M5 9h14 M5 13h14" />,
+  "cmu-block": <path d="M3 7h18v10H3z M6 10h4v4H6z M14 10h4v4h-4z" />,
+  brick: <path d="M3 8h18 M3 12h18 M3 16h18 M8 8v4 M15 8v4 M5 12v4 M12 12v4 M19 12v4" />,
+  lumber: <path d="M4 6h16v4H4z M4 13h16v4H4z M8 6v4 M8 13v4 M14 6v4 M14 13v4" />,
+  "metal-stud": <path d="M15 4H9v16h6 M9 9h3 M9 15h3" />,
+  roofing: <path d="M3 16l9-8 9 8 M3 16v3h18v-3 M9 12h6" />,
+  insulation: <path d="M4 6h16v12H4z M4 9c4 0 4 3 8 3s4-3 8-3 M4 13c4 0 4 3 8 3s4-3 8-3" />,
+  barrier: <path d="M6 4h9l3 3v13H6z M15 4v3h3 M9 11h6 M9 14h6 M9 17h4" />,
+  door: <path d="M6 4h12v16H6z M15 12h.01" />,
+  "curtain-wall": <path d="M4 4h16v16H4z M12 4v16 M4 12h16" />,
+  sprinkler: <path d="M8 9h8 M12 4v5 M9 9l-1.5 4 M12 9v4 M15 9l1.5 4" />,
+  pump: <path d="M10 13a5 5 0 100-.01 M10 13l3-4 M13 8h5v5" />,
+  valve: <path d="M4 8v8l7-4z M20 8v8l-7-4z M12 12V6 M9 6h6" />,
+  extinguisher: <path d="M9 7h6v12H9z M11 7V5h2v2 M13 5h3v3" />,
+  pipe: <path d="M3 10h13v4H3z M16 8h4v8h-4z" />,
+  "water-heater": <path d="M7 5a3 3 0 016 0v12a3 3 0 01-6 0z M9 9h6 M9 5V3 M13 5V3" />,
+  "hvac-unit": <path d="M3 7h18v10H3z M8 12a2.5 2.5 0 100-.01 M14 10h4 M14 12h4 M14 14h4" />,
+  duct: <path d="M3 8h12l6 4-6 4H3z M9 8v8" />,
+  panelboard: <path d="M6 3h12v18H6z M9 7h2 M13 7h2 M9 10h2 M13 10h2 M9 13h2 M13 13h2" />,
+  light: <path d="M4 8h16v8H4z M8 8v8 M12 8v8 M16 8v8" />,
+  drywall: (
+    <>
+      <path d="M4 4h16v16H4z" />
+      <circle cx="7" cy="7" r="0.5" />
+      <circle cx="17" cy="7" r="0.5" />
+      <circle cx="7" cy="17" r="0.5" />
+      <circle cx="17" cy="17" r="0.5" />
+    </>
+  ),
+  ceiling: <path d="M4 4h16v16H4z M4 12h16 M12 4v16 M8 4v16 M16 4v16 M4 8h16 M4 16h16" />,
+  flooring: <path d="M3 6h18v12H3z M3 10h18 M3 14h18 M9 6v4 M15 10v4 M6 14v4 M18 14v4" />,
+  paint: <path d="M5 5h9v4H5z M10 9v2H8v9 M14 6h4v4h-4z" />,
+  tile: <path d="M4 4h16v16H4z M4 9h16 M4 14h16 M9 4v16 M14 4v16" />,
+  elevator: <path d="M5 3h14v18H5z M12 3v18 M9 8l-1.5 2h3z M15 12l-1.5-2h3z" />,
+  cabling: <path d="M6 7h12v9H6z M9 7V5h6v2 M9 16v3 M15 16v3" />,
+  camera: <path d="M4 8h11l4 2v3l-4 2H4z M9 11a2 2 0 100-.01 M12 15v3H9" />,
+  keypad: <path d="M7 3h10v18H7z M10 7h1 M13 7h1 M10 10h1 M13 10h1 M10 13h1 M13 13h1 M12 17h.01" />,
+  excavator: <path d="M3 20h10 M4 12h7v5H4z M11 13l5-4 M16 9l1.5 4-4 1" />,
+  "wall-block": <path d="M3 8h18 M3 12h18 M3 16h18 M6 16v-4 M12 16v-4 M9 12V8 M15 12V8" />,
+  paver: <path d="M4 4h16v16H4z M12 4v6 M4 10h8 M12 14h8 M12 10v10" />,
+  hydrant: <path d="M12 6a2 2 0 100-.01 M9 8h6v10H9z M9 12H6 M15 12h3 M10 20h4 M12 18v2" />,
+  default: <path d="M4 4h16v16H4z M4 9h16" />,
+};
+
+function ProductIcon({ name }: { name: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="28"
+      height="28"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {PRODUCT_ICONS[name] ?? PRODUCT_ICONS.default}
+    </svg>
   );
 }
