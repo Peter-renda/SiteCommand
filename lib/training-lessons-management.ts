@@ -27,8 +27,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   // ───────────────── Foundations of the integrated approach ─────────────────
   {
     id: "pm-integration",
-    track: "management",
-    category: "The Integrated Approach",
+    track: "foundations",
+    category: "Managing the Project",
     title: "Why Construction Fragments — and What Integration Fixes",
     summary:
       "The core thesis of modern PM: construction underperforms because the team, supply chain, and client are fragmented. The PM's job is to integrate diverse interests into a common goal.",
@@ -86,8 +86,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   },
   {
     id: "pm-success",
-    track: "management",
-    category: "The Integrated Approach",
+    track: "foundations",
+    category: "Managing the Project",
     title: "Defining Project Success: The Time–Cost–Quality Triangle and Beyond",
     summary:
       "How the classic iron triangle expanded into six variables, why 'success' means different things to different parties, and the critical success factors that separate the jobs that deliver from the ones that don't.",
@@ -160,8 +160,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   },
   {
     id: "pm-ethics",
-    track: "management",
-    category: "The Integrated Approach",
+    track: "foundations",
+    category: "People & Leadership",
     title: "Ethical Project Leadership: The PM in the Middle",
     summary:
       "The PM sits between client, team, community, and profession — accountable to all of them. What the professional codes actually require, and the everyday ethical traps in construction.",
@@ -219,8 +219,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   // ───────────────────── Front end: business case & value ─────────────────────
   {
     id: "pm-business-case",
-    track: "management",
-    category: "Front-End Definition",
+    track: "precon",
+    category: "Feasibility & Zoning",
     title: "Building the Client Business Case & the Gateway Framework",
     summary:
       "Projects fail in the brief long before they fail on site. How a business case is built, tested, and defended — and why the Gateway/stage-gate model exists to kill bad projects early.",
@@ -277,8 +277,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   },
   {
     id: "pm-stakeholders",
-    track: "management",
-    category: "Front-End Definition",
+    track: "foundations",
+    category: "People & Leadership",
     title: "Stakeholder Mapping & Management",
     summary:
       "Every project has more interested parties than appear on the org chart. How to identify them, map them by power and interest, and manage each group so stakeholder conflict doesn't derail the job.",
@@ -331,8 +331,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   // ─────────────────────── Procurement & delivery strategy ───────────────────────
   {
     id: "pm-procurement-strategy",
-    track: "management",
-    category: "Procurement Strategy",
+    track: "precon",
+    category: "Budgeting & Procurement",
     title: "Choosing a Procurement Route",
     summary:
       "Before you pick a contract you pick a procurement route — who designs, who builds, in what order, and who carries which risk. The route decides how integrated (or fragmented) the whole project will be.",
@@ -400,8 +400,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   // ─────────────────────── Organisation & leadership ───────────────────────
   {
     id: "pm-leadership",
-    track: "management",
-    category: "Organisation & Leadership",
+    track: "foundations",
+    category: "People & Leadership",
     title: "Leadership Styles Across the Project Life Cycle",
     summary:
       "There is no single right leadership style — the effective PM flexes from participative in design to directive on site. The trait, style, situational, and contingency theories, made practical.",
@@ -455,8 +455,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   // ─────────────────────── Risk, value & control ───────────────────────
   {
     id: "pm-risk-value",
-    track: "management",
-    category: "Risk, Value & Control",
+    track: "foundations",
+    category: "Managing the Project",
     title: "Integrated Risk & Value Management",
     summary:
       "Risk and value are two sides of one coin: value management asks 'are we getting the most function for the money?' and risk management asks 'what could stop us?' How to run both as disciplined, continuous processes.",
@@ -517,8 +517,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   },
   {
     id: "pm-quality",
-    track: "management",
-    category: "Risk, Value & Control",
+    track: "foundations",
+    category: "Managing the Project",
     title: "Quality Management & Customer Care",
     summary:
       "Quality isn't just catching defects — it's a system. QA vs QC, Total Quality Management, and why the client's *perception* of quality (customer care) matters as much as the technical spec.",
@@ -565,8 +565,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   // ─────────────────────── Modern & future practice ───────────────────────
   {
     id: "pm-digital",
-    track: "management",
-    category: "Modern & Future Practice",
+    track: "precon",
+    category: "Design & Engineering",
     title: "Digital Construction & BIM",
     summary:
       "BIM is not 3D drawing — it's a shared, multi-dimensional database that becomes the single source of truth for a project. The maturity levels, the Common Data Environment, and how 4D/5D change the PM's job.",
@@ -619,8 +619,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   },
   {
     id: "pm-sustainability",
-    track: "management",
-    category: "Modern & Future Practice",
+    track: "foundations",
+    category: "Managing the Project",
     title: "Sustainable Delivery of Construction Projects",
     summary:
       "Buildings are major energy users and carbon emitters — sustainability is now embedded inside the client's objectives, not a nice-to-have. Whole-life thinking, the rating systems, and where sustainable choices actually get made.",
@@ -674,8 +674,8 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   },
   {
     id: "pm-closeout",
-    track: "management",
-    category: "Modern & Future Practice",
+    track: "closeout",
+    category: "Handover & Turnover",
     title: "Project Close-Out & Systems Improvement",
     summary:
       "Closing a project is a managed process, not just running out of work — an ordered handover to the user plus the lessons-learned loop that makes the next project better. Why the industry keeps skipping the second half.",
@@ -725,7 +725,7 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
   // ───────────────────────────── Capstone ─────────────────────────────
   {
     id: "pm-cases",
-    track: "management",
+    track: "foundations",
     category: "Capstone",
     title: "Case Studies: The Integrated Approach in Practice",
     summary:

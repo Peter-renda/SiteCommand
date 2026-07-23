@@ -1,17 +1,20 @@
 /**
- * Training → Lessons: a hand-authored curriculum that teaches new project
- * managers (a) the core SiteCommand workflows (RFIs, Submittals, Buyout, …),
- * (b) the underlying construction concepts those workflows assume you
- * already know (RCP, MEP, CSI divisions, contract types, …), and (c) four
- * deeper tracks built from the PM learning curriculum: Building the Work
- * (means & methods in build sequence), Site & Civil (site planning, grading,
- * SWPPP, stormwater, ADA routes, landscape), MEP Systems (every system as
- * schedule logic — activity chains, hold points, the CO dependency web),
- * Contracts & Commercial (AIA documents, clauses, liens, claims),
- * Professional Skills (financial literacy, estimating, leadership, codes,
- * ethics), and Preconstruction & Field Ops (geotech, takeoffs,
- * constructability/VE, the Div 00/01 rulebook, meetings, BIM clash
- * coordination, site logistics/mobilization, field layout, and a glossary).
+ * Training → Lessons: a hand-authored curriculum organized around the real
+ * construction project lifecycle. The nine tracks (see TRACK_LABELS) are the
+ * seven build-order phases —
+ *   1. Pre-Construction & Entitlements
+ *   2. Site Development & Civil Infrastructure
+ *   3. Substructure & Foundations
+ *   4. Superstructure & Shell
+ *   5. Interior Rough-Ins & MEP Systems
+ *   6. Interior Finishes & Equipment
+ *   7. Commissioning, Closeout & Turnover
+ * — plus two cross-cutting tracks: Professional Skills (the management,
+ * leadership, financial, and commercial layer a PM carries through every
+ * phase) and Workflows & Concepts (how to run SiteCommand's tools — RFIs,
+ * Submittals, Buyout, Change Events, … — together with the foundational
+ * construction literacy every phase assumes: reading drawings/specs, CSI,
+ * contract types, retainage, and so on).
  *
  * This module is client-safe (no server-only imports) — it's the single
  * source of truth for both the Lessons page (app/training/lessons) and the
@@ -19,10 +22,12 @@
  * user-editable; per-user completion state is tracked separately in
  * training_lesson_progress (see app/api/training/lessons/progress).
  *
- * Content is split by track to keep files reviewable: this file holds the
- * original core lessons + types/helpers; the sibling training-lessons-*.ts
- * files hold the newer tracks and are aggregated into LESSONS below. Those
- * files import only types from here, so there is no runtime import cycle.
+ * Content is split across sibling training-lessons-*.ts files to keep them
+ * reviewable. A lesson's file no longer maps one-to-one to its track — each
+ * lesson declares its own `track`/`category`, and the phase tracks are
+ * assembled by filtering across files. TRACK_CATEGORY_ORDER pins the
+ * subsection order within each track. The sibling files import only types
+ * from here, so there is no runtime import cycle.
  */
 
 import { PROCESS_LESSONS } from "./training-lessons-process";
@@ -33,17 +38,27 @@ import { COMMERCIAL_LESSONS } from "./training-lessons-commercial";
 import { FOUNDATIONS_LESSONS } from "./training-lessons-foundations";
 import { FIELDOPS_LESSONS } from "./training-lessons-fieldops";
 import { MANAGEMENT_LESSONS } from "./training-lessons-management";
+import { PHASE_LESSONS } from "./training-lessons-phases";
 
+/**
+ * Tracks follow the real construction project lifecycle — seven phase-based
+ * tracks in build order (pre-construction → closeout), plus the cross-cutting
+ * "Professional Skills" (the management/leadership/commercial layer) and a
+ * combined "Workflows & Concepts" track (how to run SiteCommand's tools + the
+ * foundational construction literacy every phase assumes). The `foundations`
+ * and `workflow` keys are reused for the last two so the many existing lessons
+ * on those tracks don't need new keys.
+ */
 export type LessonTrack =
-  | "workflow"
-  | "concept"
-  | "management"
-  | "technical"
-  | "sitework"
-  | "mep"
-  | "commercial"
+  | "precon"
+  | "sitedev"
+  | "substructure"
+  | "superstructure"
+  | "interior-mep"
+  | "finishes"
+  | "closeout"
   | "foundations"
-  | "fieldops";
+  | "workflow";
 
 export type LessonBlock = {
   heading?: string;
@@ -195,7 +210,7 @@ const CORE_LESSONS: Lesson[] = [
   {
     id: "wf-buyout",
     track: "workflow",
-    category: "Buyout",
+    category: "Buyout & Commitments",
     title: "Buyout: From Bid to Executed Subcontract",
     summary:
       "Turning estimating's bid results into signed, scope-complete subcontracts — the foundation everything else builds on.",
@@ -304,7 +319,7 @@ const CORE_LESSONS: Lesson[] = [
   {
     id: "wf-commitments",
     track: "workflow",
-    category: "Commitments",
+    category: "Buyout & Commitments",
     title: "Commitments: Purchase Orders & Subcontracts",
     summary:
       "The two contract types that carry your bought-out scope, and the Schedule of Values that tracks what's owed.",
@@ -452,8 +467,8 @@ const CORE_LESSONS: Lesson[] = [
   },
   {
     id: "wf-punch-closeout",
-    track: "workflow",
-    category: "Closeout",
+    track: "closeout",
+    category: "Punch List",
     title: "Punch List & Project Closeout",
     summary:
       "The last mile: getting from substantially complete to a happy owner with a clean set of records.",
@@ -512,7 +527,7 @@ const CORE_LESSONS: Lesson[] = [
   // ───────────────────────────── Concepts ─────────────────────────────
   {
     id: "cn-drawings",
-    track: "concept",
+    track: "workflow",
     category: "Drawings & Specs",
     title: "Reading a Construction Drawing Set",
     summary:
@@ -557,7 +572,7 @@ const CORE_LESSONS: Lesson[] = [
   },
   {
     id: "cn-rcp",
-    track: "concept",
+    track: "workflow",
     category: "Drawings & Specs",
     title: "What Is an RCP (Reflected Ceiling Plan)?",
     summary:
@@ -604,7 +619,7 @@ const CORE_LESSONS: Lesson[] = [
   },
   {
     id: "cn-mep",
-    track: "concept",
+    track: "workflow",
     category: "Building Systems",
     title: "MEP Systems: Mechanical, Electrical, Plumbing",
     summary:
@@ -658,7 +673,7 @@ const CORE_LESSONS: Lesson[] = [
   },
   {
     id: "cn-csi",
-    track: "concept",
+    track: "workflow",
     category: "Drawings & Specs",
     title: "CSI MasterFormat & Divisions of Work",
     summary:
@@ -705,8 +720,8 @@ const CORE_LESSONS: Lesson[] = [
   },
   {
     id: "cn-longlead",
-    track: "concept",
-    category: "Procurement",
+    track: "precon",
+    category: "Budgeting & Procurement",
     title: "Long-Lead Items & Procurement Planning",
     summary:
       "Why a $50,000 switchgear order can be more schedule-critical than a $2M concrete package.",
@@ -750,8 +765,8 @@ const CORE_LESSONS: Lesson[] = [
   },
   {
     id: "cn-contracts",
-    track: "concept",
-    category: "Contracts & Cost",
+    track: "workflow",
+    category: "Contracts & Commercial",
     title: "Contract Types: Lump Sum, GMP, and Cost-Plus",
     summary:
       "How the project is priced changes everything about how change, risk, and profit work.",
@@ -793,8 +808,8 @@ const CORE_LESSONS: Lesson[] = [
   },
   {
     id: "cn-retainage",
-    track: "concept",
-    category: "Contracts & Cost",
+    track: "workflow",
+    category: "Contracts & Commercial",
     title: "Retainage & Lien Waivers",
     summary:
       "The two protections that make sure everyone actually gets paid — and how they slow down (deliberately) every invoice.",
@@ -836,7 +851,7 @@ const CORE_LESSONS: Lesson[] = [
   },
   {
     id: "cn-rfi-vs-submittal",
-    track: "concept",
+    track: "workflow",
     category: "Drawings & Specs",
     title: "RFI vs. Submittal: What's the Difference?",
     summary:
@@ -889,6 +904,7 @@ export const LESSONS: Lesson[] = [
   ...COMMERCIAL_LESSONS,
   ...FOUNDATIONS_LESSONS,
   ...FIELDOPS_LESSONS,
+  ...PHASE_LESSONS,
 ];
 
 export function getLesson(id: string): Lesson | undefined {
@@ -899,24 +915,102 @@ export function lessonsByTrack(track: LessonTrack): Lesson[] {
   return LESSONS.filter((l) => l.track === track);
 }
 
+/**
+ * Canonical subsection (category) order per track. A track now draws lessons
+ * from several source files, so raw appearance order would be jumbled; this
+ * pins each track's categories into build/teaching order. Categories not
+ * listed here fall to the end in appearance order.
+ */
+export const TRACK_CATEGORY_ORDER: Record<LessonTrack, string[]> = {
+  precon: [
+    "Feasibility & Zoning",
+    "Design & Engineering",
+    "Budgeting & Procurement",
+    "Permitting",
+  ],
+  sitedev: [
+    "Surveying & Layout",
+    "Erosion Control & Demolition",
+    "Earthwork & Mass Grading",
+    "Underground Utilities",
+    "Hardscape & Access",
+    "Green Scope",
+  ],
+  substructure: ["Deep Foundations", "Shallow Foundations", "Slab on Grade & Concrete"],
+  superstructure: ["Structural Frame", "Elevated Slabs", "Building Envelope"],
+  "interior-mep": [
+    "Interior Framing",
+    "The MEP Pattern",
+    "Wet Systems & Fire Protection",
+    "HVAC",
+    "Power & Signal",
+    "Rough-In Coordination",
+  ],
+  finishes: [
+    "Finishes Sequence",
+    "Insulation, Drywall & Paint",
+    "Ceilings & Flooring",
+    "Millwork, Doors & Hardware",
+    "MEP Trim-Out & Equipment",
+  ],
+  closeout: [
+    "Systems Commissioning",
+    "Punch List",
+    "Final Inspections & CO",
+    "Handover & Turnover",
+  ],
+  foundations: [
+    "Money",
+    "People & Leadership",
+    "Managing the Project",
+    "Rules of the Game",
+    "Capstone",
+  ],
+  workflow: [
+    "Requests for Information",
+    "Submittals",
+    "Buyout & Commitments",
+    "Change Management",
+    "Cost & Billing",
+    "Schedule",
+    "Field Operations",
+    "Quality, Safety & Risk",
+    "Project Basics",
+    "Drawings & Specs",
+    "Building Systems",
+    "Contracts & Commercial",
+    "Reference",
+  ],
+};
+
 export function lessonCategories(track: LessonTrack): string[] {
   const seen: string[] = [];
   for (const l of lessonsByTrack(track)) {
     if (!seen.includes(l.category)) seen.push(l.category);
   }
-  return seen;
+  const order = TRACK_CATEGORY_ORDER[track] ?? [];
+  // Stable sort: listed categories in canonical order, unlisted kept in
+  // appearance order at the end (ES2019+ Array.sort is stable).
+  return seen.sort((a, b) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    if (ia === -1 && ib === -1) return 0;
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
 }
 
 export const TRACK_LABELS: Record<LessonTrack, string> = {
-  workflow: "Workflows",
-  concept: "Concepts",
-  management: "Integrated PM",
-  technical: "Building the Work",
-  sitework: "Site & Civil",
-  mep: "MEP Systems",
-  commercial: "Contracts & Commercial",
+  precon: "Pre-Construction & Entitlements",
+  sitedev: "Site Development & Civil Infrastructure",
+  substructure: "Substructure & Foundations",
+  superstructure: "Superstructure & Shell",
+  "interior-mep": "Interior Rough-Ins & MEP Systems",
+  finishes: "Interior Finishes & Equipment",
+  closeout: "Commissioning, Closeout & Turnover",
   foundations: "Professional Skills",
-  fieldops: "Preconstruction & Field Ops",
+  workflow: "Workflows & Concepts",
 };
 
 /**

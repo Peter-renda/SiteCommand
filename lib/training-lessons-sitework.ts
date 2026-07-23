@@ -22,8 +22,8 @@ export const SITEWORK_LESSONS: Lesson[] = [
   // ─────────────────────────── Reading the Site ───────────────────────────
   {
     id: "sc-site-analysis",
-    track: "sitework",
-    category: "Reading the Site",
+    track: "precon",
+    category: "Feasibility & Zoning",
     title: "Site Analysis & Due Diligence: What the PM Inherits",
     summary:
       "How designers evaluated the parcel before a line was drawn — surveys, hydrology, past uses — and why that history shows up in your dirt.",
@@ -60,8 +60,8 @@ export const SITEWORK_LESSONS: Lesson[] = [
   },
   {
     id: "sc-grading",
-    track: "sitework",
-    category: "Reading the Site",
+    track: "sitedev",
+    category: "Earthwork & Mass Grading",
     title: "Grading Plans & Earthwork Engineering",
     summary:
       "Reading contours and spot grades, the balanced-site concept, slopes and retaining walls, and the grading start-up meeting that prevents rework.",
@@ -105,8 +105,8 @@ export const SITEWORK_LESSONS: Lesson[] = [
   // ────────────────────────── Compliance You Own ──────────────────────────
   {
     id: "sc-esc",
-    track: "sitework",
-    category: "Compliance You Own",
+    track: "sitedev",
+    category: "Erosion Control & Demolition",
     title: "Erosion & Sediment Control / SWPPP",
     summary:
       "The regulatory layer on every dirt job — devices, the SWPPP binder, rain-event inspections, and the fines that follow neglected silt fence.",
@@ -147,8 +147,8 @@ export const SITEWORK_LESSONS: Lesson[] = [
   // ─────────────────────────── Water & Utilities ───────────────────────────
   {
     id: "sc-stormwater",
-    track: "sitework",
-    category: "Water & Utilities",
+    track: "sitedev",
+    category: "Underground Utilities",
     title: "Stormwater Management & Low-Impact Design",
     summary:
       "Why the site has ponds, rain gardens, and underground vaults — detention vs. retention, the LID toolkit, and the construction mistakes that kill infiltration.",
@@ -186,8 +186,8 @@ export const SITEWORK_LESSONS: Lesson[] = [
   },
   {
     id: "sc-utilities",
-    track: "sitework",
-    category: "Water & Utilities",
+    track: "sitedev",
+    category: "Underground Utilities",
     title: "Site Utilities: Gravity Rules Everything",
     summary:
       "Reading sewer profiles, inverts and slopes, water and fire lines, separation rules, pipe materials, and the 811/franchise-utility long game.",
@@ -226,7 +226,7 @@ export const SITEWORK_LESSONS: Lesson[] = [
   // ─────────────────────────── Hardscape & Access ───────────────────────────
   {
     id: "sc-streets-parking",
-    track: "sitework",
+    track: "sitedev",
     category: "Hardscape & Access",
     title: "Streets, Access & Parking",
     summary:
@@ -263,7 +263,7 @@ export const SITEWORK_LESSONS: Lesson[] = [
   },
   {
     id: "sc-pedestrian-ada",
-    track: "sitework",
+    track: "sitedev",
     category: "Hardscape & Access",
     title: "Pedestrian Design & the Accessible Route",
     summary:
@@ -303,7 +303,7 @@ export const SITEWORK_LESSONS: Lesson[] = [
   // ───────────────────────────── Green Scope ─────────────────────────────
   {
     id: "sc-landscape",
-    track: "sitework",
+    track: "sitedev",
     category: "Green Scope",
     title: "Landscape & Tree Preservation",
     summary:
@@ -342,7 +342,7 @@ export const SITEWORK_LESSONS: Lesson[] = [
   },
   {
     id: "sc-sensitive-areas",
-    track: "sitework",
+    track: "sitedev",
     category: "Green Scope",
     title: "Streams, Wetlands & Sensitive Areas",
     summary:
@@ -382,8 +382,8 @@ export const SITEWORK_LESSONS: Lesson[] = [
   // ─────────────────────────── Context & Risk ───────────────────────────
   {
     id: "sc-environmental",
-    track: "sitework",
-    category: "Context & Risk",
+    track: "precon",
+    category: "Feasibility & Zoning",
     title: "Environmental Site Assessment & Brownfields",
     summary:
       "Phase I and II ESAs, contamination liability, and the field protocol when the excavator turns up something that smells wrong.",
@@ -424,8 +424,8 @@ export const SITEWORK_LESSONS: Lesson[] = [
   },
   {
     id: "sc-entitlements",
-    track: "sitework",
-    category: "Context & Risk",
+    track: "precon",
+    category: "Feasibility & Zoning",
     title: "Land Use, Entitlements & Why the Site Plan Looks Like That",
     summary:
       "Zoning, easements, conditions of approval, and the public gauntlet the owner walked before the GC showed up — the constraints you can't RFI away.",
@@ -464,8 +464,8 @@ export const SITEWORK_LESSONS: Lesson[] = [
   // ─────────────────────────── The Design Team ───────────────────────────
   {
     id: "sc-design-pm",
-    track: "sitework",
-    category: "The Design Team",
+    track: "precon",
+    category: "Design & Engineering",
     title: "How the Design Side Works (and Why It Answers Slowly)",
     summary:
       "The A/E's project manager, professional liability, design QA, and fee reality — understanding the other side of the table to manage it better.",

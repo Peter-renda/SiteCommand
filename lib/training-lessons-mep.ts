@@ -22,8 +22,8 @@ export const MEP_LESSONS: Lesson[] = [
   // ───────────────────────────── The Pattern ─────────────────────────────
   {
     id: "mep-activity-pattern",
-    track: "mep",
-    category: "The Pattern",
+    track: "interior-mep",
+    category: "The MEP Pattern",
     title: "The Universal MEP Activity Pattern",
     summary:
       "Every MEP installation follows the same skeleton — approval, delivery, first fix, second fix, connect, test, commission. Learn it once and every system becomes a variation.",
@@ -69,8 +69,8 @@ export const MEP_LESSONS: Lesson[] = [
   // ───────────────────────────── Wet Systems ─────────────────────────────
   {
     id: "mep-fire-suppression",
-    track: "mep",
-    category: "Wet Systems",
+    track: "interior-mep",
+    category: "Wet Systems & Fire Protection",
     title: "Fire Suppression: Sprinklers, Pumps & Standpipes",
     summary:
       "The sprinkler activity chain, the fire pump room, clean-agent rooms, and the sequencing traps between heads and ceilings.",
@@ -111,8 +111,8 @@ export const MEP_LESSONS: Lesson[] = [
   },
   {
     id: "mep-plumbing",
-    track: "mep",
-    category: "Wet Systems",
+    track: "interior-mep",
+    category: "Wet Systems & Fire Protection",
     title: "Plumbing: Drainage, Water Systems & the Testing Gates",
     summary:
       "Underground rough-in on the critical path, gravity's non-negotiables, water heaters and boosters, and the three testing gates that hold the schedule.",
@@ -152,7 +152,7 @@ export const MEP_LESSONS: Lesson[] = [
   // ───────────────────────────── HVAC ─────────────────────────────
   {
     id: "mep-hvac-air",
-    track: "mep",
+    track: "interior-mep",
     category: "HVAC",
     title: "HVAC Airside: Ductwork, Dampers & Devices",
     summary:
@@ -190,7 +190,7 @@ export const MEP_LESSONS: Lesson[] = [
   },
   {
     id: "mep-hvac-water",
-    track: "mep",
+    track: "interior-mep",
     category: "HVAC",
     title: "HVAC Equipment & Hydronics: AHUs, Chillers & Condensate",
     summary:
@@ -228,7 +228,7 @@ export const MEP_LESSONS: Lesson[] = [
   },
   {
     id: "mep-bms",
-    track: "mep",
+    track: "interior-mep",
     category: "HVAC",
     title: "Building Automation: Controls, Points Lists & the End-of-Job Squeeze",
     summary:
@@ -267,7 +267,7 @@ export const MEP_LESSONS: Lesson[] = [
   // ───────────────────────────── Power & Signal ─────────────────────────────
   {
     id: "mep-electrical-distribution",
-    track: "mep",
+    track: "interior-mep",
     category: "Power & Signal",
     title: "Electrical Distribution: From Utility to Branch Circuit",
     summary:
@@ -365,7 +365,7 @@ export const MEP_LESSONS: Lesson[] = [
   },
   {
     id: "mep-low-voltage",
-    track: "mep",
+    track: "interior-mep",
     category: "Power & Signal",
     title: "Low Voltage & Communications: Pathways, Rooms & Providers",
     summary:
@@ -403,7 +403,7 @@ export const MEP_LESSONS: Lesson[] = [
   },
   {
     id: "mep-security-fire-alarm",
-    track: "mep",
+    track: "interior-mep",
     category: "Power & Signal",
     title: "Fire Alarm & Security: The Interfaces That Gate the CO",
     summary:
@@ -443,8 +443,8 @@ export const MEP_LESSONS: Lesson[] = [
   // ─────────────────────── Running the MEP Job ───────────────────────
   {
     id: "mep-coordination-scheduling",
-    track: "mep",
-    category: "Running the MEP Job",
+    track: "interior-mep",
+    category: "Rough-In Coordination",
     title: "Building the MEP Schedule: Zones, Leapfrogging & Hold Points",
     summary:
       "Translating activity chains into CPM logic — floor-by-floor trade stacking, the accordion effect, riser and equipment-room coordination, and man-hour-based pay-app review.",
@@ -483,8 +483,8 @@ export const MEP_LESSONS: Lesson[] = [
   },
   {
     id: "mep-startup-cx",
-    track: "mep",
-    category: "Running the MEP Job",
+    track: "closeout",
+    category: "Systems Commissioning",
     title: "Startup, Testing & Commissioning: The Dependency Web",
     summary:
       "Testing vs. startup vs. commissioning, the chain from permanent power to CO, flushing and chemical treatment, and the warranty clocks that start when equipment runs early.",

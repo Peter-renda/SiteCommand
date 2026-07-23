@@ -14,8 +14,8 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
   // ─────────────────────── Contract Structures ───────────────────────
   {
     id: "com-delivery",
-    track: "commercial",
-    category: "Contract Structures",
+    track: "precon",
+    category: "Budgeting & Procurement",
     title: "Project Delivery Methods",
     summary:
       "Design-bid-build, CM at Risk, design-build, and CM-agent — how the delivery method rewires the PM's relationships and risk.",
@@ -52,8 +52,8 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
   },
   {
     id: "com-documents",
-    track: "commercial",
-    category: "Contract Structures",
+    track: "precon",
+    category: "Budgeting & Procurement",
     title: "The AIA Family & Standard Contract Documents",
     summary:
       "A101, A201, A401, G702/G703 — the standard forms, what each does, and why the general conditions govern more of your day than any drawing.",
@@ -93,8 +93,8 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
   // ─────────────────── Clauses & Administration ───────────────────
   {
     id: "com-clauses",
-    track: "commercial",
-    category: "Clauses & Administration",
+    track: "workflow",
+    category: "Contracts & Commercial",
     title: "Key Contract Clauses Every PM Must Know",
     summary:
       "Notice, changes, delay, differing site conditions, LDs, indemnity, termination — the dozen clauses that decide who pays when things go sideways.",
@@ -136,8 +136,8 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
   },
   {
     id: "com-sub-admin",
-    track: "commercial",
-    category: "Clauses & Administration",
+    track: "workflow",
+    category: "Contracts & Commercial",
     title: "Subcontract Administration: Defaults, Backcharges & Disputes",
     summary:
       "Scope exhibits that prevent fights, the default-and-cure sequence when a sub fails, backcharge discipline, and joint checks.",
@@ -180,8 +180,8 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
   // ─────────────── Payment Security & Claims ───────────────
   {
     id: "com-liens-bonds",
-    track: "commercial",
-    category: "Payment Security & Claims",
+    track: "workflow",
+    category: "Contracts & Commercial",
     title: "Liens, Bonds & Payment Security",
     summary:
       "How mechanic's liens actually work, the four lien waiver types, payment bonds on public work, and the deadlines that quietly extinguish rights.",
@@ -219,8 +219,8 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
   },
   {
     id: "com-claims",
-    track: "commercial",
-    category: "Payment Security & Claims",
+    track: "workflow",
+    category: "Contracts & Commercial",
     title: "Claims & Disputes: Building the Record",
     summary:
       "Delay claim mechanics, acceleration and disruption, the contemporaneous documentation that wins, and when to settle versus escalate.",
