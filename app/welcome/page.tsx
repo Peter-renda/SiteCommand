@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import VerifyBanner from "./VerifyBanner";
 
 /**
  * Welcome / onboarding — the first screen a new member sees after signing up.
@@ -47,14 +48,16 @@ export default async function WelcomePage() {
   if (session.user_type === "external") redirect("/subcontractor");
 
   let firstName = "";
+  let emailVerified = true; // default true so a lookup failure never nags
   try {
     const supabase = getSupabase();
     const { data } = await supabase
       .from("users")
-      .select("first_name")
+      .select("first_name, email_verified")
       .eq("id", session.id)
       .maybeSingle();
     firstName = (data?.first_name ?? "").trim();
+    emailVerified = data?.email_verified ?? true;
   } catch {
     // Non-fatal — greeting just falls back to a generic welcome.
   }
@@ -90,6 +93,7 @@ export default async function WelcomePage() {
 
       {/* Steps */}
       <div className="max-w-4xl mx-auto px-6 sm:px-10 py-14">
+        {!emailVerified && <VerifyBanner email={session.email} />}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {steps.map((s) => (
             <div

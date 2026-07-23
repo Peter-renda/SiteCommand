@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getSupabase } from "@/lib/supabase";
 import { sendPasswordResetEmail } from "@/lib/email";
+import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 // Hash the raw token before it touches the database, so a leaked DB row can't be
 // replayed as a reset link. The emailed link carries the raw token; the reset
@@ -19,6 +20,14 @@ function baseUrl(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Throttle reset spam / enumeration probing: 5 requests per 15 min per IP.
+  if (!checkRateLimit(`auth-forgot:${clientIpFrom(req.headers)}`, 5, 15 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a few minutes and try again." },
+      { status: 429 },
+    );
+  }
+
   const { email } = await req.json();
 
   // Always respond the same way regardless of whether the account exists, so

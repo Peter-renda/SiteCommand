@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { getSupabase } from "@/lib/supabase";
+import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 function hashToken(raw: string): string {
   return crypto.createHash("sha256").update(raw).digest("hex");
 }
 
 export async function POST(req: NextRequest) {
+  // Throttle token guessing: 10 attempts per 15 min per IP.
+  if (!checkRateLimit(`auth-reset:${clientIpFrom(req.headers)}`, 10, 15 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please wait a few minutes and try again." },
+      { status: 429 },
+    );
+  }
+
   const { token, password } = await req.json();
 
   if (!token || typeof token !== "string") {

@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { sendEmailVerification } from "@/lib/email-verification";
 
 type Supabase = ReturnType<typeof getSupabase>;
 
@@ -117,6 +118,11 @@ export async function materializePendingSignup(
   });
 
   await applyBilling(supabase, companyId, billing);
+
+  // Fresh account — send the email-verification link. Best-effort (never throws)
+  // so a mail failure can't block signup/checkout completion. Only runs on this
+  // first-create path, not the idempotent "already exists" returns above.
+  await sendEmailVerification(supabase, userId, email);
 
   return {
     userId,
