@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { createToken } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { materializePendingSignup } from "@/lib/signup";
+import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 // Read a Stripe price id from the environment, treating blank strings and the
 // documented `price_xxx` placeholder as "not configured". This matters because
@@ -94,6 +95,14 @@ async function createPlanCheckout(
 const ACTIVE_SUBSCRIPTION_STATUSES = ["active", "trialing"];
 
 export async function POST(req: NextRequest) {
+  // Throttle automated signup abuse: 6 attempts per 15 min per IP.
+  if (!checkRateLimit(`auth-signup:${clientIpFrom(req.headers)}`, 6, 15 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "Too many signup attempts. Please wait a few minutes and try again." },
+      { status: 429 },
+    );
+  }
+
   const supabase = getSupabase();
   const { firstName, lastName, email, password, plan } = await req.json();
 

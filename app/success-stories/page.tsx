@@ -91,7 +91,7 @@ const stories: Story[] = [
     landed: "Project Engineer",
     company: "Top-ENR general contractor",
     quote:
-      "Classes taught me theory; I'd never touched a real RFI or a change order. Running a 70-day build gave me the reps my classmates didn't have. In interviews I could answer 'what would you do' with 'here's what I did.'",
+      "Classes taught me theory; I'd never touched a real RFI or a change order. Running a 77-day build gave me the reps my classmates didn't have. In interviews I could answer 'what would you do' with 'here's what I did.'",
     stats: [
       { label: "Before", value: "Student" },
       { label: "Starting pay", value: "$64K" },

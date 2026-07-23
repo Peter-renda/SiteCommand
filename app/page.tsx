@@ -39,7 +39,7 @@ const steps = [
     n: "02",
     tag: "Run it",
     title: "Run the job, day by day",
-    desc: "Emails, phone calls, tasks, meetings, and end-of-day checks land on a 70-day calendar. The owner, subs, and accounting all write back. A coach walks you through each day.",
+    desc: "Emails, phone calls, tasks, meetings, and end-of-day checks land on a 77-day calendar. The owner, subs, and accounting all write back. A coach walks you through each day.",
   },
   {
     n: "03",
@@ -49,16 +49,23 @@ const steps = [
   },
 ];
 
-// The seven Lessons tracks with their real lesson counts (lib/training-lessons*.ts).
+// The nine Lessons tracks with their real lesson counts (lib/training-lessons*.ts).
 const tracks = [
   { code: "WF", name: "Workflows", count: 14, desc: "RFIs, submittals, buyout, change events, billing — the SiteCommand way." },
   { code: "CN", name: "Concepts", count: 10, desc: "Reading drawings & specs, CSI divisions, retainage, contract types." },
+  { code: "PM", name: "Integrated PM", count: 13, desc: "The integrated approach, defining success, stakeholders, risk & value." },
   { code: "TCH", name: "Building the Work", count: 11, desc: "Means & methods in build sequence, sitework through commissioning." },
   { code: "SC", name: "Site & Civil", count: 12, desc: "Grading, E&S/SWPPP, stormwater, utilities, ADA, entitlements." },
   { code: "MEP", name: "MEP Systems", count: 11, desc: "Every system as schedule logic — first fix, startup & Cx." },
   { code: "C&C", name: "Contracts & Commercial", count: 6, desc: "Delivery methods, AIA docs, subcontracts, liens, bonds, claims." },
   { code: "PRO", name: "Professional Skills", count: 6, desc: "Financial literacy, estimating, leadership, codes, and ethics." },
+  { code: "PF", name: "Preconstruction & Field Ops", count: 9, desc: "Geotech, takeoffs, constructability, meetings, BIM, layout, glossary." },
 ];
+
+// Totals derived from the track list so the marketing copy never drifts from
+// the shipped curriculum (lib/training-lessons*.ts).
+const totalLessons = tracks.reduce((sum, t) => sum + t.count, 0); // 92
+const totalTracks = tracks.length; // 9
 
 const audiences = [
   "New project managers",
@@ -143,7 +150,7 @@ export default function Home() {
                   {/* CTAs */}
                   <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center gap-3">
                     <a
-                      href="/pricing"
+                      href="/signup"
                       className="group relative inline-flex items-center gap-2 px-7 py-3.5 text-sm font-semibold text-white rounded-lg overflow-hidden transition-all duration-200 active:scale-[0.98]"
                       style={{ background: ORANGE, boxShadow: "0 8px 28px rgba(234,88,12,0.35)" }}
                     >
@@ -167,7 +174,7 @@ export default function Home() {
 
                   {/* Mono proof line */}
                   <div className="animate-fade-up delay-400 mt-11 pt-8 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] tracking-wider uppercase" style={{ borderTop: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)" }}>
-                    <span><span style={{ color: ORANGE }}>70+</span> guided lessons</span>
+                    <span><span style={{ color: ORANGE }}>{totalLessons}</span> guided lessons</span>
                     <span style={{ color: "rgba(255,255,255,0.2)" }}>/</span>
                     <span><span style={{ color: ORANGE }}>10+</span> projects</span>
                     <span style={{ color: "rgba(255,255,255,0.2)" }}>/</span>
@@ -395,8 +402,8 @@ export default function Home() {
                 tag="Coach"
                 color="#EA580C"
                 iconPath="M15.536 8.464a5 5 0 010 7.072M12 6a9 9 0 010 12M8 9v6l-4-3 4-3z"
-                title="An AI coach in your ear"
-                desc="A spoken briefing at the start of every day tells you what matters and why — narrated, not buried in a manual."
+                title="An AI coach in your corner"
+                desc="A briefing at the start of every day tells you what matters and why — surfaced right where you're working, not buried in a manual."
               />
 
               {/* Large DARK: Interactive meetings */}
@@ -446,7 +453,7 @@ export default function Home() {
                 color="#0EA5E9"
                 iconPath="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                 title="Day by day, start to finish"
-                desc="A 70-day build across six phases — tasks, phone calls, and end-of-day checks that arrive whether you're ready or not."
+                desc="A 77-day build across six phases — tasks, phone calls, and end-of-day checks that arrive whether you're ready or not."
               />
 
               {/* Small: Milestone reviews */}
@@ -463,7 +470,7 @@ export default function Home() {
                 tag="Learn"
                 color="#F59E0B"
                 iconPath="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                title="A 70-lesson curriculum"
+                title={`A ${totalLessons}-lesson curriculum`}
                 desc="The workflows and the construction knowledge behind them — deep-linked from the exact day you're living through."
               />
             </div>
@@ -483,12 +490,12 @@ export default function Home() {
                 then run the job
               </h2>
               <p className="mt-4 text-lg text-gray-500 leading-relaxed">
-                Seventy hand-written lessons across seven tracks — from how to
+                {totalLessons} hand-written lessons across {totalTracks} tracks — from how to
                 read a drawing set to how MEP sequencing drives your schedule.
                 Read ahead, or open the one your day just handed you.
               </p>
               <div className="mt-8 inline-flex items-baseline gap-3 rounded-xl px-6 py-4" style={{ background: INK }}>
-                <span className="font-display text-5xl text-white tabular-nums leading-none">70</span>
+                <span className="font-display text-5xl text-white tabular-nums leading-none">{totalLessons}</span>
                 <span className="font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.5)" }}>
                   lessons<br />&amp; counting
                 </span>
@@ -553,7 +560,7 @@ export default function Home() {
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <a
-                href="/pricing"
+                href="/signup"
                 className="group relative inline-flex items-center gap-2 px-8 py-4 text-sm font-semibold text-white rounded-lg overflow-hidden transition-all duration-200 active:scale-[0.98]"
                 style={{ background: ORANGE, boxShadow: "0 8px 28px rgba(234,88,12,0.4)" }}
               >
@@ -580,13 +587,13 @@ export default function Home() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <span className="font-display text-sm text-white">The Construction Project Management Academy</span>
           <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-wide uppercase" style={{ color: "rgba(255,255,255,0.45)" }}>
-            <a href="/pricing" className="hover:text-white transition-colors">Start training</a>
-            <a href="/pricing" className="hover:text-white transition-colors">Sign up</a>
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
+            <a href="/signup" className="hover:text-white transition-colors">Start training</a>
+            <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
+            <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
+            <a href="/terms" className="hover:text-white transition-colors">Terms</a>
           </div>
           <p className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-            &copy; 2025 CPMA
+            &copy; {new Date().getFullYear()} CPMA
           </p>
         </div>
       </footer>

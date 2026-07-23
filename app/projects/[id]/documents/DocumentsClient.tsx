@@ -443,16 +443,13 @@ function PdfViewerModal({
     async function fetchAnnotations() {
       try {
         const res = await fetch(`/api/projects/${projectId}/documents/${docId}/annotations`);
-        console.log("[Annotations] GET status:", res.status);
         if (!res.ok) return;
         const data: AnnotationSet[] = await res.json();
-        console.log("[Annotations] Loaded", data.length, "records, looking for userName:", userName);
         allAnnotationsRef.current = data;
         setAllAnnotations(data);
         // Prefer the record with a non-null created_by (fully claimed) over legacy null records
         const myRecords = data.filter((a) => a.created_by_name === userName);
         const myRecord = myRecords.find((a) => a.created_by !== null) ?? myRecords[0];
-        console.log("[Annotations] My record:", myRecord ?? "not found");
         if (myRecord && Array.isArray(myRecord.annotation_data)) {
           strokesRef.current = myRecord.annotation_data;
           setStrokes(myRecord.annotation_data);
@@ -924,7 +921,6 @@ function PdfViewerModal({
     // Always read from the ref — it's always up-to-date even mid-drag
     const toSave = strokesRef.current;
     const url = `/api/projects/${projectId}/documents/${docId}/annotations`;
-    console.log("[Annotations] Saving", toSave.length, "strokes to", url);
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -932,10 +928,7 @@ function PdfViewerModal({
         credentials: "include",
         body: JSON.stringify({ annotation_data: toSave }),
       });
-      console.log("[Annotations] POST response status:", res.status);
       if (res.ok) {
-        const saved = await res.json().catch(() => null);
-        console.log("[Annotations] Saved successfully:", saved);
         setSaveMsg("Saved ✓");
         setTimeout(() => setSaveMsg(null), 3000);
         // Keep allAnnotationsRef in sync after save

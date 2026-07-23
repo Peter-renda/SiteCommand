@@ -57,7 +57,7 @@ function SignupFormInner() {
       return;
     }
 
-    router.push("/company");
+    router.push("/welcome");
   }
 
   return (

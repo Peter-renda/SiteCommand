@@ -1800,7 +1800,7 @@ This replaces the previous text-based, day-by-day **grading game** (scoring freq
 ### Hiding sandboxes from the real app
 - `GET /api/projects` filters `is_training = false` (both the org-admin and member branches), so sandboxes never appear in the dashboard project tiles or the projects list.
 - `GET /api/dashboard/my-tasks` drops tasks/open-items belonging to training projects (resolved via the project-name lookup, now also selecting `is_training`).
-- Known minor leaks not yet filtered: global search and the Project Admin **Copy Directory From** dropdown can still surface sandbox projects (harmless — sandboxes are empty and owned by the user).
+- Sandbox exclusion is applied in global search (`app/api/search/global/route.ts` filters `is_training = false`) and the Project Admin **Copy Directory From** dropdown (`app/api/projects/[id]/copy-directory/route.ts` filters `is_training = false`), so sandboxes no longer surface there.
 
 ### Auto-save
 - The sandbox's tool records already persist per-action, so there is no unsaved client buffer to flush. Auto-save is a Google-Docs-style **checkpoint**: it bumps `projects.training_last_saved_at` (migration `169_training_last_saved_at.sql`).

@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { createToken } from "@/lib/auth";
 import { isCompanyAdmin } from "@/lib/project-access";
 import { ProjectPermission, resolvePermission } from "@/lib/permissions";
+import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 type LoginUser = {
   id: string;
@@ -27,6 +28,14 @@ type CompanyRow = {
 };
 
 export async function POST(req: NextRequest) {
+  // Throttle credential-stuffing / brute force: 10 attempts per 10 min per IP.
+  if (!checkRateLimit(`auth-login:${clientIpFrom(req.headers)}`, 10, 10 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "Too many sign-in attempts. Please wait a few minutes and try again." },
+      { status: 429 },
+    );
+  }
+
   const supabase = getSupabase();
   const { email, password } = await req.json();
 
