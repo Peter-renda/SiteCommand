@@ -229,8 +229,10 @@ export default function LessonsClient() {
           <div className="space-y-0.5">
             {curriculum.map((section) => {
               const isOpen = !!openSections[section.track];
-              const subsDone = section.subsections.filter((ss) => subComplete(ss.lessons)).length;
-              const sectionComplete = subsDone === section.subsections.length;
+              const sectionLessons = section.subsections.flatMap((ss) => ss.lessons);
+              const sectionPassed = subPassedCount(sectionLessons);
+              const sectionComplete =
+                sectionLessons.length > 0 && sectionPassed === sectionLessons.length;
               const isActiveSection = section.track === active.track;
               return (
                 <div key={section.track}>
@@ -255,7 +257,7 @@ export default function LessonsClient() {
                     <span
                       className={`ml-auto text-[10px] tabular-nums ${sectionComplete ? "text-green-600" : "text-gray-400"}`}
                     >
-                      {subsDone}/{section.subsections.length}
+                      {sectionPassed}/{sectionLessons.length}
                     </span>
                   </button>
 
