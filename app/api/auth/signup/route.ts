@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { getSupabase } from "@/lib/supabase";
 import { createToken } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
+import { materializePendingSignup } from "@/lib/signup";
 
 // Read a Stripe price id from the environment, treating blank strings and the
 // documented `price_xxx` placeholder as "not configured". This matters because
@@ -40,9 +41,14 @@ function priceIdForPlan(plan: string): string | undefined {
 // Create a Stripe subscription checkout session for a plan. Returns the hosted
 // checkout URL, or an actionable error when the plan is unconfigured / Stripe
 // rejects the request. Never throws.
+//
+// `ref` links the eventual completed checkout back to who it belongs to:
+//   - pendingSignupId → a staged signup, materialized into a real account only
+//     once checkout completes (no account exists yet).
+//   - companyId → an already-existing account resuming its checkout.
 async function createPlanCheckout(
   plan: string,
-  companyId: string,
+  ref: { pendingSignupId?: string; companyId?: string },
   email: string
 ): Promise<{ url: string | null; error: string | null }> {
   const priceId = priceIdForPlan(plan);
@@ -55,13 +61,16 @@ async function createPlanCheckout(
   }
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+    const metadata: Record<string, string> = {};
+    if (ref.pendingSignupId) metadata.pending_signup_id = ref.pendingSignupId;
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
       // New accounts start on a 7-day free trial; billing begins only after
       // the trial ends (the "Start training free" flow).
       subscription_data: { trial_period_days: 7 },
-      client_reference_id: companyId,
+      ...(ref.companyId ? { client_reference_id: ref.companyId } : {}),
+      metadata,
       customer_email: email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing`,
@@ -95,12 +104,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // The signup form no longer collects a company name. Every account still
-  // needs a company record (the signup user becomes its Super Admin and
-  // billing is per-company), so default it — the Super Admin can rename the
-  // company later in settings.
-  const companyName = "My Company";
-
   const { data: existing } = await supabase
     .from("users")
     .select("id, password_hash, company_id")
@@ -108,11 +111,10 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (existing) {
-    // Common case: a user created an account, was sent to Stripe, backed out
-    // without paying, and returned to finish signing up. Rather than a dead-end
-    // 409, resume their checkout when the credentials match and there is no
-    // active subscription yet. Without a plan (or with wrong credentials / an
-    // already-active membership) we send them to sign in instead.
+    // A real (already-paid, or free) account exists for this email. If they're
+    // re-selecting a paid plan, their credentials match, and there is no active
+    // subscription yet, resume checkout against their existing company. Any
+    // other case is directed to sign in.
     const credentialsOk =
       typeof existing.password_hash === "string" &&
       (await bcrypt.compare(password, existing.password_hash));
@@ -131,11 +133,9 @@ export async function POST(req: NextRequest) {
       if (!alreadyActive) {
         const { url, error: checkoutError } = await createPlanCheckout(
           plan,
-          existing.company_id,
+          { companyId: existing.company_id },
           email
         );
-        // No session cookie is set here — the session is established only once
-        // checkout completes (see /api/checkout/complete).
         return NextResponse.json({
           success: true,
           checkoutUrl: url,
@@ -151,105 +151,82 @@ export async function POST(req: NextRequest) {
   }
 
   const password_hash = await bcrypt.hash(password, 10);
-  const displayName = `${firstName} ${lastName}`;
 
-  // Create the company for this new account
-  const { data: newCompany, error: companyError } = await supabase
-    .from("companies")
-    .insert({ name: companyName })
-    .select("id")
-    .single();
+  // ── Paid-plan signup: stage it, don't create the account yet ────────────────
+  // The account (company + user) is materialized only after Stripe confirms the
+  // checkout is complete (see /api/checkout/complete and the Stripe webhook), so
+  // bailing out of the Stripe page never leaves a real, unpaid account behind.
+  if (plan) {
+    // Refresh any prior pending signup for this email (e.g. they backed out and
+    // are retrying), then stage the new one.
+    await supabase.from("pending_signups").delete().eq("email", email);
+    const { data: pending, error: pendingError } = await supabase
+      .from("pending_signups")
+      .insert({
+        email,
+        first_name: firstName,
+        last_name: lastName,
+        password_hash,
+        plan,
+      })
+      .select("id")
+      .single();
 
-  if (companyError || !newCompany) {
-    return NextResponse.json(
-      { error: "Failed to create company" },
-      { status: 500 }
+    if (pendingError || !pending) {
+      console.error("Signup pending insert error:", pendingError);
+      return NextResponse.json(
+        { error: "Failed to start signup" },
+        { status: 500 }
+      );
+    }
+
+    const { url, error: checkoutError } = await createPlanCheckout(
+      plan,
+      { pendingSignupId: pending.id },
+      email
     );
-  }
-  const companyId = newCompany.id;
 
-  // The person who signs up and creates the company is the Super Admin —
-  // they are the billing owner and have full rights including billing management.
-  const companyRole = "super_admin";
+    // Checkout couldn't start — drop the staged signup so it doesn't linger.
+    if (!url) {
+      await supabase.from("pending_signups").delete().eq("id", pending.id);
+    }
 
-  const { data: newUser, error } = await supabase
-    .from("users")
-    .insert({
-      username: displayName,
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      password_hash,
-      company: companyName,
-      role: "user",
-      company_id: companyId,
-      company_role: companyRole,
-      user_type: "internal",
-    })
-    .select("id")
-    .single();
-
-  if (error || !newUser) {
-    console.error("Signup user insert error:", error);
-    return NextResponse.json(
-      { error: error?.message ?? "Failed to create account" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, checkoutUrl: url, checkoutError });
   }
 
-  // Record the billing owner on the company record and create the
-  // normalised org_members entry for this super_admin.
-  if (companyId) {
-    await supabase
-      .from("companies")
-      .update({ billing_owner_id: newUser.id })
-      .eq("id", companyId);
+  // ── No plan: free onboarding flow — create the account and sign the user in ──
+  const account = await materializePendingSignup(supabase, {
+    email,
+    first_name: firstName,
+    last_name: lastName,
+    password_hash,
+  });
 
-    await supabase.from("org_members").insert({
-      user_id: newUser.id,
-      org_id: companyId,
-      role: "super_admin",
-    });
+  if (!account) {
+    return NextResponse.json(
+      { error: "Failed to create account" },
+      { status: 500 }
+    );
   }
 
   const token = await createToken({
-    id: newUser.id,
-    email,
-    username: displayName,
-    role: "user",
-    company_id: companyId,
-    company_role: companyRole,
-    user_type: "internal",
+    id: account.userId,
+    email: account.email,
+    username: account.username,
+    role: account.role,
+    company_id: account.companyId,
+    company_role: account.companyRole,
+    user_type: account.userType,
   });
 
-  // If a plan was provided, create the Stripe checkout session server-side.
-  // A failure here is surfaced (not silently swallowed) so billing/config
-  // problems are diagnosable instead of dumping the user back into the app.
-  let checkoutUrl: string | null = null;
-  let checkoutError: string | null = null;
-  if (plan) {
-    const result = await createPlanCheckout(plan, companyId!, email);
-    checkoutUrl = result.url;
-    checkoutError = result.error;
-  }
-
-  const res = NextResponse.json({ success: true, checkoutUrl, checkoutError });
-
-  // Only establish a logged-in session here when the user is NOT being routed
-  // through Stripe checkout. When a paid plan was selected we defer the session
-  // until checkout actually completes (see /api/checkout/complete, called from
-  // the checkout success page). Otherwise a user could create an account, bail
-  // out of the Stripe page, and still be fully logged in without ever paying —
-  // and a stale cookie would silently drop them into the app on a later visit.
-  if (!plan) {
-    res.cookies.set("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
-  }
+  const res = NextResponse.json({ success: true, checkoutUrl: null, checkoutError: null });
+  res.cookies.set("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
 
   return res;
 }
