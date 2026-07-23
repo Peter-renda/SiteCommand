@@ -431,4 +431,118 @@ export const PHASE_LESSONS: Lesson[] = [
     ],
     relatedLessonIds: ["wf-punch-closeout", "tech-testing-cx", "tech-fire", "wf-permits"],
   },
+
+  // ───────────── Interior Rough-Ins · Rough Carpentry ─────────────
+  {
+    id: "im-rough-carpentry",
+    track: "interior-mep",
+    category: "Interior Framing",
+    title: "Rough Carpentry: Blocking, Backing, Nailers & Sheathing",
+    summary:
+      "The unglamorous wood scope that everything else hangs on — literally. Blocking and backing must be located and installed before the walls close, or fixing it later means tearing drywall back out.",
+    minutes: 5,
+    keyTerms: [
+      { term: "Rough carpentry", definition: "CSI Division 06 10 00 — the structural and concealed wood work: blocking, backing, nailers, furring, sheathing, and miscellaneous framing, as opposed to the finished, visible work of finish carpentry (Division 06 20 00)." },
+      { term: "Blocking / backing", definition: "Solid wood (or metal) installed inside a hollow wall or above a ceiling to give a firm anchor for something heavy that will be attached later — grab bars, TVs, casework, handrails, toilet accessories, wall-hung fixtures." },
+      { term: "Nailer / cant strip", definition: "Wood fastened to a roof or structure to give the roofer and other trades something to attach to — perimeter roof nailers, curbs, and the angled cant strip at parapet transitions." },
+      { term: "FRT plywood", definition: "Fire-Retardant-Treated plywood, used for the code-required backboards that panel electrical, telecom, and IT rooms, and anywhere the code demands a rated wood substrate." },
+    ],
+    body: [
+      {
+        heading: "The scope nobody notices until it's missing",
+        paragraphs: [
+          "Rough carpentry is the concealed wood that other trades depend on: the blocking that lets a grab bar take a 250-pound load, the nailers the roofer fastens to, the FRT plywood backboards the electrician and IT contractor screw their gear to, the sheathing under the exterior skin. It's rarely a large subcontract and it never wins an award, but it's on the critical path of coordination — because almost all of it has to be in place before the wall or ceiling it lives in gets closed up. Rough carpentry done late isn't a small miss; it's a demolition problem.",
+        ],
+      },
+      {
+        heading: "What's in the package",
+        bullets: [
+          "In-wall and above-ceiling blocking/backing — anchor points for anything heavy hung later: cabinets and casework, grab bars, handrails, TVs and monitors, toilet accessories, wall-hung sinks and fixtures, markerboards.",
+          "Roof blocking, nailers, and cant strips — the wood the roofer and sheet-metal trades fasten to at perimeters, curbs, and equipment supports.",
+          "Sheathing — wall and roof structural panels (plywood or OSB) that brace the structure and carry the envelope; wood framing on lighter buildings overlaps with the framing lesson.",
+          "FRT plywood backboards — the fire-retardant-treated panels lining electrical, telecom, and IT rooms.",
+          "Miscellaneous rough wood and fasteners — furring, grounds, and the nails, screws, anchors, and connectors that fasten it all (a real submittal item — fastener type and spacing matter structurally).",
+        ],
+      },
+      {
+        heading: "Backing coordination is the whole game",
+        paragraphs: [
+          "The defining challenge of rough carpentry is timing, not skill. Every piece of backing has to be located and installed while the wall is still open — after framing, before drywall closes it. That means the PM and superintendent must know, before the drywall trade arrives, exactly what will hang on every wall: which walls get grab bars (from the accessibility drawings), where the casework and millwork anchor (from the architectural elevations and the millwork shops), where the owner's TVs and equipment mount, where handrails land. Miss a backing location and the fix once drywall is up is to cut the wall open, add the block, and patch — a visible, expensive rework near the finish line. A backing walk of every wall against the drawings before drywall is one of the highest-value coordination reviews on the job.",
+        ],
+      },
+      {
+        heading: "Where it sits in the sequence",
+        paragraphs: [
+          "Rough carpentry threads through several phases: sheathing and roof nailers during the shell and dry-in, in-wall blocking during interior framing and MEP rough-in (it competes for the same open-wall window), and the FRT backboards before the electrical and low-voltage rooms are trimmed out. Because it's spread across trades and phases rather than being one continuous activity, it's easy to lose track of — which is exactly why it belongs on the coordination log and the pre-drywall checklist rather than being left to 'the carpenters will handle it.'",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "Rough carpentry is a coordination item more than a standalone milestone. Track the backing requirements against the architectural, accessibility, and millwork drawings, and put the pre-drywall backing walk on your quality/coordination checklist so no anchor point is discovered missing after the walls are closed — a classic 'catch it before it's covered' inspection.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["im-framing", "tech-framing", "fin-millwork", "wf-trade-coordination"],
+  },
+
+  // ───────────── Interior Finishes · Doors, Frames & Hardware ─────────────
+  {
+    id: "fin-doors-hardware",
+    track: "finishes",
+    category: "Millwork, Doors & Hardware",
+    title: "Doors, Frames & Hardware (DF&HDW): Openings Coordination",
+    summary:
+      "Division 08 openings are a small dollar value with an outsized ability to hold up a closeout — hundreds of pieces, dozens of hardware sets, fire labels, keying, and access-control tie-ins that all have to be exactly right.",
+    minutes: 6,
+    keyTerms: [
+      { term: "Hollow metal (HM)", definition: "Welded or knock-down steel door frames (and steel doors), the workhorse of commercial openings. Frames are typically set early — during or right after framing — long before the doors and hardware arrive." },
+      { term: "Door schedule", definition: "The drawing schedule listing every opening by number with its door type, size, material, frame, fire rating, and a keyed hardware-set number — the master index of the entire openings scope." },
+      { term: "Hardware set", definition: "The grouped list of all the hardware for one type of opening (hinges, lockset or exit device, closer, stops, seals, thresholds), assembled by a hardware consultant and keyed to the door schedule." },
+      { term: "Keying / keying schedule", definition: "The plan for which keys operate which doors, including master-key hierarchies, set at a keying meeting with the owner — get it wrong and every lock cylinder may have to be re-pinned." },
+      { term: "Fire-rated opening", definition: "A labeled door-frame-hardware assembly rated to resist fire for a set time (20/45/60/90 min), which must be self-closing and positive-latching — the rating is only valid if every component and the installation carry the label." },
+    ],
+    body: [
+      {
+        heading: "Small scope, big schedule risk",
+        paragraphs: [
+          "Doors, frames, and hardware (Division 08) is rarely a large subcontract, but it is one of the most reliable sources of closeout pain in the industry. A building has hundreds of openings, each needing a specific door, a specific frame, and a specific set of hardware — and every one of those has to be the right size, the right rating, keyed correctly, and installed to work. Get 98% of it right and the missing 2% is still a punch list of non-functioning doors standing between you and a certificate of occupancy. The scope is detail-dense and unforgiving, so it rewards early, disciplined management far out of proportion to its dollar value.",
+        ],
+      },
+      {
+        heading: "The three parts, and why frames go in first",
+        bullets: [
+          "Frames — usually hollow metal, set early: they're installed during or right after framing so the drywall can be hung around them. A late or wrong frame stalls the wall, not just the door.",
+          "Doors — hollow metal, wood (for finished interiors), or specialty (aluminum/glass entrances are often a separate storefront/glazing scope). Doors arrive and hang much later than their frames, at the finishes stage.",
+          "Hardware — hinges, locksets or exit devices, closers, stops, seals, and thresholds. It arrives as boxed hardware sets and gets installed at trim-out; it's the piece most likely to be short, wrong, or back-ordered.",
+          "Because the frame, door, and hardware for one opening arrive on different schedules from different sources, the opening isn't 'done' until the last of the three shows up correct — which is why openings punch drags to the very end.",
+        ],
+      },
+      {
+        heading: "The schedules and the hardware consultant",
+        paragraphs: [
+          "Two documents govern the scope: the door schedule (every opening's door, frame, size, and rating) and the hardware sets (the grouped hardware for each opening type), tied together by a keyed set number. On most commercial jobs a hardware consultant (often DHI-certified) writes the hardware schedule from the specs and the door schedule — a specialized skill, because matching the right lockset, closer, and seals to each opening's function, rating, and code requirements (accessibility, egress, fire) is genuinely intricate. Reviewing the hardware submittal carefully is worth the time: an error here multiplies across dozens of openings.",
+        ],
+      },
+      {
+        heading: "Keying, fire ratings, and access control",
+        paragraphs: [
+          "Three things reliably bite teams that treat openings as an afterthought. First, keying: the owner has to decide, at a keying meeting, which keys open which doors and how the master-key hierarchy works — decided late or wrong, and every cylinder gets re-pinned. Second, fire ratings: a rated opening is only rated if the door, frame, hardware, and installation all carry the label and the door is self-closing and positive-latching; a propped rated door or a swapped-in non-rated closer fails the fire-marshal inspection. Third, access control: electrified hardware — electric strikes, mag locks, card readers, request-to-exit sensors — is where Division 08 hardware meets the Division 28 security/low-voltage scope, and the coordination of power, wiring, and who furnishes/installs which piece is a classic gap that leaves doors that lock mechanically but don't talk to the access-control system.",
+        ],
+      },
+      {
+        heading: "Manage the long-lead and the punch",
+        paragraphs: [
+          "Frames and specialty/rated hardware carry real lead times, and hardware in particular has a long submittal-and-fabrication cycle — so the door and hardware submittals should be among the first you push, not left until the finishes stage. Toward the end, run an openings-specific punch: walk every door, check that it swings, latches, closes, seals, keys correctly, and — for rated and access-controlled doors — meets its label and ties into security. Because openings punch is heavy and gates the CO, start it early and track it separately rather than folding it into the general punch list.",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "Openings are a submittal-and-coordination discipline: get the door and hardware submittals moving early (they're long-lead), review the hardware sets against the schedule and code, and put keying, fire-label verification, and the access-control interface on your coordination log. At closeout, an openings-specific punch tracked separately keeps the industry's most notorious last-mile scope from holding your certificate of occupancy.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["fin-millwork", "im-framing", "mep-security-fire-alarm", "co-inspections-co"],
+  },
 ];

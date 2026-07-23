@@ -3836,6 +3836,348 @@ export const LESSON_QUIZZES: Record<string, LessonQuiz> = {
       },
     ],
   },
+
+  // ═══════════════════ Course-module additions ═══════════════════
+  "pm-organization": {
+    questions: [
+      {
+        prompt: "The lesson describes the PM's real job as:",
+        options: [
+          "Personally performing every task on the project",
+          "Holding many open loops to closure — acting like an air-traffic controller for the job",
+          "Memorizing the entire schedule so nothing is written down",
+          "Answering email as fast as possible above all else",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "What is the antidote to reactive fire-fighting?",
+        options: [
+          "Working longer hours",
+          "Only handling whatever feels most urgent in the moment",
+          "Running on a fixed daily/weekly cadence that forces every open loop past your eyes",
+          "Waiting for problems to resolve themselves",
+        ],
+        answer: 2,
+      },
+      {
+        prompt: "When you delegate a task, the lesson says you should:",
+        options: [
+          "Consider it off your plate entirely once handed over",
+          "Keep the loop — it stays on your action list, assigned to them, until you've seen it closed",
+          "Do it yourself anyway to be safe",
+          "Avoid delegating so you keep control",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "pm-client-expectations": {
+    questions: [
+      {
+        prompt: "Client satisfaction is best described as:",
+        options: [
+          "Purely a function of the building's technical quality",
+          "The gap between what the client expected and what they experienced",
+          "Whether the project came in under budget",
+          "How many change orders were avoided",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The 'no-surprises rule' means:",
+        options: [
+          "Never sharing bad news with the client",
+          "Only reporting problems at scheduled milestones",
+          "The client should never learn about a problem from someone other than you, or later than they could have",
+          "Keeping the client out of decisions to avoid worrying them",
+        ],
+        answer: 2,
+      },
+      {
+        prompt: "The right way to handle scope creep is to:",
+        options: [
+          "Refuse all client changes to protect the budget",
+          "Quietly absorb small additions to keep the client happy",
+          "Route every added expectation through the change process so expectation and price move together",
+          "Wait until closeout to reconcile everything at once",
+        ],
+        answer: 2,
+      },
+    ],
+  },
+  "pm-sub-expectations": {
+    questions: [
+      {
+        prompt: "Where should scope expectations be set to avoid the 'that wasn't in my number' fight?",
+        options: [
+          "In the field, once the trade has started",
+          "At buyout — in the subcontract's inclusions/exclusions and a complete SOV",
+          "At the final punch walk",
+          "In the owner's prime contract only",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The lesson describes a backcharge as:",
+        options: [
+          "The first tool to reach for when a sub is behind",
+          "A documented last resort, flagged in advance — never sprung as a surprise on the pay app",
+          "A way to boost the GC's margin",
+          "Something that should always be kept off the record",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The single most powerful lever for keeping good subs willing to prioritize your job is:",
+        options: [
+          "Holding their retainage as long as possible",
+          "Threatening default early and often",
+          "Paying them promptly on the agreed cycle once work is verified",
+          "Giving them the largest possible scope",
+        ],
+        answer: 2,
+      },
+    ],
+  },
+  "pm-team-expectations": {
+    questions: [
+      {
+        prompt: "According to the lesson, the two ways a team drops work are:",
+        options: [
+          "Working too fast and working too slow",
+          "A task everyone assumed someone else had, and a task two people did twice — both from unclear ownership",
+          "Too many meetings and too few meetings",
+          "Over-documentation and under-documentation",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Real delegation means:",
+        options: [
+          "Dictating each step and micromanaging the result",
+          "Handing over the outcome and the authority, then holding the person to the result",
+          "Giving away tasks you dislike with no follow-up",
+          "Keeping all real decisions for yourself",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "'Managing up' refers to:",
+        options: [
+          "Promoting yourself to your team",
+          "Escalating every issue to your boss immediately",
+          "Keeping your own manager informed and un-surprised, and being clear about what you need from them",
+          "Avoiding contact with senior leadership",
+        ],
+        answer: 2,
+      },
+    ],
+  },
+  "com-insurance": {
+    questions: [
+      {
+        prompt: "Which two endorsements make a subcontractor's CGL actually reach up and protect the GC?",
+        options: [
+          "Additional insured and waiver of subrogation",
+          "Deductible buy-down and aggregate reset",
+          "Builders risk and workers' comp",
+          "Umbrella and auto",
+        ],
+        answer: 0,
+      },
+      {
+        prompt: "A certificate of insurance (COI) is used to:",
+        options: [
+          "Bill the owner for insurance costs",
+          "Prove a sub carries the required coverage before they mobilize, and is tracked so it doesn't lapse mid-job",
+          "Replace the subcontract",
+          "Waive the sub's need for workers' comp",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Builders Risk insurance covers:",
+        options: [
+          "A worker's own on-the-job injuries",
+          "Third-party bodily injury from the work",
+          "The work-in-progress itself — the building under construction and stored materials — against perils like fire, wind, and theft",
+          "Design errors by the architect",
+        ],
+        answer: 2,
+      },
+    ],
+  },
+  "wf-trade-coordination": {
+    questions: [
+      {
+        prompt: "The two dimensions of trade coordination are:",
+        options: [
+          "Cost and quality",
+          "Time (sequencing) and space (who occupies which physical area)",
+          "Labor and materials",
+          "Design and construction",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Why must MEP rough-in be installed and inspected before drywall?",
+        options: [
+          "Because the drywall crew installs the rough-in",
+          "Because covering un-inspected rough-in means tearing the wall back out",
+          "Because the energy code requires it after finishes",
+          "Because it lowers the retainage",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "'Protection of work' in coordination refers to:",
+        options: [
+          "Insuring the project against theft",
+          "Safeguarding completed work from damage by the trades that follow",
+          "Protecting the schedule from the owner",
+          "Keeping subs off each other's contracts",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "tech-roofing": {
+    questions: [
+      {
+        prompt: "Why does the roof gate the whole interior?",
+        options: [
+          "Roofers are the last trade to leave the site",
+          "Until it's on, the interior is exposed to weather — the roof paces dry-in, which unlocks drywall and finishes",
+          "The roof carries all the building's electrical load",
+          "Because the CO is issued the day the roof is finished",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "On a low-slope roof, leaks most often originate:",
+        options: [
+          "In the open field of the membrane",
+          "At the edges and penetrations — flashings at drains, curbs, vents, and parapets",
+          "In the structural deck",
+          "In the insulation only",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "After a roof is under a manufacturer (NDL) warranty, who may penetrate or modify it?",
+        options: [
+          "Any trade that needs to run something through it",
+          "Only the certified roofer or a manufacturer-approved contractor — unauthorized penetrations can void the warranty",
+          "The electrician, since conduit is exempt",
+          "Anyone, once the building is occupied",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "mep-lighting": {
+    questions: [
+      {
+        prompt: "Under the current energy code, lighting controls (occupancy sensors, dimming, daylight harvesting) are:",
+        options: [
+          "Optional upgrades the owner can skip",
+          "Largely mandatory in most spaces — and their own coordination and commissioning scope",
+          "Only required in exterior lighting",
+          "Prohibited on LED fixtures",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Emergency/egress lighting and illuminated exit signs matter because they:",
+        options: [
+          "Are the most decorative fixtures on the job",
+          "Are a life-safety system the AHJ tests before granting a certificate of occupancy",
+          "Only run during normal power",
+          "Are installed by the drywall trade",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Lighting is coordinated primarily on which drawing, checked against the MEP plans?",
+        options: [
+          "The structural framing plan",
+          "The civil grading plan",
+          "The Reflected Ceiling Plan (RCP)",
+          "The door schedule",
+        ],
+        answer: 2,
+      },
+    ],
+  },
+  "im-rough-carpentry": {
+    questions: [
+      {
+        prompt: "In-wall blocking and backing must be installed:",
+        options: [
+          "After the drywall is hung",
+          "While the wall is still open — after framing, before drywall closes it",
+          "Only at closeout",
+          "By the painter",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "What happens if a backing location is discovered missing after drywall is up?",
+        options: [
+          "Nothing — items can hang on drywall alone",
+          "Cutting the wall open, adding the block, and patching — visible, expensive rework",
+          "The item is simply relocated to the floor",
+          "The framer re-frames the whole wall for free",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "FRT plywood backboards are used to:",
+        options: [
+          "Finish the exterior facade",
+          "Panel electrical, telecom, and IT rooms with a fire-retardant-treated wood substrate",
+          "Form concrete slabs",
+          "Serve as the finished ceiling",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fin-doors-hardware": {
+    questions: [
+      {
+        prompt: "Hollow metal frames are typically installed:",
+        options: [
+          "At the very end of the job with the hardware",
+          "Early — during or right after framing — long before the doors and hardware arrive",
+          "By the roofing crew",
+          "Only after the certificate of occupancy",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A fire-rated opening is only valid if:",
+        options: [
+          "It is painted red",
+          "The door, frame, hardware, and installation all carry the label and it is self-closing and positive-latching",
+          "It has a card reader",
+          "It is wider than a standard door",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Why does openings (DF&HDW) punch tend to drag to the very end of a job?",
+        options: [
+          "Doors are the cheapest scope so they're ignored",
+          "The frame, door, and hardware arrive on different schedules, and the opening isn't done until the last correct piece shows up",
+          "The owner installs the doors themselves",
+          "Doors don't require any inspection",
+        ],
+        answer: 1,
+      },
+    ],
+  },
 };
 
 export function getLessonQuiz(lessonId: string): LessonQuiz | undefined {

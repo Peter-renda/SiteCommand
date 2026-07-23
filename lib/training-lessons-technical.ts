@@ -453,4 +453,63 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     ],
     relatedLessonIds: ["wf-quality", "wf-permits", "wf-punch-closeout", "tech-mep-coordination"],
   },
+
+  // ─────────────────────── Roofing ───────────────────────
+  {
+    id: "tech-roofing",
+    track: "superstructure",
+    category: "Building Envelope",
+    title: "Roofing Systems: The Dry-In That Unlocks the Interior",
+    summary:
+      "The roof is the top of the envelope and the milestone the whole interior waits on. Low-slope vs. steep-slope systems, the layers of a roof assembly, the penetrations that leak, and the manufacturer warranty that governs who touches it.",
+    minutes: 6,
+    keyTerms: [
+      { term: "Low-slope (flat) roof", definition: "A roof pitched too shallow to shed water by gravity alone, so it relies on a continuous waterproof membrane — single-ply (TPO, EPDM, PVC), built-up (BUR), or modified bitumen. The norm on commercial buildings." },
+      { term: "Steep-slope roof", definition: "A pitched roof that sheds water by gravity using overlapping, water-shedding materials — asphalt shingles, metal panels, tile, or slate — over an underlayment." },
+      { term: "Dry-in", definition: "The milestone when the roof and exterior walls are weather-tight, allowing moisture-sensitive interior work (drywall, finishes) to begin. The roof is usually the last piece of dry-in." },
+      { term: "Flashing", definition: "The metal or membrane detailing that seals the roof at every edge, penetration, and change of plane — where nearly all roof leaks actually originate, not in the open field of the membrane." },
+      { term: "NDL warranty", definition: "A No Dollar Limit manufacturer warranty covering both material and labor on a roof, issued only when a certified installer builds an approved assembly and the manufacturer inspects it — which is why unauthorized penetrations can void it." },
+    ],
+    body: [
+      {
+        heading: "Why the roof gates the whole interior",
+        paragraphs: [
+          "The roof is the top of the building envelope, and until it's on, the inside of the building is exposed to weather. That makes roofing the pacing item for dry-in — the milestone that lets drywall, finishes, and most MEP trim begin without risking water damage. A roof that slips a few weeks doesn't just delay the roofers; it holds the entire interior fit-out hostage. This is why the superintendent watches the roofing schedule as closely as any trade on the job.",
+        ],
+      },
+      {
+        heading: "Low-slope vs. steep-slope",
+        bullets: [
+          "Low-slope (commercial norm) — too flat to shed water by gravity, so a continuous waterproof membrane holds the water out. Single-ply membranes dominate: TPO and PVC (heat-welded thermoplastics, light-colored/reflective) and EPDM (a black rubber sheet). Built-up (BUR) and modified-bitumen systems layer felts and asphalt for a redundant, robust roof.",
+          "Steep-slope — sheds water by gravity with overlapping materials over an underlayment: asphalt shingles (most common on residential/light commercial), standing-seam and other metal panels (long life, common on schools and institutional work), and tile or slate (heavy, premium, long-lived).",
+          "Which one you have drives everything downstream — the crew, the lead time, the detailing, the inspection regime, and the warranty.",
+        ],
+      },
+      {
+        heading: "A roof is an assembly, not a single layer",
+        paragraphs: [
+          "On a low-slope commercial roof, the membrane everyone sees is the last of several layers, each doing a job: the structural deck (metal, concrete, or wood) carries the load; a vapor retarder can control moisture from below; rigid insulation (often tapered to build slope toward drains) meets the energy code and creates positive drainage; a cover board protects the insulation and gives the membrane a firm substrate; and the membrane itself is the waterproofing, attached mechanically, fully adhered, or ballasted. Understanding the stack matters because the R-value, the slope-to-drain, and the attachment method are all buried in that assembly and all show up in the submittal you have to review.",
+        ],
+      },
+      {
+        heading: "Leaks live at the edges and penetrations",
+        paragraphs: [
+          "The open field of a roof membrane rarely fails. Roofs leak at the details — the perimeter edge metal, parapet and wall flashings, expansion joints, and every penetration that pokes through: drains, plumbing vents, HVAC curbs, conduit, and structural supports. Every one of those is a hole in your waterproofing that flashing has to reseal. This is a coordination job as much as a roofing job: the roofer needs the plumber's vents, the mechanical curbs, and the electrician's penetrations located and set before or during the roofing, not cut in afterward. A rooftop unit added after the roof is done means someone cutting a new curb into a finished, warrantied roof — the exact thing that starts leaks and voids warranties.",
+        ],
+      },
+      {
+        heading: "The warranty governs who is allowed to touch the roof",
+        paragraphs: [
+          "Commercial roofs are typically sold with a long manufacturer warranty — often a No Dollar Limit (NDL) warranty covering material and labor — but only when a manufacturer-certified installer builds an approved assembly and the manufacturer inspects it. That warranty is a real asset the owner is paying for, and it comes with a rule the PM must enforce: after the roof is warrantied, only the certified roofer (or a manufacturer-approved contractor) may penetrate or modify it. A well-meaning electrician who runs a new conduit through the roof to save a day can void a twenty-year warranty. Protecting the roof warranty — controlling who penetrates it, and routing any later work back through the roofer — is a standing PM responsibility from dry-in through closeout.",
+        ],
+      },
+      {
+        heading: "Inspections and the record",
+        paragraphs: [
+          "Roofing carries its own quality gates: the manufacturer's field inspection (a warranty prerequisite), any code roof/nailer and edge-securement inspections, and often a third-party consultant on larger jobs. Because the roof will be covered and then walked on by every rooftop trade, document the completed assembly and flashings with photos before the parapet caps and equipment go on — that record is what settles a future leak dispute. Then protect it: stage the rooftop trades, use walk pads, and keep the finished roof off the general traffic path.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["tech-envelope", "tech-mep-coordination", "wf-quality", "tech-envelope-products"],
+  },
 ];
