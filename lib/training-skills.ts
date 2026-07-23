@@ -68,8 +68,8 @@ export function skillLevel(score: number): string {
 
 /* ── Signal → skill routing ──────────────────────────────────────────── */
 
-// Category/title keywords win over the track default so e.g. a "commercial"
-// track lesson about lien waivers lands in Cost & Billing.
+// Category/title keywords win over the track default so e.g. a Contracts &
+// Commercial lesson about lien waivers lands in Cost & Billing.
 const LESSON_KEYWORD_RULES: { pattern: RegExp; skill: SkillKey }[] = [
   { pattern: /rfi|submittal|specification|spec book|drawing|document control|transmittal/i, skill: "submittals" },
   { pattern: /buyout|bid|procure|award|subcontract admin|delivery method|scope gap/i, skill: "buyout" },
@@ -79,15 +79,15 @@ const LESSON_KEYWORD_RULES: { pattern: RegExp; skill: SkillKey }[] = [
 ];
 
 const LESSON_TRACK_DEFAULT: Record<Lesson["track"], SkillKey> = {
-  workflow: "submittals",
-  concept: "field",
-  management: "comms",
-  technical: "field",
-  sitework: "field",
-  mep: "field",
-  commercial: "cost",
+  precon: "buyout",
+  sitedev: "field",
+  substructure: "field",
+  superstructure: "field",
+  "interior-mep": "field",
+  finishes: "field",
+  closeout: "field",
   foundations: "comms",
-  fieldops: "field",
+  workflow: "submittals",
 };
 
 export function lessonSkill(lesson: Pick<Lesson, "track" | "category" | "title">): SkillKey {

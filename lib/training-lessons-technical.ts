@@ -15,8 +15,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   // ───────────────────────────── Sitework ─────────────────────────────
   {
     id: "tech-sitework",
-    track: "technical",
-    category: "Sitework",
+    track: "sitedev",
+    category: "Earthwork & Mass Grading",
     title: "Sitework & Earthwork: From Survey to Building Pad",
     summary:
       "Layout and control, cut/fill, compaction and proctors, erosion control, and site utilities — the scope where the biggest early dollars move.",
@@ -55,8 +55,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   // ─────────────────────── Foundations & Concrete ───────────────────────
   {
     id: "tech-foundations",
-    track: "technical",
-    category: "Foundations & Concrete",
+    track: "substructure",
+    category: "Shallow Foundations",
     title: "Foundations & Below-Grade Work",
     summary:
       "Shallow vs. deep foundations, slab-on-grade done right, waterproofing vs. dampproofing, and the underslab rough-in sequence.",
@@ -94,8 +94,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   },
   {
     id: "tech-concrete",
-    track: "technical",
-    category: "Foundations & Concrete",
+    track: "substructure",
+    category: "Slab on Grade & Concrete",
     title: "Concrete: Mix, Place, Cure, Test",
     summary:
       "Mix design basics, rebar, formwork responsibility, placement and curing, the testing regime — and why you never drill a PT slab.",
@@ -136,8 +136,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   // ───────────────────────────── Structure ─────────────────────────────
   {
     id: "tech-steel",
-    track: "technical",
-    category: "Structure",
+    track: "superstructure",
+    category: "Structural Frame",
     title: "Structural Steel & Metals",
     summary:
       "The fab-to-erection pipeline, why steel submittals lead the schedule, connections, decking, fireproofing, and the misc-metals coordination trap.",
@@ -174,8 +174,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   },
   {
     id: "tech-framing",
-    track: "technical",
-    category: "Structure",
+    track: "superstructure",
+    category: "Structural Frame",
     title: "Masonry, Wood & Light-Gauge Framing",
     summary:
       "CMU and brick veneer fundamentals, wood and engineered lumber, light-gauge framing, and the fire-rated assemblies that govern them all.",
@@ -216,8 +216,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   // ───────────────────────────── Envelope ─────────────────────────────
   {
     id: "tech-envelope",
-    track: "technical",
-    category: "Envelope",
+    track: "superstructure",
+    category: "Building Envelope",
     title: "The Building Envelope: Keeping Water Out",
     summary:
       "Roofing, air/water barriers, flashing logic, windows and curtain wall, cladding, and why continuity — not products — is what fails.",
@@ -260,8 +260,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   // ───────────────────────────── MEP Systems ─────────────────────────────
   {
     id: "tech-mep-coordination",
-    track: "technical",
-    category: "MEP Systems",
+    track: "interior-mep",
+    category: "Rough-In Coordination",
     title: "MEP Rough-In & Coordination",
     summary:
       "HVAC, electrical, and plumbing in sequence — the rough-in gates, the ceiling-space war, utility company lead times, and test & balance.",
@@ -299,8 +299,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   },
   {
     id: "tech-fire",
-    track: "technical",
-    category: "MEP Systems",
+    track: "interior-mep",
+    category: "Wet Systems & Fire Protection",
     title: "Fire Protection & Life Safety",
     summary:
       "Sprinklers, alarm, firestopping, rated assemblies, and egress — the systems the AHJ tests hardest, right before you need the CO most.",
@@ -339,8 +339,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   // ───────────────────────────── Interiors ─────────────────────────────
   {
     id: "tech-finishes",
-    track: "technical",
-    category: "Interiors",
+    track: "finishes",
+    category: "Finishes Sequence",
     title: "Interior Finishes: Sequence and Protection",
     summary:
       "Drywall levels, ceilings, flooring moisture testing, millwork, doors and hardware — the phase where quality is most visible and damage is easiest.",
@@ -378,8 +378,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   },
   {
     id: "tech-vertical-lv",
-    track: "technical",
-    category: "Interiors",
+    track: "finishes",
+    category: "MEP Trim-Out & Equipment",
     title: "Elevators & Low Voltage: The Late-Project Traps",
     summary:
       "Why elevators are bought first and finished last, the state inspection gauntlet, structured cabling, and the DAS/ERRC surprise.",
@@ -418,8 +418,8 @@ export const TECHNICAL_LESSONS: Lesson[] = [
   // ─────────────────────── Testing & Commissioning ───────────────────────
   {
     id: "tech-testing-cx",
-    track: "technical",
-    category: "Testing & Commissioning",
+    track: "closeout",
+    category: "Systems Commissioning",
     title: "Testing, Inspections & Commissioning",
     summary:
       "Who inspects what — AHJ vs. special inspections vs. third-party testing — and how commissioning proves the building actually works.",

@@ -93,7 +93,7 @@ export const FOUNDATIONS_LESSONS: Lesson[] = [
   {
     id: "pf-leadership",
     track: "foundations",
-    category: "People",
+    category: "People & Leadership",
     title: "People & Leadership: Subs, Supers, and Managing Up",
     summary:
       "The relationship bank account with subs, the PM/super partnership, no-surprises management upward, and negotiation as a daily skill.",
@@ -138,7 +138,7 @@ export const FOUNDATIONS_LESSONS: Lesson[] = [
   {
     id: "pf-communication",
     track: "foundations",
-    category: "People",
+    category: "People & Leadership",
     title: "Communication & Writing That Protects the Record",
     summary:
       "Email that stands up later, notice letters that preserve rights without burning bridges, minutes that hold, and delivering bad news early.",

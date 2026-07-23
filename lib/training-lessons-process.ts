@@ -19,7 +19,7 @@ export const PROCESS_LESSONS: Lesson[] = [
   {
     id: "wf-budget",
     track: "workflow",
-    category: "Budget & Cost",
+    category: "Cost & Billing",
     title: "Budget & Cost Management: Reading the Job's Financial Health",
     summary:
       "How a construction budget is structured, what the columns actually mean, and how to forecast final cost every month.",
@@ -113,8 +113,8 @@ export const PROCESS_LESSONS: Lesson[] = [
   },
   {
     id: "wf-permits",
-    track: "workflow",
-    category: "Permits & Inspections",
+    track: "precon",
+    category: "Permitting",
     title: "Permits, Inspections & the AHJ",
     summary:
       "Permit types, the inspection sequence from footing to Certificate of Occupancy, and how to work with the authority having jurisdiction.",
@@ -164,7 +164,7 @@ export const PROCESS_LESSONS: Lesson[] = [
   {
     id: "wf-quality",
     track: "workflow",
-    category: "Quality Control",
+    category: "Quality, Safety & Risk",
     title: "Quality Control: Catch It Before It's Covered",
     summary:
       "First-work inspections, mock-ups, pre-cover gates, and the testing log — quality is a schedule of moments, not a vibe.",
@@ -217,7 +217,7 @@ export const PROCESS_LESSONS: Lesson[] = [
   {
     id: "wf-safety",
     track: "workflow",
-    category: "Safety",
+    category: "Quality, Safety & Risk",
     title: "Safety Management: The PM's Role",
     summary:
       "The Focus Four, pre-task planning, incident response, and why the PM owns safety culture even with a safety director on staff.",
@@ -267,7 +267,7 @@ export const PROCESS_LESSONS: Lesson[] = [
   {
     id: "wf-risk",
     track: "workflow",
-    category: "Risk & Insurance",
+    category: "Quality, Safety & Risk",
     title: "Risk, Insurance & Compliance",
     summary:
       "The insurance stack on a project, what a COI actually has to say, bonds, and the compliance gates before a sub sets foot on site.",
@@ -334,7 +334,7 @@ export const PROCESS_LESSONS: Lesson[] = [
   // ─────────────────────── Concept track additions ───────────────────────
   {
     id: "cn-lifecycle",
-    track: "concept",
+    track: "workflow",
     category: "Project Basics",
     title: "The Project Lifecycle & Who Does What",
     summary:
@@ -378,7 +378,7 @@ export const PROCESS_LESSONS: Lesson[] = [
   },
   {
     id: "cn-specs",
-    track: "concept",
+    track: "workflow",
     category: "Drawings & Specs",
     title: "Reading Specifications: The Three-Part Format",
     summary:

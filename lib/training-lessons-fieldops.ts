@@ -23,8 +23,8 @@ export const FIELDOPS_LESSONS: Lesson[] = [
   // ─────────────────────── Preconstruction & Planning ───────────────────────
   {
     id: "fo-geotech",
-    track: "fieldops",
-    category: "Preconstruction & Planning",
+    track: "precon",
+    category: "Design & Engineering",
     title: "Reading Geotechnical Reports",
     summary:
       "What the dirt report tells you about bearing capacity, the water table, and soil type — and the six- and seven-figure decisions that ride on each one.",
@@ -68,8 +68,8 @@ export const FIELDOPS_LESSONS: Lesson[] = [
   },
   {
     id: "fo-takeoffs",
-    track: "fieldops",
-    category: "Preconstruction & Planning",
+    track: "precon",
+    category: "Budgeting & Procurement",
     title: "Material Takeoffs & Quantity Verification",
     summary:
       "Turning 2D drawings into real quantities so you can check a subcontractor's bid instead of trusting it.",
@@ -117,8 +117,8 @@ export const FIELDOPS_LESSONS: Lesson[] = [
   },
   {
     id: "fo-constructability-ve",
-    track: "fieldops",
-    category: "Preconstruction & Planning",
+    track: "precon",
+    category: "Design & Engineering",
     title: "Constructability Reviews & Value Engineering",
     summary:
       "Two paper reviews that save money before the field ever swings a hammer — catching what can't be built, and finding cheaper ways to build what can.",
@@ -161,8 +161,8 @@ export const FIELDOPS_LESSONS: Lesson[] = [
   },
   {
     id: "fo-div00-01",
-    track: "fieldops",
-    category: "Preconstruction & Planning",
+    track: "precon",
+    category: "Budgeting & Procurement",
     title: "Division 00 & 01: The Project Rulebook",
     summary:
       "The front-end of the project manual — the legal and administrative rules that govern how you submit, bill, and claim, no matter what the technical specs say.",
@@ -208,8 +208,8 @@ export const FIELDOPS_LESSONS: Lesson[] = [
   // ─────────────────────── Coordination & Meetings ───────────────────────
   {
     id: "fo-meetings",
-    track: "fieldops",
-    category: "Coordination & Meetings",
+    track: "workflow",
+    category: "Field Operations",
     title: "Running Construction Meetings: Precon, OAC & Coordination",
     summary:
       "The three recurring meetings that keep dozens of companies aligned — what each one is for, who runs it, and why the minutes are a legal record.",
@@ -252,8 +252,8 @@ export const FIELDOPS_LESSONS: Lesson[] = [
   },
   {
     id: "fo-bim",
-    track: "fieldops",
-    category: "Coordination & Meetings",
+    track: "precon",
+    category: "Design & Engineering",
     title: "BIM & Clash Coordination",
     summary:
       "Resolving spatial conflicts in a 3D model before the field builds them wrong — hard clashes, soft clashes, and the cheapest rework you'll ever do.",
@@ -306,8 +306,8 @@ export const FIELDOPS_LESSONS: Lesson[] = [
   // ─────────────────────── Site Logistics & Layout ───────────────────────
   {
     id: "fo-site-logistics",
-    track: "fieldops",
-    category: "Site Logistics & Layout",
+    track: "sitedev",
+    category: "Surveying & Layout",
     title: "Site Logistics, Mobilization & Temporary Facilities",
     summary:
       "The plan that turns a cramped lot into a working jobsite — fencing, gates, crane radius, laydown, washout, rigging oversight, and temporary utilities.",
@@ -359,8 +359,8 @@ export const FIELDOPS_LESSONS: Lesson[] = [
   },
   {
     id: "fo-field-layout",
-    track: "fieldops",
-    category: "Site Logistics & Layout",
+    track: "sitedev",
+    category: "Surveying & Layout",
     title: "Field Layout & Survey: Benchmarks, Gridlines & 811",
     summary:
       "Translating paper into dirt — the datum every elevation ties to, gridlines squared with 3-4-5, excavation depth checks, the 811 color codes, and compaction testing.",
@@ -418,7 +418,7 @@ export const FIELDOPS_LESSONS: Lesson[] = [
   // ──────────────────────────────── Reference ────────────────────────────────
   {
     id: "fo-glossary",
-    track: "fieldops",
+    track: "workflow",
     category: "Reference",
     title: "Master Construction Glossary",
     summary:

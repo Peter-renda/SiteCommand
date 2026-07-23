@@ -3186,6 +3186,348 @@ export const LESSON_QUIZZES: Record<string, LessonQuiz> = {
       },
     ],
   },
+
+  // ═════════════════ Phase-track fill-in modules ═════════════════
+  "site-demolition": {
+    questions: [
+      {
+        prompt: "In the demolition sequence, when does regulated-material abatement (asbestos, lead) happen?",
+        options: [
+          "After the structure is demolished, during debris sorting",
+          "As a separate permitted, inspected scope before structural demolition begins",
+          "Only if the fire marshal requires it",
+          "It's handled by the general demolition crew during teardown",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Which step must happen before a structure is torn down?",
+        options: [
+          "Final paving of the parking lot",
+          "Documented disconnect and capping of active utilities (gas, electric, water, sewer)",
+          "Installation of the permanent fire-alarm system",
+          "The owner's move-in walkthrough",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Why does erosion control go in before site clearing rather than after?",
+        options: [
+          "It's cheaper to install on bare dirt",
+          "Stripping vegetation is exactly what exposes soil to runoff, so the controls must already be in place",
+          "The AHJ only inspects it before clearing",
+          "It isn't required until the building is topped out",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "sub-deep": {
+    questions: [
+      {
+        prompt: "What primarily determines whether a project needs deep foundations?",
+        options: [
+          "The architect's aesthetic preference",
+          "The geotechnical report — soil that can't carry the load near the surface pushes load down to a competent stratum",
+          "Whether the project is over three stories",
+          "The general contractor's equipment availability",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "How is an augercast (CFA) pile's quality verified, given you can't see it?",
+        options: [
+          "By visual inspection of the finished pile top only",
+          "Automated monitoring of grout volume and pressure during installation",
+          "It can't be verified, so it's avoided",
+          "By counting hammer blows like a driven pile",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Why is the deep-foundation program a critical-path concern?",
+        options: [
+          "It's the last thing built before occupancy",
+          "The entire structure sits on it, so a slow or reworked pile program pushes the whole job",
+          "It only affects landscaping",
+          "It has no schedule impact if paid by the day",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "sub-sog": {
+    questions: [
+      {
+        prompt: "Why is a punctured under-slab vapor barrier a serious problem?",
+        options: [
+          "It voids the concrete's compressive strength",
+          "Ground moisture wicks up and causes flooring adhesive failures later — a costly problem with a cheap prevention",
+          "It changes the slab's color",
+          "It only matters on elevated slabs",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "What must happen to under-slab plumbing and conduit before the slab is poured?",
+        options: [
+          "Nothing — it's inspected after the pour",
+          "It's installed, located per the drawings, and inspected/pressure-tested before being covered",
+          "It's added later by core-drilling the finished slab",
+          "It's optional on slab-on-grade",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A slab being 'hard' enough to walk on means it is ready for glue-down flooring.",
+        options: [
+          "True — hardness equals dryness",
+          "False — it must still pass moisture testing (e.g., RH probes per ASTM F2170) before flooring",
+          "True, as long as it's been 7 days",
+          "False — flooring never goes over slab-on-grade",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "sup-elevated": {
+    questions: [
+      {
+        prompt: "Why can't formwork and shoring be stripped from a fresh elevated concrete slab whenever it looks set?",
+        options: [
+          "Union rules prohibit it",
+          "Shoring/reshoring is engineered — the slab must reach the strength the engineer requires, and multiple floors of reshoring may carry the load down",
+          "The concrete supplier owns the forms",
+          "It can be stripped anytime after 24 hours",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "What is the critical rule before coring or saw-cutting a post-tensioned (PT) slab?",
+        options: [
+          "Only cut on Fridays",
+          "Locate the tendons first (e.g., GPR scan) — severing a live tendon is a life-safety event",
+          "PT slabs can be cut freely once cured",
+          "Notify the paint sub",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Sleeves, block-outs, and embeds for MEP in an elevated slab should be placed:",
+        options: [
+          "After the pour, by core-drilling",
+          "Before the pour, so post-cure work isn't a scan-and-core operation",
+          "Only in the topping slab",
+          "By the flooring contractor",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "im-framing": {
+    questions: [
+      {
+        prompt: "Why is in-wall backing/blocking a PM-critical item during interior framing?",
+        options: [
+          "It improves the wall's fire rating automatically",
+          "Grab bars, casework, TVs, and handrails need support installed before drywall — adding it after means cutting the finished wall open",
+          "It's only needed on exterior walls",
+          "It's the drywall sub's responsibility to add later",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A rated/smoke partition differs from a normal partition because it:",
+        options: [
+          "Is always painted a different color",
+          "Must be built to a specific listed assembly, run to the required height, and firestopped at every penetration",
+          "Uses no studs",
+          "Doesn't need inspection",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "When does an interior wall get closed with drywall?",
+        options: [
+          "As soon as the studs are up, to stay ahead of schedule",
+          "After in-wall MEP rough-in is complete and the cover/insulation inspection passes",
+          "Before any rough-in, then reopened later",
+          "Only after the ceiling grid is installed",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fin-drywall-paint": {
+    questions: [
+      {
+        prompt: "What must happen before drywall closes a wall?",
+        options: [
+          "The final coat of paint",
+          "In-wall rough-ins complete and the cover/insulation inspection passed",
+          "The flooring installed",
+          "The certificate of occupancy issued",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "When should a Level 5 vs. Level 4 drywall finish be confirmed and inspected?",
+        options: [
+          "After paint, under normal light",
+          "Before paint, inspecting the surface under raking/wall-wash light — after paint it's a dispute",
+          "It never needs to be confirmed",
+          "Only at the owner's final walk",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "The visible quality of a paint job is mostly a function of:",
+        options: [
+          "The brand of paint alone",
+          "Surface prep and lighting — paint reveals defects rather than hiding them",
+          "The number of painters on the crew",
+          "The color chosen",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fin-ceilings-flooring": {
+    questions: [
+      {
+        prompt: "Why can't acoustical ceiling tile be installed as soon as the grid is up?",
+        options: [
+          "The tile needs to acclimate for 30 days",
+          "Everything above the ceiling must be installed and the above-ceiling inspection passed first",
+          "The grid isn't structural",
+          "Tile always goes in before the grid",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "What is the primary gate before installing glue-down resilient flooring on a slab?",
+        options: [
+          "The slab's compressive-strength test",
+          "Slab moisture testing (e.g., RH probes per ASTM F2170) meeting the manufacturer's limit",
+          "The paint's final coat",
+          "The fire-alarm acceptance test",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Ceiling grid layout is taken from which document?",
+        options: [
+          "The structural steel shop drawings",
+          "The reflected ceiling plan (RCP), so lights, diffusers, and sprinklers coordinate",
+          "The civil grading plan",
+          "The hardware schedule",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fin-millwork": {
+    questions: [
+      {
+        prompt: "Why are field dimensions taken before releasing millwork/casework to fabrication?",
+        options: [
+          "To satisfy the paint sub",
+          "Casework built to the plan dimension won't fit the wall that actually got built",
+          "Field dimensions are never needed",
+          "To speed up drywall",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Electrified door hardware (electric strikes, mag locks, card readers) requires:",
+        options: [
+          "Nothing special — it installs like any lockset",
+          "Power and low-voltage rough-in decided and installed long before the door hangs",
+          "Only a battery",
+          "Installation after the certificate of occupancy",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Why is the keying meeting held early in the job?",
+        options: [
+          "To choose paint colors",
+          "Cylinders and cores are long-lead, so the master/grand-master hierarchy must be fixed before they can be ordered",
+          "The AHJ requires it before framing",
+          "It has no schedule impact",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "fin-mep-trim": {
+    questions: [
+      {
+        prompt: "MEP 'trim-out' refers to:",
+        options: [
+          "The concealed rough-in inside walls",
+          "Installing the visible components — fixtures, devices, diffusers, alarm devices — after finishes",
+          "The demolition of old MEP systems",
+          "The utility-company service connection",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A device or diffuser that lands in the wrong spot at trim-out usually traces back to:",
+        options: [
+          "The paint sub",
+          "Coordination that was skipped during rough-in months earlier",
+          "The flooring installer",
+          "The owner's furniture layout",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Why does trim-out have to precede system startup and the fire-alarm acceptance test?",
+        options: [
+          "It doesn't — startup happens first",
+          "You can't start up or test systems whose fixtures, devices, and equipment aren't yet set and connected",
+          "The AHJ only inspects untrimmed systems",
+          "Startup is optional",
+        ],
+        answer: 1,
+      },
+    ],
+  },
+  "co-inspections-co": {
+    questions: [
+      {
+        prompt: "The Certificate of Occupancy behaves like a logical AND gate because:",
+        options: [
+          "Only one inspection is ever required",
+          "It's issued only when every required final inspection passes — one failure holds the whole CO and move-in",
+          "It's issued automatically at substantial completion",
+          "The owner issues it themselves",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Why are accessibility (ADA/ANSI) requirements verified during construction rather than at final inspection?",
+        options: [
+          "They aren't inspected at all",
+          "They're built-in dimensions (clearances, slopes, door forces) that can't be fixed at final if they're wrong",
+          "The inspector doesn't measure them",
+          "They only apply to the site work",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "A Temporary CO (TCO) is best understood as:",
+        options: [
+          "A permanent substitute for the CO",
+          "A conditional, time-limited occupancy with a short punch — a managed tool, not a way to skip life-safety work",
+          "A document the GC issues",
+          "Proof that all inspections passed",
+        ],
+        answer: 1,
+      },
+    ],
+  },
 };
 
 export function getLessonQuiz(lessonId: string): LessonQuiz | undefined {
