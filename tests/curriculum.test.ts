@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { LESSONS, lessonsByTrack, TRACK_LABELS, type LessonTrack } from "@/lib/training-lessons";
 
 // Guards the curriculum totals advertised on the marketing site (app/page.tsx):
-// 111 lessons across the 9 construction-lifecycle tracks. If the curriculum
+// 121 lessons across the 9 construction-lifecycle tracks. If the curriculum
 // changes, this fails so the homepage `tracks` counts get updated alongside it.
 describe("curriculum totals (marketing claim guard)", () => {
-  it("ships 111 lessons", () => {
-    expect(LESSONS.length).toBe(111);
+  it("ships 121 lessons", () => {
+    expect(LESSONS.length).toBe(121);
   });
 
   it("spans 9 distinct tracks", () => {
@@ -23,15 +23,15 @@ describe("curriculum totals (marketing claim guard)", () => {
       precon: 16,
       sitedev: 13,
       substructure: 5,
-      superstructure: 7,
-      "interior-mep": 15,
-      finishes: 8,
+      superstructure: 8,
+      "interior-mep": 17,
+      finishes: 9,
       closeout: 5,
-      foundations: 15,
-      workflow: 27,
+      foundations: 19,
+      workflow: 29,
     };
     const sum = Object.values(expected).reduce((a, b) => a + b, 0);
-    expect(sum).toBe(111);
+    expect(sum).toBe(121);
     for (const [track, count] of Object.entries(expected)) {
       expect(lessonsByTrack(track as LessonTrack).length).toBe(count);
     }

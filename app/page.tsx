@@ -57,17 +57,17 @@ const tracks = [
   { code: "01", name: "Pre-Construction & Entitlements", count: 16, desc: "Feasibility & zoning, design & engineering, budgeting & procurement, permitting." },
   { code: "02", name: "Site Development & Civil", count: 13, desc: "Survey, erosion control, earthwork, utilities, hardscape, and site products." },
   { code: "03", name: "Substructure & Foundations", count: 5, desc: "Deep and shallow foundations, slab-on-grade, and concrete products." },
-  { code: "04", name: "Superstructure & Shell", count: 7, desc: "Structural frame, elevated slabs, the envelope, and their products." },
-  { code: "05", name: "Interior Rough-Ins & MEP", count: 15, desc: "Framing, the MEP pattern, wet systems, HVAC, power, coordination & products." },
-  { code: "06", name: "Interior Finishes & Equipment", count: 8, desc: "Drywall, ceilings, flooring, millwork, MEP trim-out, and finish products." },
+  { code: "04", name: "Superstructure & Shell", count: 8, desc: "Structural frame, elevated slabs, the envelope, roofing, and their products." },
+  { code: "05", name: "Interior Rough-Ins & MEP", count: 17, desc: "Framing, rough carpentry, the MEP pattern, wet systems, HVAC, power, lighting & products." },
+  { code: "06", name: "Interior Finishes & Equipment", count: 9, desc: "Drywall, ceilings, flooring, millwork, doors & hardware, MEP trim-out, and finish products." },
   { code: "07", name: "Commissioning & Closeout", count: 5, desc: "Systems commissioning, punch, final inspections, and handover." },
-  { code: "PRO", name: "Professional Skills", count: 15, desc: "Money, people & leadership, managing the project, and the rules of the game." },
-  { code: "WF", name: "Workflows & Concepts", count: 27, desc: "SiteCommand's tools plus drawings, specs, CSI, contracts, and the glossary." },
+  { code: "PRO", name: "Professional Skills", count: 19, desc: "Money, leadership, managing clients/subs/teams, and the rules of the game." },
+  { code: "WF", name: "Workflows & Concepts", count: 29, desc: "SiteCommand's tools plus drawings, specs, CSI, contracts, insurance & the glossary." },
 ];
 
 // Totals derived from the track list so the marketing copy never drifts from
 // the shipped curriculum (lib/training-lessons*.ts).
-const totalLessons = tracks.reduce((sum, t) => sum + t.count, 0); // 111
+const totalLessons = tracks.reduce((sum, t) => sum + t.count, 0); // 121
 const totalTracks = tracks.length; // 9
 
 const audiences = [

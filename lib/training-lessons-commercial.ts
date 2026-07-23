@@ -255,4 +255,67 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
     ],
     relatedLessonIds: ["wf-daily-logs", "wf-scheduling", "com-clauses", "pf-communication"],
   },
+
+  // ─────────────────────── Insurance ───────────────────────
+  {
+    id: "com-insurance",
+    track: "workflow",
+    category: "Contracts & Commercial",
+    title: "Construction Insurance: CGL, Builders Risk & the COI Gate",
+    summary:
+      "The policies that stand behind every project, why a certificate of insurance gates a sub's mobilization, and the two endorsements — additional insured and waiver of subrogation — that make the coverage actually protect you.",
+    minutes: 6,
+    keyTerms: [
+      { term: "CGL (Commercial General Liability)", definition: "The core policy covering third-party bodily injury and property damage arising from the work — the coverage every GC and sub must carry, and the one whose certificate you check first." },
+      { term: "Builders Risk", definition: "Property insurance on the work-in-progress itself — the building under construction and stored materials — against fire, wind, theft, and similar perils until the owner takes possession." },
+      { term: "Additional insured endorsement", definition: "An endorsement that extends a sub's CGL to also protect the GC (and often the owner) for liability arising from that sub's work — so their policy, not yours, responds first when their work causes a loss." },
+      { term: "Waiver of subrogation", definition: "A clause preventing an insurer, after it pays a claim, from turning around and suing another project party to recover — it keeps a covered loss from becoming a lawsuit between teammates." },
+      { term: "COI (Certificate of Insurance)", definition: "A one-page proof-of-coverage document listing each policy, its limits, and its dates — collected from every sub before they mobilize and tracked so none lapses mid-job." },
+    ],
+    body: [
+      {
+        heading: "Why insurance is a PM problem, not just the risk manager's",
+        paragraphs: [
+          "Construction is a risky business — people, heavy equipment, weather, and a valuable half-finished asset all share one site. Insurance is how that risk is financed so a single bad day doesn't sink a company. As a PM you don't underwrite policies, but you do enforce them: you make sure every party carries the coverage the contract requires, that it names the right people, and that it hasn't quietly lapsed. Get this wrong and an accident that should have been someone's insurer's problem becomes your company's balance-sheet problem.",
+        ],
+      },
+      {
+        heading: "The policies you'll see on every job",
+        bullets: [
+          "Commercial General Liability (CGL) — third-party bodily injury and property damage from the work. The baseline everyone carries; you'll check its limits (per-occurrence and aggregate) against the contract.",
+          "Workers' Compensation — covers a worker's own injuries and is mandatory almost everywhere. A sub without valid comp is an exposure that can flow up to the GC, so its COI is non-negotiable.",
+          "Builders Risk — property coverage on the structure under construction and stored materials, usually placed by the owner or GC for the whole project until substantial completion / owner occupancy.",
+          "Commercial Auto — vehicles on and off site; Umbrella / Excess — a layer of extra limits sitting on top of CGL/auto/employer's liability for a catastrophic loss.",
+          "Professional Liability (E&O) — design errors; relevant on design-build or where a sub carries design responsibility (delegated design like connections, fire sprinkler layout).",
+          "Pollution / Environmental — for abatement, earthwork on contaminated sites, and similar scopes where a spill or release is a real risk.",
+        ],
+      },
+      {
+        heading: "The endorsements are what make it protect you",
+        paragraphs: [
+          "A sub carrying their own CGL protects the sub. Two endorsements are what extend that protection to you. The additional insured endorsement makes the GC (and usually the owner) an insured under the sub's policy for liability arising from the sub's work — so when the sub's crew causes a loss, the sub's insurer defends and pays first, preserving your own policy and its loss history. The waiver of subrogation stops an insurer that paid a claim from then suing another project party to get its money back, which keeps a covered event from turning teammates into litigants. A COI that shows high limits but is missing these endorsements is a common, expensive trap — the coverage exists but doesn't reach you.",
+        ],
+      },
+      {
+        heading: "The COI gates mobilization",
+        paragraphs: [
+          "The practical control point is the certificate of insurance. Before a subcontractor is allowed to set foot on site, you collect a current COI proving they carry the required policies at the required limits, with the required additional-insured and waiver endorsements, effective through the work. This isn't bureaucracy — letting an uninsured (or under-insured) sub mobilize is one of the fastest ways to expose the GC. And a COI is a snapshot: policies renew and can be cancelled mid-project, so you track expiration dates and chase renewals so nobody is ever working with lapsed coverage.",
+        ],
+      },
+      {
+        heading: "Wrap-ups: OCIP and CCIP",
+        paragraphs: [
+          "On large projects the owner (Owner-Controlled Insurance Program, OCIP) or the GC (Contractor-Controlled Insurance Program, CCIP) sometimes buys a single 'wrap-up' policy covering everyone on the job instead of each party insuring separately. Wrap-ups can lower total cost and remove coverage gaps and finger-pointing between separate policies — but they change your administration: enrolled subs deduct their insurance cost from their bid, and you manage enrollment and payroll reporting instead of collecting individual COIs. Knowing whether your job is wrap-up or traditional tells you which insurance-administration burden you're carrying.",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "Insurance is the compliance layer of buyout: the same discipline that collects a sub's executed subcontract and lien-waiver setup collects and tracks their COI before mobilization. Treat expired or missing certificates as a gate — a sub with a lapsed COI shouldn't be on your active look-ahead — and keep the additional-insured and waiver-of-subrogation requirements in your subcontract terms so the certificates you collect actually reach up to protect the GC and owner.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["wf-buyout", "com-liens-bonds", "wf-risk"],
+    links: [{ label: "Practice this in your training sandbox", href: "/training/practice" }],
+  },
 ];

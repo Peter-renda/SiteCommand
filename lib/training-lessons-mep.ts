@@ -525,4 +525,64 @@ export const MEP_LESSONS: Lesson[] = [
     ],
     relatedLessonIds: ["tech-testing-cx", "mep-bms", "mep-electrical-distribution", "wf-punch-closeout"],
   },
+
+  // ─────────────────────── Lighting ───────────────────────
+  {
+    id: "mep-lighting",
+    track: "interior-mep",
+    category: "Power & Signal",
+    title: "Lighting: Fixtures, Controls & the Egress-Lighting Gate",
+    summary:
+      "Lighting is the electrical scope everyone sees and the code the plan reviewer scrutinizes hardest. The fixture package, the controls the energy code now mandates, and the emergency lighting that gates the certificate of occupancy.",
+    minutes: 6,
+    keyTerms: [
+      { term: "Luminaire / fixture type", definition: "A lighting fixture, keyed on the drawings by a type mark (A, B, C…) to the lighting fixture schedule, which lists the manufacturer, lamp/LED, wattage, mounting, and finish for each type." },
+      { term: "Lighting controls", definition: "The switches, occupancy/vacancy sensors, dimmers, daylight sensors, and networked control systems that turn lighting on, off, and down — now heavily mandated by the energy code, not optional add-ons." },
+      { term: "Egress / emergency lighting", definition: "Battery- or generator-backed lighting and illuminated exit signs that stay on during a power failure to light the path out — a life-safety system the AHJ tests before granting occupancy." },
+      { term: "Lighting power density (LPD)", definition: "The watts of lighting per square foot a space is allowed under the energy code (ASHRAE 90.1 / IECC / Title 24) — the budget the design must hit, which is why nearly all new lighting is LED." },
+    ],
+    body: [
+      {
+        heading: "The scope everyone sees",
+        paragraphs: [
+          "Lighting is part of the electrical trade, but it deserves its own attention because it is the most visible thing the electrician installs and one of the most code-scrutinized. It's read on the Reflected Ceiling Plan (RCP), where fixtures compete with diffusers, sprinklers, and speakers for ceiling real estate, and detailed in the lighting fixture schedule, which ties each type mark on the plan to a specific product. Getting lighting right is a mix of coordination (fitting the ceiling), procurement (some fixtures are long-lead), and code compliance (energy and life-safety) — three different risks in one package.",
+        ],
+      },
+      {
+        heading: "The fixture package and its schedule",
+        bullets: [
+          "Every fixture on the plan carries a type mark keyed to the lighting fixture schedule — manufacturer, catalog number, lamp/LED and color temperature, wattage, voltage, mounting, and finish.",
+          "Fixture types span recessed troffers and downlights, linear and cove lighting, high-bay fixtures, wall sconces, exterior and site lighting, and decorative/architectural fixtures.",
+          "Decorative and architectural fixtures are the long-lead, submittal-heavy risk — custom finishes and lead times that must be submitted and released early, exactly like other long-lead equipment.",
+          "Nearly all modern lighting is LED, driven by the energy code's lighting-power limits; that also pulls drivers and dimming compatibility into the submittal review.",
+        ],
+      },
+      {
+        heading: "Controls are now a code requirement, not a luxury",
+        paragraphs: [
+          "The biggest change in lighting over the last two code cycles is controls. The energy code (ASHRAE 90.1, the IECC, or California's Title 24) now mandates that lighting turn off or down when a space is empty or daylit: occupancy and vacancy sensors, automatic shut-off, multi-level or continuous dimming, and daylight harvesting near windows and skylights are required in most spaces. On larger projects these tie into a networked lighting control system that the commissioning agent has to functionally test. The practical consequence for a PM is that lighting controls are their own coordination and commissioning scope — miss the sensors and programming and the building won't pass its energy-code inspection or commissioning, even if every fixture works.",
+        ],
+      },
+      {
+        heading: "Emergency lighting gates the CO",
+        paragraphs: [
+          "A specific subset of lighting is a life-safety system: emergency egress lighting and illuminated exit signs. On loss of normal power — battery packs in fixtures, or a generator/inverter feeding designated circuits — these must keep the means of egress lit and the exits marked so occupants can get out in the dark. Because it's life-safety, the authority having jurisdiction tests it during the final inspections, and it is one of the systems that can hold a certificate of occupancy. Confirm the egress lighting and exit-sign layout early, make sure the emergency circuits and battery/generator backup are installed and testable, and treat the emergency-lighting test as a CO gate, not a formality (see the fire-alarm and final-inspection lessons for the rest of the CO life-safety web).",
+        ],
+      },
+      {
+        heading: "Coordinate with the ceiling and the RCP",
+        paragraphs: [
+          "Lighting is where MEP coordination gets visible. Fixtures share the ceiling with HVAC diffusers, sprinkler heads, speakers, and access panels, and their layout is an aesthetic decision the architect cares about — a light landing off-center in a ceiling tile or clashing with a diffuser is a very visible defect. Review the RCP against the mechanical and fire-protection plans before rough-in, confirm ceiling heights and types, and resolve the conflicts on paper. Lighting installs across two passes like the rest of MEP: rough-in (boxes, conduit, whips, and the controls wiring while the ceiling is open) and trim-out (hanging the actual fixtures and installing devices once the ceiling and finishes are in).",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "Lighting risk shows up first in the submittal log — long-lead decorative fixtures and the lighting-control system are approvals that gate the schedule — and in the RCP review against the MEP plans. The final egress-lighting and controls tests belong on your closeout and inspection checklists as CO-gating items, alongside fire alarm and the other life-safety systems.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["mep-electrical-distribution", "mep-security-fire-alarm", "cn-rcp", "tech-vertical-lv"],
+    links: [PRACTICE_LINK],
+  },
 ];

@@ -466,4 +466,64 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     ],
     relatedLessonIds: ["cn-retainage", "wf-scheduling", "wf-punch-closeout", "cn-contracts"],
   },
+
+  // ─────────────────────── Trade coordination ───────────────────────
+  {
+    id: "wf-trade-coordination",
+    track: "workflow",
+    category: "Field Operations",
+    title: "Trade Coordination: Sequencing the Trades So They Don't Collide",
+    summary:
+      "A building is built by dozens of separate companies sharing the same space in a specific order. Coordination is the discipline of managing the handoffs, the shared space, and the protection of finished work.",
+    minutes: 6,
+    keyTerms: [
+      { term: "Sequencing", definition: "The order in which trades perform their work so each has what it needs from the trade before it and leaves what the next trade needs — the temporal half of coordination." },
+      { term: "Spatial coordination", definition: "Resolving who occupies which physical space (the ceiling plenum, the wall cavity, the chase) when several trades need the same room — the geometric half of coordination." },
+      { term: "Handoff", definition: "The point where one trade finishes and hands the work area or assembly to the next; a clean handoff means the receiving trade can start without rework." },
+      { term: "Protection of work", definition: "Safeguarding completed or installed work from damage by trades that follow — floor coverings, corner guards, and covered fixtures that prevent finished work from becoming rework." },
+    ],
+    body: [
+      {
+        heading: "Coordination is the core of building fragmented work",
+        paragraphs: [
+          "No single company builds a building. A commercial project is assembled by dozens of separate subcontractors, each responsible for one scope, all needing the same site and often the same rooms in a precise order. Trade coordination is the PM's and superintendent's central craft: getting those independent companies to behave like one sequenced production line instead of a crowd competing for space. When coordination is good, the job flows; when it's bad, trades trip over each other, work gets damaged and redone, and the schedule bleeds — usually with no single dramatic cause, just friction everywhere.",
+        ],
+      },
+      {
+        heading: "The two dimensions: time and space",
+        paragraphs: [
+          "Coordination happens along two axes. The first is time — sequencing, the order trades work in so each inherits what it needs and leaves what the next needs. Underground plumbing before the slab; framing before rough-in; rough-in inspected before drywall; drywall and paint before finish flooring and trim. The second is space — resolving who gets which physical room when several trades want it at once. The tightest example is the ceiling plenum, where ductwork, sprinkler mains, conduit, cable tray, and plumbing all compete for a few inches above a hung ceiling (see the RCP and MEP-coordination lessons). Good coordination keeps both axes conflict-free before the crews arrive.",
+        ],
+      },
+      {
+        heading: "Who goes first, and why order is contractual reality",
+        bullets: [
+          "Rough-in follows framing and precedes drywall — MEP must be installed and inspected while the walls are open, because covering un-inspected rough-in means tearing it back out.",
+          "Wet trades before dry finishes — concrete, then framing/rough-in, then drywall, then the finish trades (flooring, trim, paint) that a leak or a dropped tool would ruin.",
+          "In-wall backing before drywall closes — blocking for grab bars, TVs, casework, and handrails has to be located and installed before the wall is covered, or it's a demolition job later (see the Rough Carpentry lesson).",
+          "Overhead before below — work above the ceiling and the ceiling grid go in before the finished floor, so nothing drips or drops onto completed finishes.",
+        ],
+      },
+      {
+        heading: "Run it with the look-ahead and the coordination meeting",
+        paragraphs: [
+          "Coordination is managed on paper before it's managed in the field. The three-week look-ahead is where you see, a few weeks out, that two trades are both scheduled in the same area on the same day — and reroute one before they collide. The weekly subcontractor coordination meeting is where the trades themselves work out the handoffs, confirm what they need from each other, and commit manpower to the sequence. For MEP-dense areas, this extends into detailed clash coordination in a shared model, resolving the spatial conflicts before anyone installs a single hanger.",
+        ],
+      },
+      {
+        heading: "Protect the work you've already bought",
+        paragraphs: [
+          "Coordination doesn't stop when a trade finishes — it includes protecting completed work from the trades that follow. A finished floor scratched by a scissor lift, a painted wall gouged moving material, a set of fixtures broken by the next crew: every one is rework you pay for twice and a schedule hit near the end when there's no slack left. Floor protection, corner guards, covering installed fixtures, and clear rules about who's responsible for damage are cheap insurance. When damage does happen, the daily log and photos are how you assign the backcharge fairly rather than eating it.",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "The schedule and three-week look-ahead, the Meetings tool's coordination minutes and action items, and the daily log are your coordination instruments. Use the look-ahead to spot space and sequence conflicts before they reach the field, the coordination meeting to lock the handoffs and manpower commitments, and the daily log to document damage and delays so accountability for protection-of-work failures lands where it belongs.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["wf-daily-logs", "tech-mep-coordination", "mep-coordination-scheduling", "fo-meetings"],
+    links: [PRACTICE_LINK],
+  },
 ];

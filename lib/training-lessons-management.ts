@@ -787,4 +787,248 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     relatedLessonIds: ["pm-success", "pm-procurement-strategy", "pm-risk-value", "pm-sustainability"],
     links: [PRACTICE_LINK],
   },
+
+  // ─────────────────────── Management skills (day-to-day) ───────────────────────
+  {
+    id: "pm-organization",
+    track: "foundations",
+    category: "Managing the Project",
+    title: "Organizational Skills: Running Yourself Before You Run the Job",
+    summary:
+      "A PM is an air-traffic controller for dozens of open loops at once — RFIs, submittals, subs, deliveries, inspections, invoices. The habits that keep nothing from falling through the cracks.",
+    minutes: 6,
+    keyTerms: [
+      { term: "Open loop", definition: "Any commitment or question that has been started but not closed — an unanswered RFI, an unapproved submittal, a promised callback. The PM's real job is tracking dozens of these to closure." },
+      { term: "Action-item log", definition: "The running list of who-owes-what-by-when, pulled from meetings, emails, and the field, and reviewed on a fixed cadence so nothing is carried only in someone's head." },
+      { term: "Time-blocking", definition: "Reserving protected blocks of the day for the deep work (buyout, change pricing, schedule updates) that the constant interruptions of a job site will otherwise crowd out." },
+      { term: "Single source of truth", definition: "One agreed place each kind of information lives (the RFI log, the submittal register, the directory) so the team never has to guess which copy is current." },
+    ],
+    body: [
+      {
+        heading: "The PM's real job is holding many open loops",
+        paragraphs: [
+          "A project manager rarely fails because they couldn't solve a hard technical problem. They fail because one of the fifty things they were tracking quietly went stale — an RFI nobody chased, a long-lead order that slipped a week, a submittal that sat unreviewed until the trade was already on site. Organizational skill is the unglamorous discipline of never letting an open loop disappear, and it separates PMs who look calm under load from those who are always fighting a fire someone could have seen coming.",
+          "Think of yourself as an air-traffic controller. You are not flying every plane; you are making sure none of them collide and none of them run out of fuel while circling. That means your value is in the *system* you use to track everything, not in your memory.",
+        ],
+      },
+      {
+        heading: "Capture everything, carry nothing in your head",
+        bullets: [
+          "Every commitment made in a meeting, an email, or a hallway conversation becomes an action item with an owner and a due date — captured the moment it's made, not reconstructed later.",
+          "Every log has one home: RFIs in the RFI log, submittals in the register, procurement in the long-lead log, field issues in the daily log. If a fact lives in two places, one of them is already wrong.",
+          "Inbox zero is not the goal; inbox-to-action is. An email either becomes a tracked action, a filed record, or a reply — it never just sits as a mental reminder.",
+        ],
+      },
+      {
+        heading: "Run on a cadence, not on adrenaline",
+        paragraphs: [
+          "The antidote to reactive fire-fighting is a fixed rhythm that forces every open loop past your eyes on a schedule. A disciplined PM has a daily loop (review the field's daily log, triage new email into actions, check today's deliveries and inspections) and a weekly loop (walk the RFI and submittal logs for anything stale, update the three-week look-ahead, review the action-item list from last week's coordination meeting).",
+          "The cadence is what lets you protect time for the deep work — pricing a change, buying out a trade, updating the schedule — that a job site's constant interruptions will otherwise eat entirely. Block it, defend it, and do the interrupt-driven triage in its own window.",
+        ],
+      },
+      {
+        heading: "Prioritize by consequence and lead time, not by noise",
+        paragraphs: [
+          "Not everything that feels urgent is important. The loudest item (an angry email, a sub at your desk) is often less consequential than a quiet one (a switchgear submittal that must be approved this week or the schedule slips two months later). Experienced PMs sort work by two questions: what is the consequence if this is late, and how long is the lead time before that consequence lands? That's why a small long-lead procurement item can outrank a large, loud, but slack-rich task.",
+        ],
+      },
+      {
+        heading: "Delegate and close the loop",
+        paragraphs: [
+          "Organization is not doing everything yourself — it's making sure everything has an owner and every owner reports back. Handing a task to the assistant PM or the project coordinator only works if you also track that it comes back done; delegation without follow-up is just a slower way to drop the ball. The habit is to delegate the task and keep the loop: it stays on your action list, assigned to them, until you've seen it closed.",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "The platform is built to be your external memory. The Tasks tool's AI 'To Do' section surfaces time-sensitive open loops grounded in the project's real records; the RFI and submittal logs keep each item's ball-in-court and status visible; daily logs and meeting minutes capture commitments as they're made; and the dashboard 'needs your attention' feed rolls the whole open-loop load into one view. Use them so nothing important is ever carried only in your head.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["wf-daily-logs", "pm-team-expectations", "cn-longlead"],
+    links: [PRACTICE_LINK],
+  },
+  {
+    id: "pm-client-expectations",
+    track: "foundations",
+    category: "People & Leadership",
+    title: "Managing Client Expectations",
+    summary:
+      "Most client dissatisfaction isn't about the building — it's about surprises. How to align on priorities at kickoff, run a no-surprises communication rhythm, and deliver bad news the right way.",
+    minutes: 6,
+    keyTerms: [
+      { term: "Expectation gap", definition: "The distance between what the client believes will happen and what the project can actually deliver — the true source of most 'the contractor let us down' complaints, even on technically successful jobs." },
+      { term: "No-surprises rule", definition: "The principle that the client should never learn about a problem from someone other than you, or later than they could have — surface issues early, while options still exist." },
+      { term: "Scope creep", definition: "The gradual expansion of what the client expects without a matching change to price or schedule — managed by tying every added expectation back to the change process." },
+      { term: "Owner reporting cadence", definition: "The agreed, regular rhythm (weekly report, monthly OAC meeting) at which the client hears status, so communication is proactive and predictable rather than only happening when something is wrong." },
+    ],
+    body: [
+      {
+        heading: "Satisfaction is expectation minus reality",
+        paragraphs: [
+          "A client's happiness is rarely a pure function of the building's quality. It is the gap between what they expected and what they experienced. A team that delivered a good building but let the client be repeatedly surprised — by a delay, a cost, a change they didn't see coming — leaves a dissatisfied client. A team that set honest expectations and then met them, even on a harder job, wins the repeat work. Managing expectations is therefore not spin; it is the deliberate work of keeping the client's picture of the project accurate.",
+        ],
+      },
+      {
+        heading: "Set the frame at kickoff",
+        bullets: [
+          "Pin down the priority. Which corner of the time–cost–quality triangle governs this job? A client who thinks it's all three will disagree with every trade-off you make. Get the priority explicit and written down.",
+          "Agree the communication rhythm. Who gets what report, how often, and in what form — so the client knows when they'll hear from you and doesn't fill silence with worry.",
+          "Define the decision process. Which decisions are yours, which are theirs, and how long you need an answer. A client who understands that a slow submittal decision costs schedule is a faster decision-maker.",
+          "Explain how change works. Walk them through the change-event and change-order process before the first change, so a priced change later reads as the agreed process, not a surprise bill.",
+        ],
+      },
+      {
+        heading: "The no-surprises rule",
+        paragraphs: [
+          "The single most damaging thing you can do to a client relationship is let them be blindsided — especially by someone other than you. If the schedule is slipping, the owner should hear it from you, early, with a recovery plan, not discover it at a milestone or from a subcontractor. Bad news does not improve with age; the earlier you surface a problem, the more options still exist to fix it and the more the client trusts that you're not hiding anything.",
+          "This is uncomfortable, which is exactly why it's a discipline. The instinct is to wait, hope it resolves, and avoid the hard conversation. The professional move is the opposite: raise it while it's still small.",
+        ],
+      },
+      {
+        heading: "Deliver bad news well",
+        ordered: [
+          "Lead with the issue plainly — no burying it under good news or jargon.",
+          "State the impact honestly — cost, schedule, or quality, quantified where you can.",
+          "Bring options, not just a problem — at least one recovery path, ideally a few with trade-offs.",
+          "Own your part and make a recommendation — the client is paying for your judgment, not a menu.",
+          "Confirm the decision and the follow-up in writing — so the resolution is on the record.",
+        ],
+      },
+      {
+        heading: "Guard against scope creep without being rigid",
+        paragraphs: [
+          "Clients naturally accumulate new expectations as the building becomes real to them — a finish upgrade here, an added outlet there. Each is small; together they're a budget and schedule problem, and worse, they quietly reset what the client thinks they're owed. The skill is not to refuse changes but to route every one through the change process so the expectation and the price move together. 'Happy to do that — here's what it does to cost and schedule, want me to write it up?' keeps you the helpful partner while keeping the commercial reality intact.",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "The owner-facing reporting, the change-event and change-order workflow, and the OAC meeting minutes are your expectation-management instruments. Use the reporting cadence to make communication proactive; use the change workflow to keep every added expectation tied to a priced, approved record; and use the meeting minutes to put decisions and their impacts on a shared, dated record the client has seen.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["pm-stakeholders", "pm-quality", "pm-sub-expectations"],
+    links: [PRACTICE_LINK],
+  },
+  {
+    id: "pm-sub-expectations",
+    track: "foundations",
+    category: "People & Leadership",
+    title: "Managing Subcontractor Expectations",
+    summary:
+      "Subs build the job, and you need them back next time. How to set clear scope and schedule commitments, coordinate fairly, hold performance accountable, and keep the relationship intact.",
+    minutes: 6,
+    keyTerms: [
+      { term: "Scope clarity", definition: "A complete, unambiguous statement of exactly what a sub is and isn't responsible for — set at buyout, where a gap or overlap is cheap to fix rather than a change-order fight later." },
+      { term: "Look-ahead commitment", definition: "The three-week schedule the sub agrees to staff and produce against — the mechanism that turns a vague 'we'll get to it' into a trackable manpower commitment." },
+      { term: "Backcharge", definition: "A cost charged back to a sub for work the GC had to do on their behalf (cleanup, repair of their damage) — a legitimate tool, but a last resort that damages the relationship if overused or sprung as a surprise." },
+      { term: "Prompt payment", definition: "Paying subs on the agreed cycle once their work is verified — the single most powerful lever a GC has for keeping good subs willing to prioritize the job and come back." },
+    ],
+    body: [
+      {
+        heading: "You are managing a relationship, not just a contract",
+        paragraphs: [
+          "Subcontractors do the actual building, and the good ones have more work than they can take. How you treat them determines whether they staff your job first or last, whether they flag a problem early or let it become yours, and whether they bid your next project sharp or padded. Managing subs well is both a project-delivery skill and a long-term commercial asset — a GC's reputation among subs is worth real money.",
+          "At the same time, you have a budget and a schedule to protect, and some subs will test both. The balance is firmness on the commitments with fairness in how you enforce them.",
+        ],
+      },
+      {
+        heading: "Set expectations at buyout, not in the field",
+        bullets: [
+          "Nail the scope. The subcontract's inclusions and exclusions and a complete Schedule of Values are where you prevent the 'that wasn't in my number' fight. Scope caught in the field is a change order; scope caught at buyout is a clarification.",
+          "Confirm the schedule commitment. Get the sub to agree to the milestone dates and the coordination sequence before they sign, so the schedule is theirs, not something imposed on them later.",
+          "State the site rules once, clearly. Safety expectations, cleanup responsibility, badging, working hours, deliveries — the things that become friction if they're discovered rather than agreed.",
+          "Confirm compliance up front. Insurance certificates, bonds, and lien-waiver process handled before mobilization, so nothing stalls the sub once they're rolling.",
+        ],
+      },
+      {
+        heading: "Coordinate with the look-ahead",
+        paragraphs: [
+          "The three-week look-ahead is your primary expectation-setting tool during construction. It turns the abstract CPM schedule into a concrete, near-term ask: here's the work, here's the sequence, here's when we need your crew and how many. Reviewed weekly in the coordination meeting, it lets you get a real manpower commitment, surface conflicts between trades before they collide on site, and hold each sub to what they agreed to — publicly, in front of the other trades, which is its own accountability.",
+        ],
+      },
+      {
+        heading: "Hold performance accountable — fairly",
+        paragraphs: [
+          "When a sub falls behind or does poor work, the professional response is graduated and documented, not emotional. Raise it early and directly; document it in the daily log and, if it persists, in writing; give a clear opportunity and deadline to recover; and escalate through the subcontract's remedies (supplementing the crew, backcharges, default) only when the softer steps have genuinely failed. A backcharge sprung as a surprise on the pay app poisons the relationship; the same backcharge, flagged in advance with a paper trail, is understood as fair. The record you build along the way is also what protects you if the dispute ever becomes a claim.",
+        ],
+      },
+      {
+        heading: "Pay on time and treat them straight",
+        paragraphs: [
+          "The fastest way to lose a good sub's goodwill — and their best crews — is to hold their money. Reviewing pay apps promptly, releasing what's earned on the agreed cycle, collecting and returning lien waivers cleanly, and not weaponizing retainage builds the trust that makes a sub go the extra foot when you need it. Fair, prompt, predictable treatment is not softness; it is how you get priority when every GC in town is competing for the same crews.",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "The Commitments tool (scope, SOV, inclusions/exclusions, retainage), the pay-app and lien-waiver workflow, the schedule and look-ahead, and the daily log together are the machinery of sub-expectation management. Set the scope and schedule commitments in the contract, coordinate against the look-ahead, document performance in the daily log, and keep payment prompt and clean — the tools make the fair, firm, on-the-record approach the path of least resistance.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["wf-buyout", "com-sub-admin", "wf-daily-logs"],
+    links: [PRACTICE_LINK],
+  },
+  {
+    id: "pm-team-expectations",
+    track: "foundations",
+    category: "People & Leadership",
+    title: "Managing Team Expectations",
+    summary:
+      "Your internal team — super, assistant PM, coordinator, engineer — multiplies you or bottlenecks you. Clear roles, real delegation, honest feedback, and the huddle rhythm that keeps everyone pointed the same way.",
+    minutes: 6,
+    keyTerms: [
+      { term: "Roles & responsibilities (RACI)", definition: "A clear map of who is Responsible, Accountable, Consulted, and Informed for each area of the work — the antidote to the two failure modes of a team: things everyone assumed someone else had, and things two people did twice." },
+      { term: "Delegation", definition: "Handing real ownership of a task — not just the task, but the authority and the outcome — to a team member, then holding them to the result rather than doing it for them." },
+      { term: "Managing up", definition: "Keeping your own manager (the project executive or principal) informed and un-surprised, and being clear about what you need from them — the team relationship people forget is theirs to manage too." },
+      { term: "Huddle / stand-up", definition: "A short, frequent, standing team check-in (often daily or a few times a week) to align on the day's priorities and surface blockers fast — borrowed from lean/agile practice." },
+    ],
+    body: [
+      {
+        heading: "Your team is your leverage",
+        paragraphs: [
+          "A PM alone can only track so much. The assistant PM, project engineer, superintendent, and project coordinator are how you scale past your own bandwidth — but only if they know exactly what they own and you actually let them own it. A team with fuzzy roles and a PM who won't delegate becomes a bottleneck where everything routes through one overloaded person. Managing team expectations is how you turn a group of people into a force multiplier instead of a queue.",
+        ],
+      },
+      {
+        heading: "Make roles explicit",
+        paragraphs: [
+          "The two ways a team drops work are mirror images: a task everyone assumed someone else had, and a task two people quietly did twice. Both come from unclear ownership. Spelling out who is responsible and who is merely consulted or informed for each area — submittals, RFIs, buyout support, billing, closeout documents — removes the ambiguity. It doesn't need to be a formal chart on a small team; it needs to be a real, shared understanding that everyone could recite.",
+        ],
+        bullets: [
+          "Superintendent — owns the field: safety, sequencing, manpower, quality of installed work, the daily log.",
+          "Project engineer / assistant PM — owns the paperwork engine: RFIs, submittals, the logs, and supporting buyout and billing.",
+          "Project coordinator / admin — owns the flow of documents, compliance collection, and meeting logistics.",
+          "PM — owns the whole: budget, schedule, client and sub relationships, and the integration of all of the above.",
+        ],
+      },
+      {
+        heading: "Delegate the outcome, not just the task",
+        paragraphs: [
+          "Real delegation gives a team member the outcome and the authority to reach it, not a narrow instruction to be micromanaged through. 'Own the submittal log — keep it moving, escalate to me when a review's stuck' develops someone and frees you; 'send this one email exactly as I dictate' does neither. Delegation also has to come with follow-through: agree the outcome and the check-in, then hold them to the result. That's how junior people grow into PMs — by carrying real responsibility with a safety net, not by watching you do everything.",
+        ],
+      },
+      {
+        heading: "Set standards and give feedback in real time",
+        paragraphs: [
+          "Teams rise or fall to the standard the leader visibly holds and enforces. If you tolerate a sloppy log or a missed follow-up once, that becomes the new normal. Set the bar clearly, model it yourself, and give feedback close to the moment — correct quietly and privately, praise specifically and publicly. Feedback saved up for a formal review is too late to change the work and lands as a judgment rather than a course-correction. Frequent, small, honest feedback is both kinder and more effective than a rare, large one.",
+        ],
+      },
+      {
+        heading: "Run a huddle rhythm — and manage up",
+        paragraphs: [
+          "A short, frequent team huddle — a few minutes to align on the day's priorities and surface blockers — keeps a team synchronized far better than long weekly meetings alone. It's where you catch the 'I'm stuck waiting on X' before it costs a day. And don't forget the relationship above you: your project executive or principal is part of your team too. Keeping them informed and un-surprised, and being explicit about what you need from them, is the same no-surprises discipline you owe the client, pointed upward.",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "The project directory and per-tool permissions let you make ownership real — each team member gets the access their role needs, no more. The task, RFI, and submittal tools show at a glance who holds each open item, so accountability is visible rather than remembered; and the meeting and daily-log records keep the whole team working from one shared, current picture of the job.",
+        ],
+      },
+    ],
+    relatedLessonIds: ["pm-leadership", "pf-leadership", "pm-organization"],
+    links: [PRACTICE_LINK],
+  },
 ];
