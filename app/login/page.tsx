@@ -33,7 +33,9 @@ function LoginForm() {
       return;
     }
 
-    window.location.href = data.redirect ?? "/dashboard";
+    // Regular members land on the progress-overview home page; the SiteCommand
+    // projects dashboard is reachable from there via "Open Projects".
+    window.location.href = data.redirect ?? "/home";
   }
 
   return (

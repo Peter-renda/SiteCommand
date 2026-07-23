@@ -10,7 +10,7 @@ export default async function SignupPage() {
   // admin) lands on /signup, creates a new account, and ends up with a
   // mismatched session cookie.
   if (session) {
-    redirect("/dashboard");
+    redirect("/home");
   }
 
   return <SignupForm />;
