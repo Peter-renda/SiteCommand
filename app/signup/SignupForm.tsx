@@ -50,6 +50,13 @@ function SignupFormInner() {
       return;
     }
 
+    // A plan was chosen but checkout couldn't start — show the reason rather
+    // than dropping the user into the app (which reads as "sent to login").
+    if (plan && data.checkoutError) {
+      setError(`Couldn't start checkout: ${data.checkoutError}`);
+      return;
+    }
+
     router.push("/company");
   }
 

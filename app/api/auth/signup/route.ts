@@ -120,8 +120,11 @@ export async function POST(req: NextRequest) {
     user_type: "internal",
   });
 
-  // If a plan was provided, create the Stripe checkout session server-side
+  // If a plan was provided, create the Stripe checkout session server-side.
+  // A failure here is surfaced (not silently swallowed) so billing/config
+  // problems are diagnosable instead of dumping the user back into the app.
   let checkoutUrl: string | null = null;
+  let checkoutError: string | null = null;
   if (plan && PRICE_IDS[plan]) {
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
@@ -137,12 +140,18 @@ export async function POST(req: NextRequest) {
         cancel_url: `${baseUrl}/pricing`,
       });
       checkoutUrl = checkoutSession.url;
-    } catch {
-      // Non-fatal: fall through and let client redirect to dashboard
+    } catch (err) {
+      checkoutError = err instanceof Error ? err.message : "Stripe checkout failed";
+      console.error("Signup Stripe checkout error:", err);
     }
+  } else if (plan) {
+    // A plan was requested but no Stripe price id resolved for it — almost
+    // always a missing/misnamed price env var (or a deploy that predates it).
+    checkoutError = `No Stripe price is configured for the "${plan}" plan.`;
+    console.error(checkoutError);
   }
 
-  const res = NextResponse.json({ success: true, checkoutUrl });
+  const res = NextResponse.json({ success: true, checkoutUrl, checkoutError });
   res.cookies.set("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
