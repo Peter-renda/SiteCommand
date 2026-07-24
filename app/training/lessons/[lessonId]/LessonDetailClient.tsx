@@ -116,6 +116,15 @@ export default function LessonDetailClient({
     setAnswers(quiz ? quiz.questions.map(() => -1) : []);
   }
 
+  // Running section number per body block: blocks with a heading are numbered
+  // 1, 2, 3…; headless blocks (continuations of the section above) get 0 and
+  // render without a number or divider. Keeps the numbering sequential even
+  // when a section is split across blocks.
+  const sectionNumbers = useMemo(() => {
+    let n = 0;
+    return lesson.body.map((b) => (b.heading ? ++n : 0));
+  }, [lesson.body]);
+
   // Prev/next within the same track.
   const trackLessons = useMemo(() => lessonsByTrack(lesson.track), [lesson.track]);
   const idx = trackLessons.findIndex((l) => l.id === lesson.id);
@@ -144,22 +153,47 @@ export default function LessonDetailClient({
       )}
 
       <div className="card card-pad mt-3">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-              {TRACK_LABELS[lesson.track]} · {lesson.category} · {lesson.minutes} min read
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold text-gray-900">{lesson.title}</h1>
-            <p className="mt-1 text-sm text-gray-500">{lesson.summary}</p>
-          </div>
+        {/* ── Header ── */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+          <span>{TRACK_LABELS[lesson.track]}</span>
+          <span className="text-gray-300" aria-hidden>·</span>
+          <span>{lesson.category}</span>
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-gray-500">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {lesson.minutes} min read
+          </span>
         </div>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-gray-900">{lesson.title}</h1>
+        <p className="mt-2 text-[15px] leading-7 text-gray-600">{lesson.summary}</p>
 
+        {/* ── What you'll learn (sets the flow: objectives → theory → practice → materials) ── */}
+        {lesson.objectives && lesson.objectives.length > 0 && (
+          <div className="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
+              What you&rsquo;ll learn
+            </p>
+            <ul className="mt-2.5 space-y-2">
+              {lesson.objectives.map((o, oi) => (
+                <li key={oi} className="flex gap-2.5 text-[13px] leading-5 text-indigo-950/80">
+                  <svg className="mt-0.5 h-4 w-4 shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>{o}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* ── Key terms (quick reference before the reading) ── */}
         {lesson.keyTerms && lesson.keyTerms.length > 0 && (
-          <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3.5">
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
               Key terms
             </p>
-            <dl className="mt-2 space-y-1.5">
+            <dl className="mt-2 space-y-2">
               {lesson.keyTerms.map((kt) => (
                 <div key={kt.term} className="text-[13px] leading-5">
                   <dt className="inline font-semibold text-amber-900">{kt.term}</dt>
@@ -170,37 +204,51 @@ export default function LessonDetailClient({
           </div>
         )}
 
-        <div className="mt-5 space-y-5">
-          {lesson.body.map((block, i) => (
-            <div key={i}>
-              {block.heading && (
-                <h2 className="text-[15px] font-semibold text-gray-900">{block.heading}</h2>
-              )}
+        {/* ── Lesson body: numbered, well-spaced sections for a consistent read.
+             Headless blocks are continuations of the section above them — they
+             carry no number and no divider so the reading flow stays smooth. ── */}
+        <div className="mt-7 space-y-6">
+          {sectionNumbers.map((sectionNo, i) => {
+            const block = lesson.body[i];
+            return (
+              <section
+                key={i}
+                className={block.heading && sectionNo > 1 ? "border-t border-gray-100 pt-6" : undefined}
+              >
+                {block.heading && (
+                  <h2 className="flex items-baseline gap-2.5 text-[17px] font-semibold tracking-tight text-gray-900">
+                    <span className="text-[13px] font-semibold tabular-nums text-gray-300">
+                      {String(sectionNo).padStart(2, "0")}
+                    </span>
+                    <span>{block.heading}</span>
+                  </h2>
+                )}
               {block.paragraphs?.map((p, pi) => (
-                <p key={pi} className="mt-2 text-sm leading-6 text-gray-600">
+                <p key={pi} className="mt-3 text-[15px] leading-7 text-gray-700">
                   {p}
                 </p>
               ))}
               {block.bullets && (
-                <ul className="mt-2 space-y-1.5 list-disc pl-5 text-sm leading-6 text-gray-600">
+                <ul className="mt-3 space-y-2 list-disc pl-5 text-[15px] leading-7 text-gray-700 marker:text-gray-400">
                   {block.bullets.map((b, bi) => (
-                    <li key={bi}>{b}</li>
+                    <li key={bi} className="pl-1">{b}</li>
                   ))}
                 </ul>
               )}
               {block.ordered && (
-                <ol className="mt-2 space-y-1.5 list-decimal pl-5 text-sm leading-6 text-gray-600">
+                <ol className="mt-3 space-y-2 list-decimal pl-5 text-[15px] leading-7 text-gray-700 marker:font-semibold marker:text-gray-400">
                   {block.ordered.map((o, oi) => (
-                    <li key={oi}>{o}</li>
+                    <li key={oi} className="pl-1">{o}</li>
                   ))}
                 </ol>
               )}
-            </div>
-          ))}
+              </section>
+            );
+          })}
         </div>
 
         {lesson.products && lesson.products.length > 0 && (
-          <div className="mt-6 border-t border-gray-100 pt-5">
+          <div className="mt-7 border-t border-gray-100 pt-6">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
               Common products & materials
             </p>

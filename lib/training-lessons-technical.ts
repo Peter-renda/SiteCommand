@@ -9,7 +9,12 @@
  * Client-safe; imports only types from training-lessons (no runtime cycle).
  */
 
-import type { Lesson } from "./training-lessons";
+import type { Lesson, LessonLink } from "./training-lessons";
+
+const PRACTICE_LINK: LessonLink = {
+  label: "Practice this in your training sandbox",
+  href: "/training/practice",
+};
 
 export const TECHNICAL_LESSONS: Lesson[] = [
   // ───────────────────────────── Sitework ─────────────────────────────
@@ -130,7 +135,164 @@ export const TECHNICAL_LESSONS: Lesson[] = [
         ],
       },
     ],
-    relatedLessonIds: ["tech-foundations", "tech-steel", "tech-testing-cx", "wf-quality", "tech-concrete-products"],
+    relatedLessonIds: ["tech-foundations", "tech-formwork", "tech-steel", "tech-testing-cx", "wf-quality", "tech-concrete-products"],
+  },
+  {
+    id: "tech-formwork",
+    track: "substructure",
+    category: "Slab on Grade & Concrete",
+    title: "Concrete Formwork: The Mold That Builds the Building",
+    summary:
+      "Formwork is the temporary structure that shapes and supports concrete until it can stand on its own — and on a cast-in-place job it's around 60% of the on-site investment and often the critical activity that sets the schedule. The quality/safety/economy spine, what a form is made of, the loads it fights across the three stages of use, how it's designed to fail safe, and why stripping and reshoring are governed by strength, not the calendar. Grounded in McAdam & Lee, Formwork: A Practical Approach.",
+    minutes: 13,
+    objectives: [
+      "Explain why formwork — not the concrete itself — usually controls the cost and the schedule of a cast-in-place structure, and why the formworker carries full responsibility for both quality and safety.",
+      "Weigh the three demands every form answers to at once — quality, safety, and economy — and see why trading one away is usually a false economy.",
+      "Name the parts of a form and track the loads it fights across the three stages of use, especially the lateral pressure of fresh concrete.",
+      "Match the common forming systems — job-built, panel, gang, jump/climb, slip, flying/table, and stay-in-place — to the elements and schedules they suit.",
+      "Judge when forms can strip and how a slab is de-propped — undisturbed supports, back-propping, or reshoring — from measured strength, not the calendar.",
+    ],
+    keyTerms: [
+      { term: "Formwork (forms)", definition: "The temporary mold that gives fresh concrete its shape and holds it in position until the concrete is strong enough to support itself. It includes the face that touches the concrete plus everything bracing and supporting it." },
+      { term: "Formface / sheathing", definition: "The surface in direct contact with the concrete — plyform, steel, aluminum, or a form liner. It sets the finish, and it must be stiff and tight enough not to deflect, leak grout, or stain the concrete." },
+      { term: "Lateral (concrete) pressure", definition: "The horizontal push fresh concrete exerts on wall and column forms. Fresh concrete acts like a heavy liquid, so a fast or cold pour keeps it fluid longer and drives the pressure toward full-height hydrostatic." },
+      { term: "Progressive collapse", definition: "A failure mode where one overloaded member fails and shock-transfers its load to its neighbors, which fail in turn — a tie 'zipper' along a wall or a cascade of props under a slab. Forms are arranged to fail safe against it." },
+      { term: "Reshoring", definition: "Removing a slab's forms and original shores entirely, then immediately re-propping to a regular pattern, so young concrete carries its own weight while the props control its creep deflection — done under the design engineer's control." },
+    ],
+    body: [
+      {
+        heading: "What you're really building when you build a concrete structure",
+        paragraphs: [
+          "Ask someone what a concrete contractor does and they picture the pour — trucks, a pump, a crew troweling a slab. But the concrete arrives already designed and mixed; the contractor's real product is the formwork. Formwork is the temporary structure that gives concrete its shape, holds it in exact position, and carries its entire weight until the concrete cures enough to carry itself. Everything the finished structure will be — its dimensions, its plumb and level, its surface finish — is decided by a mold that gets stripped off and thrown away afterward.",
+          "That temporary structure is expensive out of all proportion to how long it lasts. On a concrete building the value of the formwork materials and equipment can be around 60 percent of the builder's on-site investment, and formwork is often the single critical activity that controls the total time of construction. A concrete structure has four cost components — concrete, reinforcement, formwork, and time — and the last two are the ones the contractor actually controls. That is why formwork, not the mix design, is where a concrete job is won or lost.",
+          "There's a second thing that makes formwork unique on the site. Every other trade shares responsibility with the designers: the steel is detailed connection-by-connection, the rebar's grade and laps are predetermined, the joinery is drawn to the millimeter. The formworker is almost a free spirit by comparison — usually the only fixed constraints are the required concrete finish and accuracy plus the builder's demands on cost and time. Within that, the contractor picks the system, the materials, and every detail. The price of that freedom is that the formworker carries the full responsibility for both the quality and the safety of the work, with none of the designer's cover. Understanding formwork means understanding, for each part, its function, the forces on it, and the consequences if it's wrong.",
+        ],
+      },
+      {
+        heading: "Quality, safety, economy — the three demands, all at once",
+        paragraphs: [
+          "Every formwork decision is judged against three principles that pull against each other, and experienced crews treat them as one problem, not three. They are not independent: cutting quality to save money is usually a false economy, and a crew that feels safe produces more and therefore costs less.",
+        ],
+        bullets: [
+          "Quality means the accuracy of the concrete shape and the quality of its surface. Accuracy starts with formwork stiff enough to have a small, predictable deflection under load, aligned and adjustable at the joints so the finished tolerances are met with margin to spare. A flexible formface is a quality problem too — it flutters under the vibrator and emulsifies the release agent (dark patches), and it leaks grout at the joints (honeycomb, staining, and forms that lock up and won't strip cleanly).",
+          "Safety means both people and the structure. The soffit form isn't only a mold — it's a working platform for the steel fixers, electricians, and plumbers who come next, so it needs guardrails, toe boards, and safe access, not just strength. And the form itself must never become unsafe at any stage of loading.",
+          "Economy means the total effective cost of the formwork and its drag on the whole program — fabrication, erection, stripping, and the reuse cycle — which is the biggest lever the contractor holds. Later sections come back to how repetition and care turn this lever.",
+        ],
+      },
+      {
+        heading: "What a form is made of",
+        paragraphs: [
+          "Whatever the element, a form is built up in layers, each layer carrying its load to the next. Reading a form from the concrete outward is the fastest way to make sense of any system you'll see in the field.",
+        ],
+        bullets: [
+          "Formface (sheathing): the skin against the concrete — plywood 'plyform,' steel or aluminum panel, or a form liner for architectural texture. It shapes the surface and must be stiff and tight enough not to deflect, bleed grout, or stain.",
+          "Framing: the studs and walers (walls) or joists and bearers (soffits) that back up the formface and spread its load into the supports. Spacing tightens as the expected pressure rises.",
+          "Ties: for walls and columns, form ties (snap ties, she-bolts, coil ties, through-ties) run through the concrete and hold the two faces at the right thickness against the outward pressure. Each has a rated safe working load, and tie spacing is a design decision, not a guess.",
+          "Supports (shoring): for anything suspended — slabs, beams — the props, frames, or shoring towers that carry the wet-concrete load down to something that can hold it (a cured floor, or the ground on adequate soleplates).",
+          "Bracing: the diagonals and kickers that hold the assembly stable against wind, placement impact, and any side load. Because horizontal forces come from any direction, bracing is needed in at least two directions at right angles. Unbraced formwork is how a wall racks over or a shoring tower folds.",
+        ],
+      },
+      {
+        heading: "The three stages of use — and the loads at each",
+        paragraphs: [
+          "A form has to be safe not just when it's full, but at every moment on the way there. It's useful to think in three stages: Stage 1 before the concrete arrives (while the form is being built, or a table form is being moved); Stage 2 during placement; and Stage 3 after placement, while the form keeps supporting the concrete until it can hold itself. The load combination is different in each stage, and the form must be safe in all of them — including while it is only partly loaded and the load is progressively increasing.",
+          "The loads themselves come from several sources, and real jobs rarely go exactly to plan, so a good form carries reasonably foreseeable overloads too. Self-weight is present at every stage. Fresh concrete loads the vertical forms sideways (Stage 2) and the horizontal forms downward (Stages 2–3), and concrete mounds — a stuck skip gate, a pump operator who doesn't stop — briefly overload a slab form beyond its design depth. Materials get stacked on finished form decks (rebar bundles, block for the next level), and those loads run down through the shoring to lower floors as Stage 3 loads that can quietly overload a multi-storey structure. Workers and tools load the form at every stage. Crane handling adds impact — a swinging skip can strike a wall top or shatter a soffit face — and even the pour's own direction and sequence can make or break stability (pour a cantilevering form from the wrong end and it overturns). Finally, environmental loads: wind (up to three times worse on exposed high work than in a sheltered spot) and water (rain softening or scouring the footings under the shoring).",
+        ],
+      },
+      {
+        heading: "Concrete pressure: the load that catches people out",
+        paragraphs: [
+          "Until it stiffens, fresh concrete behaves like a dense liquid, and like any liquid it pushes sideways in proportion to its depth. If a wall form filled instantly, the pressure at the base would be the full-height hydrostatic pressure — the concrete's unit weight times the wall height — which on a tall wall is enormous. In practice the concrete near the bottom takes its initial set and stops adding pressure before the top is placed, so the real design pressure ends up lower than full hydrostatic.",
+          "How much lower depends on how fast the lift is placed and how quickly the concrete sets — which in turn depends on density, pour height, vertical rate of pour, discharge height, concrete temperature, cement type, admixtures, and even the plan size of the element. A fast pour, or a cold night, keeps the whole column fluid and drives the pressure back toward full hydrostatic. Retarders and superplasticizers do the same by prolonging set. The critical insight for the field is that none of these factors is reliably under the formworker's control on pour day — so the wisest and safest course is to build vertical forms for the full-height hydrostatic pressure and then control the pour rate to stay within it. Two placing techniques can even exceed full hydrostatic: full-depth revibration (up to about 1.5× as trapped vibrator energy is held down by the fluid column) and pumping concrete in at the base of the form. A 'blowout' — a wall form bursting mid-pour — is almost always a rate-of-placement, revibration, or bracing failure, not a bad batch of concrete.",
+        ],
+      },
+      {
+        heading: "Strength, stability, and stiffness",
+        paragraphs: [
+          "A form is a real structure, and structural safety has three parts. Strength: the members must safely carry the loads — not only when fully loaded, but at every point as the load builds. Stability: the assembly must not move as a whole, which breaks into four classic failures to guard against — sliding (wind or concrete pressure shoving the form sideways), overturning (a tall, lightly loaded Stage-1 form catching the wind — hence guy ropes until the concrete adds weight), uplift (one span overloaded lifts the far end of a bearer and tips an unsecured prop), and sidesway (plain inadequate bracing). Stiffness: the form must resist deformation so the concrete comes out within tolerance and unstained — and stiffness has to account for progressive deflection as the pour rises, not just the fully-loaded case.",
+          "Eccentricity is the quiet enemy of all three. Loads almost never land perfectly axially on a prop — a bearer that isn't square, a prop that's slightly bent or out of plumb, a hard spot under the footing — and every bit of off-center load adds bending on top of compression, cutting the real capacity of the support. Minimizing eccentricity through careful setting and sound footings is a real part of keeping shoring safe.",
+        ],
+      },
+      {
+        heading: "Design the way it will fail — avoiding progressive collapse",
+        paragraphs: [
+          "Because overloads do happen, a form should be arranged so that if it is ever pushed past its capacity, it fails safely rather than catastrophically. Failures come in two kinds. A gradual (serpentine) failure buckles slowly and gives warning; a precipitate failure is sudden and violent. The classic example is multi-storey shoring frames: pinned or bolted together at every leg, buckling frames deform slowly; left unpinned, the sleeved legs pull apart and the tower drops without warning.",
+          "The real danger of a sudden failure is what follows it. The shock load thrown onto the members next to the first failure can overload them, so they fail too, and the collapse spreads across the assembly — progressive collapse. Two everyday triggers: a single prop lost to impact or eccentricity that cantilevers its bearer and twists the next prop's head, and a single wall tie letting go so the load zips down the line of ties (most common with deep revibration). The lesson is to think past 'can the form do the calculated job' to 'how does it behave if something goes wrong' — and to build a fail-safe form that doesn't invite a progressive collapse.",
+        ],
+      },
+      {
+        heading: "Choosing a forming system",
+        paragraphs: [
+          "Formwork is bought and planned as a system matched to the element, the required finish, and — above all — the number of times it will be reused. The systems you'll meet, roughly from simplest to most specialized:",
+        ],
+        bullets: [
+          "Job-built (conventional) forms: plywood and dimensional lumber cut and assembled on site. Endlessly flexible for odd shapes and one-off conditions, but the most labor per use — best where there's little repetition.",
+          "Panel / modular hand-set systems: pre-engineered aluminum or steel panels that clip together, light enough to set by hand. Fast and reusable for walls and columns on housing and light commercial work.",
+          "Gang forms: large wall panels pre-assembled from smaller ones and moved as a unit by crane. They shine on tall, repetitive walls where crane-setting a whole panel beats hand-setting studs.",
+          "Jump / self-climbing forms: wall forms that 'jump' up one lift at a time on brackets anchored into the concrete already poured — crane-climbed or hydraulically self-climbing. The standard for cores, shear walls, and tall walls poured floor by floor.",
+          "Slip forms: a form that moves continuously upward, day and night, as concrete is placed and sets just below the rising form. Used for silos, chimneys, and stair/elevator cores where a monolithic, joint-free pour is wanted.",
+          "Flying / table forms: complete elevated-slab form-and-shore assemblies stripped as a unit and 'flown' by crane to the next floor. On a repetitive high-rise plate they drive a fast, predictable floor-to-floor cycle.",
+          "Permanent (stay-in-place) forms: forms that are never stripped and become part of the building — insulating concrete forms (ICF) for walls, composite steel deck for slabs, precast soffit planks, void formers, and cardboard column tubes.",
+        ],
+      },
+      {
+        paragraphs: [
+          "The choice is a constructability and cost decision made in preconstruction. A repetitive high-rise justifies the up-front expense of a sophisticated gang or flying system because the cost spreads over dozens of reuses (and it often needs less maintenance and gives faster cycles too); a small, irregular job may never earn back anything beyond job-built forms. This is exactly the kind of means-and-methods input a good PM pulls forward into value engineering.",
+        ],
+      },
+      {
+        heading: "Getting the forms back out: stripping, back-propping, reshoring",
+        paragraphs: [
+          "Forms come off — 'stripping' — only when the concrete can take over the job the form was doing, and that is measured by strength, never by the number of days on the calendar. Side forms on a wall, column, or beam side carry only lateral pressure, not weight, so once the concrete has set they can usually strip early. Soffit forms and their supports carry the member's full weight, and how they come out is a controlled sequence, because the young slab still can't be left entirely on its own without deflecting.",
+          "There are three ways to keep supporting a slab while recovering the formface for reuse, all under the structure's design engineer. Undisturbed supports: the props stay exactly where they are while the framing and formface between them are lowered on a mechanism (gently, so the slab picks up its stress gradually) and pulled for reuse — the original props are never disturbed until the second, later strip. Back-propping: back-props are tightened alongside the original supports before the forms are struck, so the slab is handed to the back-props with continuous support maintained. Reshoring: the form and its shores are completely removed and props are immediately reinstalled to a regular pattern — at which instant the slab briefly carries all of its own weight, so this is done only after tests confirm the (often early, under-seven-day) strength, and the reshores are there to control the young concrete's creep deflection.",
+          "Two things follow for the schedule and the budget. Stripping too early risks not just excess deflection but collapse; leaving forms on too long burns the form-cycle time the next pour needs. And careful stripping protects the forms — a formface that comes off clean and true is one you can use again, which is the entire economics of formwork.",
+        ],
+      },
+      {
+        heading: "Economy: repetition, the learning curve, and care",
+        paragraphs: [
+          "Because formwork is the largest controllable cost, the cheapest concrete structure is usually the one designed and built to be formed efficiently — and repetition is the master lever. A single use of a form carries up to four costs: fabrication, erection, stripping/cleaning/repair, and (for large units) dismantling to recover materials. Reuse spreads the fabrication cost over many pours, and the erection and stripping costs fall with each repeat through the learning curve — the crew simply gets faster, most sharply on the early repeats and more so for simple tasks than complex ones. Where the reuse count is high, a more sophisticated (and higher first-cost) system can win on net cost.",
+        ],
+        bullets: [
+          "Keep member sizes constant. If columns stay one dimension for several floors even where the load drops, one set of forms serves every floor; shrinking a column to save concrete can cost far more in new forms than it saves.",
+          "Standardize and align. Repeating bays, consistent floor-to-floor heights, and aligned beams let one system fly floor to floor. Planning construction-joint locations (the engineer's call) can also let long existing forms serve short walls and let separate walls pour in parallel.",
+          "Care for the forms as plant, not as expendables. Move them clear after stripping, store them out of the weather and sun in racks, and clean and oil faces and mechanisms before the slurry hardens — good care is what buys the reuse cycle the whole estimate assumed.",
+        ],
+      },
+      {
+        paragraphs: [
+          "None of this means a PM redesigns the structure. It means that when there's a chance to give input in preconstruction — a constructability review, a value-engineering session — the formwork consequences of a design choice are worth raising, because they're invisible on the drawings and huge in the budget.",
+        ],
+      },
+      {
+        heading: "The PM's formwork checklist — and the information the documents must supply",
+        bullets: [
+          "Design responsibility is the contractor's. Formwork and shoring are means and methods — engineered by the contractor (often stamped by a registered engineer for anything beyond simple forms), not by the structural engineer of record. ACI 347 (Guide to Formwork for Concrete) in the U.S. and the CDM/temporary-works framework elsewhere are the governing references.",
+          "Make sure the project documents actually say what the crew needs: minimum/maximum stripping times and procedures, where construction joints go, PT precautions, limits on material stacked on forms or fresh slabs, the multi-storey propping/reshoring requirements, any limits on using the poured structure for bracing, and the tolerances and surface finish. Missing information is a safety and quality gap, not a paperwork one.",
+          "Pour rate and temperature are a decision, not a given. The form was built for a specific rate of placement; pouring faster (or colder), revibrating full-depth, or pumping in at the base can exceed what the form and ties can hold. Set the rate to the design and slow down before you blow out.",
+          "Coordinate embeds and blockouts before the pour. Anchor bolts, weld plates, sleeves, box-outs, and MEP penetrations are cast in — missing one means chipping or coring finished concrete later. Walk the forms against the embed and MEP drawings before you close them up.",
+          "Inspect before concrete and stay vigilant during it: alignment, plumb, tightness, cleanliness, and release coating; bracing and shoring complete and the base sound; and watch the form through the pour — many collapses start from a small defect that only shows under load.",
+          "Strip and de-prop on strength, verified by tests and under the design engineer's control — and protect the forms as they come off so they earn their next reuse.",
+        ],
+      },
+      {
+        heading: "In SiteCommand",
+        paragraphs: [
+          "Formwork lives in the same records as the rest of the concrete package. Shoring, reshoring, and form-system data move through the Submittals tool; the strength results that release stripping and reshoring are the same cylinder breaks tracked against the pour. A form change or a rate-of-placement question in the field is an RFI; a design choice that would drive formwork cost is the constructability / value-engineering input a PM raises in preconstruction. The through-line is simple: formwork is engineered, safety-critical work with a paper trail, and the paper trail is what keeps it safe and economical.",
+        ],
+      },
+    ],
+    products: [
+      { name: "Plyform & Overlaid Panels", csi: "CSI 03 11 13", description: "Structural plywood 'plyform' and HDO/MDO overlaid panels — the form facing that shapes the concrete and sets the finish. Grade and overlay drive reuse count.", icon: "formwork", specUrl: "https://www.arcat.com/content-type/product/concrete-03" },
+      { name: "Panel & Gang Form Systems", csi: "CSI 03 11 00", description: "Modular aluminum/steel wall and column panels, gang forms, and climbing systems — bought or rented as an engineered, reusable system matched to the reuse cycle.", icon: "steel-beam", specUrl: "https://www.arcat.com/content-type/product/concrete-03" },
+      { name: "Form Ties & Accessories", csi: "CSI 03 11 16", description: "Snap ties, she-bolts, coil ties, and spreaders that hold wall/column faces at thickness against lateral pressure — each with a rated safe working load and a design spacing.", icon: "fastener", specUrl: "https://www.arcat.com/content-type/product/concrete-03" },
+      { name: "Shoring & Reshoring", csi: "CSI 03 15 00", description: "Adjustable steel shores, frame shoring, and shoring towers that carry elevated-slab loads down to a sound base — the safety-critical, engineered heart of elevated formwork.", icon: "railing", specUrl: "https://www.arcat.com/content-type/product/concrete-03" },
+    ],
+    relatedLessonIds: ["tech-concrete", "sub-sog", "sup-elevated", "tech-concrete-products", "wf-quality"],
+    links: [
+      PRACTICE_LINK,
+      { label: "Source: McAdam & Lee, Formwork: A Practical Approach (Taylor & Francis)", href: "https://www.routledge.com/Formwork-A-Practical-Approach/McAdam-Lee/p/book/9780419228202" },
+    ],
   },
 
   // ───────────────────────────── Structure ─────────────────────────────

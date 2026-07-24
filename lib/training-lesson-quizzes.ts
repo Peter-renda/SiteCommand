@@ -946,6 +946,40 @@ export const LESSON_QUIZZES: Record<string, LessonQuiz> = {
       },
     ],
   },
+  "tech-formwork": {
+    questions: [
+      {
+        prompt: "On a cast-in-place concrete building, why is formwork so important to cost and schedule?",
+        options: [
+          "It is a minor cost but slows inspections",
+          "Its materials and equipment can be around 60% of the on-site investment, and it is often the critical activity that controls total construction time",
+          "It is paid for by the ready-mix supplier",
+          "It only matters on post-tensioned structures",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "Because the factors that reduce fresh-concrete pressure aren't reliably under the field's control on pour day, the safest approach to designing a wall form is to:",
+        options: [
+          "Assume the slowest possible pour and design for a low pressure",
+          "Build for the full-height hydrostatic pressure, then control the pour rate to stay within it",
+          "Ignore lateral pressure since ties handle it automatically",
+          "Design only for the weight of the concrete, not any sideways push",
+        ],
+        answer: 1,
+      },
+      {
+        prompt: "When is it safe to strip a slab's soffit forms and de-prop it (via undisturbed supports, back-propping, or reshoring)?",
+        options: [
+          "After a fixed number of days on the calendar",
+          "As soon as the concrete looks and feels hard",
+          "Only when tests confirm the concrete has reached the required strength, under the structure's design engineer's control",
+          "Whenever the forms are needed for the next pour",
+        ],
+        answer: 2,
+      },
+    ],
+  },
   "tech-steel": {
     questions: [
       {
