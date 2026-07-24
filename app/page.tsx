@@ -79,8 +79,8 @@ const audiences = [
 
 // The construction management career ladder — realistic U.S. ranges, entry to exec.
 const salaryLadder = [
-  { tier: "Start", pay: "$58K", role: "Coordinator · Project Engineer · Assistant PM", note: "Entry — no degree required" },
-  { tier: "Grow", pay: "$100K+", role: "Project Manager", note: "A few years of reps in" },
+  { tier: "Start", pay: "$75K", role: "Coordinator · Project Engineer · Assistant PM", note: "Entry — no degree required" },
+  { tier: "Grow", pay: "$120K+", role: "Project Manager", note: "A few years of reps in" },
   { tier: "Lead", pay: "$200–300K+", role: "Senior PM · Director · VP", note: "Senior & executive" },
 ];
 

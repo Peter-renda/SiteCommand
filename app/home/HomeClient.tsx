@@ -23,11 +23,15 @@ type Props = {
 
 type Goals = {
   jobTitle: string;
-  targetDate: string; // YYYY-MM-DD
+  targetMonths: string; // number of months chosen in the dropdown ("" = none)
+  targetDate: string; // YYYY-MM-DD, computed from targetMonths when it's chosen
   notes: string;
 };
 
-const EMPTY_GOALS: Goals = { jobTitle: "", targetDate: "", notes: "" };
+const EMPTY_GOALS: Goals = { jobTitle: "", targetMonths: "", targetDate: "", notes: "" };
+
+/** Timeframe choices (in months) for the "Land a job by" goal. */
+const MONTH_OPTIONS = [1, 2, 3, 6, 9, 12, 18, 24];
 
 function goalsKey(email: string) {
   return `sc-home-goals-${email || "me"}`;
@@ -42,6 +46,29 @@ function daysUntil(target: string): number | null {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.round((t.getTime() - startOfToday.getTime()) / 86_400_000);
+}
+
+/** Add `months` calendar months to today; returns a YYYY-MM-DD string. */
+function addMonthsToToday(months: number): string {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + months, now.getDate());
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/**
+ * Resolve the concrete deadline for a chosen number of months. The date is
+ * locked in when the timeframe is first picked (or changed), so editing other
+ * goal fields later never pushes the deadline forward; picking a different
+ * number of months recomputes it from today.
+ */
+function resolveTargetDate(months: string, storedMonths: string, storedDate: string): string {
+  if (!months) return "";
+  if (months === storedMonths && storedDate) return storedDate;
+  const n = parseInt(months, 10);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return addMonthsToToday(n);
 }
 
 export default function HomeClient({
@@ -107,7 +134,8 @@ export default function HomeClient({
   function saveGoals() {
     const next: Goals = {
       jobTitle: draft.jobTitle.trim(),
-      targetDate: draft.targetDate,
+      targetMonths: draft.targetMonths,
+      targetDate: resolveTargetDate(draft.targetMonths, goals.targetMonths, goals.targetDate),
       notes: draft.notes.trim(),
     };
     setGoals(next);
@@ -120,6 +148,10 @@ export default function HomeClient({
   }
 
   const hasGoals = Boolean(goals.jobTitle || goals.targetDate || goals.notes);
+
+  // Live preview of the deadline the chosen timeframe maps to, shown in the editor.
+  const previewDate = resolveTargetDate(draft.targetMonths, goals.targetMonths, goals.targetDate);
+  const previewDays = previewDate ? daysUntil(previewDate) : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -285,12 +317,35 @@ export default function HomeClient({
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Land a job by</label>
-                <input
-                  type="date"
-                  value={draft.targetDate}
-                  onChange={(e) => setDraft((d) => ({ ...d, targetDate: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
+                <select
+                  value={draft.targetMonths}
+                  onChange={(e) => setDraft((d) => ({ ...d, targetMonths: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                >
+                  <option value="">Select a timeframe…</option>
+                  {MONTH_OPTIONS.map((m) => (
+                    <option key={m} value={String(m)}>
+                      Within {m} {m === 1 ? "month" : "months"}
+                    </option>
+                  ))}
+                </select>
+                {previewDate ? (
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Target date:{" "}
+                    <span className="font-medium text-gray-700">
+                      {new Date(`${previewDate}T00:00:00`).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                    {previewDays !== null && previewDays >= 0 && ` · ${previewDays} days from today`}
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-xs text-gray-400">
+                    Pick how many months out your goal is — we&apos;ll set the date and countdown.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Notes &amp; milestones</label>
@@ -331,7 +386,10 @@ export default function HomeClient({
               )}
               {goals.targetDate && (
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Land a job by</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                    Land a job by
+                    {goals.targetMonths && ` · within ${goals.targetMonths} ${goals.targetMonths === "1" ? "month" : "months"}`}
+                  </p>
                   <p className="text-sm text-gray-900">
                     {new Date(`${goals.targetDate}T00:00:00`).toLocaleDateString(undefined, {
                       weekday: "long",
