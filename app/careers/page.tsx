@@ -231,21 +231,6 @@ export default function CareerCenterPage() {
           </div>
         )}
 
-        {/* Community cross-link */}
-        <div
-          className="mb-6 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
-          style={{ background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.14)", color: "#1E40AF" }}
-        >
-          <span className="font-semibold">🤝 New: the CPMA Community</span>
-          <span style={{ color: "rgba(30,64,175,0.75)" }}>
-            Discussion boards, mentorship matching, office hours with experienced PMs, regional
-            networking, and a training leaderboard.
-          </span>
-          <a href="/community" className="font-medium underline underline-offset-2">
-            Join the community →
-          </a>
-        </div>
-
         {/* Search */}
         <div id="job-search" className="scroll-mt-24 animate-fade-up" style={bezelOuter} >
           <form onSubmit={handleSubmit} style={{ ...bezelInner, padding: "20px 24px" }}>
