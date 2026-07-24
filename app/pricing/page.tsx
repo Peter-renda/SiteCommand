@@ -6,7 +6,7 @@ import Navbar from "../components/Navbar";
 // billing term (longer commitments save vs. paying monthly).
 const features = [
   "Unlimited project simulations",
-  "70+ lessons",
+  "100+ lessons",
   "Career center",
   "Resume help",
   "Resources",
@@ -88,8 +88,9 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* Free account — limited access, no card required */}
-        <div className="mb-12 animate-fade-up delay-200">
+        {/* Pricing cards — free account sits in the same row as the paid terms */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-center animate-fade-up delay-300">
+          {/* Free tier */}
           <div
             className="rounded-2xl"
             style={{
@@ -101,58 +102,54 @@ export default function PricingPage() {
             }}
           >
             <div
-              className="rounded-[14px] p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8"
+              className="h-full rounded-[14px] p-8 flex flex-col"
               style={{ background: "#FFFFFF", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}
             >
-              <div className="sm:flex-1">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl text-gray-950">Free account</h2>
-                  <span className="font-display text-2xl tabular-nums text-gray-950">$0</span>
+              {/* Plan header */}
+              <div className="mb-8 min-h-[160px]">
+                <p className="text-xs font-medium tracking-wide mb-1 text-gray-400">Free forever</p>
+                <h2 className="text-2xl text-gray-950">Free</h2>
+                <div className="mt-4 flex items-end gap-1">
+                  <span className="font-display text-4xl tabular-nums text-gray-950">$0</span>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-gray-500">
-                  Get a feel for the program with the Pre-Construction &amp; Entitlements lessons,
-                  the Resources library, the Career Center, and the Community — free, no card
-                  required. Upgrade anytime to unlock the full curriculum, simulations, and your
-                  credential.
+                <p className="mt-3 text-sm leading-relaxed text-gray-500">
+                  Start learning free — no card required. Upgrade anytime.
                 </p>
-                <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {freeFeatures.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-gray-600">
-                      <svg
-                        className="w-4 h-4 shrink-0 mt-0.5"
-                        style={{ color: "#2563EB" }}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2.5}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
+
+              {/* CTA button */}
               <a
                 href="/signup"
-                className="shrink-0 text-center py-2.5 px-6 rounded-xl text-sm font-semibold transition-all duration-150 active:scale-[0.98] hover:opacity-90"
+                className="block w-full text-center py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-150 mb-8 active:scale-[0.98] hover:opacity-90"
                 style={{ background: "#111110", color: "#FFFFFF" }}
               >
                 Create free account
               </a>
+
+              {/* Feature list */}
+              <ul
+                className="space-y-3 pt-8 mt-auto"
+                style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
+              >
+                {freeFeatures.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm">
+                    <svg
+                      className="w-4 h-4 shrink-0 mt-0.5"
+                      style={{ color: "#2563EB" }}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-gray-600">{f}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-        </div>
 
-        <div className="mb-6 animate-fade-up delay-300">
-          <h2 className="text-lg font-semibold text-gray-900">Go further with a membership</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            One membership with everything included. Every plan starts with a 7-day free trial.
-          </p>
-        </div>
-
-        {/* Pricing cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center animate-fade-up delay-300">
           {plans.map((plan) => {
             const outerStyle: React.CSSProperties = plan.highlight
               ? {
