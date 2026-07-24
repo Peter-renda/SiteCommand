@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { LESSONS, lessonsByTrack, TRACK_LABELS, type LessonTrack } from "@/lib/training-lessons";
 
 // Guards the curriculum totals advertised on the marketing site (app/page.tsx):
-// 121 lessons across the 9 construction-lifecycle tracks. If the curriculum
+// 122 lessons across the 9 construction-lifecycle tracks. If the curriculum
 // changes, this fails so the homepage `tracks` counts get updated alongside it.
 describe("curriculum totals (marketing claim guard)", () => {
-  it("ships 121 lessons", () => {
-    expect(LESSONS.length).toBe(121);
+  it("ships 122 lessons", () => {
+    expect(LESSONS.length).toBe(122);
   });
 
   it("spans 9 distinct tracks", () => {
@@ -22,7 +22,7 @@ describe("curriculum totals (marketing claim guard)", () => {
     const expected: Record<LessonTrack, number> = {
       precon: 16,
       sitedev: 13,
-      substructure: 5,
+      substructure: 6,
       superstructure: 8,
       "interior-mep": 17,
       finishes: 9,
@@ -31,7 +31,7 @@ describe("curriculum totals (marketing claim guard)", () => {
       workflow: 29,
     };
     const sum = Object.values(expected).reduce((a, b) => a + b, 0);
-    expect(sum).toBe(121);
+    expect(sum).toBe(122);
     for (const [track, count] of Object.entries(expected)) {
       expect(lessonsByTrack(track as LessonTrack).length).toBe(count);
     }
@@ -44,8 +44,9 @@ describe("curriculum totals (marketing claim guard)", () => {
 
   it("every product card links to ARCAT and has an icon", () => {
     const productLessons = LESSONS.filter((l) => l.products && l.products.length > 0);
-    // The 9 per-trade "Common Products & Materials" lessons.
-    expect(productLessons.length).toBe(9);
+    // The 9 per-trade "Common Products & Materials" lessons, plus the Concrete
+    // Formwork module which carries its own products gallery.
+    expect(productLessons.length).toBe(10);
     for (const l of productLessons) {
       for (const p of l.products!) {
         expect(p.specUrl).toMatch(/^https:\/\/www\.arcat\.com\//);

@@ -56,7 +56,7 @@ const steps = [
 const tracks = [
   { code: "01", name: "Pre-Construction & Entitlements", count: 16, desc: "Feasibility & zoning, design & engineering, budgeting & procurement, permitting." },
   { code: "02", name: "Site Development & Civil", count: 13, desc: "Survey, erosion control, earthwork, utilities, hardscape, and site products." },
-  { code: "03", name: "Substructure & Foundations", count: 5, desc: "Deep and shallow foundations, slab-on-grade, and concrete products." },
+  { code: "03", name: "Substructure & Foundations", count: 6, desc: "Deep and shallow foundations, slab-on-grade, concrete, formwork, and concrete products." },
   { code: "04", name: "Superstructure & Shell", count: 8, desc: "Structural frame, elevated slabs, the envelope, roofing, and their products." },
   { code: "05", name: "Interior Rough-Ins & MEP", count: 17, desc: "Framing, rough carpentry, the MEP pattern, wet systems, HVAC, power, lighting & products." },
   { code: "06", name: "Interior Finishes & Equipment", count: 9, desc: "Drywall, ceilings, flooring, millwork, doors & hardware, MEP trim-out, and finish products." },
@@ -67,7 +67,7 @@ const tracks = [
 
 // Totals derived from the track list so the marketing copy never drifts from
 // the shipped curriculum (lib/training-lessons*.ts).
-const totalLessons = tracks.reduce((sum, t) => sum + t.count, 0); // 121
+const totalLessons = tracks.reduce((sum, t) => sum + t.count, 0); // 122
 const totalTracks = tracks.length; // 9
 
 const audiences = [

@@ -95,6 +95,14 @@ export type Lesson = {
   title: string;
   summary: string;
   minutes: number;
+  /**
+   * "What you'll learn" — 3-5 plain-language outcomes shown at the very top of
+   * the module, before the theory, so the reader knows what they're getting.
+   * Optional so the 100+ existing lessons render unchanged; new/updated
+   * lessons should set it to anchor the consistent module flow
+   * (objectives → key terms → theory → practice → materials).
+   */
+  objectives?: string[];
   keyTerms?: { term: string; definition: string }[];
   body: LessonBlock[];
   /**
