@@ -28,6 +28,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "Every MEP installation follows the same skeleton — approval, delivery, first fix, second fix, connect, test, commission. Learn it once and every system becomes a variation.",
     minutes: 6,
+    objectives: [
+      "Learn the universal MEP chain — approval, delivery, first fix, second fix, connect, test, commission.",
+      "Spot the GC-owned dependencies that gate each MEP step.",
+      "Think in crews and man-hours to judge real MEP progress.",
+    ],
     keyTerms: [
       { term: "First fix / second fix", definition: "First fix (rough-in) is everything installed before walls and ceilings close; second fix is equipment, fixtures, and trim after finishes. An inspection gate sits between them." },
       { term: "BWIC", definition: "Builder's work in connection — the GC-scope work MEP depends on (openings, sleeves, pads, plinths, shafts) and the classic 'not my scope' gap where delays live." },
@@ -75,6 +80,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "The sprinkler activity chain, the fire pump room, clean-agent rooms, and the sequencing traps between heads and ceilings.",
     minutes: 6,
+    objectives: [
+      "Trace the sprinkler activity chain from approval to acceptance test.",
+      "Recognize the dense rooms and special systems — the fire pump room and clean-agent rooms.",
+      "Avoid the sequencing traps between heads and ceilings.",
+    ],
     keyTerms: [
       { term: "Wet pipe system", definition: "Sprinkler piping that's always full of water — the default system; dry, pre-action, and deluge exist for freezing areas, water-sensitive rooms, and special hazards." },
       { term: "FDC", definition: "Fire department connection (Siamese) — where the fire department pumps into the system; its location is an AHJ conversation, not a convenience." },
@@ -117,6 +127,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "Underground rough-in on the critical path, gravity's non-negotiables, water heaters and boosters, and the three testing gates that hold the schedule.",
     minutes: 6,
+    objectives: [
+      "Put underground rough-in on the critical path and respect gravity's non-negotiables.",
+      "Identify the above-ground systems — water heaters and boosters — and their trim-out.",
+      "Plan around the three plumbing testing gates that hold the schedule.",
+    ],
     keyTerms: [
       { term: "Waste and vent", definition: "Drainage needs air behind the water — the vent system that keeps traps from siphoning; its routing is why plumbing walls are where they are." },
       { term: "Cleanout", definition: "The capped access point for clearing drain lines — code-spaced, and a punch-list magnet when buried behind finishes without access." },
@@ -158,6 +173,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "Duct from fabrication to field, the damper family at rated walls, terminal units above the ceiling, filters, and kitchen exhaust.",
     minutes: 6,
+    objectives: [
+      "Follow duct from fabrication to field as a flow, not a commodity.",
+      "Coordinate the damper family at rated walls and the terminal units above the ceiling.",
+      "Account for filters and kitchen/grease exhaust.",
+    ],
     keyTerms: [
       { term: "Pressure class / sealing class", definition: "The SMACNA construction standard for a duct run — gauge, joints, and sealant matched to system pressure; leak testing verifies it." },
       { term: "Fire/smoke damper (FSD)", definition: "The damper that closes a duct penetration at a rated assembly — every one needs an access door, and every missed access door is a punch item." },
@@ -196,6 +216,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "Hydronic piping systems, the AHU crane day, the chiller as long-lead flagship, generators as a four-trade convergence, and the tiny pipe that floods ceilings.",
     minutes: 6,
+    objectives: [
+      "Understand the hydronic water side and why equipment 'crane days' are schedule events.",
+      "Treat the chiller as the long-lead flagship and the generator as a four-trade convergence.",
+      "Track the small condensate pipe that can flood finished ceilings.",
+    ],
     keyTerms: [
       { term: "Hydronics", definition: "The water side of HVAC — chilled water, heating hot water, condenser water — with pumps, expansion tanks, and air separators keeping it moving and full." },
       { term: "Housekeeping pad", definition: "The concrete pad under equipment — GC scope, sized and located from equipment submittals, and needed before the equipment that sits on it." },
@@ -234,6 +259,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "What a BMS actually is, why the points list belongs in submittal review, the integration refereeing the GC owns, and protecting controls duration from compression.",
     minutes: 5,
+    objectives: [
+      "Explain what a BMS is and why the points list belongs in submittal review.",
+      "Own the integration refereeing between controls and the equipment they run.",
+      "Protect controls duration from the end-of-job squeeze.",
+    ],
     keyTerms: [
       { term: "DDC controller", definition: "The direct digital control panel — the field brain wiring sensors and actuators to the network; its panel locations and power come from coordination, not improvisation." },
       { term: "Points list", definition: "The schedule of every monitored and controlled point — effectively the BMS scope document; review it like a scope exhibit, because it is one." },
@@ -273,6 +303,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "Tracing the single-line, the switchgear crisis, cable and terminations, working clearances, and the temporary-to-permanent power gate everything waits on.",
     minutes: 7,
+    objectives: [
+      "Trace the single-line from the utility down to the branch circuit.",
+      "Manage the switchgear long-lead crisis and the temporary-to-permanent power gate everything waits on.",
+      "Run the three-stage install — rough-in, trim, punch — with correct clearances and the 'approved equal' rule.",
+    ],
     keyTerms: [
       { term: "Single-line diagram", definition: "The one-page map of the power system: service → transformer → switchgear → panels → branch circuits. The PM's navigation chart for all things electrical." },
       { term: "NEC 110.26", definition: "The working-clearance rule in front of electrical equipment — the reason electrical rooms are the size they are, and the field change that's never allowed." },
@@ -371,6 +406,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "Structured cabling from backbone to horizontal, the telecom-room readiness chain, AV and blocking, DAS/ERRC, and the carrier timeline you don't control.",
     minutes: 5,
+    objectives: [
+      "Get pathways in early and cable late on structured cabling.",
+      "Ready the telecom rooms, racks, and interfaces.",
+      "Plan DAS/ERRC and the carrier timeline you don't control.",
+    ],
     keyTerms: [
       { term: "Backbone vs. horizontal", definition: "Backbone cabling (usually fiber) links MDF to IDFs between floors; horizontal (copper) runs from the IDF to each outlet — different pathways, different schedules." },
       { term: "Pathway rough-in", definition: "The conduit, tray, sleeves, and firestopped penetrations installed early with the other trades — even though cable pulls come much later." },
@@ -409,6 +449,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "The door hardware triangle, the fire alarm command matrix, and the 100% acceptance test that controls occupancy more than any other single event.",
     minutes: 6,
+    objectives: [
+      "Coordinate the door-hardware triangle across trades.",
+      "See the fire alarm as the system that commands other systems.",
+      "Plan the 100% acceptance test that gates occupancy.",
+    ],
     keyTerms: [
       { term: "Door hardware triangle", definition: "Division 8 hardware + Division 26 power + Division 28 controls on the same opening — the most fragmented scope interface in the building." },
       { term: "Sequence of operations matrix", definition: "The table defining what every alarm input commands (dampers, doors, elevators, HVAC, access control) — the script the acceptance test runs against." },
@@ -449,6 +494,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "Translating activity chains into CPM logic — floor-by-floor trade stacking, the accordion effect, riser and equipment-room coordination, and man-hour-based pay-app review.",
     minutes: 7,
+    objectives: [
+      "Turn MEP activity chains into CPM logic with floor-by-floor trade stacking.",
+      "Anticipate where MEP schedules break — the accordion effect, risers, and equipment rooms.",
+      "Use man-hours as a lie detector in pay-app review.",
+    ],
     keyTerms: [
       { term: "Trade stacking rhythm", definition: "The repeating floor cycle: frame → MEP rough-in → inspect → cover → finish → trim, with each trade leapfrogging to the next zone." },
       { term: "Accordion effect", definition: "What happens when one trade falls behind in the leapfrog: every following trade compresses, stacks, and loses productivity in the same zones." },
@@ -489,6 +539,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "Testing vs. startup vs. commissioning, the chain from permanent power to CO, flushing and chemical treatment, and the warranty clocks that start when equipment runs early.",
     minutes: 6,
+    objectives: [
+      "Distinguish testing, startup, and commissioning.",
+      "Draw the dependency web backward from permanent power to the CO.",
+      "Avoid the beneficial-use warranty trap when equipment runs early.",
+    ],
     keyTerms: [
       { term: "Testing vs. startup vs. commissioning", definition: "Testing: does it hold pressure / is it wired right. Startup: does it run. Commissioning: does it perform as designed. Three different questions, in that order." },
       { term: "Pre-functional checklist", definition: "The installation-complete verification (per device/equipment) that must pass before a functional performance test is even attempted." },
@@ -535,6 +590,11 @@ export const MEP_LESSONS: Lesson[] = [
     summary:
       "Lighting is the electrical scope everyone sees and the code the plan reviewer scrutinizes hardest. The fixture package, the controls the energy code now mandates, and the emergency lighting that gates the certificate of occupancy.",
     minutes: 6,
+    objectives: [
+      "Manage the fixture package and its schedule — the electrical scope everyone sees.",
+      "Treat lighting controls as a code requirement the energy code now mandates, not a luxury.",
+      "Protect the emergency/egress lighting that gates the CO and coordinate with the RCP.",
+    ],
     keyTerms: [
       { term: "Luminaire / fixture type", definition: "A lighting fixture, keyed on the drawings by a type mark (A, B, C…) to the lighting fixture schedule, which lists the manufacturer, lamp/LED, wattage, mounting, and finish for each type." },
       { term: "Lighting controls", definition: "The switches, occupancy/vacancy sensors, dimmers, daylight sensors, and networked control systems that turn lighting on, off, and down — now heavily mandated by the energy code, not optional add-ons." },

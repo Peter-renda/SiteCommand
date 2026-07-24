@@ -29,6 +29,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "What the dirt report tells you about bearing capacity, the water table, and soil type — and the six- and seven-figure decisions that ride on each one.",
     minutes: 5,
+    objectives: [
+      "Read what a geotechnical report answers — bearing capacity, water table, and soil type.",
+      "Connect the report's numbers to the six- and seven-figure foundation and dewatering decisions that ride on them.",
+      "Treat the borings as sampled, not X-rayed, and plan for the variability between them.",
+    ],
     keyTerms: [
       { term: "Bearing capacity", definition: "The load the soil can safely support (in psf). It decides whether cheap shallow spread footings work or expensive deep foundations (piles, caissons) are required." },
       { term: "Water table", definition: "The depth below grade where the soil is saturated. Excavating below it forces dewatering, shoring, and watertight foundation detailing." },
@@ -74,6 +79,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "Turning 2D drawings into real quantities so you can check a subcontractor's bid instead of trusting it.",
     minutes: 5,
+    objectives: [
+      "Explain why the GC does its own takeoff instead of trusting a sub's number.",
+      "Pull the common quantity units for each trade from 2D drawings.",
+      "Trace how the takeoff feeds the estimate, the budget, and change pricing downstream.",
+    ],
     keyTerms: [
       { term: "Quantity takeoff", definition: "Measuring and counting directly from the drawings to produce physical quantities — area, volume, linear feet, and counts of items." },
       { term: "On-Screen Takeoff / Bluebeam", definition: "Software that lets you trace digital drawings to compute quantities without a scale ruler and printed sheets." },
@@ -123,6 +133,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "Two paper reviews that save money before the field ever swings a hammer — catching what can't be built, and finding cheaper ways to build what can.",
     minutes: 5,
+    objectives: [
+      "Run a constructability review to catch what can't actually be built.",
+      "Use value engineering to find the same function at lower cost.",
+      "Time both reviews early, where they still save money instead of causing rework.",
+    ],
     keyTerms: [
       { term: "Constructability review", definition: "A sweep of the construction documents to find design elements that are physically impossible, impractical to build, or impossible to sequence." },
       { term: "Value engineering (VE)", definition: "Proposing alternative materials or methods that reduce cost while preserving function, structural safety, and design intent — not just cheapening the job." },
@@ -167,6 +182,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "The front-end of the project manual — the legal and administrative rules that govern how you submit, bill, and claim, no matter what the technical specs say.",
     minutes: 5,
+    objectives: [
+      "Separate what the drawings, the technical specs, and Division 00/01 each govern.",
+      "Distinguish Division 00 (procurement/contract) from Division 01 (general requirements).",
+      "Recognize why Division 01 controls your daily submittal, billing, and closeout rules.",
+    ],
     keyTerms: [
       { term: "Project Manual", definition: "The bound book of specifications plus the front-end documents (bidding requirements, the agreement, the conditions of the contract, and Division 01)." },
       { term: "Division 00", definition: "Procurement & Contracting Requirements — invitation to bid, instructions to bidders, the agreement form, and the general/supplementary conditions of the contract." },
@@ -214,6 +234,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "The three recurring meetings that keep dozens of companies aligned — what each one is for, who runs it, and why the minutes are a legal record.",
     minutes: 5,
+    objectives: [
+      "Run the three recurring meetings — precon, OAC, and coordination — and know what each is for.",
+      "Match each meeting to its altitude and the right attendees.",
+      "Keep minutes as the project's legal record, and drive the look-ahead from the coordination meeting.",
+    ],
     keyTerms: [
       { term: "Precon meeting", definition: "A trade-specific kickoff held with a subcontractor before they mobilize: safety, quality checklists, laydown zones, delivery rules, and open submittal/RFI items." },
       { term: "OAC meeting", definition: "Owner-Architect-Contractor — the formal, usually bi-weekly, status meeting the GC chairs to align the whole team on schedule, logs, changes, and finances." },
@@ -258,6 +283,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "Resolving spatial conflicts in a 3D model before the field builds them wrong — hard clashes, soft clashes, and the cheapest rework you'll ever do.",
     minutes: 5,
+    objectives: [
+      "Coordinate MEP conflicts in the model before the field builds them wrong.",
+      "Tell a hard clash from a soft clash and why both matter.",
+      "Use the coordinated model as a database that feeds the ceiling, the schedule, and procurement.",
+    ],
     keyTerms: [
       { term: "BIM", definition: "Building Information Modeling — coordinated 3D models of the architectural, structural, and MEP systems used to detect and resolve conflicts before installation." },
       { term: "Hard clash", definition: "Two objects occupying the same physical space — an 8-inch waste pipe routed straight through a structural steel beam." },
@@ -312,6 +342,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "The plan that turns a cramped lot into a working jobsite — fencing, gates, crane radius, laydown, washout, rigging oversight, and temporary utilities.",
     minutes: 6,
+    objectives: [
+      "Treat the site footprint — fencing, gates, crane radius, laydown, washout — as a design problem.",
+      "Stand the site up at mobilization with the right temporary facilities and utilities.",
+      "Own crane and rigging oversight so lifts stay safe and legal.",
+    ],
     keyTerms: [
       { term: "Site logistics plan", definition: "A spatial map of construction operations: perimeter fence, access gates, crane placement and swing radius, material staging, concrete washout, dumpsters, and trailers." },
       { term: "Laydown / staging area", definition: "Designated space where delivered material sits before it's installed — badly placed, it blocks access and becomes a bottleneck." },
@@ -365,6 +400,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "Translating paper into dirt — the datum every elevation ties to, gridlines squared with 3-4-5, excavation depth checks, the 811 color codes, and compaction testing.",
     minutes: 6,
+    objectives: [
+      "Tie every elevation back to the project datum and benchmark.",
+      "Lay out and square gridlines with the 3-4-5 method and check excavation depths.",
+      "Apply the 811 color codes and oversee compaction testing before building on fill.",
+    ],
     keyTerms: [
       { term: "Benchmark / datum", definition: "A permanent reference point of known elevation, set by a surveyor, that every grade, utility depth, and slab height on the job is measured from." },
       { term: "Gridline", definition: "The structural reference lines (columns and bearing walls) laid out in the field from surveyor control points, squared with the 3-4-5 rule." },
@@ -424,6 +464,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "A quick-reference glossary of the field and contract terms every PM hears in the first week on a job.",
     minutes: 7,
+    objectives: [
+      "Use the glossary to decode field, structural, contract, cost, and schedule terms fast.",
+      "Recognize the terms a PM hears in the first week on a job.",
+      "Build the habit of looking up unfamiliar jobsite language before acting on it.",
+    ],
     keyTerms: [
       { term: "As-Builts", definition: "The final drawing set redlined to show exactly how systems were actually installed, including every deviation from the original design." },
       { term: "Retainage", definition: "5-10% of each payment withheld until the end of the job to ensure the sub comes back and finishes punch." },
@@ -476,6 +521,11 @@ export const FIELDOPS_LESSONS: Lesson[] = [
     summary:
       "A building is built by dozens of separate companies sharing the same space in a specific order. Coordination is the discipline of managing the handoffs, the shared space, and the protection of finished work.",
     minutes: 6,
+    objectives: [
+      "Explain why coordination is the core discipline of building fragmented work.",
+      "Manage the two dimensions of coordination — time (sequence) and space (shared area).",
+      "Run coordination with the look-ahead and protect finished work you've already bought.",
+    ],
     keyTerms: [
       { term: "Sequencing", definition: "The order in which trades perform their work so each has what it needs from the trade before it and leaves what the next trade needs — the temporal half of coordination." },
       { term: "Spatial coordination", definition: "Resolving who occupies which physical space (the ceiling plenum, the wall cavity, the chase) when several trades need the same room — the geometric half of coordination." },

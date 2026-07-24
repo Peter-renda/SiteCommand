@@ -19,6 +19,11 @@ export const FOUNDATIONS_LESSONS: Lesson[] = [
     summary:
       "Margin vs. markup, how job cost accounting works, what the WIP report tells the CFO about your project, and where fee actually erodes.",
     minutes: 6,
+    objectives: [
+      "Tell margin from markup and stop the confusion that quietly costs money.",
+      "Read how job cost accounting and the WIP report present your job to the CFO.",
+      "Spot where fee actually leaks and how cash flow affects the project.",
+    ],
     keyTerms: [
       { term: "Margin vs. markup", definition: "Markup is profit over cost (10% markup on $100 cost = $110). Margin is profit over price ($10 on $110 ≈ 9.1% margin). Confusing them systematically underprices work." },
       { term: "WIP report", definition: "The work-in-progress schedule comparing percent complete (by cost) to percent billed — where overbilling, underbilling, and fading projections become visible to the CFO." },
@@ -57,6 +62,11 @@ export const FOUNDATIONS_LESSONS: Lesson[] = [
     summary:
       "Takeoffs, unit pricing, conceptual estimates, plugging scope gaps — and why the estimate-to-budget handoff meeting is the PM's first real task.",
     minutes: 5,
+    objectives: [
+      "Explain how an estimate is built — takeoffs, unit pricing, and conceptual estimates.",
+      "Run the estimate-to-budget handoff meeting as the PM's first real task.",
+      "Hunt the scope gaps that eat the fee.",
+    ],
     keyTerms: [
       { term: "Quantity takeoff", definition: "Measuring the work from the drawings — CY of concrete, SF of drywall, LF of pipe — the foundation under every price." },
       { term: "Assembly", definition: "A bundled unit price for a build-up (a SF of wall including studs, drywall, insulation, finish) — faster than pricing each component." },
@@ -98,6 +108,11 @@ export const FOUNDATIONS_LESSONS: Lesson[] = [
     summary:
       "The relationship bank account with subs, the PM/super partnership, no-surprises management upward, and negotiation as a daily skill.",
     minutes: 6,
+    objectives: [
+      "Manage the relationship 'bank account' with subcontractors — firm but fair.",
+      "Build the PM/superintendent partnership and a no-surprises habit of managing up.",
+      "Flex your leadership style to the moment (situational leadership).",
+    ],
     keyTerms: [
       { term: "Relationship bank account", definition: "The running balance of fairness and follow-through with each sub — you make withdrawals (schedule pushes, favors) against deposits (paying on time, backing them when right)." },
       { term: "Managing up", definition: "Keeping your PX and owner informed so they're never surprised — bad news early with a plan beats good news late." },
@@ -143,6 +158,11 @@ export const FOUNDATIONS_LESSONS: Lesson[] = [
     summary:
       "Email that stands up later, notice letters that preserve rights without burning bridges, minutes that hold, and delivering bad news early.",
     minutes: 5,
+    objectives: [
+      "Write email that stands up when it's read aloud in a deposition.",
+      "Send notice that preserves rights without burning the relationship.",
+      "Deliver bad news early, with a plan, and keep minutes that hold.",
+    ],
     keyTerms: [
       { term: "Confirming email", definition: "The 'per our conversation' follow-up that converts verbal directives into record — the single highest-value writing habit in construction." },
       { term: "Notice letter", definition: "Formal written notification preserving contractual rights within a deadline — firm, factual, clause-cited, and possible to send without hostility." },
@@ -183,6 +203,11 @@ export const FOUNDATIONS_LESSONS: Lesson[] = [
     summary:
       "How the IBC is organized, the accessibility details inspectors always catch, energy code basics, and the NFPA references behind fire systems.",
     minutes: 6,
+    objectives: [
+      "Navigate how the IBC is organized and where to find what you need.",
+      "Catch the ADA/accessibility details inspectors always flag.",
+      "Recognize the energy-code basics and the NFPA references behind fire systems.",
+    ],
     keyTerms: [
       { term: "Construction type (I–V)", definition: "The IBC's classification of a building's structure by fire resistance — Type I (protected noncombustible) through Type V (wood frame) — which, with occupancy, sets allowable heights and areas." },
       { term: "Occupancy classification", definition: "What the building is used for (Business, Residential, Assembly, …) — the other axis driving nearly every code requirement." },
@@ -221,6 +246,11 @@ export const FOUNDATIONS_LESSONS: Lesson[] = [
     summary:
       "How GCs actually make money, how PM work differs by sector, and the ethical lines — bid shopping, honest reporting, document integrity — that define a career.",
     minutes: 5,
+    objectives: [
+      "Explain how GCs actually make money and how the work differs by sector.",
+      "Recognize the ethical lines — bid shopping, honest reporting, document integrity.",
+      "See how sector and setting change the PM's job.",
+    ],
     keyTerms: [
       { term: "Bid shopping", definition: "Using one sub's bid price to squeeze others after bid day — short-term savings, long-term poison: subs pad or skip your bids once they've been shopped." },
       { term: "Self-perform", definition: "Trade work a GC does with its own forces (often concrete or carpentry) — higher risk and reward than brokering everything to subs." },

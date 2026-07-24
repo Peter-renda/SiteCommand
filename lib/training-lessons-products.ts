@@ -61,6 +61,11 @@ export const PRODUCTS_LESSONS: Lesson[] = [
     summary:
       "The everyday products behind a concrete package — ready-mix, reinforcing, formwork, and grout — and what to check on each spec sheet.",
     minutes: 5,
+    objectives: [
+      "Survey the everyday concrete products — ready-mix, reinforcing, formwork, and grout.",
+      "Know what to check on each product's spec sheet before it becomes a submittal.",
+      "Match a proposed 'or-equal' product to the governing specification.",
+    ],
     keyTerms: KEY_TERMS,
     body: [
       {
@@ -90,6 +95,11 @@ export const PRODUCTS_LESSONS: Lesson[] = [
     summary:
       "Wide-flange framing, deck, connections, and the misc-metals that carry the biggest coordination load — with spec sheets to match.",
     minutes: 5,
+    objectives: [
+      "Survey the structural-steel and metals products — framing, deck, connections, and misc metals.",
+      "Read the ratings (ASTM grade, gauge) that drive fabrication and cost.",
+      "Match a product's data sheet to the spec and its 'or-equal' language.",
+    ],
     keyTerms: KEY_TERMS,
     body: [
       {
@@ -119,6 +129,11 @@ export const PRODUCTS_LESSONS: Lesson[] = [
     summary:
       "CMU and veneer, engineered lumber, and cold-formed steel framing — the products that build walls and partitions across Divisions 04, 05, and 06.",
     minutes: 5,
+    objectives: [
+      "Survey the wall products across Divisions 04-06 — CMU, veneer, engineered lumber, and cold-formed steel.",
+      "Check block strength, ties, member ratings, and stud gauge on the spec sheet.",
+      "Recognize which products carry rated-assembly listings.",
+    ],
     keyTerms: KEY_TERMS,
     body: [
       {
@@ -152,6 +167,11 @@ export const PRODUCTS_LESSONS: Lesson[] = [
     summary:
       "Roofing membranes, insulation, air/water barriers, doors, and glazing — the Division 07 and 08 products that keep water and air out.",
     minutes: 6,
+    objectives: [
+      "Survey the Division 07/08 envelope products — membranes, insulation, barriers, doors, and glazing.",
+      "Read the layer each product forms in the continuous water/air barrier.",
+      "Match a product's performance ratings to the spec.",
+    ],
     keyTerms: KEY_TERMS,
     body: [
       {
@@ -186,6 +206,11 @@ export const PRODUCTS_LESSONS: Lesson[] = [
     summary:
       "Sprinklers, pumps, standpipes, and valves — the Division 21 products the fire marshal tests hardest, right before you need the CO.",
     minutes: 5,
+    objectives: [
+      "Survey the Division 21 fire-protection products — sprinklers, pumps, standpipes, and valves.",
+      "Recognize that life-safety products carry listings, not just specs.",
+      "Check the listing the fire marshal will test against.",
+    ],
     keyTerms: KEY_TERMS,
     body: [
       {
@@ -215,6 +240,11 @@ export const PRODUCTS_LESSONS: Lesson[] = [
     summary:
       "Pipe and water heaters, rooftop units and ductwork, panelboards and lighting — the Division 22, 23, and 26 products that fill every wall and ceiling.",
     minutes: 6,
+    objectives: [
+      "Survey the Division 22/23/26 MEP products — pipe, water heaters, RTUs, ductwork, panelboards, and lighting.",
+      "Connect the products to the coordination war in walls and ceilings.",
+      "Read the ratings a reviewer checks on each product data sheet.",
+    ],
     keyTerms: KEY_TERMS,
     body: [
       {
@@ -251,6 +281,11 @@ export const PRODUCTS_LESSONS: Lesson[] = [
     summary:
       "Gypsum board, ceilings, flooring, tile, and paint — the Division 09 products where quality is most visible and damage is easiest.",
     minutes: 5,
+    objectives: [
+      "Survey the Division 09 finish products — gypsum board, ceilings, flooring, tile, and paint.",
+      "Recognize where quality is most visible and damage is easiest.",
+      "Match a finish product's data sheet to the spec's performance and appearance requirements.",
+    ],
     keyTerms: KEY_TERMS,
     body: [
       {
@@ -281,6 +316,11 @@ export const PRODUCTS_LESSONS: Lesson[] = [
     summary:
       "Elevators, structured cabling, cameras, and access control — the Division 14, 27, and 28 products bought first and finished last.",
     minutes: 5,
+    objectives: [
+      "Survey the Division 14/27/28 products — elevators, structured cabling, cameras, and access control.",
+      "See why these are bought first and finished last.",
+      "Read the ratings and standards a reviewer checks on each.",
+    ],
     keyTerms: KEY_TERMS,
     body: [
       {
@@ -315,6 +355,11 @@ export const PRODUCTS_LESSONS: Lesson[] = [
     summary:
       "Geosynthetics, retaining walls, pavement, underground pipe, and hydrants — the Division 31, 32, and 33 products where the biggest early dollars move.",
     minutes: 5,
+    objectives: [
+      "Survey the Division 31/32/33 site products — geosynthetics, retaining walls, pavement, pipe, and hydrants.",
+      "Recognize the products buried before the building exists, where big early dollars move.",
+      "Match a product's spec sheet to the civil requirements.",
+    ],
     keyTerms: KEY_TERMS,
     body: [
       {

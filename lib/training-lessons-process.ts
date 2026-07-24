@@ -24,6 +24,11 @@ export const PROCESS_LESSONS: Lesson[] = [
     summary:
       "How a construction budget is structured, what the columns actually mean, and how to forecast final cost every month.",
     minutes: 7,
+    objectives: [
+      "Read a construction budget's structure and what each column means.",
+      "Find where the money story hides across original, committed, and projected costs.",
+      "Forecast the final cost every month as a discipline.",
+    ],
     keyTerms: [
       { term: "Cost code", definition: "The budget's addressing system — a WBS code (usually CSI-based) that every dollar of estimate, commitment, and actual cost gets tagged to." },
       { term: "Committed cost", definition: "Dollars you've contractually promised (subcontracts + POs), whether or not the work is done or billed yet." },
@@ -72,6 +77,11 @@ export const PROCESS_LESSONS: Lesson[] = [
     summary:
       "Critical path fundamentals, the three-week look-ahead that actually runs the job, and the milestones that carry contractual weight.",
     minutes: 6,
+    objectives: [
+      "Explain critical-path fundamentals in one sitting.",
+      "Tell baseline, current, and as-built schedules apart.",
+      "Run the three-week look-ahead and respond when things slip.",
+    ],
     keyTerms: [
       { term: "Critical path", definition: "The longest chain of dependent activities through the schedule — any delay on it delays the end date day-for-day." },
       { term: "Float", definition: "How long a non-critical activity can slip before it affects the end date. Zero float = critical." },
@@ -119,6 +129,11 @@ export const PROCESS_LESSONS: Lesson[] = [
     summary:
       "Permit types, the inspection sequence from footing to Certificate of Occupancy, and how to work with the authority having jurisdiction.",
     minutes: 5,
+    objectives: [
+      "Identify the permit types a project needs.",
+      "Follow the inspection sequence from footing to certificate of occupancy.",
+      "Work with the AHJ and tell a CO from a TCO.",
+    ],
     keyTerms: [
       { term: "AHJ", definition: "Authority Having Jurisdiction — the building department, fire marshal, or other agency with legal authority to approve the work." },
       { term: "Special inspections", definition: "IBC Chapter 17 third-party inspections (structural steel, concrete, soils, …) hired by the owner, separate from AHJ inspections." },
@@ -169,6 +184,11 @@ export const PROCESS_LESSONS: Lesson[] = [
     summary:
       "First-work inspections, mock-ups, pre-cover gates, and the testing log — quality is a schedule of moments, not a vibe.",
     minutes: 5,
+    objectives: [
+      "Catch quality issues before they're covered — first-work inspections, mock-ups, and pre-cover gates.",
+      "Treat quality as a scheduled system (QA vs. QC), not a vibe.",
+      "Keep the testing log and manage the customer's perception of quality.",
+    ],
     keyTerms: [
       { term: "First work in place", definition: "A formal review of the first completed unit of any repetitive scope (first bathroom, first window install) before the sub builds fifty more the same way." },
       { term: "Mock-up", definition: "A physical sample assembly (exterior wall, finish room) built for approval before production work; the approved mock-up becomes the quality benchmark." },
@@ -222,6 +242,11 @@ export const PROCESS_LESSONS: Lesson[] = [
     summary:
       "The Focus Four, pre-task planning, incident response, and why the PM owns safety culture even with a safety director on staff.",
     minutes: 5,
+    objectives: [
+      "Explain why the PM can't delegate safety even with a safety director on staff.",
+      "Recognize the Focus Four hazards and use pre-task planning.",
+      "Respond correctly when an incident happens.",
+    ],
     keyTerms: [
       { term: "Focus Four", definition: "OSHA's four leading killers in construction: falls, struck-by, caught-in/between, and electrocution." },
       { term: "JHA / AHA", definition: "Job/Activity Hazard Analysis — a task-level breakdown of hazards and controls, prepared before high-risk work starts." },
@@ -272,6 +297,11 @@ export const PROCESS_LESSONS: Lesson[] = [
     summary:
       "The insurance stack on a project, what a COI actually has to say, bonds, and the compliance gates before a sub sets foot on site.",
     minutes: 6,
+    objectives: [
+      "Read the project insurance stack and what a COI must actually say.",
+      "Use bonds, wrap-ups, and the compliance gate before a sub mobilizes.",
+      "See insurance as one response inside a bigger risk process that allocates risk to who can control it.",
+    ],
     keyTerms: [
       { term: "COI", definition: "Certificate of Insurance — the sub's proof of coverage. It must name the right parties and endorsements, not just exist." },
       { term: "Additional insured", definition: "An endorsement putting the GC (and usually owner) under the sub's liability policy for the sub's work." },
@@ -340,6 +370,11 @@ export const PROCESS_LESSONS: Lesson[] = [
     summary:
       "Pursuit to warranty: the phases every project moves through, the cast of characters, and which documents outrank which.",
     minutes: 5,
+    objectives: [
+      "Walk the project phases from pursuit to warranty.",
+      "Identify the cast of characters and their roles.",
+      "Apply the document hierarchy — which document outranks which.",
+    ],
     keyTerms: [
       { term: "NTP", definition: "Notice to Proceed — the owner's formal green light that starts contract time." },
       { term: "Order of precedence", definition: "The contract's rule for which document governs when documents conflict — typically contract > specs > drawings, with newer/more specific beating older/more general." },
@@ -384,6 +419,11 @@ export const PROCESS_LESSONS: Lesson[] = [
     summary:
       "How spec sections are built, where the submittal requirements hide, and why Division 01 governs more of your day than any drawing.",
     minutes: 5,
+    objectives: [
+      "Read a spec section's three-part format.",
+      "Find where the submittal requirements hide and build the submittal register from the specs.",
+      "Recognize why Division 01 governs so much of your day.",
+    ],
     keyTerms: [
       { term: "Three-part format", definition: "The standard spec section structure: Part 1 General (procedures), Part 2 Products (what's allowed), Part 3 Execution (how it's installed)." },
       { term: "Basis of design", definition: "The specific product the designer designed around; 'or equal' substitutions must be formally proposed and approved, not assumed." },

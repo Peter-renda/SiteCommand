@@ -28,6 +28,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "How designers evaluated the parcel before a line was drawn — surveys, hydrology, past uses — and why that history shows up in your dirt.",
     minutes: 5,
+    objectives: [
+      "See how designers studied the parcel before a line was ever drawn.",
+      "Read the survey like a contract document.",
+      "Anticipate how the site's past shows up in your dirt.",
+    ],
     keyTerms: [
       { term: "Boundary & topographic survey", definition: "The legal and physical baseline drawing: property lines, easements, rights-of-way, benchmarks, contours, and existing features." },
       { term: "Easement", definition: "Someone else's legal right to use part of the site (utilities, access, drainage) — you generally can't build structures in one." },
@@ -66,6 +71,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "Reading contours and spot grades, the balanced-site concept, slopes and retaining walls, and the grading start-up meeting that prevents rework.",
     minutes: 7,
+    objectives: [
+      "Read contours and spot grades on a grading plan.",
+      "Explain the balanced-site concept, slopes, and retaining walls.",
+      "Run the grading start-up meeting that prevents rework.",
+    ],
     keyTerms: [
       { term: "Spot grade", definition: "A precise design elevation at a point (corner of pad, rim of structure, edge of pavement) — the numbers that override contour interpolation." },
       { term: "Balanced site", definition: "A grading design where cut volume ≈ fill volume, so no dirt is imported or exported. Designers chase it because trucking dirt is pure cost." },
@@ -111,6 +121,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "The regulatory layer on every dirt job — devices, the SWPPP binder, rain-event inspections, and the fines that follow neglected silt fence.",
     minutes: 6,
+    objectives: [
+      "Treat erosion and sediment control as a regulatory requirement, not an option.",
+      "Use the E&SC toolkit in the right sequence.",
+      "Keep the SWPPP paperwork and rain-event inspections that are half the compliance.",
+    ],
     keyTerms: [
       { term: "NPDES permit", definition: "The federal/state stormwater discharge permit construction sites operate under — the legal basis for everything in the SWPPP." },
       { term: "Sediment basin / trap", definition: "A dug pond that slows runoff so sediment settles out before water leaves the site — often later converted to the permanent stormwater pond." },
@@ -153,6 +168,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "Why the site has ponds, rain gardens, and underground vaults — detention vs. retention, the LID toolkit, and the construction mistakes that kill infiltration.",
     minutes: 6,
+    objectives: [
+      "Explain why development changes the water, and why the site has ponds and vaults.",
+      "Tell detention from retention and use the low-impact-design toolkit.",
+      "Avoid the construction mistakes that kill infiltration.",
+    ],
     keyTerms: [
       { term: "Detention vs. retention", definition: "Detention ponds hold runoff briefly and release it slowly; retention ponds hold a permanent pool. Both exist because development sheds more water, faster, than the land did before." },
       { term: "Bioretention / rain garden", definition: "A planted depression with engineered soil that filters and infiltrates runoff — a landscape feature that is actually infrastructure." },
@@ -192,6 +212,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "Reading sewer profiles, inverts and slopes, water and fire lines, separation rules, pipe materials, and the 811/franchise-utility long game.",
     minutes: 6,
+    objectives: [
+      "Read sewer profiles, inverts, and slopes for gravity systems.",
+      "Apply the separation rules between pressure and gravity utilities.",
+      "Play the 811 / franchise-utility long game.",
+    ],
     keyTerms: [
       { term: "Invert", definition: "The inside-bottom elevation of a pipe at a structure — the number gravity systems live and die by." },
       { term: "Utility separation", definition: "Required clearances between water and sewer (horizontal and at crossings) protecting drinking water — they force much of the utility layout." },
@@ -232,6 +257,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "The circulation logic behind the civil set — turning radii, sight distance, DOT entrances, parking geometry, and how pavement sections are built.",
     minutes: 5,
+    objectives: [
+      "Explain the circulation logic behind the civil set — turning radii and sight distance.",
+      "Lay out parking geometry and the DOT entrance.",
+      "Understand how a pavement section is built.",
+    ],
     keyTerms: [
       { term: "Turning template", definition: "The swept path of a design vehicle (fire truck, WB-62 semi) overlaid on the layout — the reason drive aisles and cul-de-sacs are the size they are." },
       { term: "Sight distance", definition: "The clear view required at intersections and driveways so drivers can react — it dictates what can be built or planted near corners." },
@@ -269,6 +299,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "Walkways, plazas, and site amenities — and the continuous accessible route that is the single most-failed inspection item in sitework.",
     minutes: 5,
+    objectives: [
+      "Recognize the continuous accessible route as the single most-failed sitework inspection item.",
+      "Build walks, plazas, and amenities to the accessibility rules.",
+      "Add the lighting and safety layer.",
+    ],
     keyTerms: [
       { term: "Accessible route", definition: "The continuous, compliant path from parking, transit, and the public way to the accessible entrance — every inch of it must comply." },
       { term: "Cross slope", definition: "The slope perpendicular to travel — max 2% on accessible routes, and the tolerance concrete crews miss most often." },
@@ -309,6 +344,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "Reading planting plans, why substitutions aren't swaps, planting depth as the #1 killer, protecting trees from construction, and the establishment period.",
     minutes: 6,
+    objectives: [
+      "Read a planting plan as a spec, not a suggestion.",
+      "Prevent the common causes of plant death — planting depth first.",
+      "Protect trees you're required to keep and honor the establishment period.",
+    ],
     keyTerms: [
       { term: "Critical root zone", definition: "The protected circle around a tree (roughly 1 foot of radius per inch of trunk diameter) where grading, trenching, and equipment traffic cause slow death." },
       { term: "Caliper", definition: "The trunk diameter spec for nursery trees — the plant schedule's size language, along with container/root-ball sizes." },
@@ -348,6 +388,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "Buffers, jurisdictional wetlands, Section 404 permits, stream stabilization — the site features with federal permits and stop-work power behind them.",
     minutes: 5,
+    objectives: [
+      "Recognize buffers, jurisdictional wetlands, and Section 404 permits with federal law behind them.",
+      "Handle work that touches the water, including stream stabilization.",
+      "Follow the spill / PPC plan.",
+    ],
     keyTerms: [
       { term: "Jurisdictional wetland", definition: "A wetland under federal (Corps of Engineers) authority — determined by soils, hydrology, and vegetation, not by whether it looks wet today." },
       { term: "Section 404 permit", definition: "The Clean Water Act permit required to fill or disturb jurisdictional waters/wetlands — with mitigation obligations attached." },
@@ -388,6 +433,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "Phase I and II ESAs, contamination liability, and the field protocol when the excavator turns up something that smells wrong.",
     minutes: 5,
+    objectives: [
+      "Explain Phase I and II ESAs and the contamination-liability risk under every site.",
+      "Recognize what building on a brownfield involves.",
+      "Follow the field protocol when excavation turns up something that smells wrong.",
+    ],
     keyTerms: [
       { term: "Phase I ESA", definition: "The records-and-walkthrough environmental assessment identifying 'recognized environmental conditions' — done before purchase, no sampling involved." },
       { term: "Phase II ESA", definition: "The follow-up with actual soil/groundwater sampling, triggered when Phase I finds something worth testing." },
@@ -430,6 +480,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "Zoning, easements, conditions of approval, and the public gauntlet the owner walked before the GC showed up — the constraints you can't RFI away.",
     minutes: 5,
+    objectives: [
+      "Recognize the pre-preconstruction layer — zoning, easements, and conditions of approval.",
+      "Know what the PM should actually read in the entitlements.",
+      "Handle the field's desire to change the site against constraints you can't RFI away.",
+    ],
     keyTerms: [
       { term: "Entitlements", definition: "The bundle of public approvals (rezoning, site plan approval, variances) that lets the project exist in its current form." },
       { term: "Conditions of approval", definition: "Project-specific obligations attached to the entitlement — buffers, road improvements, architectural commitments — enforceable like code." },
@@ -470,6 +525,11 @@ export const SITEWORK_LESSONS: Lesson[] = [
     summary:
       "The A/E's project manager, professional liability, design QA, and fee reality — understanding the other side of the table to manage it better.",
     minutes: 5,
+    objectives: [
+      "Understand the A/E's project manager, professional liability, and design QA.",
+      "Explain why design answers read the way they do and come slowly.",
+      "Manage the relationship with the design side to get faster, clearer answers.",
+    ],
     keyTerms: [
       { term: "Professional liability", definition: "The designer's E&O exposure — the reason RFI answers are worded carefully and 'means and methods' stay firmly on the contractor's side of the line." },
       { term: "Standard of care", definition: "The legal bar for design: what a reasonably prudent professional would do — not perfection. Errors and omissions within it aren't automatically compensable." },
