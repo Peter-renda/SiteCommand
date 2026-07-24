@@ -9,12 +9,7 @@
  * Client-safe; imports only types from training-lessons (no runtime cycle).
  */
 
-import type { Lesson, LessonLink } from "./training-lessons";
-
-const PRACTICE_LINK: LessonLink = {
-  label: "Practice this in your training sandbox",
-  href: "/training/practice",
-};
+import type { Lesson } from "./training-lessons";
 
 export const TECHNICAL_LESSONS: Lesson[] = [
   // ───────────────────────────── Sitework ─────────────────────────────
@@ -26,6 +21,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "Layout and control, cut/fill, compaction and proctors, erosion control, and site utilities — the scope where the biggest early dollars move.",
     minutes: 6,
+    objectives: [
+      "Establish layout and control before moving any dirt.",
+      "Explain cut/fill, compaction, and proctor testing.",
+      "Coordinate erosion control and the wet-side site utilities where the big early dollars move.",
+    ],
     keyTerms: [
       { term: "Proctor test", definition: "The lab test establishing a soil's maximum density; field compaction is measured as a percentage of it (e.g. 95% standard proctor)." },
       { term: "Cut and fill", definition: "Excavating high areas (cut) and building up low areas (fill) to reach design grades; the balance determines whether trucks import or export dirt." },
@@ -66,6 +66,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "Shallow vs. deep foundations, slab-on-grade done right, waterproofing vs. dampproofing, and the underslab rough-in sequence.",
     minutes: 5,
+    objectives: [
+      "Tell shallow from deep foundations and when each is used.",
+      "Work the slab-on-grade checklist and the under-slab rough-in sequence.",
+      "Distinguish waterproofing from dampproofing and hold dirt back below grade.",
+    ],
     keyTerms: [
       { term: "Spread footing", definition: "A widened concrete pad that spreads a column or wall load over enough soil area to stay within bearing capacity." },
       { term: "Drilled pier / caisson", definition: "A deep foundation: a drilled shaft filled with concrete, carrying load down to competent soil or rock when surface soils can't." },
@@ -105,6 +110,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "Mix design basics, rebar, formwork responsibility, placement and curing, the testing regime — and why you never drill a PT slab.",
     minutes: 6,
+    objectives: [
+      "Explain mix-design basics, the water-cement ratio, and rebar placement.",
+      "Run placement, curing, and the cylinder-break testing regime.",
+      "Respect the post-tensioned-slab rule — never drill or core one blindly.",
+    ],
     keyTerms: [
       { term: "Water-cement ratio", definition: "The main driver of concrete strength — more water is easier to place but weaker. Field-added water is how good mixes fail." },
       { term: "Lap splice", definition: "The overlap where two rebar pieces transfer load; lengths come from the structural drawings, not the ironworker's judgment." },
@@ -289,10 +299,6 @@ export const TECHNICAL_LESSONS: Lesson[] = [
       { name: "Shoring & Reshoring", csi: "CSI 03 15 00", description: "Adjustable steel shores, frame shoring, and shoring towers that carry elevated-slab loads down to a sound base — the safety-critical, engineered heart of elevated formwork.", icon: "railing", specUrl: "https://www.arcat.com/content-type/product/concrete-03" },
     ],
     relatedLessonIds: ["tech-concrete", "sub-sog", "sup-elevated", "tech-concrete-products", "wf-quality"],
-    links: [
-      PRACTICE_LINK,
-      { label: "Source: McAdam & Lee, Formwork: A Practical Approach (Taylor & Francis)", href: "https://www.routledge.com/Formwork-A-Practical-Approach/McAdam-Lee/p/book/9780419228202" },
-    ],
   },
 
   // ───────────────────────────── Structure ─────────────────────────────
@@ -304,6 +310,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "The fab-to-erection pipeline, why steel submittals lead the schedule, connections, decking, fireproofing, and the misc-metals coordination trap.",
     minutes: 5,
+    objectives: [
+      "Explain why steel submittals and fabrication lead the schedule.",
+      "Recognize connections, decking, and fireproofing in the field.",
+      "Avoid the misc-metals and embed coordination traps.",
+    ],
     keyTerms: [
       { term: "Steel detailing", definition: "Converting design drawings into piece-by-piece shop/erection drawings — the long, iterative submittal that gates fabrication." },
       { term: "Moment connection", definition: "A rigid connection transferring bending forces, not just vertical load — more welding, more inspection, more cost than a simple shear tab." },
@@ -342,6 +353,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "CMU and brick veneer fundamentals, wood and engineered lumber, light-gauge framing, and the fire-rated assemblies that govern them all.",
     minutes: 6,
+    objectives: [
+      "Cover masonry essentials — CMU and brick veneer as a drainage system.",
+      "Handle wood and engineered lumber and their field-cutting limits.",
+      "Apply the rated-assembly discipline to light-gauge framing.",
+    ],
     keyTerms: [
       { term: "Bond beam", definition: "A grouted, reinforced course in a CMU wall that ties it together horizontally — part of the wall's structure, not decoration." },
       { term: "UL assembly", definition: "A tested, listed wall/floor build-up that achieves a fire rating only when built exactly as listed — every layer, fastener, and detail." },
@@ -384,6 +400,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "Roofing, air/water barriers, flashing logic, windows and curtain wall, cladding, and why continuity — not products — is what fails.",
     minutes: 6,
+    objectives: [
+      "Think of the envelope as continuous water/air layers, not products.",
+      "Recognize the major systems — roofing, barriers, flashing, windows, curtain wall, and cladding.",
+      "Apply an envelope playbook where continuity, not the product, is what fails.",
+    ],
     keyTerms: [
       { term: "WRB", definition: "Weather-resistive barrier — the drainage plane behind cladding that sheds water which gets past the face. Windows and flashings must integrate into it shingle-style." },
       { term: "NDL warranty", definition: "No-dollar-limit roofing warranty from the manufacturer — requires their inspections and approved details, which is why roofing details aren't field-improvised." },
@@ -428,6 +449,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "HVAC, electrical, and plumbing in sequence — the rough-in gates, the ceiling-space war, utility company lead times, and test & balance.",
     minutes: 7,
+    objectives: [
+      "Sequence HVAC, electrical, and plumbing rough-in through their gates.",
+      "Know the systems at PM depth and the utility-company lead times.",
+      "Win the ceiling-space war and plan test & balance.",
+    ],
     keyTerms: [
       { term: "Rough-in", definition: "Installing the concealed portions of MEP (duct, pipe, conduit, boxes) before walls and ceilings close — each stage gated by inspection." },
       { term: "TAB", definition: "Test & Balance — adjusting the finished HVAC system to deliver design airflows/waterflows; happens near the end and exposes everything built wrong earlier." },
@@ -467,6 +493,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "Sprinklers, alarm, firestopping, rated assemblies, and egress — the systems the AHJ tests hardest, right before you need the CO most.",
     minutes: 5,
+    objectives: [
+      "Cover suppression and alarm systems.",
+      "Carry the documentation burden of passive firestopping and rated assemblies.",
+      "Stay aware of egress — the systems the AHJ tests hardest before the CO.",
+    ],
     keyTerms: [
       { term: "Pre-action system", definition: "A sprinkler system holding air until the alarm confirms fire — used where accidental water discharge is intolerable (data rooms, archives)." },
       { term: "Firestopping", definition: "Listed systems sealing penetrations and joints in rated assemblies — each one matched to the specific penetrant and assembly, and documented." },
@@ -507,6 +538,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "Drywall levels, ceilings, flooring moisture testing, millwork, doors and hardware — the phase where quality is most visible and damage is easiest.",
     minutes: 6,
+    objectives: [
+      "Run the finish sequence — drywall levels, ceilings, flooring, millwork, doors.",
+      "Trace where finish problems come from, including flooring moisture.",
+      "Treat protection of finished work as a line item.",
+    ],
     keyTerms: [
       { term: "Finish level (1–5)", definition: "The drywall finishing standard — Level 4 for typical paint, Level 5 (skim coat) where critical lighting rakes the wall. Priced differently, argued constantly." },
       { term: "Slab moisture testing", definition: "RH probe or calcium chloride tests confirming a slab is dry enough for flooring — skipping it is how new floors bubble." },
@@ -546,6 +582,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "Why elevators are bought first and finished last, the state inspection gauntlet, structured cabling, and the DAS/ERRC surprise.",
     minutes: 5,
+    objectives: [
+      "Explain why elevators are bought first and finished last.",
+      "Plan for the state elevator-inspection gauntlet.",
+      "Account for growing structured-cabling scope and the DAS/ERRC surprise.",
+    ],
     keyTerms: [
       { term: "MRL elevator", definition: "Machine-room-less traction elevator — the common mid-rise choice; the machine lives in the hoistway, trading a machine room for tighter shaft tolerances." },
       { term: "MDF / IDF", definition: "Main and intermediate distribution frames — the data rooms where structured cabling lands; they need power, cooling, and finishes earlier than anyone plans." },
@@ -586,6 +627,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "Who inspects what — AHJ vs. special inspections vs. third-party testing — and how commissioning proves the building actually works.",
     minutes: 5,
+    objectives: [
+      "Tell apart the three inspection regimes — AHJ, special inspections, and third-party testing.",
+      "Explain commissioning as a process, not an event.",
+      "Plan the finish-line convergence of tests and sign-offs.",
+    ],
     keyTerms: [
       { term: "CxA", definition: "Commissioning agent/authority — the owner's verifier that systems are designed, installed, and perform per the owner's project requirements." },
       { term: "Functional performance test", definition: "A scripted commissioning test exercising a system through its sequences (occupied/unoccupied, failure modes) — beyond 'it turns on'." },
@@ -625,6 +671,11 @@ export const TECHNICAL_LESSONS: Lesson[] = [
     summary:
       "The roof is the top of the envelope and the milestone the whole interior waits on. Low-slope vs. steep-slope systems, the layers of a roof assembly, the penetrations that leak, and the manufacturer warranty that governs who touches it.",
     minutes: 6,
+    objectives: [
+      "Explain why the roof dry-in gates the whole interior.",
+      "Tell low-slope from steep-slope systems and read a roof as an assembly of layers.",
+      "Control leaks at edges and penetrations, and respect the manufacturer warranty on who touches the roof.",
+    ],
     keyTerms: [
       { term: "Low-slope (flat) roof", definition: "A roof pitched too shallow to shed water by gravity alone, so it relies on a continuous waterproof membrane — single-ply (TPO, EPDM, PVC), built-up (BUR), or modified bitumen. The norm on commercial buildings." },
       { term: "Steep-slope roof", definition: "A pitched roof that sheds water by gravity using overlapping, water-shedding materials — asphalt shingles, metal panels, tile, or slate — over an underlayment." },

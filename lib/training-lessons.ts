@@ -129,6 +129,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "What an RFI is for, who's involved, and how to keep the log from becoming a bottleneck.",
     minutes: 5,
+    objectives: [
+      "Explain what an RFI is for and who's involved.",
+      "Run the RFI workflow and keep a single ball-in-court holder.",
+      "Avoid the common pitfalls that turn the log into a bottleneck.",
+    ],
     keyTerms: [
       { term: "RFI", definition: "Request for Information — a formal question to the design team about a gap, conflict, or ambiguity in the contract documents." },
       { term: "Ball in court", definition: "Whoever owes the next response. Every RFI should always have exactly one person holding the ball." },
@@ -187,6 +192,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "How shop drawings, product data, and samples move from subcontractor to architect and back — before anything gets fabricated.",
     minutes: 6,
+    objectives: [
+      "Explain what a submittal is and how it differs from asking a question.",
+      "Build the submittal register from the spec sections.",
+      "Explain why turnaround time drives the whole schedule, and avoid the pitfalls.",
+    ],
     keyTerms: [
       { term: "Submittal", definition: "A shop drawing, product data sheet, or sample the sub proposes to actually build with, submitted for the architect/engineer's review against the design intent." },
       { term: "Submittal log / register", definition: "The master list of every submittal required by the spec sections, tracking status and dates." },
@@ -247,6 +257,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "Turning estimating's bid results into signed, scope-complete subcontracts — the foundation everything else builds on.",
     minutes: 6,
+    objectives: [
+      "Turn bid results into signed, scope-complete subcontracts.",
+      "Level bids and hunt the scope gaps that are the real buyout risk.",
+      "Run the buyout workflow through compliance and execution.",
+    ],
     keyTerms: [
       { term: "Buyout", definition: "The process of awarding and executing subcontracts/purchase orders for every scope of work, converting the estimate into real contracts." },
       { term: "Scope gap", definition: "Work that no bidder's proposal actually includes — it falls between two trades' scope letters and has to be caught before award." },
@@ -304,6 +319,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "How a scope change is tracked from 'something's different' all the way through to an executed, priced change order.",
     minutes: 6,
+    objectives: [
+      "Explain why change is tracked in layers — change event, PCO, change order.",
+      "Order the tiers from loosest to most binding.",
+      "Connect change events to the budget and avoid the common pitfalls.",
+    ],
     keyTerms: [
       { term: "Change Event", definition: "The umbrella record that captures a potential cost or scope impact before it's priced or approved on any specific contract." },
       { term: "PCO (Potential Change Order)", definition: "A priced but not-yet-approved change tied to a specific contract, one tier below the final Change Order." },
@@ -356,6 +376,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "The two contract types that carry your bought-out scope, and the Schedule of Values that tracks what's owed.",
     minutes: 5,
+    objectives: [
+      "Tell a purchase order from a subcontract.",
+      "Explain the Schedule of Values and why the Subcontractor SOV exists.",
+      "Avoid the common commitment pitfalls.",
+    ],
     keyTerms: [
       { term: "Commitment", definition: "The umbrella term for a Purchase Order or Subcontract — a contract that commits budget dollars to a vendor or trade partner." },
       { term: "SOV (Schedule of Values)", definition: "The line-item cost breakdown of a commitment, used both to define scope and as the basis for progress billing." },
@@ -406,6 +431,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "How monthly billing actually works, from percent-complete to retainage to the owner's check.",
     minutes: 5,
+    objectives: [
+      "Follow the monthly billing cascade from sub to GC to owner.",
+      "Run the pay-app workflow from percent-complete to retainage.",
+      "Explain why the GC's review matters, and avoid the pitfalls.",
+    ],
     keyTerms: [
       { term: "Pay application (pay app)", definition: "The monthly invoice submitted up the chain (sub → GC → owner) requesting payment for work completed to date." },
       { term: "Percent complete", definition: "The portion of each SOV line item's value that's been earned based on field progress — the core number driving what's billable." },
@@ -460,6 +490,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "The recurring documentation and coordination cadence that keeps a job moving and defensible.",
     minutes: 4,
+    objectives: [
+      "Explain why the daily log is the project's contemporaneous record.",
+      "Keep the weekly documentation and coordination cadence.",
+      "Use the three-week look-ahead as a coordination tool, not just a schedule.",
+    ],
     keyTerms: [
       { term: "Daily log", definition: "The superintendent's day-by-day record of manpower, weather, deliveries, delays, and incidents on site." },
       { term: "3-week look-ahead", definition: "A rolling schedule extract showing the next three weeks of activities, used to coordinate subs and flag near-term conflicts." },
@@ -505,6 +540,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "The last mile: getting from substantially complete to a happy owner with a clean set of records.",
     minutes: 5,
+    objectives: [
+      "Explain why closeout deserves as much rigor as buyout.",
+      "Run the closeout workflow from self-punch to retainage release.",
+      "Protect substantial completion and run the lessons-learned loop.",
+    ],
     keyTerms: [
       { term: "Punch list", definition: "The list of minor deficiencies (wrong hardware finish, a scuffed wall) identified near the end of the job that must be corrected before final acceptance." },
       { term: "Substantial completion", definition: "The point where the owner can use the space for its intended purpose, even if minor punch items remain." },
@@ -565,6 +605,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "The sheet series, scales, and symbols every PM needs to be fluent in before their first site walk.",
     minutes: 6,
+    objectives: [
+      "Navigate a drawing set by its sheet series.",
+      "Tell apart plans, elevations, sections, and details.",
+      "Read revisions and always work off the current sheet.",
+    ],
     keyTerms: [
       { term: "Sheet series", definition: "The letter prefix on a drawing number that identifies its discipline — A for Architectural, S for Structural, M/E/P for Mechanical/Electrical/Plumbing, C for Civil." },
       { term: "Detail callout", definition: "A circled reference on a plan pointing to a larger-scale detail drawing elsewhere in the set showing exactly how something is built." },
@@ -610,6 +655,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "The one drawing type that shows you what's happening above your head — light fixtures, diffusers, sprinklers, and ceiling grid.",
     minutes: 4,
+    objectives: [
+      "Explain why a reflected ceiling plan is drawn 'reflected.'",
+      "Identify what appears on an RCP — fixtures, diffusers, sprinklers, and grid.",
+      "See why the RCP is a coordination flashpoint, and avoid the pitfalls.",
+    ],
     keyTerms: [
       { term: "RCP", definition: "Reflected Ceiling Plan — a plan view of the ceiling as if it were mirrored down onto the floor, so you're 'looking up' while reading it top-down like a normal plan." },
       { term: "ACT", definition: "Acoustical Ceiling Tile — the common drop-in tile-and-grid ceiling system shown on an RCP." },
@@ -657,6 +707,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "The three building systems that touch nearly every other trade — and why they're always the tightest coordination problem on a job.",
     minutes: 6,
+    objectives: [
+      "Explain the three MEP systems briefly.",
+      "Explain why MEP is where schedules go wrong.",
+      "Tell rough-in from trim-out and flag long-lead equipment.",
+    ],
     keyTerms: [
       { term: "Mechanical (HVAC)", definition: "Heating, ventilation, and air conditioning — the equipment and ductwork that condition and move air through the building." },
       { term: "Rough-in", definition: "The phase where MEP systems are installed inside walls, ceilings, and floors before they're covered up by drywall or slab." },
@@ -711,6 +766,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "The standard numbering system behind every spec book, budget code, and submittal log in U.S. construction.",
     minutes: 5,
+    objectives: [
+      "Explain why CSI MasterFormat's shared numbering matters.",
+      "Recognize the divisions you'll use constantly.",
+      "Connect divisions to cost codes and the submittal register.",
+    ],
     keyTerms: [
       { term: "MasterFormat", definition: "The Construction Specifications Institute's standard numbering/organizing system for construction specifications, organized into numbered Divisions." },
       { term: "Division", definition: "A major category of work (e.g. Division 03 = Concrete, Division 26 = Electrical) that groups related spec sections." },
@@ -758,6 +818,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "Why a $50,000 switchgear order can be more schedule-critical than a $2M concrete package.",
     minutes: 5,
+    objectives: [
+      "Explain why lead time, not cost, makes an item schedule-critical.",
+      "Run the long-lead planning workflow — identify, LOI, fast-track, track.",
+      "Keep a procurement log separate from the submittal log.",
+    ],
     keyTerms: [
       { term: "Long-lead item", definition: "Equipment or material with a fabrication/delivery time long enough that it must be ordered well before it's actually needed in the field to avoid delaying the schedule." },
       { term: "Lead time", definition: "The total time from placing an order to having the item on site — submittal approval time plus fabrication/shipping time." },
@@ -803,6 +868,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "How the project is priced changes everything about how change, risk, and profit work.",
     minutes: 5,
+    objectives: [
+      "Tell apart lump sum, GMP, and cost-plus by who holds the risk.",
+      "Explain how the contract type changes how you manage change.",
+      "Recognize when a GMP change can bypass a formal change order.",
+    ],
     keyTerms: [
       { term: "Lump Sum (Stipulated Sum)", definition: "A fixed total price for the defined scope — the GC bears the risk of cost overruns and keeps the upside of savings." },
       { term: "GMP (Guaranteed Maximum Price)", definition: "A cost-plus-fee contract with a ceiling — the owner pays actual cost plus fee up to the GMP, and savings below it are often shared." },
@@ -846,6 +916,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "The two protections that make sure everyone actually gets paid — and how they slow down (deliberately) every invoice.",
     minutes: 4,
+    objectives: [
+      "Explain why retainage exists and how it flows through the payment chain.",
+      "Tell conditional from unconditional lien waivers.",
+      "Avoid the pitfalls of releasing payment without collecting waivers.",
+    ],
     keyTerms: [
       { term: "Retainage", definition: "A percentage of each pay application withheld until the work (or the whole project) reaches an agreed completion milestone, protecting the payer's leverage to ensure work is finished correctly." },
       { term: "Conditional lien waiver", definition: "A waiver that only takes effect once the payment actually clears — protects the payee if a check bounces." },
@@ -889,6 +964,11 @@ const CORE_LESSONS: Lesson[] = [
     summary:
       "Two of the most common project documents, and why mixing them up slows everyone down.",
     minutes: 3,
+    objectives: [
+      "State the one-sentence distinction between an RFI and a submittal.",
+      "Compare them side-by-side by trigger, initiator, reviewer, and outcome.",
+      "Route each correctly so neither log stalls.",
+    ],
     keyTerms: [
       { term: "RFI", definition: "A question asked when the contract documents are unclear, conflicting, or incomplete — asking the design team to clarify their intent." },
       { term: "Submittal", definition: "A proposal showing exactly what the subcontractor plans to build/install/supply, submitted for the design team's approval against that already-clear intent." },

@@ -20,6 +20,11 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
     summary:
       "Design-bid-build, CM at Risk, design-build, and CM-agent — how the delivery method rewires the PM's relationships and risk.",
     minutes: 5,
+    objectives: [
+      "Distinguish the four main delivery methods — design-bid-build, CM at Risk, design-build, and CM-agent — by who holds the design and construction risk.",
+      "Explain how the delivery method rewires the PM's relationships, contracts, and exposure on a job.",
+      "Recognize the common hybrid arrangements you'll meet and what each borrows from the pure models.",
+    ],
     keyTerms: [
       { term: "CMAR", definition: "CM at Risk — the CM joins during design as advisor, then converts to at-risk builder, usually under a GMP." },
       { term: "Design-build", definition: "One entity holds both design and construction — the owner buys a result, and design liability moves inside your team." },
@@ -58,6 +63,11 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
     summary:
       "A101, A201, A401, G702/G703 — the standard forms, what each does, and why the general conditions govern more of your day than any drawing.",
     minutes: 5,
+    objectives: [
+      "Map the AIA family — A101, A201, A401, G702/G703 — and what each standard form does.",
+      "Explain why the A201 general conditions govern more of your day than any single drawing.",
+      "Spot where owner-drafted (manuscript) contracts hide the risk the standard forms would have balanced.",
+    ],
     keyTerms: [
       { term: "A201", definition: "AIA's General Conditions — the rulebook for RFIs, changes, payment, claims, and termination that rides behind the agreement." },
       { term: "G702/G703", definition: "The standard pay application: G702 is the summary/certification page, G703 the schedule-of-values continuation sheet." },
@@ -99,6 +109,11 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
     summary:
       "Notice, changes, delay, differing site conditions, LDs, indemnity, termination — the dozen clauses that decide who pays when things go sideways.",
     minutes: 7,
+    objectives: [
+      "Identify the clauses that generate claims — notice, changes, delay, and differing site conditions.",
+      "Read the clauses that allocate the wreckage — liquidated damages, indemnity, and termination — and know who pays when.",
+      "Apply a working method for finding and honoring the notice and time-bar requirements buried in the contract.",
+    ],
     keyTerms: [
       { term: "Notice provision", definition: "The requirement to formally notify of a claim/change within a set window (often 7–21 days) — miss it and an otherwise valid claim can die on procedure." },
       { term: "CCD", definition: "Construction Change Directive — the owner's unilateral order to proceed with changed work before price is agreed; you perform under protest-and-track rules." },
@@ -142,6 +157,11 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
     summary:
       "Scope exhibits that prevent fights, the default-and-cure sequence when a sub fails, backcharge discipline, and joint checks.",
     minutes: 6,
+    objectives: [
+      "Write a scope exhibit that prevents fights before they start.",
+      "Run the default-and-cure sequence correctly when a subcontractor is failing.",
+      "Keep backcharge and joint-check discipline so money disputes stay defensible.",
+    ],
     keyTerms: [
       { term: "Cure period", definition: "The contractual window (typically 48–72 hours after written notice) a defaulting sub gets to fix performance before you may supplement or terminate." },
       { term: "Supplementation", definition: "Bringing in another contractor to perform part of a failing sub's scope at the sub's cost — the intermediate step short of full termination." },
@@ -186,6 +206,11 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
     summary:
       "How mechanic's liens actually work, the four lien waiver types, payment bonds on public work, and the deadlines that quietly extinguish rights.",
     minutes: 6,
+    objectives: [
+      "Explain how a mechanic's lien actually attaches and clouds an owner's title.",
+      "Tell the four lien-waiver types apart and run the monthly waiver exchange.",
+      "Recognize how payment bonds replace lien rights on public work — and the deadlines that quietly extinguish rights.",
+    ],
     keyTerms: [
       { term: "Mechanic's lien", definition: "A statutory security interest in the improved property for unpaid work — powerful, deadline-driven, and procedural to a fault." },
       { term: "Conditional waiver", definition: "A lien waiver effective only when the payment actually clears — the safe form to exchange at pay-app time." },
@@ -225,6 +250,11 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
     summary:
       "Delay claim mechanics, acceleration and disruption, the contemporaneous documentation that wins, and when to settle versus escalate.",
     minutes: 6,
+    objectives: [
+      "Work through the delay matrix — excusable vs. compensable, critical vs. non-critical — that decides who owns a delay.",
+      "Distinguish delay, acceleration, and disruption claims and what each one has to prove.",
+      "Build the contemporaneous record that wins claims, and judge when to settle versus escalate.",
+    ],
     keyTerms: [
       { term: "Excusable / compensable", definition: "The delay matrix: excusable delays earn time; compensable ones earn time and money; concurrent delays (both parties at fault) usually net to time only." },
       { term: "Constructive acceleration", definition: "Being forced to accelerate because a deserved time extension was denied — compensable, but only with the paper trail proving each element." },
@@ -265,6 +295,11 @@ export const COMMERCIAL_LESSONS: Lesson[] = [
     summary:
       "The policies that stand behind every project, why a certificate of insurance gates a sub's mobilization, and the two endorsements — additional insured and waiver of subrogation — that make the coverage actually protect you.",
     minutes: 6,
+    objectives: [
+      "Explain why construction insurance is a PM problem, not just the risk manager's.",
+      "Identify the policies on every job — CGL and builders risk — and what each covers.",
+      "Use the COI gate and the two key endorsements (additional insured, waiver of subrogation) to make coverage actually protect you.",
+    ],
     keyTerms: [
       { term: "CGL (Commercial General Liability)", definition: "The core policy covering third-party bodily injury and property damage arising from the work — the coverage every GC and sub must carry, and the one whose certificate you check first." },
       { term: "Builders Risk", definition: "Property insurance on the work-in-progress itself — the building under construction and stored materials — against fire, wind, theft, and similar perils until the owner takes possession." },

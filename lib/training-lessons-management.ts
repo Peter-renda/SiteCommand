@@ -33,6 +33,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "The core thesis of modern PM: construction underperforms because the team, supply chain, and client are fragmented. The PM's job is to integrate diverse interests into a common goal.",
     minutes: 8,
+    objectives: [
+      "State the core thesis: construction underperforms because team, supply chain, and client are fragmented.",
+      "Explain why the industry stays fragmented and what integration actually means.",
+      "Identify the tools integration relies on and how it applies to your work as a PM.",
+    ],
     keyTerms: [
       { term: "Fragmentation", definition: "The structural separation of design, construction, and the supply chain into siloed contracts and disciplines that don't share information or goals — the root cause of most construction waste and conflict." },
       { term: "Integration", definition: "Closer working relations between the project team, the supply chain, and the client so that objectives are unified toward a common goal rather than defended in silos." },
@@ -92,6 +97,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "How the classic iron triangle expanded into six variables, why 'success' means different things to different parties, and the critical success factors that separate the jobs that deliver from the ones that don't.",
     minutes: 8,
+    objectives: [
+      "Explain the time–cost–quality iron triangle and how it expanded into six variables.",
+      "Recognize that 'success' means different things to different parties.",
+      "Name the critical success factors that separate delivering jobs from failing ones.",
+    ],
     keyTerms: [
       { term: "Iron / time–cost–quality triangle", definition: "The classic model that a project is bounded by three competing constraints — schedule, budget, and quality/scope — and that pushing on one moves the others." },
       { term: "Six variables", definition: "PRINCE2's expansion of the triangle to time, cost, quality, scope, risk, and benefits — recognizing that risk and the client's realized benefits are constraints too." },
@@ -166,6 +176,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "The PM sits between client, team, community, and profession — accountable to all of them. What the professional codes actually require, and the everyday ethical traps in construction.",
     minutes: 7,
+    objectives: [
+      "Explain why ethics is a leadership topic, not just a compliance one.",
+      "Locate the PM in the middle — accountable to client, team, community, and profession.",
+      "Recognize the everyday ethical traps in construction and a method for handling them.",
+    ],
     keyTerms: [
       { term: "Code of conduct", definition: "A professional body's stated standard of behavior (PMI, RICS, RAE, CIOB) that a member agrees to uphold — covering competence, honesty, confidentiality, and public good." },
       { term: "Accountability", definition: "Being answerable for your decisions to employers, clients, the wider community, and the reputation of the profession — the pivot of ethical leadership per Ireland et al." },
@@ -225,6 +240,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Projects fail in the brief long before they fail on site. How a business case is built, tested, and defended — and why the Gateway/stage-gate model exists to kill bad projects early.",
     minutes: 8,
+    objectives: [
+      "Explain why success or failure is largely decided at the front end, in the brief.",
+      "Describe what a business case contains and how it's tested.",
+      "Explain why the Gateway/stage-gate model exists to kill bad projects early.",
+    ],
     keyTerms: [
       { term: "Business case", definition: "The document that justifies the project: the problem, the options considered, the recommended option, its costs and benefits, and the risks — the basis on which the client decides to invest." },
       { term: "Strategic brief", definition: "The client's high-level statement of need and objectives, before design — the thing the whole project must ultimately be measured against." },
@@ -283,6 +303,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Every project has more interested parties than appear on the org chart. How to identify them, map them by power and interest, and manage each group so stakeholder conflict doesn't derail the job.",
     minutes: 7,
+    objectives: [
+      "Treat stakeholders as a management problem, not a courtesy.",
+      "Identify the internal and external stakeholders beyond the org chart.",
+      "Map them by power and interest and match engagement to each group.",
+    ],
     keyTerms: [
       { term: "Stakeholder", definition: "Any individual or group who can affect, or is affected by, the project — from the client and end users to neighbors, regulators, and pressure groups." },
       { term: "Internal vs. external stakeholders", definition: "Internal: parties inside the project coalition (client, team, funders, supply chain). External: parties outside it who still have influence (community, regulators, media, environmental groups)." },
@@ -337,6 +362,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Before you pick a contract you pick a procurement route — who designs, who builds, in what order, and who carries which risk. The route decides how integrated (or fragmented) the whole project will be.",
     minutes: 9,
+    objectives: [
+      "Choose a procurement route as a strategic decision about who designs, who builds, and who carries risk.",
+      "Weigh the main routes and their trade-offs, including the tendering choices inside each.",
+      "Recognize how PPP/PFI arrangements and the route itself shape project behavior.",
+    ],
     keyTerms: [
       { term: "Procurement route", definition: "The overall structure of who is appointed, in what sequence, and how design and construction responsibility is divided — traditional, design-and-build, management, or integrated." },
       { term: "Traditional (design–bid–build)", definition: "The client's designer completes the design, then the work is competitively tendered and a contractor builds it. Maximum design control, minimum overlap, longest overall duration." },
@@ -406,6 +436,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "There is no single right leadership style — the effective PM flexes from participative in design to directive on site. The trait, style, situational, and contingency theories, made practical.",
     minutes: 8,
+    objectives: [
+      "Explain why there's no single right leadership style for a whole project.",
+      "Place styles on the directive-to-participative spectrum and flex to team and task.",
+      "Match your style to the life-cycle phase and to how much control you actually have.",
+    ],
     keyTerms: [
       { term: "Trait theory", definition: "The earliest leadership theory — that leaders are born with certain traits. Largely superseded, but a reminder that credibility and presence still matter." },
       { term: "Style theory", definition: "Groups leadership into behavioral categories — autocratic (leader decides), participative (shared decision), delegative — treated as personal preferences." },
@@ -461,6 +496,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Risk and value are two sides of one coin: value management asks 'are we getting the most function for the money?' and risk management asks 'what could stop us?' How to run both as disciplined, continuous processes.",
     minutes: 9,
+    objectives: [
+      "Run risk and value as two sides of one disciplined, continuous process.",
+      "Work the risk-management cycle and allocate each risk to the party who can control it.",
+      "Use value management to protect function, not just cut cost, and close the loop.",
+    ],
     keyTerms: [
       { term: "Risk", definition: "An uncertain event that, if it occurs, affects the project's objectives — negatively (a threat) or positively (an opportunity)." },
       { term: "Risk register", definition: "The living document that lists each identified risk with its likelihood, impact, owner, and planned response — the backbone of the risk process." },
@@ -523,6 +563,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Quality isn't just catching defects — it's a system. QA vs QC, Total Quality Management, and why the client's *perception* of quality (customer care) matters as much as the technical spec.",
     minutes: 7,
+    objectives: [
+      "Treat quality as a system, not a one-time inspection.",
+      "Distinguish QA (prevention) from QC (detection).",
+      "Apply Total Quality Management and manage the customer's perception of quality.",
+    ],
     keyTerms: [
       { term: "Quality assurance (QA)", definition: "The system and processes put in place to prevent defects — procedures, checklists, approved methods. Proactive: build it right the first time." },
       { term: "Quality control (QC)", definition: "The inspection and testing that checks the work actually meets the standard — mock-ups, tests, inspections, sign-offs. Reactive: catch what slipped through." },
@@ -571,6 +616,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "BIM is not 3D drawing — it's a shared, multi-dimensional database that becomes the single source of truth for a project. The maturity levels, the Common Data Environment, and how 4D/5D change the PM's job.",
     minutes: 8,
+    objectives: [
+      "Explain BIM as a shared, multi-dimensional database — not a 3D drawing style.",
+      "Describe the Common Data Environment and the 4D/5D dimensions.",
+      "See how clash detection and BIM change the PM's job.",
+    ],
     keyTerms: [
       { term: "BIM (Building Information Modelling)", definition: "An object-oriented database with multiple dimensions that models the building's 3D geometry along with time, cost, quantities, geographic information, and component properties — a data model, not just a drawing." },
       { term: "Common Data Environment (CDE)", definition: "The single, shared source of information for a project where all the model and document data lives, with controlled status (work-in-progress, shared, published, archived) so everyone works from the same current truth." },
@@ -625,6 +675,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Buildings are major energy users and carbon emitters — sustainability is now embedded inside the client's objectives, not a nice-to-have. Whole-life thinking, the rating systems, and where sustainable choices actually get made.",
     minutes: 7,
+    objectives: [
+      "Explain why sustainability now lives inside the client's business case.",
+      "Think whole-life cost and carbon, not just first cost.",
+      "Recognize the rating systems and where sustainable choices actually get made.",
+    ],
     keyTerms: [
       { term: "Whole-life / life-cycle cost", definition: "The total cost of an asset across its life — capital cost plus operating, energy, maintenance, and end-of-life costs. Sustainable choices often cost more up front and far less over the life." },
       { term: "BREEAM / LEED", definition: "Building sustainability rating systems (BREEAM in the UK, LEED in the US) that award points across energy, water, materials, and site categories to certify a building's environmental performance." },
@@ -680,6 +735,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Closing a project is a managed process, not just running out of work — an ordered handover to the user plus the lessons-learned loop that makes the next project better. Why the industry keeps skipping the second half.",
     minutes: 7,
+    objectives: [
+      "Treat close-out as a managed, ordered handover to the user — not the absence of work.",
+      "Describe what an ordered close-out delivers.",
+      "Run the lessons-learned / systems-improvement loop the industry usually skips.",
+    ],
     keyTerms: [
       { term: "Close-out", definition: "Bringing the project to an ordered end and handing it over to the user — completing the work, resolving the punch list, transferring documentation, and settling the accounts." },
       { term: "Practical / substantial completion", definition: "The point at which the building is complete enough for the client to occupy and use it for its intended purpose, even if minor items remain — it triggers occupancy, warranty periods, and the release of retainage." },
@@ -731,6 +791,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Six real projects from the literature, read through the frameworks in this track — success priorities, ethics, the business case, procurement routes, risk-sharing, and sustainability. The capstone quiz is scenario-based.",
     minutes: 10,
+    objectives: [
+      "Read six real projects through the track's frameworks — priorities, ethics, business case, procurement, risk, and sustainability.",
+      "Connect each case to the specific concept it illustrates.",
+      "Apply the frameworks to the scenario questions in the capstone quiz.",
+    ],
     keyTerms: [
       { term: "Scenario reasoning", definition: "Applying a framework to a concrete situation rather than reciting the definition — the skill this capstone tests. Real projects rarely announce which principle applies." },
     ],
@@ -797,6 +862,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "A PM is an air-traffic controller for dozens of open loops at once — RFIs, submittals, subs, deliveries, inspections, invoices. The habits that keep nothing from falling through the cracks.",
     minutes: 6,
+    objectives: [
+      "See the PM's real job as holding many open loops without dropping any.",
+      "Capture everything and run on a cadence instead of adrenaline.",
+      "Prioritize by consequence and lead time, delegate, and close the loop.",
+    ],
     keyTerms: [
       { term: "Open loop", definition: "Any commitment or question that has been started but not closed — an unanswered RFI, an unapproved submittal, a promised callback. The PM's real job is tracking dozens of these to closure." },
       { term: "Action-item log", definition: "The running list of who-owes-what-by-when, pulled from meetings, emails, and the field, and reviewed on a fixed cadence so nothing is carried only in someone's head." },
@@ -856,6 +926,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Most client dissatisfaction isn't about the building — it's about surprises. How to align on priorities at kickoff, run a no-surprises communication rhythm, and deliver bad news the right way.",
     minutes: 6,
+    objectives: [
+      "Use the 'satisfaction = expectation minus reality' frame.",
+      "Set the frame at kickoff and run a no-surprises communication rhythm.",
+      "Deliver bad news well and guard against scope creep without being rigid.",
+    ],
     keyTerms: [
       { term: "Expectation gap", definition: "The distance between what the client believes will happen and what the project can actually deliver — the true source of most 'the contractor let us down' complaints, even on technically successful jobs." },
       { term: "No-surprises rule", definition: "The principle that the client should never learn about a problem from someone other than you, or later than they could have — surface issues early, while options still exist." },
@@ -919,6 +994,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Subs build the job, and you need them back next time. How to set clear scope and schedule commitments, coordinate fairly, hold performance accountable, and keep the relationship intact.",
     minutes: 6,
+    objectives: [
+      "Manage the subcontractor relationship, not just the contract.",
+      "Set scope and schedule expectations at buyout and coordinate with the look-ahead.",
+      "Hold performance accountable fairly, pay on time, and treat subs straight.",
+    ],
     keyTerms: [
       { term: "Scope clarity", definition: "A complete, unambiguous statement of exactly what a sub is and isn't responsible for — set at buyout, where a gap or overlap is cheap to fix rather than a change-order fight later." },
       { term: "Look-ahead commitment", definition: "The three-week schedule the sub agrees to staff and produce against — the mechanism that turns a vague 'we'll get to it' into a trackable manpower commitment." },
@@ -978,6 +1058,11 @@ export const MANAGEMENT_LESSONS: Lesson[] = [
     summary:
       "Your internal team — super, assistant PM, coordinator, engineer — multiplies you or bottlenecks you. Clear roles, real delegation, honest feedback, and the huddle rhythm that keeps everyone pointed the same way.",
     minutes: 6,
+    objectives: [
+      "Treat your internal team as leverage that multiplies or bottlenecks you.",
+      "Make roles explicit and delegate the outcome, not just the task.",
+      "Set standards, give real-time feedback, and run a huddle rhythm.",
+    ],
     keyTerms: [
       { term: "Roles & responsibilities (RACI)", definition: "A clear map of who is Responsible, Accountable, Consulted, and Informed for each area of the work — the antidote to the two failure modes of a team: things everyone assumed someone else had, and things two people did twice." },
       { term: "Delegation", definition: "Handing real ownership of a task — not just the task, but the authority and the outcome — to a team member, then holding them to the result rather than doing it for them." },

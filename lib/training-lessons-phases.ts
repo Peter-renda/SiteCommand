@@ -24,6 +24,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "Clearing what's already there — hazmat abatement first, then structures, then grubbing — without inheriting someone else's contamination or a utility strike.",
     minutes: 5,
+    objectives: [
+      "Sequence demolition — abatement, then structures, then grubbing — to protect yourself from what you can't see.",
+      "Put hazmat abatement before the wrecking ball.",
+      "Work a demolition checklist that avoids inherited contamination and utility strikes.",
+    ],
     keyTerms: [
       { term: "Abatement", definition: "Removal of regulated hazardous materials (asbestos, lead paint) by a licensed abatement contractor before any structural demolition can begin — a permitted, inspected scope of its own." },
       { term: "Grubbing", definition: "Removing roots, stumps, and buried organic debris after clearing, so the material left in place is suitable to build the pad on." },
@@ -66,6 +71,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "When the soil near the surface can't carry the building, load has to reach something that can — driven piles, augercast, drilled caissons, or improved ground.",
     minutes: 6,
+    objectives: [
+      "Explain when a building needs deep foundations instead of shallow ones.",
+      "Tell the families apart — driven piles, augercast, drilled caissons, and ground improvement.",
+      "Identify what the PM actually manages on a deep-foundations package.",
+    ],
     keyTerms: [
       { term: "End bearing vs. friction", definition: "The two ways a deep foundation carries load: end bearing rests the tip on rock/dense strata; a friction pile transfers load through skin friction along its length. Most piles do some of both." },
       { term: "Caisson (drilled shaft / drilled pier)", definition: "A large-diameter hole drilled to bearing, reinforced, and filled with concrete — poured in place rather than driven." },
@@ -109,6 +119,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "The ground-floor slab is poured over everything the trades buried first — get the sequence, the vapor barrier, and the joints wrong and you're chipping out a floor you already finished.",
     minutes: 5,
+    objectives: [
+      "Sequence the buried work that a slab-on-grade is poured over.",
+      "Coordinate under-slab rough-in so nothing has to be chipped out later.",
+      "Protect the vapor barrier, joints, and cure where slabs usually go wrong.",
+    ],
     keyTerms: [
       { term: "Vapor barrier / retarder", definition: "The sheet membrane (typically ≥10-mil, per ASTM E1745) under the slab that stops ground moisture from wicking up and ruining flooring adhesives later. Placed directly under the slab in most modern details." },
       { term: "Under-slab rough-in", definition: "The plumbing, electrical conduit, and sometimes mechanical that must be installed, inspected, and pressure-tested before the slab is poured over them." },
@@ -151,6 +166,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "Floors above grade are built three very different ways, and which one the drawings show changes your shoring, your pour logic, and what you can never cut later.",
     minutes: 5,
+    objectives: [
+      "Tell apart the three elevated-slab systems — composite deck, precast plank, and post-tension.",
+      "Match each system to its shoring and pour logic.",
+      "Know what you can never cut or core later, especially PT tendons.",
+    ],
     keyTerms: [
       { term: "Composite metal deck", definition: "Corrugated steel deck that acts as both the concrete form and, via shear studs, part of the finished structural floor over a steel frame." },
       { term: "Post-tensioned (PT) slab", definition: "A cast-in-place concrete slab with high-strength tendons that are stressed after the concrete cures, letting thinner slabs span farther — common in concrete-frame residential/parking." },
@@ -192,6 +212,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "Laying out interior walls is where the whole finish phase gets set up to succeed or fail — the studs are easy; the backing, the rated walls, and letting MEP in before you close up are the job.",
     minutes: 5,
+    objectives: [
+      "See interior framing as a coordination scope disguised as a labor scope.",
+      "Locate backing and rated walls before the studs close up.",
+      "Sequence the MEP inside the wall before closing it.",
+    ],
     keyTerms: [
       { term: "Layout / chalk lines", definition: "Snapping the wall lines on the deck from the dimensioned plans — every downstream trade's position is inherited from this, so it's verified against the drawings before track is fastened." },
       { term: "In-wall backing / blocking", definition: "Steel plate or plywood added inside the wall before drywall to support things hung later — grab bars, TVs, casework, handrails, wall-mounted fixtures." },
@@ -232,6 +257,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "The trades that turn a framed shell into rooms — and the finish-level and moisture decisions that either disappear into a clean wall or become a lit-up dispute.",
     minutes: 5,
+    objectives: [
+      "Get insulation, drywall, and paint right the one time you close the wall.",
+      "Manage the drywall finish-level expectation before it becomes a dispute.",
+      "Treat paint prep as the real product.",
+    ],
     keyTerms: [
       { term: "Finish level (GA Levels 0–5)", definition: "The gypsum-finishing standard. Level 4 suits typical paint; Level 5 (a full skim coat) is required where critical/raking light would reveal joints. They're priced differently and specified per area." },
       { term: "Hang / tape / float / sand", definition: "The drywall sequence: hang the board, tape and mud the joints, float additional coats smooth, then sand — each coat needs dry time, so it paces the schedule." },
@@ -273,6 +303,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "The two big-area finishes — overhead and underfoot — each gated by something invisible: what's above the grid, and how much moisture is in the slab.",
     minutes: 5,
+    objectives: [
+      "Close ceilings only after everything above the grid is done.",
+      "Let the slab's moisture decide when flooring can go in.",
+      "Sequence and protect the two big-area finishes.",
+    ],
     keyTerms: [
       { term: "ACT (acoustical ceiling tile)", definition: "The drop-in tile-and-grid ceiling; the grid is laid out from the RCP and can't close until everything above it is installed and inspected." },
       { term: "Slab moisture testing (ASTM F2170 / F1869)", definition: "Relative-humidity probe or calcium-chloride testing that proves a slab is dry enough to receive resilient flooring — the gate that prevents adhesive failures." },
@@ -314,6 +349,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "Shop-built and schedule-driven: the items that must be measured off real walls, ordered long before they install, and coordinated with power and low-voltage months in advance.",
     minutes: 5,
+    objectives: [
+      "Treat millwork, doors, and hardware as procurement items, not just install items.",
+      "Field-measure millwork and casework off real walls before fabrication.",
+      "Coordinate doors, frames, and hardware — with power and low-voltage — months ahead.",
+    ],
     keyTerms: [
       { term: "Field-verify / field dimensions", definition: "Measuring the actual built condition (after walls exist) before releasing millwork to fabrication — because casework built to the plan dimension won't fit the wall that got built." },
       { term: "Hardware schedule / hardware sets", definition: "The door-by-door listing of every hinge, lock, closer, and accessory (the 'set'), coordinated with ratings, egress, and electrified functions — its own specialty discipline." },
@@ -356,6 +396,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "The visible half of MEP — the fixtures, devices, and grilles that go on last, whose 'percent complete' the whole team can finally see, and which set up startup and the final inspection.",
     minutes: 5,
+    objectives: [
+      "See trim-out as where rough-in finally gets graded.",
+      "Sequence MEP trim with the finishes, not against them.",
+      "Use trim-out progress to feed startup and the final inspection.",
+    ],
     keyTerms: [
       { term: "Trim-out", definition: "The finish phase of MEP: installing the visible components — light fixtures, outlets and switches, plumbing fixtures, diffusers/registers, and fire-alarm devices — after the walls and ceilings are finished." },
       { term: "Devices", definition: "The electrical/low-voltage endpoints set at trim — receptacles, switches, data jacks, thermostats, occupancy sensors, and alarm devices." },
@@ -397,6 +442,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "The gauntlet of sign-offs that stands between a finished building and a legally occupiable one — sequenced right, it's a week; sequenced wrong, it's the reason everyone's move-in date slips.",
     minutes: 5,
+    objectives: [
+      "Treat the certificate of occupancy as an AND gate of many sign-offs.",
+      "Identify the inspections that actually gate occupancy.",
+      "Run the inspection gauntlet in the right order so move-in dates hold.",
+    ],
     keyTerms: [
       { term: "Certificate of Occupancy (CO)", definition: "The AHJ's document authorizing legal occupancy — issued only after every required final inspection passes. No CO, no move-in, no matter how done the building looks." },
       { term: "TCO (Temporary CO)", definition: "A conditional, time-limited occupancy approval granted with a short punch of outstanding items — useful to hit a move-in date, but it comes with a deadline and conditions." },
@@ -441,6 +491,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "The unglamorous wood scope that everything else hangs on — literally. Blocking and backing must be located and installed before the walls close, or fixing it later means tearing drywall back out.",
     minutes: 5,
+    objectives: [
+      "Recognize blocking, backing, nailers, and sheathing as the scope everything else hangs on.",
+      "Locate and install backing before the walls close.",
+      "Place rough carpentry correctly in the wall-framing sequence.",
+    ],
     keyTerms: [
       { term: "Rough carpentry", definition: "CSI Division 06 10 00 — the structural and concealed wood work: blocking, backing, nailers, furring, sheathing, and miscellaneous framing, as opposed to the finished, visible work of finish carpentry (Division 06 20 00)." },
       { term: "Blocking / backing", definition: "Solid wood (or metal) installed inside a hollow wall or above a ceiling to give a firm anchor for something heavy that will be attached later — grab bars, TVs, casework, handrails, toilet accessories, wall-hung fixtures." },
@@ -495,6 +550,11 @@ export const PHASE_LESSONS: Lesson[] = [
     summary:
       "Division 08 openings are a small dollar value with an outsized ability to hold up a closeout — hundreds of pieces, dozens of hardware sets, fire labels, keying, and access-control tie-ins that all have to be exactly right.",
     minutes: 6,
+    objectives: [
+      "Respect that Division 08 openings are small dollars with an outsized ability to hold up closeout.",
+      "Coordinate the three parts — door, frame, hardware — with frames going in first.",
+      "Manage keying, fire labels, access-control tie-ins, long-leads, and the punch.",
+    ],
     keyTerms: [
       { term: "Hollow metal (HM)", definition: "Welded or knock-down steel door frames (and steel doors), the workhorse of commercial openings. Frames are typically set early — during or right after framing — long before the doors and hardware arrive." },
       { term: "Door schedule", definition: "The drawing schedule listing every opening by number with its door type, size, material, frame, fire rating, and a keyed hardware-set number — the master index of the entire openings scope." },
