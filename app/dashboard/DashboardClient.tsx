@@ -1103,11 +1103,23 @@ export default function DashboardClient({ username, email, role, companyRole, us
               <span className="font-medium text-gray-700">
                 Good {h < 12 ? "morning" : h < 18 ? "afternoon" : "evening"}, {firstName}
               </span>
-              <span className="text-gray-300 mx-0.5">·</span>
-              <em className="not-italic font-display italic text-[11px] text-[#64748B]">here&rsquo;s what&rsquo;s on today</em>
-              <span className="ml-auto font-mono tabular-nums text-[11px] text-gray-400 hidden sm:block">
-                {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-              </span>
+              <span className="text-gray-300 mx-0.5 hidden sm:inline">·</span>
+              <em className="not-italic font-display italic text-[11px] text-[#64748B] hidden sm:inline">here&rsquo;s what&rsquo;s on today</em>
+              <div className="ml-auto flex items-center gap-3 shrink-0">
+                <span className="font-mono tabular-nums text-[11px] text-gray-400 hidden sm:block">
+                  {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowTrainingLauncher(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Start new project
+                </button>
+              </div>
             </div>
           );
         })()}
