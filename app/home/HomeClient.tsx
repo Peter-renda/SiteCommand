@@ -174,7 +174,7 @@ function Ring({
 
 const QUICK_LINKS = [
   { label: "Training modules", href: "/training/lessons" },
-  { label: "Practice", href: "/training/practice" },
+  { label: "Projects", href: "/dashboard" },
   { label: "Career center", href: "/careers" },
   { label: "Skills & credential", href: "/training/skills" },
   { label: "Community", href: "/community" },
