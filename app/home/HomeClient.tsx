@@ -229,7 +229,10 @@ export default function HomeClient({
                 ? "You haven't launched a training project yet."
                 : "Real, private SiteCommand sandboxes you're running."}
             </p>
-            <a href="/training/practice" className="mt-3 inline-block text-xs font-medium text-indigo-700 hover:text-indigo-800">
+            <a
+              href={projects.length === 0 ? "/training/practice" : "https://www.constructionpmacademy.com/dashboard"}
+              className="mt-3 inline-block text-xs font-medium text-indigo-700 hover:text-indigo-800"
+            >
               {projects.length === 0 ? "Launch a project →" : "Manage projects →"}
             </a>
           </div>
